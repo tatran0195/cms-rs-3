@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 style="font-size:24px;letter-spacing:-0.025em;line-height:1.25;margin:0 0 14px;color:#0f172a;font-weight:700;">{{ title }}</h1>
+<p style="color:#475569;font-size:15px;line-height:1.65;margin:0;">{{ message }}</p>
+
+{% if code %}
+<div style="margin-top:24px;">
+  <span dir="ltr" style="background-color:#f1f5f9;border-radius:10px;color:#0f172a;display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:0.22em;line-height:1;padding:14px 20px;">{{ code }}</span>
+</div>
+{% endif %}
+
+{% if action_url and action_label %}
+<div style="margin-top:24px;">
+  <a href="{{ action_url }}" style="background-color:#0f172a;border-radius:10px;color:#ffffff;display:inline-block;font-size:14px;font-weight:700;padding:12px 18px;text-decoration:none;" target="_blank">{{ action_label }}</a>
+</div>
+<p style="color:#64748b;font-size:12px;line-height:1.55;margin:18px 0 0;">
+  {{ fallback_link_label }}<br>
+  <a dir="ltr" href="{{ action_url }}" style="color:#0f766e;word-break:break-all;">{{ action_url }}</a>
+</p>
+{% endif %}
+
+{% if detail %}
+<p style="color:#64748b;font-size:13px;line-height:1.6;margin:22px 0 0;">{{ detail }}</p>
+{% endif %}
+{% endblock %}

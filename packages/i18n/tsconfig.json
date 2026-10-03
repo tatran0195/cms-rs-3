@@ -1,0 +1,8 @@
+{
+  "extends": "@cms/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "messages"],
+  "exclude": ["node_modules", "dist"]
+}

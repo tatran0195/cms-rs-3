@@ -1,0 +1,21 @@
+{{ brand_name }}
+==================================================
+
+{{ title }}
+
+{{ message }}
+{% if code %}
+
+  {{ code }}
+{% endif %}
+{% if action_url and action_label %}
+
+{{ action_label }}: {{ action_url }}
+{% endif %}
+{% if detail %}
+
+{{ detail }}
+{% endif %}
+
+--------------------------------------------------
+{{ brand_footer }}

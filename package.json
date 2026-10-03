@@ -1,0 +1,35 @@
+{
+  "name": "cms-rs",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "bun run build:packages && bun --filter @cms/app run build",
+    "build:packages": "bun run build-packages.ts",
+    "typecheck": "bun --filter '*' run typecheck",
+    "test": "bun --filter '*' run test",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "lint": "ultracite check",
+    "format": "biome format --write .",
+    "knip": "knip",
+    "lint:md": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
+    "lint:md:fix": "markdownlint-cli2 --fix \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
+    "clean": "bun --filter '*' run clean"
+  },
+  "dependencies": {
+    "caniuse-lite": "^1.0.30001810",
+    "markdownlint-cli2": "^0.23.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "knip": "^6.39.0",
+    "react-doctor": "^0.9.14",
+    "tsdown": "^0.23.0",
+    "typescript": "^7.0.2",
+    "ultracite": "^7.12.2",
+    "unrun": "^0.3.1"
+  }
+}

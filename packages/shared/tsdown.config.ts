@@ -1,0 +1,30 @@
+import { defineConfig } from 'tsdown';
+
+export default defineConfig({
+  entry: [
+    'src/index.ts',
+    'src/addons.ts',
+    'src/constants.ts',
+    'src/rbac.ts',
+    'src/ids.ts',
+    'src/integrations.ts',
+    'src/mcp.ts',
+    'src/markdown-discovery.ts',
+    'src/markdown-code.ts',
+    'src/public-markdown.ts',
+    'src/public-markdown-content.ts',
+    'src/redirects.ts',
+    'src/crypto.ts',
+    'src/site.ts',
+    'src/documentation-components.ts',
+    'src/themes.ts',
+    'src/theme-repository.ts',
+    'src/export-schedule.ts',
+    'src/utils.ts',
+  ],
+  format: ['esm'],
+  platform: 'neutral',
+  dts: true,
+  clean: true,
+  sourcemap: true,
+});
