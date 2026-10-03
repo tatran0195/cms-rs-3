@@ -308,7 +308,7 @@ function FeatureMatrix({
               </th>
               <th className="w-auto px-2 py-3 font-medium sm:w-40 sm:px-4">
                 <span className="flex items-center justify-center gap-1.5">
-                  <CmsMark className="size-4" /> cms
+                  <CmsMark className="size-4" /> TechnoStar
                 </span>
               </th>
               <th className="w-auto px-2 py-3 text-center font-medium text-muted-foreground sm:w-40 sm:px-4">

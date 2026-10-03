@@ -1,5 +1,5 @@
 import React from 'react';
-import { Body, Container, Head, Hr, Html, Preview, Section, Text } from 'react-email';
+import { Body, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'react-email';
 import { createEmailTranslator, type EmailLanguage, emailDirection } from '../translate';
 
 const colors = {
@@ -19,7 +19,17 @@ const bodyStyle: React.CSSProperties = {
   padding: '24px 12px',
 };
 
-export function BaseEmail({ children, language, preview }: { children: React.ReactNode; language: EmailLanguage; preview: string }) {
+export function BaseEmail({
+  children,
+  language,
+  logoUrl = '/brand/technostar-logo.png',
+  preview,
+}: {
+  children: React.ReactNode;
+  language: EmailLanguage;
+  logoUrl?: string;
+  preview: string;
+}) {
   const t = createEmailTranslator(language);
   const direction = emailDirection(language);
 
@@ -39,7 +49,19 @@ export function BaseEmail({ children, language, preview }: { children: React.Rea
           }}
         >
           <Section style={{ padding: '24px 28px', textAlign: direction === 'rtl' ? 'right' : 'left' }}>
-            <Text style={{ fontSize: '18px', fontWeight: 750, letterSpacing: '-0.02em', margin: 0 }}>{t('email.brand.name')}</Text>
+            <Img
+              alt={t('email.brand.name')}
+              height="32"
+              src={logoUrl}
+              style={{
+                border: 'none',
+                display: direction === 'rtl' ? 'inline-block' : 'block',
+                height: '32px',
+                outline: 'none',
+                textDecoration: 'none',
+                width: 'auto',
+              }}
+            />
           </Section>
           <Hr style={{ borderColor: colors.border, margin: 0 }} />
           {children}

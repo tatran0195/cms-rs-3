@@ -155,4 +155,6 @@ pub struct TransactionalEmailProps {
     pub code: Option<String>,
     pub action: Option<EmailAction>,
     pub detail: Option<String>,
+    #[serde(default)]
+    pub logo_url: Option<String>,
 }

@@ -39,6 +39,9 @@ impl TemplateEngine {
             None => (None, None),
         };
 
+        let default_logo = "/brand/technostar-logo.png";
+        let logo_url = props.logo_url.as_deref().unwrap_or(default_logo);
+
         let ctx = minijinja::context! {
             title => props.title,
             message => props.message,
@@ -52,6 +55,7 @@ impl TemplateEngine {
             action_label => action_label,
             action_url => action_url,
             detail => props.detail,
+            logo_url => logo_url,
         };
 
         let html = self.env.get_template("transactional.html")?.render(&ctx)?;
@@ -96,6 +100,7 @@ mod tests {
             code: Some("123456".to_string()),
             action: None,
             detail: Some("The code expires in 10 minutes.".to_string()),
+            logo_url: None,
         };
 
         let rendered = engine.render_transactional(&props).unwrap();
@@ -103,6 +108,7 @@ mod tests {
         assert!(rendered.html.contains("123456"));
         assert!(rendered.html.contains("lang=\"en\""));
         assert!(rendered.html.contains("dir=\"ltr\""));
+        assert!(rendered.html.contains("src=\"/brand/technostar-logo.png\""));
         assert!(rendered.text.contains("123456"));
         assert!(rendered.text.contains("Your verification code"));
     }
@@ -122,12 +128,14 @@ mod tests {
                 url: "https://example.com/verify?token=abc&next=<home>".to_string(),
             }),
             detail: None,
+            logo_url: Some("https://cdn.example.com/custom-logo.png".to_string()),
         };
 
         let rendered = engine.render_transactional(&props).unwrap();
         // MiniJinja auto-escapes HTML entities in href and text
         assert!(rendered.html.contains("token=abc&amp;next=&lt;home&gt;"));
         assert!(!rendered.html.contains("next=<home>"));
+        assert!(rendered.html.contains("src=\"https://cdn.example.com/custom-logo.png\""));
         // Text should contain unescaped URL
         assert!(rendered.text.contains("https://example.com/verify?token=abc&next=<home>"));
     }
@@ -144,11 +152,13 @@ mod tests {
             code: None,
             action: None,
             detail: None,
+            logo_url: None,
         };
 
         let rendered = engine.render_transactional(&props).unwrap();
         assert!(rendered.html.contains("dir=\"ltr\""));
         assert!(rendered.html.contains("lang=\"ja\""));
+        assert!(rendered.html.contains("src=\"/brand/technostar-logo.png\""));
         assert!(rendered.text.contains("新しいデバイスからのアカウントへのサインインを検出しました。"));
     }
 }

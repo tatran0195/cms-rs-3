@@ -57,7 +57,7 @@ export function AuthLayout({
         />
         <div className="relative flex items-center gap-2.5">
           <CmsMark className="size-8 text-white" variant="bare" />
-          <span className="font-semibold text-lg tracking-tight">cms</span>
+          <span className="font-semibold text-lg tracking-tight">TechnoStar</span>
         </div>
         <div className="relative">
           <h2 className="font-semibold text-[2rem] leading-[1.15] tracking-tight">
@@ -97,7 +97,7 @@ export function AuthLayout({
             <div className="inline-flex items-center gap-2">
               <CmsMark className="size-7" />
               <span className="font-semibold text-2xl tracking-tight">
-                cms
+                TechnoStar
               </span>
             </div>
           </div>

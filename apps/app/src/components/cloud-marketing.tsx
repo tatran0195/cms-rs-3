@@ -153,7 +153,7 @@ export function MarketingShell({
       <header className="sticky top-0 z-40 border-border/70 border-b bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
           <a
-            aria-label="cms home"
+            aria-label="TechnoStar home"
             className="flex items-center gap-2 font-semibold text-lg tracking-tight"
             href="/"
           >
@@ -672,7 +672,7 @@ function Comparison() {
           <div className="grid grid-cols-[1fr_5rem_5rem] items-center gap-4 border-border border-b bg-muted/40 px-6 py-3 font-medium text-sm">
             <span />
             <span className="flex items-center justify-center gap-1.5 text-center text-foreground">
-              <CmsMark className="size-4" /> cms
+              <CmsMark className="size-4" /> TechnoStar
             </span>
             <span className="text-center text-muted-foreground">
               Other SaaS
@@ -974,12 +974,12 @@ function SiteFooter({ stars }: { stars: number }) {
         <div className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
           <div className="col-span-2 md:col-span-1">
             <a
-              aria-label="cms home"
+              aria-label="TechnoStar home"
               className="flex items-center gap-2 font-semibold"
               href="/"
             >
               <CmsMark aria-hidden="true" className="size-7" />
-              <span aria-hidden="true">cms</span>
+              <span aria-hidden="true">TechnoStar</span>
             </a>
             <p className="mt-3 max-w-[28ch] text-muted-foreground text-sm leading-relaxed">
               A visual Markdown editor for publishing searchable, multilingual

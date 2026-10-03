@@ -7,6 +7,8 @@ describe('localized transactional email rendering', () => {
 
     expect(email.subject).toBe('Your cms sign-in code');
     expect(email.html).toContain('lang="en"');
+    expect(email.html).toContain('src="/brand/technostar-logo.png"');
+    expect(email.html).toContain('alt="TechnoStar"');
     expect(email.html).toContain('123456');
     expect(email.text).toContain('123456');
   });

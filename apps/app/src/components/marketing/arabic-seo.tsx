@@ -250,7 +250,7 @@ export function ArabicShell({
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 text-sm sm:grid-cols-3">
           <div>
             <div className="flex items-center gap-2 font-semibold">
-              <CmsMark className="size-6" /> cms
+              <CmsMark className="size-6" /> TechnoStar
             </div>
             <p className="mt-3 max-w-sm text-muted-foreground leading-relaxed">
               {t("marketing.arabicSeo.shell.footerDescription")}

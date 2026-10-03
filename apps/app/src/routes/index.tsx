@@ -6,7 +6,7 @@ export const Route = createFileRoute('/')({
   loader: async () => ({ stars: await getGithubStarsFn() }),
   head: () => ({
     meta: pageMeta({
-      title: 'cms: visual Markdown docs with Arabic and RTL',
+      title: 'TechnoStar: visual Markdown docs with Arabic and RTL',
       description:
         'A documentation platform with a Notion-style Markdown editor, built-in search, versioned publishing, Arabic and RTL support, and a free cloud beta.',
       path: '/',

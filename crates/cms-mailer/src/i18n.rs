@@ -24,8 +24,8 @@ fn lookup_raw(lang: &EmailLanguage, key: &str) -> Option<&'static str> {
 
 fn lookup_en(key: &str) -> Option<&'static str> {
     Some(match key {
-        "email.brand.name" => "cms",
-        "email.brand.footer" => "This automated message was sent by cms. If you did not request it, you can safely ignore it.",
+        "email.brand.name" => "TechnoStar",
+        "email.brand.footer" => "This automated message was sent by TechnoStar. If you did not request it, you can safely ignore it.",
         "email.brand.fallbackLink" => "If the button does not work, copy and paste this link into your browser:",
 
         "email.otp.signIn.subject" => "Your cms sign-in code",
@@ -98,8 +98,8 @@ fn lookup_en(key: &str) -> Option<&'static str> {
 
 fn lookup_ar(key: &str) -> Option<&'static str> {
     Some(match key {
-        "email.brand.name" => "نيبليف",
-        "email.brand.footer" => "تم إرسال هذه الرسالة الآلية بواسطة نيبليف. إذا لم تكن قد طلبتها، يمكنك تجاهلها بأمان.",
+        "email.brand.name" => "تكنوستار",
+        "email.brand.footer" => "تم إرسال هذه الرسالة الآلية بواسطة تكنوستار. إذا لم تكن قد طلبتها، يمكنك تجاهلها بأمان.",
         "email.brand.fallbackLink" => "إذا كان الزر لا يعمل، انسخ هذا الرابط والصقه في متصفحك:",
 
         "email.otp.signIn.subject" => "رمز تسجيل الدخول الخاص بك في نيبليف",
@@ -125,8 +125,8 @@ fn lookup_ar(key: &str) -> Option<&'static str> {
 
 fn lookup_ja(key: &str) -> Option<&'static str> {
     Some(match key {
-        "email.brand.name" => "CMS",
-        "email.brand.footer" => "この自動送信メールは CMS より送信されました。心当たりがない場合は破棄してください。",
+        "email.brand.name" => "TechnoStar",
+        "email.brand.footer" => "この自動送信メールは TechnoStar より送信されました。心当たりがない場合は破棄してください。",
         "email.brand.fallbackLink" => "ボタンが機能しない場合は、次のURLをブラウザに貼り付けてください:",
 
         "email.otp.signIn.subject" => "CMS サインイン コード",

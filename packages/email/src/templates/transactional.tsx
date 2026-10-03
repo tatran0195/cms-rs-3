@@ -8,6 +8,7 @@ export function TransactionalEmail({
   code,
   detail,
   language,
+  logoUrl,
   message,
   preview,
   title,
@@ -16,6 +17,7 @@ export function TransactionalEmail({
   code?: string;
   detail?: string;
   language: EmailLanguage;
+  logoUrl?: string;
   message: string;
   preview: string;
   title: string;
@@ -24,7 +26,7 @@ export function TransactionalEmail({
   const direction = emailDirection(language);
 
   return (
-    <BaseEmail language={language} preview={preview}>
+    <BaseEmail language={language} logoUrl={logoUrl} preview={preview}>
       <Section style={{ padding: '32px 28px', textAlign: direction === 'rtl' ? 'right' : 'left' }}>
         <Heading style={{ fontSize: '24px', letterSpacing: '-0.025em', lineHeight: 1.25, margin: '0 0 14px' }}>{title}</Heading>
         <Text style={{ color: '#475569', fontSize: '15px', lineHeight: 1.65, margin: 0 }}>{message}</Text>

@@ -3,7 +3,7 @@ import { cn } from '../lib/utils';
 
 export function CmsMark({
   className,
-  title = 'cms',
+  title = 'TechnoStar',
   variant = 'tile',
   ...props
 }: ComponentProps<'svg'> & { title?: string; variant?: 'tile' | 'bare' }) {
@@ -12,38 +12,60 @@ export function CmsMark({
       aria-label={title}
       className={cn(variant === 'tile' && 'overflow-hidden rounded-[22%]', className)}
       role="img"
-      viewBox="0 0 512 512"
+      viewBox="0 0 252 240"
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
-      {variant === 'tile' ? <rect fill="#181612" height="512" rx="104" width="512" /> : null}
-      <path
-        d="M148 368V144L364 368V144"
-        fill="none"
-        stroke={variant === 'tile' ? '#FBF7EE' : 'currentColor'}
-        strokeLinecap="square"
-        strokeLinejoin="round"
-        strokeWidth="88"
-      />
+      <image href="/brand/technostar-star.png" height="240" width="252" />
     </svg>
   );
 }
 
-export function CmsWordmark({ className, title = 'cms', ...props }: ComponentProps<'span'> & { title?: string }) {
-  // The brand name is always set in Latin script "cms", including in
-  // Arabic-locale UI (same as how "Mintlify" stays Latin in Arabic copy).
+export function CmsWordmark({ className, title = 'TechnoStar', ...props }: ComponentProps<'span'> & { title?: string }) {
   return (
     <span
       aria-label={title}
-      className={cn('inline-block select-none font-extrabold leading-none tracking-normal', className)}
+      className={cn('inline-block select-none font-bold text-[#004ea2] dark:text-[#38bdf8] font-serif tracking-tight', className)}
       dir="ltr"
       role="img"
       {...props}
     >
-      cms
+      TechnoStar
     </span>
+  );
+}
+
+export function TechnoStarLogo({
+  alt = 'TechnoStar',
+  className,
+  variant = 'auto',
+  ...props
+}: ComponentProps<'img'> & { variant?: 'auto' | 'light' | 'dark' }) {
+  if (variant === 'light') {
+    return <img alt={alt} className={cn('h-8 w-auto object-contain', className)} src="/brand/technostar-logo.png" {...props} />;
+  }
+  if (variant === 'dark') {
+    return <img alt={alt} className={cn('h-8 w-auto object-contain', className)} src="/brand/technostar-logo-dark.png" {...props} />;
+  }
+  return (
+    <>
+      <img
+        alt={alt}
+        className={cn('h-8 w-auto object-contain dark:hidden', className)}
+        src="/brand/technostar-logo.png"
+        {...props}
+      />
+      <img
+        alt={alt}
+        className={cn('hidden h-8 w-auto object-contain dark:block', className)}
+        src="/brand/technostar-logo-dark.png"
+        {...props}
+      />
+    </>
   );
 }
 
 export const cmsMark = CmsMark;
 export const cmsWordmark = CmsWordmark;
+export const TechnoStarMark = CmsMark;
+export const TechnoStarWordmark = CmsWordmark;

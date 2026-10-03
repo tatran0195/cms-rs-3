@@ -43,6 +43,7 @@ pub fn render_verification_code_email(
         code: Some(code.to_string()),
         action: None,
         detail: Some(detail),
+        logo_url: None,
     })
 }
 
@@ -71,6 +72,7 @@ pub fn render_email_verification_email(
             url: url.to_string(),
         }),
         detail: Some(detail),
+        logo_url: None,
     })
 }
 
@@ -100,6 +102,7 @@ pub fn render_member_joined_email(
         code: None,
         action: None,
         detail: None,
+        logo_url: None,
     })
 }
 
@@ -127,6 +130,7 @@ pub fn render_new_sign_in_email(
         code: None,
         action: None,
         detail: Some(detail),
+        logo_url: None,
     })
 }
 
@@ -167,6 +171,7 @@ pub fn render_member_invitation_email(
             url: accept_url.to_string(),
         }),
         detail: Some(detail),
+        logo_url: None,
     })
 }
 
@@ -200,6 +205,7 @@ pub fn render_reader_invitation_email(
             url: activation_url.to_string(),
         }),
         detail: Some(detail),
+        logo_url: None,
     })
 }
 
@@ -261,5 +267,6 @@ pub fn render_deployment_email(
         code: None,
         action,
         detail,
+        logo_url: None,
     })
 }
