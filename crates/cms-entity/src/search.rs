@@ -246,6 +246,20 @@ pub struct RagAnswer {
     pub sources: Vec<SearchHit>,
 }
 
+/// Live index statistics for a single project, sourced directly from the search index.
+///
+/// For Tantivy this is derived from the actual on-disk segment data; for other backends
+/// it is approximated from database counts.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema)]
+pub struct ProjectIndexStats {
+    /// Total number of stored document chunks (one page may have multiple chunks).
+    pub chunk_count: u64,
+    /// Number of distinct pages represented in the index.
+    pub page_count: u64,
+    /// A sample of up to 25 indexed page IDs (in no guaranteed order).
+    pub sample_page_ids: Vec<String>,
+}
+
 /// Request to index a specific page
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct IndexPageRequest {

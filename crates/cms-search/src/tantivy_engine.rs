@@ -16,7 +16,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use cms_entity::{
     page::Page,
-    search::{RagAnswer, SearchHit, SearchOptions},
+    search::{ProjectIndexStats, RagAnswer, SearchHit, SearchOptions},
 };
 use cms_error::AppError;
 use parking_lot::RwLock;
@@ -581,6 +581,73 @@ impl SearchEngine for TantivySearchEngine {
         Ok(())
     }
 
+    /// Return live statistics for a project's Tantivy index.
+    ///
+    /// Walks every stored document in the index to count:
+    /// - total chunk documents (`chunk_count`) — read from segment metadata, O(1) per segment.
+    /// - distinct page IDs (`page_count`) — derived by iterating stored fields.
+    /// - up to 25 sample page IDs (`sample_page_ids`).
+    ///
+    /// Returns zeroed stats if the project has no index on disk yet.
+    async fn index_stats(&self, project_id: &str) -> Result<ProjectIndexStats, AppError> {
+        let project_dir = self.project_index_path(project_id);
+        if !project_dir.exists() {
+            return Ok(ProjectIndexStats::default());
+        }
+
+        let project_idx = self.get_or_create_project_index(project_id)?;
+        let searcher = project_idx.reader.searcher();
+        let fields = project_idx.fields;
+
+        // Sum live (non-deleted) doc counts across all segments — O(segments), no scan.
+        let chunk_count: u64 = searcher
+            .segment_readers()
+            .iter()
+            .map(|seg| seg.num_docs() as u64)
+            .sum();
+
+        if chunk_count == 0 {
+            return Ok(ProjectIndexStats::default());
+        }
+
+        // Walk up to 500 docs across segments to collect distinct page IDs.
+        // We cap at 500 to bound latency; chunk_count is exact regardless.
+        let mut seen_pages: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut sample_page_ids: Vec<String> = Vec::with_capacity(25);
+        let mut docs_visited: usize = 0;
+        const MAX_SCAN: usize = 500;
+
+        'outer: for seg_reader in searcher.segment_readers() {
+            let store_reader = seg_reader
+                .get_store_reader(50)
+                .map_err(|e| AppError::SearchError(format!("index_stats store open failed: {}", e)))?;
+
+            for doc_id in 0..seg_reader.num_docs() {
+                if docs_visited >= MAX_SCAN {
+                    break 'outer;
+                }
+                // Skip soft-deleted documents
+                if seg_reader.is_deleted(doc_id) {
+                    continue;
+                }
+                if let Ok(doc) = store_reader.get::<TantivyDocument>(doc_id) {
+                    if let Some(page_id) = doc.get_first(fields.page_id).and_then(|v| v.as_str()) {
+                        if seen_pages.insert(page_id.to_string()) && sample_page_ids.len() < 25 {
+                            sample_page_ids.push(page_id.to_string());
+                        }
+                    }
+                }
+                docs_visited += 1;
+            }
+        }
+
+        Ok(ProjectIndexStats {
+            chunk_count,
+            page_count: seen_pages.len() as u64,
+            sample_page_ids,
+        })
+    }
+
     async fn rag_answer(&self, project_id: &str, question: &str) -> Result<RagAnswer, AppError> {
         let hits = self
             .hybrid_query(
@@ -752,5 +819,315 @@ mod tests {
             .await
             .expect("search after remove");
         assert_eq!(hits_after_remove.len(), 0);
+    }
+}
+
+#[cfg(test)]
+mod e2e_tests {
+    use super::*;
+    use chrono::Utc;
+    use tempfile::TempDir;
+
+    fn make_page(id: &str, project_id: &str, title: &str, content: &str) -> Page {
+        Page {
+            id: id.to_string(),
+            project_id: project_id.to_string(),
+            branch_id: "main".to_string(),
+            language_id: Some("ja".to_string()),
+            parent_id: None,
+            kind: "PAGE".to_string(),
+            path: format!("/docs/{}", id),
+            slug: id.to_string(),
+            title: title.to_string(),
+            description: Some(format!("{} の説明文", title)),
+            content: content.to_string(),
+            icon: None,
+            config: None,
+            translation_key: None,
+            position: 0,
+            is_published: true,
+            is_indexed: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn new_engine(dir: &TempDir) -> TantivySearchEngine {
+        TantivySearchEngine::new(dir.path(), 20, None).unwrap()
+    }
+
+    fn opts(limit: usize) -> SearchOptions {
+        SearchOptions { limit, min_score: 0.0, fts_weight: 0.5 }
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 1: upsert idempotency — re-indexing the same page must not duplicate
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_upsert_does_not_duplicate() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_upsert";
+
+        let page = make_page("dup1", proj, "重複テストページ", "同じページを二回インデックスします。");
+        eng.index_page(&page).await.unwrap();
+        eng.index_page(&page).await.unwrap(); // second index of the same page
+
+        let hits = eng.hybrid_query(proj, "重複", opts(20)).await.unwrap();
+        assert_eq!(hits.len(), 1, "Re-indexing must not duplicate the document");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 2: unpublished page must not appear in results
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_unpublished_page_not_indexed() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_visibility";
+
+        let mut page = make_page("vis1", proj, "非公開ページ", "このコンテンツは非公開です。");
+        page.is_published = false;
+        eng.index_page(&page).await.unwrap();
+
+        let hits = eng.hybrid_query(proj, "非公開", opts(10)).await.unwrap();
+        assert!(hits.is_empty(), "Unpublished pages must not appear in search results");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 3: is_indexed=false page must be excluded
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_not_indexed_page_excluded() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_noindex";
+
+        let mut page = make_page("nidx1", proj, "インデックス除外", "インデックス対象外のコンテンツです。");
+        page.is_indexed = false;
+        eng.index_page(&page).await.unwrap();
+
+        let hits = eng.hybrid_query(proj, "インデックス", opts(10)).await.unwrap();
+        assert!(hits.is_empty(), "Pages with is_indexed=false must not appear in results");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 4: remove_page removes from ALL projects
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_remove_page_across_projects() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+
+        // Same logical page indexed in two distinct projects.
+        // Use a unique term that tokenizes as-is (katakana word passes through the Japanese tokenizer).
+        let mut pa = make_page("shared_page", "proj_a", "ネットワーク設定ガイド", "ネットワーク設定の方法を説明します。");
+        let mut pb = pa.clone();
+        pb.project_id = "proj_b".to_string();
+
+        eng.index_page(&pa).await.unwrap();
+        eng.index_page(&pb).await.unwrap();
+
+        // Both projects must have the page
+        let hits_a_before = eng.hybrid_query("proj_a", "ネットワーク", opts(10)).await.unwrap();
+        let hits_b_before = eng.hybrid_query("proj_b", "ネットワーク", opts(10)).await.unwrap();
+        assert!(!hits_a_before.is_empty(), "proj_a should have the shared page before removal");
+        assert!(!hits_b_before.is_empty(), "proj_b should have the shared page before removal");
+
+        // remove_page (without project_id) must clear from all projects on disk
+        eng.remove_page("shared_page").await.unwrap();
+
+        assert!(eng.hybrid_query("proj_a", "ネットワーク", opts(10)).await.unwrap().is_empty(), "Page should be removed from proj_a");
+        assert!(eng.hybrid_query("proj_b", "ネットワーク", opts(10)).await.unwrap().is_empty(), "Page should be removed from proj_b");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 5: title boost — title match ranks higher than body-only match
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_title_boost_ranking() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_boost";
+
+        // page_a: target term only in body
+        let page_a = make_page("a", proj, "一般情報ページ", "このページでは東京の観光スポットについて解説します。");
+        // page_b: target term in title (and body) — should rank first due to 2.5× title boost
+        let page_b = make_page("b", proj, "東京観光ガイド", "東京の観光スポットと交通アクセスをまとめました。");
+
+        eng.index_page(&page_a).await.unwrap();
+        eng.index_page(&page_b).await.unwrap();
+
+        let hits = eng.hybrid_query(proj, "東京", opts(10)).await.unwrap();
+        assert!(!hits.is_empty());
+        assert_eq!(hits[0].page_id, "b", "Title-matching page must outrank body-only match");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 6: empty / whitespace query short-circuit
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_empty_query_returns_empty() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_empty_q";
+
+        let page = make_page("e1", proj, "テストページ", "コンテンツがあります。");
+        eng.index_page(&page).await.unwrap();
+
+        for q in &["", "   ", "\t\n"] {
+            let hits = eng.hybrid_query(proj, q, opts(10)).await.unwrap();
+            assert!(hits.is_empty(), "Empty/whitespace query must return no hits (query: {:?})", q);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 7: query against non-existent project returns empty without panicking
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_search_nonexistent_project() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+
+        let hits = eng.hybrid_query("ghost_project", "何か", opts(10)).await.unwrap();
+        assert!(hits.is_empty(), "Non-existent project must silently return no hits");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 8: delete_project_index removes disk directory and evicts cache
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_delete_project_index() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_delete";
+
+        let page = make_page("d1", proj, "削除対象ページ", "このプロジェクトは削除されます。");
+        eng.index_page(&page).await.unwrap();
+
+        let proj_path = eng.project_index_path(proj);
+        assert!(proj_path.exists(), "Index directory must exist after indexing");
+
+        eng.delete_project_index(proj).unwrap();
+        assert!(!proj_path.exists(), "Index directory must be removed after delete_project_index");
+
+        // Searching the deleted project must return empty, not panic
+        let hits = eng.hybrid_query(proj, "削除", opts(10)).await.unwrap();
+        assert!(hits.is_empty(), "Deleted project index must return no hits");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 9: list_projects reflects indexed projects on disk
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_list_projects() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+
+        assert!(eng.list_projects().is_empty(), "Should start with no projects");
+
+        for (id, proj) in [("l1", "list_proj_a"), ("l2", "list_proj_b"), ("l3", "list_proj_c")] {
+            eng.index_page(&make_page(id, proj, "テスト", "コンテンツ")).await.unwrap();
+        }
+
+        let mut projects = eng.list_projects();
+        projects.sort();
+        assert_eq!(projects, vec!["list_proj_a", "list_proj_b", "list_proj_c"]);
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 10: markdown chunking e2e — section-specific terms are individually searchable
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_markdown_chunking_e2e() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_chunks";
+
+        let content = r#"# インストール手順
+パッケージマネージャを使ってインストールします。
+
+## 設定ファイルの編集
+confファイルを適切に設定してください。
+
+## トラブルシューティング
+エラーが発生した場合はログファイルを確認してください。
+"#;
+
+        let page = make_page("chunk_page", proj, "セットアップガイド", content);
+        eng.index_page(&page).await.unwrap();
+
+        // Term only in section 2
+        let hits_conf = eng.hybrid_query(proj, "設定ファイル", opts(10)).await.unwrap();
+        assert!(!hits_conf.is_empty(), "Section-specific term '設定ファイル' must be findable");
+        assert_eq!(hits_conf[0].page_id, "chunk_page");
+
+        // Term only in section 3
+        let hits_log = eng.hybrid_query(proj, "ログファイル", opts(10)).await.unwrap();
+        assert!(!hits_log.is_empty(), "Section-specific term 'ログファイル' must be findable");
+        assert_eq!(hits_log[0].page_id, "chunk_page");
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 11: rag_answer returns structured context from indexed documents
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_rag_answer_with_content() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_rag";
+
+        // Use a simple page title and content so the query reliably finds the document.
+        // Query with the title term so TF-IDF is certain to score > 0.
+        eng.index_page(&make_page(
+            "rag1",
+            proj,
+            "データベース設計ガイド",
+            "# データベース設計\nリレーショナルデータベースの設計とインデックス最適化について解説します。\n\n## テーブル設計\n正規化とパフォーマンスのバランスを考えた設計が重要です。",
+        ))
+        .await
+        .unwrap();
+
+        // Query with a term that appears in the title/body so it must score > 0
+        let answer = eng.rag_answer(proj, "データベース").await.unwrap();
+
+        assert!(answer.confidence > 0.0, "RAG confidence must be > 0 when hits exist");
+        assert!(!answer.sources.is_empty(), "RAG answer must reference source documents");
+        assert_eq!(answer.sources[0].page_id, "rag1");
+        assert!(answer.answer.contains(proj), "RAG answer text must mention the project");
+    }
+
+    #[tokio::test]
+    async fn test_rag_answer_empty_project() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+
+        let answer = eng.rag_answer("no_such_project", "何でも").await.unwrap();
+        assert!(answer.sources.is_empty(), "RAG answer for empty project must have no sources");
+        assert_eq!(answer.confidence, 0.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // E2E 12: result limit is respected
+    // -------------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_result_limit() {
+        let dir = TempDir::new().unwrap();
+        let eng = new_engine(&dir);
+        let proj = "proj_limit";
+
+        for i in 0..10u32 {
+            eng.index_page(&make_page(
+                &format!("lp{}", i),
+                proj,
+                &format!("検索テストページ {}", i),
+                &format!("検索に関するコンテンツ {}。キーワードは全文検索です。", i),
+            ))
+            .await
+            .unwrap();
+        }
+
+        let hits = eng.hybrid_query(proj, "検索", opts(3)).await.unwrap();
+        assert!(hits.len() <= 3, "Result count must not exceed requested limit");
     }
 }

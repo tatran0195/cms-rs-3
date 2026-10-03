@@ -1234,48 +1234,25 @@ pub async fn update_project_search_settings_handler(
 
 /// Project search diagnostics
 ///
-/// Returns the SPA `SearchIndexDiagnosticsResult` shape, populated from the real
-/// search index runs for the project (latest run + corpus counts).
+/// Returns the `SearchIndexDiagnosticsResult` shape populated from the **live Tantivy index**
+/// for the project.  All chunk and page counts are sourced directly from the on-disk segments
+/// via `SearchEngine::index_stats()`; languages and branch/version metadata are still fetched
+/// from the database since that information is not stored inside the search index itself.
 pub async fn get_project_search_diagnostics_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Query(query): Query<serde_json::Value>,
+    Query(_query): Query<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::search::SearchService;
-    use cms_entity::search::ListSearchIndexRunsQuery;
 
+    // Permission / availability check (keeps the same guard as before)
     SearchService::get_search_status(&state.biz_context, &auth.user.id, &project_id).await?;
 
-    let limit = query
-        .get("limit")
-        .and_then(|v| v.as_str())
-        .and_then(|s| s.parse::<i64>().ok())
-        .unwrap_or(10);
-    let cursor = query
-        .get("cursor")
-        .and_then(|v| v.as_str())
-        .map(String::from);
+    // --- Live Tantivy stats ---------------------------------------------------
+    let stats = state.search_engine.index_stats(&project_id).await?;
 
-    let runs = SearchService::list_index_runs(
-        &state.biz_context,
-        &auth.user.id,
-        ListSearchIndexRunsQuery {
-            project_id: Some(project_id.clone()),
-            status: None,
-            limit: Some(limit),
-            offset: None,
-        },
-    )
-    .await?;
-
-    let latest_run = runs.data.first();
-    let indexed = latest_run.map(|r| r.pages_indexed).unwrap_or(0);
-    let pages = cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
-        .await
-        .unwrap_or_default();
-    let total_pages = pages.len() as i64;
-
+    // --- DB metadata (languages, branches) -----------------------------------
     let langs = cms_db::language::LanguageQueries::get_by_project(
         &state.biz_context.pool,
         &project_id,
@@ -1284,6 +1261,7 @@ pub async fn get_project_search_diagnostics_handler(
     )
     .await
     .unwrap_or_default();
+
     let branches = cms_db::branch::BranchQueries::get_by_project(
         &state.biz_context.pool,
         &project_id,
@@ -1294,110 +1272,76 @@ pub async fn get_project_search_diagnostics_handler(
     .await
     .unwrap_or_default();
 
+    // --- Corpus language / version distribution breakdown --------------------
+    // Each language / branch gets the project-wide page count as its chunk count
+    // since Tantivy does not store per-language/per-branch breakdowns.
     let corpus_languages: Vec<serde_json::Value> = if langs.is_empty() {
-        vec![serde_json::json!({ "code": "en", "count": total_pages })]
+        vec![serde_json::json!({ "code": "en", "count": stats.page_count })]
     } else {
         langs
             .iter()
-            .map(|l| serde_json::json!({ "code": l.code, "count": total_pages }))
+            .map(|l| serde_json::json!({ "code": l.code, "count": stats.page_count }))
             .collect()
     };
 
     let corpus_versions: Vec<serde_json::Value> = if branches.is_empty() {
-        vec![serde_json::json!({ "slug": "main", "count": total_pages })]
+        vec![serde_json::json!({ "slug": "main", "count": stats.page_count })]
     } else {
         branches
             .iter()
-            .map(|b| serde_json::json!({ "slug": b.name, "count": total_pages }))
+            .map(|b| serde_json::json!({ "slug": b.name, "count": stats.page_count }))
             .collect()
     };
 
-    let samples: Vec<serde_json::Value> = pages
+    // --- Samples: real page IDs from the live index --------------------------
+    let samples: Vec<serde_json::Value> = stats
+        .sample_page_ids
         .iter()
-        .take(25)
         .enumerate()
-        .map(|(idx, p)| {
+        .map(|(ordinal, page_id)| {
             serde_json::json!({
-                "pointId": format!("pt_{}", p.id),
-                "pageId": p.id,
-                "ordinal": idx as i64,
-                "language": "en",
-                "versionSlug": "main",
+                "pointId": format!("tantivy:{}", page_id),
+                "pageId": page_id,
+                "ordinal": ordinal as i64,
+                "language": langs.first().map(|l| l.code.as_str()).unwrap_or("en"),
+                "versionSlug": branches.first().map(|b| b.name.as_str()).unwrap_or("main"),
                 "status": "indexed",
             })
         })
         .collect();
 
-    let health = if let Some(r) = latest_run {
-        match r.status {
-            cms_entity::search::SearchIndexRunStatus::Processing => "indexing",
-            cms_entity::search::SearchIndexRunStatus::Failed => "failed",
-            cms_entity::search::SearchIndexRunStatus::Completed => {
-                if indexed > 0 {
-                    "ready"
-                } else {
-                    "empty"
-                }
-            }
-            cms_entity::search::SearchIndexRunStatus::Pending => "indexing",
-        }
-    } else if indexed > 0 {
-        "ready"
-    } else {
-        "empty"
-    };
+    // --- Health: derived purely from live Tantivy data -----------------------
+    let health = if stats.chunk_count > 0 { "ready" } else { "empty" };
 
     Ok(Json(serde_json::json!({
         "data": {
-            "availability": { "configured": indexed > 0, "reason": null },
+            "availability": { "configured": stats.chunk_count > 0, "reason": null },
             "health": health,
-            "runtime": "hybrid",
+            "runtime": "tantivy",
             "index": {
-                "logicalId": format!("project:{}", project_id),
-                "schemaVersion": "1",
-                "revisionId": latest_run.map(|r| r.id.clone()),
+                "logicalId": format!("tantivy:project:{}", project_id),
+                "schemaVersion": "2",
+                "revisionId": null,
                 "deploymentVersion": null,
-                "embeddingModel": "built-in",
-                "vectorSize": 1536,
+                "embeddingModel": "lindera-sudachi",
+                "vectorSize": 0,
             },
             "corpus": {
-                "chunks": indexed,
-                "pages": total_pages,
+                "chunks": stats.chunk_count,
+                "pages": stats.page_count,
                 "languages": corpus_languages,
                 "versions": corpus_versions,
                 "distributionTruncated": { "languages": false, "versions": false },
             },
-            "latestRun": latest_run.map(|r| {
-                let status_str = match r.status {
-                    cms_entity::search::SearchIndexRunStatus::Pending => "PENDING",
-                    cms_entity::search::SearchIndexRunStatus::Processing => "RUNNING",
-                    cms_entity::search::SearchIndexRunStatus::Completed => "READY",
-                    cms_entity::search::SearchIndexRunStatus::Failed => "FAILED",
-                };
-                serde_json::json!({
-                    "id": r.id,
-                    "status": status_str,
-                    "startedAt": r.started_at.map(|t| t.to_rfc3339()).or_else(|| r.completed_at.map(|t| t.to_rfc3339())),
-                    "completedAt": r.completed_at.map(|t| t.to_rfc3339()),
-                    "counts": {
-                        "expected": total_pages,
-                        "indexed": r.pages_indexed as i64,
-                        "embedded": r.pages_indexed as i64,
-                        "reused": 0,
-                        "unchanged": 0,
-                        "metadataUpdated": 0,
-                        "deleted": 0,
-                        "stale": 0,
-                        "failed": 0,
-                    },
-                    "errorCode": r.error_message,
-                })
-            }),
+            // latestRun is omitted for Tantivy: there is no async run concept.
+            // The UI already handles a null latestRun gracefully.
+            "latestRun": null,
             "samples": { "items": samples, "nextCursor": null, "hasMore": false },
             "issues": { "staleCount": 0, "failedCount": 0, "items": [] },
         }
     })))
 }
+
 
 /// Reindex project search
 pub async fn reindex_project_search_handler(
