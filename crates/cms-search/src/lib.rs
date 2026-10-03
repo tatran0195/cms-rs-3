@@ -1,12 +1,13 @@
 //! CMS Search
 //!
-//! This crate provides search functionality with:
-//! - Japanese morphological analysis (stub for now, pending lindera-core integration)
-//! - Hybrid FTS + vector search
-//! - pgvector (Postgres) as default backend
-//! - Qdrant as optional backend
-//!
-//! The search is retargeted from Arabic to Japanese per the architecture decision.
+//! This crate provides production search functionality with:
+//! - Tantivy embedded full-text search with isolated per-project index directories
+//! - Japanese morphological analysis using Lindera with embedded SudachiDict (2026 vocabulary)
+//! - Spelling variation and dictionary-form normalization (e.g. サーバ → サーバー, 引っ越す → 引越す)
+//! - Markdown text extraction and heading-based document chunking
+//! - Contextual snippets with search hit highlighting
+//! - Multi-process lock handling for safe API and background worker concurrency
+//! - Pluggable backends: Tantivy (isolated per-project index), pgvector (PostgreSQL), and Qdrant
 
 use std::sync::Arc;
 
@@ -14,16 +15,19 @@ use cms_config::SearchConfig;
 use cms_db::PgPool;
 use cms_error::AppError;
 
+pub mod markdown;
 pub mod pgvector;
 #[cfg(feature = "qdrant")]
 pub mod qdrant;
+pub mod tantivy_engine;
 pub mod tokenizer;
 pub mod traits;
 
 pub use pgvector::PgVectorSearchEngine;
 #[cfg(feature = "qdrant")]
 pub use qdrant::QdrantSearchEngine;
-pub use tokenizer::JapaneseTokenizer;
+pub use tantivy_engine::{ProjectIndex, TantivyFields, TantivySearchEngine};
+pub use tokenizer::{JapaneseToken, JapaneseTokenizer, LinderaTantivyTokenizer};
 pub use traits::SearchEngine;
 
 /// Create a SearchEngine implementation based on configuration and optional existing PgPool
@@ -32,6 +36,14 @@ pub async fn create_search_engine_with_pool(
     pool: PgPool,
 ) -> Result<Arc<dyn SearchEngine>, AppError> {
     match config.backend.as_str() {
+        "tantivy" => {
+            let engine = TantivySearchEngine::new(
+                &config.index_dir,
+                config.writer_memory_mb,
+                config.lindera_dict_path.as_deref(),
+            )?;
+            Ok(Arc::new(engine))
+        }
         "pgvector" => {
             let engine = match &config.pgvector_url {
                 Some(url) if !url.trim().is_empty() => {
@@ -72,6 +84,14 @@ pub async fn create_search_engine(
     default_db_url: &str,
 ) -> Result<Arc<dyn SearchEngine>, AppError> {
     match config.backend.as_str() {
+        "tantivy" => {
+            let engine = TantivySearchEngine::new(
+                &config.index_dir,
+                config.writer_memory_mb,
+                config.lindera_dict_path.as_deref(),
+            )?;
+            Ok(Arc::new(engine))
+        }
         "pgvector" => {
             let url = config
                 .pgvector_url

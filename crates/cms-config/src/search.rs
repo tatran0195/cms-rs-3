@@ -27,9 +27,24 @@ pub struct SearchConfig {
     #[serde(default)]
     pub lindera_dict_path: Option<String>,
 
+    /// Tantivy isolated indexes root directory (defaults to "./data/indexes")
+    #[serde(default = "default_index_dir")]
+    pub index_dir: String,
+
+    /// Writer memory budget in megabytes (defaults to 50MB)
+    #[serde(default = "default_writer_memory_mb")]
+    pub writer_memory_mb: usize,
+
     /// Maximum number of search results
     #[serde(default = "default_max_results")]
     pub max_results: usize,
+}
+
+fn default_index_dir() -> String {
+    "./data/indexes".to_string()
+}
+fn default_writer_memory_mb() -> usize {
+    50
 }
 
 fn default_search_backend() -> String {
@@ -51,6 +66,8 @@ impl Default for SearchConfig {
             qdrant_port: default_qdrant_port(),
             qdrant_api_key: None,
             lindera_dict_path: None,
+            index_dir: default_index_dir(),
+            writer_memory_mb: default_writer_memory_mb(),
             max_results: default_max_results(),
         }
     }

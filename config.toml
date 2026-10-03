@@ -47,9 +47,13 @@ local_root = "./uploads"
 s3_path_style = false
 
 [search]
-# Vector & full-text search backend: "pgvector" (PostgreSQL) or "qdrant" (Vector DB)
-backend = "pgvector"
-# Dedicated pgvector connection URL (defaults to database.url if omitted)
+# Full-text & vector search backend: "tantivy" (isolated per-project index with Lindera SudachiDict), "pgvector" (PostgreSQL), or "qdrant"
+backend = "tantivy"
+# Tantivy isolated project index directory (each project gets <index_dir>/projects/<project_id>/)
+index_dir = "./data/indexes"
+# Writer memory budget in megabytes per active project index (defaults to 50)
+writer_memory_mb = 50
+# Dedicated pgvector connection URL (used when backend = "pgvector", defaults to database.url if omitted)
 # pgvector_url = "postgres://postgres:postgres@localhost:5432/cms"
 # Qdrant host (used when backend = "qdrant")
 # qdrant_host = "localhost"
@@ -57,8 +61,8 @@ backend = "pgvector"
 qdrant_port = 6333
 # Qdrant API key (optional)
 # qdrant_api_key = "secret_qdrant_key"
-# Lindera dictionary path for Japanese morphological tokenization
-# lindera_dict_path = "./dicts/ipadic"
+# Custom Lindera dictionary path (optional, embedded SudachiDict 2026 is built into binary)
+# lindera_dict_path = "./dicts/sudachidict"
 # Default maximum search result limit
 max_results = 50
 

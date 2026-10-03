@@ -126,12 +126,14 @@ impl SearchService {
         page_id: &str,
     ) -> Result<(), AppError> {
         // Verify page exists
-        let _page = PageQueries::get_by_id(&ctx.pool, page_id)
+        let page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
 
         // Remove from index
-        search_engine.remove_page(page_id).await?;
+        search_engine
+            .remove_page_from_project(&page.project_id, page_id)
+            .await?;
 
         Ok(())
     }
@@ -353,7 +355,7 @@ pub async fn process_search_job(
     payload: &serde_json::Value,
 ) -> Result<(), AppError> {
     let job_type = payload.get("type").and_then(|v| v.as_str());
-    let _project_id = payload
+    let project_id = payload
         .get("project_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("Missing project_id".to_string()))?;
@@ -377,7 +379,9 @@ pub async fn process_search_job(
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| AppError::InvalidInput("Missing page_id".to_string()))?;
 
-            search_engine.remove_page(page_id).await?;
+            search_engine
+                .remove_page_from_project(project_id, page_id)
+                .await?;
         }
         _ => {
             return Err(AppError::InvalidInput(

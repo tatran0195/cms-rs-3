@@ -10,8 +10,15 @@ cms-error = { path = "../cms-error" }
 cms-entity = { path = "../cms-entity" }
 cms-db = { path = "../cms-db" }
 
-# Japanese tokenizer
+# Japanese morphological analysis (SudachiDict embedded via workspace features)
 lindera = { workspace = true }
+unicode-normalization = { workspace = true }
+
+# Full-text index
+tantivy = { workspace = true }
+
+# Markdown → plain text for indexing
+pulldown-cmark = { workspace = true }
 
 # Vector search
 pgvector = { workspace = true, optional = true }
@@ -25,6 +32,10 @@ qdrant-client = { workspace = true, optional = true }
 # Async
 tokio = { workspace = true }
 
+# Logging
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -37,6 +48,7 @@ qdrant = ["dep:qdrant-client"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
