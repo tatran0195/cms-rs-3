@@ -6,10 +6,10 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "bun run build:packages && bun --filter @cms/app run build",
-    "build:packages": "bun run build-packages.ts",
-    "typecheck": "bun --filter '*' run typecheck",
-    "test": "bun --filter '*' run test",
+    "build": "bun run build:packages && bun --filter @cms/app build",
+    "build:packages": "bun --filter \"./packages/*\" build",
+    "typecheck": "bun --filter '*' typecheck",
+    "test": "bun --filter '*' test",
     "check": "ultracite check",
     "fix": "ultracite fix",
     "lint": "ultracite check",
@@ -17,7 +17,7 @@
     "knip": "knip",
     "lint:md": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
     "lint:md:fix": "markdownlint-cli2 --fix \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
-    "clean": "bun --filter '*' run clean"
+    "clean": "bun --filter '*' clean"
   },
   "dependencies": {
     "caniuse-lite": "^1.0.30001810",

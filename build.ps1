@@ -85,7 +85,7 @@ if ($Packages) {
 if ($Frontend) {
     Write-Status "Building frontend..." $Blue
     try {
-        bun --filter @cms/app run build
+        bun --filter @cms/app build
         Write-Success "Frontend built successfully"
     }
     catch {

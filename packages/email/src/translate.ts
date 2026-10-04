@@ -8,5 +8,5 @@ export const emailDirection = (language: EmailLanguage) => (isRtl(language) ? 'r
 
 export const createEmailTranslator =
   (language: EmailLanguage = DEFAULT_EMAIL_LANGUAGE) =>
-    (key: EmailMessageKey, variables?: MessageVariables) =>
-      emailT(language)(key, variables);
+  (key: EmailMessageKey, variables?: MessageVariables) =>
+    emailT(language)(key, variables);

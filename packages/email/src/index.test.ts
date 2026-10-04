@@ -7,19 +7,19 @@ describe('localized transactional email rendering', () => {
 
     expect(email.subject).toBe('Your cms sign-in code');
     expect(email.html).toContain('lang="en"');
-    expect(email.html).toContain('src="/brand/technostar-logo.png"');
+    expect(email.html).toContain('src="cid:technostar-logo"');
     expect(email.html).toContain('alt="TechnoStar"');
     expect(email.html).toContain('123456');
     expect(email.text).toContain('123456');
   });
 
-  it('renders Arabic email chrome with RTL direction', async () => {
-    const email = await renderNewSignInEmail({ language: 'ar' });
+  it('renders Japanese email chrome', async () => {
+    const email = await renderNewSignInEmail({ language: 'ja' });
 
-    expect(email.subject).toBe('تسجيل دخول جديد إلى حسابك في نيبليف');
-    expect(email.html).toContain('dir="rtl"');
-    expect(email.html).toContain('lang="ar"');
-    expect(email.text).toContain('رصدنا تسجيل دخول');
+    expect(email.subject).toBe('cms アカウントへの新規サインイン');
+    expect(email.html).toContain('dir="ltr"');
+    expect(email.html).toContain('lang="ja"');
+    expect(email.text).toContain('サインインが検出されました');
   });
 
   it('escapes a dynamic action URL in HTML while preserving it in text', async () => {

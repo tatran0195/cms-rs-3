@@ -30,7 +30,7 @@ import type { FirstPublishAttribution } from '@/lib/first-publish-activation';
 import { api } from '@/services/api';
 import { ApiResponseError, getData, mutateData } from './client-helpers';
 import { queryKeys } from './query-keys';
-import type { ApiKey, ApiKeySecret, Asset, Comment, Deployment, Language, Page, Project, ProjectAddon, WorkspaceSettings } from './types';
+import type { ApiKey, ApiKeySecret, Asset, Comment, Deployment, Language, Page, PageNode, Project, ProjectAddon, WorkspaceSettings } from './types';
 
 export interface ProjectThemeImportResult {
   applied: boolean;

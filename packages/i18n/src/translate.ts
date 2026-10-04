@@ -5,8 +5,8 @@ import type { MessageFn, MessageVariables } from './message-types';
 // @ts-ignore -- generated message functions are indexed through the stable dotted-key map.
 import * as messages from './paraglide/messages.js';
 
-export function translateFn(key: MessageKey, variables?: MessageVariables, locale?: Locale): string {
+export function translateFn(key: MessageKey, variables?: MessageVariables, locale?: Locale | (string & {})): string {
   // biome-ignore lint/performance/noDynamicNamespaceImportAccess: typed dotted keys map to Paraglide's generated identifiers.
   const message = messages[MESSAGE_IDS[key] as keyof typeof messages] as unknown as MessageFn | undefined;
-  return message?.(variables, locale ? { locale } : undefined) ?? key;
+  return message?.(variables, locale ? ({ locale } as { locale?: Locale }) : undefined) ?? key;
 }

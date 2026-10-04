@@ -20,7 +20,7 @@
         <td align="left" style="padding:24px 28px;text-align:left;">
         {% endif %}
           <img
-            src="{{ (logo_url | default('/brand/technostar-logo.png')) | safe }}"
+            src="{{ (logo_url | default('cid:technostar-logo')) | safe }}"
             alt="{{ brand_name }}"
             height="32"
             style="display:block;height:32px;width:auto;border:0;outline:none;text-decoration:none;font-size:18px;font-weight:750;color:#0f172a;"

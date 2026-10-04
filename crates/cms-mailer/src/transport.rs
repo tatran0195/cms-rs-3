@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cms_error::AppError;
 use lettre::{
-    message::{header::ContentType, Mailbox, MultiPart, SinglePart},
+    message::{header::ContentType, Attachment, Mailbox, MultiPart, SinglePart},
     transport::smtp::authentication::Credentials,
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
 };
@@ -52,10 +52,15 @@ pub fn create_mailer_with_noop_fallback(
     Ok(Arc::new(NoopMailer))
 }
 
+/// Embedded default email header logo (TechnoStar logo, optimized for email clients).
+pub const TECHNOSTAR_LOGO_EMAIL_BYTES: &[u8] =
+    include_bytes!("../assets/technostar-logo-email.png");
+
 /// Real SMTP mailer using `lettre`.
 pub struct SmtpMailer {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     from: Mailbox,
+    logo_url: Option<String>,
 }
 
 impl SmtpMailer {
@@ -72,6 +77,7 @@ impl SmtpMailer {
         let from: Mailbox = format!("{} <{}>", from_name, from_email)
             .parse()
             .map_err(|error| AppError::InvalidInput(format!("Invalid from_email: {error}")))?;
+        let logo_url = config.logo_url.clone();
 
         let builder = if config.smtp_use_tls {
             AsyncSmtpTransport::<Tokio1Executor>::relay(host)
@@ -100,7 +106,66 @@ impl SmtpMailer {
         Ok(Self {
             transport: builder.port(config.smtp_port).build(),
             from,
+            logo_url,
         })
+    }
+
+    /// Build a lettre `Message` for a rendered email, attaching the brand logo inline as CID
+    /// when referenced in the HTML body.
+    pub fn build_rendered_message(
+        &self,
+        to: &str,
+        email: &RenderedEmail,
+    ) -> Result<Message, AppError> {
+        let to_mailbox: Mailbox = to.parse().map_err(|error| {
+            AppError::InvalidInput(format!("Invalid recipient address: {error}"))
+        })?;
+
+        let mut html = email.html.clone();
+        if let Some(ref custom_logo_url) = self.logo_url {
+            html = html
+                .replace("cid:technostar-logo", custom_logo_url)
+                .replace("/brand/technostar-logo.png", custom_logo_url)
+                .replace("/brand/technostar-logo-email.png", custom_logo_url);
+        } else if html.contains("/brand/technostar-logo.png")
+            || html.contains("/brand/technostar-logo-email.png")
+        {
+            html = html
+                .replace("/brand/technostar-logo.png", "cid:technostar-logo")
+                .replace("/brand/technostar-logo-email.png", "cid:technostar-logo");
+        }
+
+        let alternative = MultiPart::alternative()
+            .singlepart(SinglePart::plain(email.text.clone()))
+            .singlepart(SinglePart::html(html.clone()));
+
+        let message_builder = Message::builder()
+            .from(self.from.clone())
+            .to(to_mailbox)
+            .subject(&email.subject);
+
+        if html.contains("cid:technostar-logo") {
+            let logo_attachment = Attachment::new_inline_with_name(
+                "technostar-logo".to_string(),
+                "technostar-logo.png".to_string(),
+            )
+            .body(
+                TECHNOSTAR_LOGO_EMAIL_BYTES.to_vec(),
+                ContentType::parse("image/png; name=\"technostar-logo.png\"").unwrap(),
+            );
+
+            let related = MultiPart::related()
+                .multipart(alternative)
+                .singlepart(logo_attachment);
+
+            message_builder
+                .multipart(related)
+                .map_err(|error| AppError::Internal(error.into()))
+        } else {
+            message_builder
+                .multipart(alternative)
+                .map_err(|error| AppError::Internal(error.into()))
+        }
     }
 }
 
@@ -126,21 +191,7 @@ impl Mailer for SmtpMailer {
     }
 
     async fn send_rendered_email(&self, to: &str, email: &RenderedEmail) -> Result<(), AppError> {
-        let to_mailbox: Mailbox = to.parse().map_err(|error| {
-            AppError::InvalidInput(format!("Invalid recipient address: {error}"))
-        })?;
-
-        let multipart = MultiPart::alternative()
-            .singlepart(SinglePart::plain(email.text.clone()))
-            .singlepart(SinglePart::html(email.html.clone()));
-
-        let message = Message::builder()
-            .from(self.from.clone())
-            .to(to_mailbox)
-            .subject(&email.subject)
-            .multipart(multipart)
-            .map_err(|error| AppError::Internal(error.into()))?;
-
+        let message = self.build_rendered_message(to, email)?;
         self.transport.send(message).await.map_err(|error| {
             tracing::error!("SMTP delivery failed: {error}");
             AppError::ProviderError("Email delivery failed".to_string())
@@ -259,5 +310,99 @@ mod tests {
         assert_eq!(sent[0].to, "user@example.com");
         assert_eq!(sent[0].subject, "Welcome");
         assert_eq!(sent[0].html.as_deref(), Some("<h1>Welcome</h1>"));
+    }
+
+    #[tokio::test]
+    async fn test_smtp_mailer_builds_inline_logo_cid_attachment() {
+        let mailer = SmtpMailer::new(cms_config::MailerConfig {
+            smtp_host: Some("localhost".to_string()),
+            smtp_port: 1025,
+            smtp_username: None,
+            smtp_password: None,
+            smtp_use_tls: false,
+            smtp_plain_no_tls: true,
+            from_email: Some("noreply@example.com".to_string()),
+            from_name: Some("Test".to_string()),
+            logo_url: None,
+        })
+        .unwrap();
+
+        let email = RenderedEmail {
+            subject: "Verification Code".to_string(),
+            html: r#"<img src="cid:technostar-logo" alt="TechnoStar" />"#.to_string(),
+            text: "Code: 123456".to_string(),
+        };
+
+        let message = mailer
+            .build_rendered_message("user@example.com", &email)
+            .unwrap();
+        let raw = String::from_utf8(message.formatted()).unwrap();
+
+        assert!(raw.contains("multipart/related"));
+        assert!(raw.contains("cid:technostar-logo") || raw.contains("<technostar-logo>"));
+        assert!(raw.contains("image/png"));
+        assert!(raw.contains("technostar-logo.png"));
+    }
+
+    #[tokio::test]
+    async fn test_smtp_mailer_normalizes_relative_logo_path() {
+        let mailer = SmtpMailer::new(cms_config::MailerConfig {
+            smtp_host: Some("localhost".to_string()),
+            smtp_port: 1025,
+            smtp_username: None,
+            smtp_password: None,
+            smtp_use_tls: false,
+            smtp_plain_no_tls: true,
+            from_email: Some("noreply@example.com".to_string()),
+            from_name: Some("Test".to_string()),
+            logo_url: None,
+        })
+        .unwrap();
+
+        let email = RenderedEmail {
+            subject: "Verification Code".to_string(),
+            html: r#"<img src="/brand/technostar-logo.png" alt="TechnoStar" />"#.to_string(),
+            text: "Code: 123456".to_string(),
+        };
+
+        let message = mailer
+            .build_rendered_message("user@example.com", &email)
+            .unwrap();
+        let raw = String::from_utf8(message.formatted()).unwrap();
+
+        assert!(raw.contains("multipart/related"));
+        assert!(raw.contains("<technostar-logo>"));
+        assert!(!raw.contains(r#"src="/brand/technostar-logo.png""#));
+    }
+
+    #[tokio::test]
+    async fn test_smtp_mailer_respects_custom_logo_url() {
+        let mailer = SmtpMailer::new(cms_config::MailerConfig {
+            smtp_host: Some("localhost".to_string()),
+            smtp_port: 1025,
+            smtp_username: None,
+            smtp_password: None,
+            smtp_use_tls: false,
+            smtp_plain_no_tls: true,
+            from_email: Some("noreply@example.com".to_string()),
+            from_name: Some("Test".to_string()),
+            logo_url: Some("https://cdn.example.com/logo.png".to_string()),
+        })
+        .unwrap();
+
+        let email = RenderedEmail {
+            subject: "Verification Code".to_string(),
+            html: r#"<img src="cid:technostar-logo" alt="TechnoStar" />"#.to_string(),
+            text: "Code: 123456".to_string(),
+        };
+
+        let message = mailer
+            .build_rendered_message("user@example.com", &email)
+            .unwrap();
+        let raw = String::from_utf8(message.formatted()).unwrap();
+
+        assert!(raw.contains("multipart/alternative"));
+        assert!(raw.contains("https://cdn.example.com/logo.png"));
+        assert!(!raw.contains("<technostar-logo>"));
     }
 }

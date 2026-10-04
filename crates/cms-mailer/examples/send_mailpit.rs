@@ -156,6 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         smtp_plain_no_tls: true,
         from_email: Some("noreply@cms.local".to_string()),
         from_name: Some("CMS Platform".to_string()),
+        logo_url: None,
     };
 
     println!("-> Connecting to Mailpit SMTP server at localhost:1025...");

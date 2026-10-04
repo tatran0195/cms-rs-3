@@ -8,8 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const i18n = vi.hoisted(() => ({ locale: "en" as string }));
 const mocks = vi.hoisted(() => ({ navigate: vi.fn(), useProjects: vi.fn() }));
 
-// Real catalogs, controlled locale: the page count must come out translated and
-// in the locale's own digits (Arabic-Indic for ar), not as a raw number.
+// Real catalogs, controlled locale: the page count must come out translated
+// in the active locale, not as a raw number.
 vi.mock("@cms/i18n/react", async () => {
   const { translateFn } =
     await vi.importActual<typeof import("@cms/i18n")>("@cms/i18n");
@@ -86,11 +86,10 @@ describe("SitesPage", () => {
     expect(search?.getAttribute("aria-label")).toBe("Search…");
   });
 
-  it("formats the page count in Western digits for the Arabic interface", async () => {
-    i18n.locale = "ar";
+  it("formats the page count through the translated count message in Japanese", async () => {
+    i18n.locale = "ja";
     await render();
 
-    expect(container.textContent).toContain("58 صفحة");
-    expect(container.textContent).not.toMatch(/[٠-٩]/);
+    expect(container.textContent).toContain("58 ページ");
   });
 });

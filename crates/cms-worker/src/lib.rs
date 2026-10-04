@@ -257,6 +257,7 @@ mod tests {
             smtp_plain_no_tls: false,
             from_email: Some("admin@example.com".to_string()),
             from_name: Some("CMS Admin".to_string()),
+            logo_url: None,
         };
 
         let result = SmtpMailer::new(config);
@@ -272,6 +273,7 @@ mod tests {
             smtp_plain_no_tls: false,
             from_email: Some("admin@example.com".to_string()),
             from_name: Some("CMS Admin".to_string()),
+            logo_url: None,
         };
 
         let valid_result = SmtpMailer::new(valid_config);

@@ -14,7 +14,7 @@ import { bundleAnalysisPlugin } from './scripts/bundle-analysis-plugin.ts';
 
 export default defineConfig(({ mode }) => {
   const configEnv = createEnv({
-    server: { VITE_API_URL: z.url().default('http://localhost:4311') },
+    server: { VITE_API_URL: z.url().default('http://localhost:3000') },
     runtimeEnv: loadEnv(mode, process.cwd(), ''),
     emptyStringAsUndefined: true,
   });
@@ -54,7 +54,6 @@ export default defineConfig(({ mode }) => {
       },
     },
     optimizeDeps: {
-      noDiscovery: true,
       include: [
         'react',
         'react-dom',
@@ -65,13 +64,15 @@ export default defineConfig(({ mode }) => {
         '@tanstack/react-query',
         'lucide-react',
         'sonner',
+        'use-sync-external-store',
+        'use-sync-external-store/shim',
       ],
     },
     plugins: [
       paraglideVitePlugin({
         project: '../../packages/i18n/project.inlang',
         outdir: '../../packages/i18n/src/paraglide',
-        emitTsDeclarations: false,
+        emitTsDeclarations: true,
         outputStructure: 'message-modules',
         strategy: ['cookie', 'preferredLanguage', 'baseLocale'],
         cookieName: 'CMS_LOCALE',

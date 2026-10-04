@@ -34,8 +34,28 @@ pub struct MailerConfig {
     /// From name
     #[serde(default)]
     pub from_name: Option<String>,
+
+    /// Optional logo URL to display in email header (defaults to inline CID attachment)
+    #[serde(default)]
+    pub logo_url: Option<String>,
 }
 
 fn default_smtp_port() -> u16 {
     587
+}
+
+impl Default for MailerConfig {
+    fn default() -> Self {
+        Self {
+            smtp_host: None,
+            smtp_port: default_smtp_port(),
+            smtp_username: None,
+            smtp_password: None,
+            smtp_use_tls: false,
+            smtp_plain_no_tls: false,
+            from_email: None,
+            from_name: None,
+            logo_url: None,
+        }
+    }
 }

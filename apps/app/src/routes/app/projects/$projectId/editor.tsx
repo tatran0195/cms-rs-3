@@ -183,6 +183,7 @@ function EditorPage() {
       ),
     [languages],
   );
+  const defaultLanguageId = orderedLanguages[0]?.id ?? null;
   const pagesByLanguage = useMemo(() => {
     const map = new Map<string, PageNode[]>();
     for (const page of allPages ?? []) {

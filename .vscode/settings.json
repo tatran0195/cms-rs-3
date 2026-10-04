@@ -17,6 +17,8 @@
     "kysely",
     "lettre",
     "lindera",
+    "linkedom",
+    "lowlight",
     "Mailpit",
     "minijinja",
     "Mmap",

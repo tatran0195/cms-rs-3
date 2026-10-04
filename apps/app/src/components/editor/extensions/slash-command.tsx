@@ -101,7 +101,7 @@ export const scaffoldLocaleOf = (
   if (explicit) return explicit;
   const fromLang = scope?.lang ? resolveLocale(scope.lang) : null;
   if (fromLang) return fromLang;
-  return scope?.dir === "rtl" ? "ar" : "en";
+  return "en";
 };
 
 /** Resolve the page language for a running editor from its nearest `dir` scope. */
@@ -981,17 +981,15 @@ export const createSlashItems = (onUpload?: UploadFn): SlashItem[] => [
 ];
 
 /** Resolve a slash label in one canonical catalog for locale-independent search. */
-const labelInFn = (label: MessageKey, locale: "en" | "ar"): string =>
+const labelInFn = (label: MessageKey, locale: Locale): string =>
   translateFn(label, undefined, locale);
 
-/** Search haystack across BOTH locales (+ keywords) so filtering works whatever
+/** Search haystack across canonical catalog (+ keywords) so filtering works whatever
  *  language the menu is displayed in. */
 const haystackOf = (item: SlashItem): string =>
   [
     labelInFn(item.titleKey, "en"),
-    labelInFn(item.titleKey, "ar"),
     labelInFn(item.descKey, "en"),
-    labelInFn(item.descKey, "ar"),
     ...(item.keywords ?? []),
   ]
     .join(" ")

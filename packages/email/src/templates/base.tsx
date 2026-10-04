@@ -22,7 +22,7 @@ const bodyStyle: React.CSSProperties = {
 export function BaseEmail({
   children,
   language,
-  logoUrl = '/brand/technostar-logo.png',
+  logoUrl = 'cid:technostar-logo',
   preview,
 }: {
   children: React.ReactNode;

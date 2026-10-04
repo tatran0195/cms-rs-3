@@ -41,7 +41,7 @@ impl TemplateEngine {
             None => (None, None),
         };
 
-        let default_logo = "/brand/technostar-logo.png";
+        let default_logo = "cid:technostar-logo";
         let logo_url = props.logo_url.as_deref().unwrap_or(default_logo);
 
         let ctx = minijinja::context! {
@@ -110,7 +110,7 @@ mod tests {
         assert!(rendered.html.contains("123456"));
         assert!(rendered.html.contains("lang=\"en\""));
         assert!(rendered.html.contains("dir=\"ltr\""));
-        assert!(rendered.html.contains("src=\"/brand/technostar-logo.png\""));
+        assert!(rendered.html.contains("src=\"cid:technostar-logo\""));
         assert!(rendered.text.contains("123456"));
         assert!(rendered.text.contains("Your verification code"));
     }
@@ -164,7 +164,7 @@ mod tests {
         let rendered = engine.render_transactional(&props).unwrap();
         assert!(rendered.html.contains("dir=\"ltr\""));
         assert!(rendered.html.contains("lang=\"ja\""));
-        assert!(rendered.html.contains("src=\"/brand/technostar-logo.png\""));
+        assert!(rendered.html.contains("src=\"cid:technostar-logo\""));
         assert!(rendered
             .text
             .contains("新しいデバイスからのアカウントへのサインインを検出しました。"));
