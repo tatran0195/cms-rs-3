@@ -106,12 +106,12 @@ export function ThemePreview({ config, mode, arabic }: { config: ProjectConfig; 
         navigation={
           <nav aria-label={t('settings.theme.preview.navigation')}>
             <p className="mb-2 px-2 font-semibold">{t('settings.theme.preview.start')}</p>
-            <a className="mb-1 block rounded-md bg-primary/10 px-2 py-1.5 font-medium text-primary" href="#preview-content">
+            <button className="mb-1 block w-full rounded-md bg-primary/10 px-2 py-1.5 text-start font-medium text-primary" type="button">
               {t('settings.theme.preview.overview')}
-            </a>
-            <a className="block rounded-md px-2 py-1.5 text-muted-foreground" href="#preview-code">
+            </button>
+            <button className="block w-full rounded-md px-2 py-1.5 text-start text-muted-foreground" type="button">
               {t('settings.theme.preview.authentication')}
-            </a>
+            </button>
           </nav>
         }
         content={
