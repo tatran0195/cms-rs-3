@@ -285,8 +285,7 @@ pub async fn check_domain_tls_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<TlsCheckQuery>,
 ) -> Result<axum::response::Response, AppError> {
-    use axum::http::StatusCode;
-    use axum::response::IntoResponse;
+    use axum::{http::StatusCode, response::IntoResponse};
 
     let Some(domain) = query.domain.filter(|d| !d.trim().is_empty()) else {
         return Ok((StatusCode::BAD_REQUEST, "Missing domain query parameter").into_response());

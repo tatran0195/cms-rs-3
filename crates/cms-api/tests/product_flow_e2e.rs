@@ -1585,7 +1585,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         site_request(&app, &public_host, "/quickstart/start").await?;
     anyhow::ensure!(
         unreleased_translation_path_status == StatusCode::NOT_FOUND,
-        "SSR must not resolve a translated editor path before deploy: {unreleased_translation_path_body}"
+        "SSR must not resolve a translated editor path before deploy: \
+         {unreleased_translation_path_body}"
     );
 
     let old_release_page = expect_status(
@@ -1610,7 +1611,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&\
+                 version=main"
             ),
             None,
             None,
@@ -1749,7 +1751,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&\
+                 version=main"
             ),
             None,
             None,
@@ -2065,7 +2068,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&\
+                 version=main"
             ),
             None,
             None,
@@ -2258,7 +2262,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         site_request(&app, &public_host, "/").await?;
     anyhow::ensure!(
         no_default_release_status == StatusCode::NOT_FOUND,
-        "do not fall back to a non-default branch when main has no active release: {no_default_release_body}"
+        "do not fall back to a non-default branch when main has no active release: \
+         {no_default_release_body}"
     );
     expect_status(
         request(

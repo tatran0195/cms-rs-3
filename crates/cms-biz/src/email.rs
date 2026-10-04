@@ -2,10 +2,10 @@
 
 use std::sync::Arc;
 
+use cms_entity::email::{EmailRequest, EmailTemplate};
 pub use cms_mailer::*;
 
 use crate::AppError;
-use cms_entity::email::{EmailRequest, EmailTemplate};
 
 /// Email service
 pub struct EmailService;

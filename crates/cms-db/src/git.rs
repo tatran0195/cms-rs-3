@@ -617,7 +617,8 @@ impl GitConflictQueries {
         offset: Option<i64>,
     ) -> Result<Vec<GitConflict>, AppError> {
         let rows = sqlx::query_as::<_, GitConflictRow>(
-            "SELECT * FROM \"GitConflict\" WHERE project_id = $1 ORDER BY created_at LIMIT $2 OFFSET $3",
+            "SELECT * FROM \"GitConflict\" WHERE project_id = $1 ORDER BY created_at LIMIT $2 \
+             OFFSET $3",
         )
         .bind(project_id)
         .bind(limit.unwrap_or(100))
@@ -645,7 +646,8 @@ impl GitConflictQueries {
         resolved_content: &str,
     ) -> Result<GitConflict, AppError> {
         let row = sqlx::query_as::<_, GitConflictRow>(
-            "UPDATE \"GitConflict\" SET resolved_content = $2, resolved_at = $3, resolved_by = $4, updated_at = $3 WHERE id = $1 RETURNING *",
+            "UPDATE \"GitConflict\" SET resolved_content = $2, resolved_at = $3, resolved_by = \
+             $4, updated_at = $3 WHERE id = $1 RETURNING *",
         )
         .bind(conflict_id)
         .bind(resolved_content)
@@ -680,7 +682,8 @@ impl GitPullRequestQueries {
         offset: Option<i64>,
     ) -> Result<Vec<GitPullRequest>, AppError> {
         let rows = sqlx::query_as::<_, GitPullRequestRow>(
-            "SELECT * FROM \"GitPullRequest\" WHERE connection_id = $1 ORDER BY created_at LIMIT $2 OFFSET $3",
+            "SELECT * FROM \"GitPullRequest\" WHERE connection_id = $1 ORDER BY created_at LIMIT \
+             $2 OFFSET $3",
         )
         .bind(connection_id)
         .bind(limit.unwrap_or(100))

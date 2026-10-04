@@ -1,10 +1,12 @@
 use std::sync::LazyLock;
 
-use crate::i18n::translate;
-use crate::templates::TemplateEngine;
-use crate::types::{
-    DeploymentOutcome, EmailAction, EmailLanguage, RenderedEmail, TransactionalEmailProps,
-    VerificationPurpose,
+use crate::{
+    i18n::translate,
+    templates::TemplateEngine,
+    types::{
+        DeploymentOutcome, EmailAction, EmailLanguage, RenderedEmail, TransactionalEmailProps,
+        VerificationPurpose,
+    },
 };
 
 static GLOBAL_ENGINE: LazyLock<TemplateEngine> =

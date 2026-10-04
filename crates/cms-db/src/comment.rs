@@ -113,8 +113,8 @@ impl CommentQueries {
         offset: Option<i64>,
     ) -> Result<Vec<Comment>, AppError> {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "SELECT c.* FROM \"Comment\" c \
-             JOIN \"Page\" p ON c.page_id = p.id WHERE p.project_id = ",
+            "SELECT c.* FROM \"Comment\" c JOIN \"Page\" p ON c.page_id = p.id WHERE p.project_id \
+             = ",
         );
         query_builder.push_bind(project_id);
 

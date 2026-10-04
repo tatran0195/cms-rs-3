@@ -1,7 +1,9 @@
 use minijinja::Environment;
 
-use crate::i18n::translate;
-use crate::types::{RenderedEmail, TransactionalEmailProps};
+use crate::{
+    i18n::translate,
+    types::{RenderedEmail, TransactionalEmailProps},
+};
 
 pub const BASE_HTML: &str = include_str!("base.html");
 pub const TRANSACTIONAL_HTML: &str = include_str!("transactional.html");

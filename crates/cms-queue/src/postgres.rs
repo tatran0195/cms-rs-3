@@ -183,7 +183,9 @@ impl JobQueue for PostgresJobQueue {
         _schedule: String,
     ) -> Result<JobId, AppError> {
         Err(AppError::InvalidInput(
-            "Cron scheduling is not supported by the PostgreSQL queue; schedule jobs from a durable scheduler".to_string(),
+            "Cron scheduling is not supported by the PostgreSQL queue; schedule jobs from a \
+             durable scheduler"
+                .to_string(),
         ))
     }
 

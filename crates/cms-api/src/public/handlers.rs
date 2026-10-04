@@ -1535,7 +1535,8 @@ pub async fn get_public_site_changelog_rss_handler(
     }
 
     let body = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel><title>Site changelog</title>{}</channel></rss>",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel><title>Site \
+         changelog</title>{}</channel></rss>",
         items
     );
     Ok((
@@ -1607,8 +1608,9 @@ pub async fn get_public_site_llms_full_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use chrono::Utc;
+
+    use super::*;
 
     fn make_page(
         id: &str,

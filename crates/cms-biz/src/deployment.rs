@@ -740,7 +740,8 @@ pub async fn process_publish_job(
             ));
         }
         tracing::info!(
-            "Ignoring legacy in-place publish for page {}; create a new deployment to publish a release",
+            "Ignoring legacy in-place publish for page {}; create a new deployment to publish a \
+             release",
             page_id
         );
         Ok(())

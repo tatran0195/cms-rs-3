@@ -131,83 +131,94 @@ impl AnalyticsStore for SqliteAnalyticsStore {
         let limit = limit.unwrap_or(100);
         let offset = offset.unwrap_or(0);
 
-        let events = tokio::task::spawn_blocking(move || -> Result<Vec<cms_entity::analytics::AnalyticsEvent>, AppError> {
-            let conn = conn.lock().map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
+        let events = tokio::task::spawn_blocking(
+            move || -> Result<Vec<cms_entity::analytics::AnalyticsEvent>, AppError> {
+                let conn = conn
+                    .lock()
+                    .map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
 
-            let mut query = String::from("SELECT id, organization_id, project_id, user_id, event_type, metadata, ip_address, user_agent, created_at FROM analytics_events WHERE 1=1");
-            let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+                let mut query = String::from(
+                    "SELECT id, organization_id, project_id, user_id, event_type, metadata, \
+                     ip_address, user_agent, created_at FROM analytics_events WHERE 1=1",
+                );
+                let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-            if let Some(ref org) = org_id {
-                query.push_str(" AND organization_id = ?");
-                params.push(Box::new(org.clone()));
-            }
-            if let Some(ref proj) = project_id {
-                query.push_str(" AND project_id = ?");
-                params.push(Box::new(proj.clone()));
-            }
-            if let Some(ref uid) = user_id {
-                query.push_str(" AND user_id = ?");
-                params.push(Box::new(uid.clone()));
-            }
-            if let Some(ref et) = event_type {
-                query.push_str(" AND event_type = ?");
-                params.push(Box::new(et.clone()));
-            }
-            if let Some(ref st) = start_date_str {
-                query.push_str(" AND created_at >= ?");
-                params.push(Box::new(st.clone()));
-            }
-            if let Some(ref et) = end_date_str {
-                query.push_str(" AND created_at <= ?");
-                params.push(Box::new(et.clone()));
-            }
+                if let Some(ref org) = org_id {
+                    query.push_str(" AND organization_id = ?");
+                    params.push(Box::new(org.clone()));
+                }
+                if let Some(ref proj) = project_id {
+                    query.push_str(" AND project_id = ?");
+                    params.push(Box::new(proj.clone()));
+                }
+                if let Some(ref uid) = user_id {
+                    query.push_str(" AND user_id = ?");
+                    params.push(Box::new(uid.clone()));
+                }
+                if let Some(ref et) = event_type {
+                    query.push_str(" AND event_type = ?");
+                    params.push(Box::new(et.clone()));
+                }
+                if let Some(ref st) = start_date_str {
+                    query.push_str(" AND created_at >= ?");
+                    params.push(Box::new(st.clone()));
+                }
+                if let Some(ref et) = end_date_str {
+                    query.push_str(" AND created_at <= ?");
+                    params.push(Box::new(et.clone()));
+                }
 
-            query.push_str(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
-            params.push(Box::new(limit));
-            params.push(Box::new(offset));
+                query.push_str(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
+                params.push(Box::new(limit));
+                params.push(Box::new(offset));
 
-            let rusqlite_params: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+                let rusqlite_params: Vec<&dyn rusqlite::ToSql> =
+                    params.iter().map(|p| p.as_ref()).collect();
 
-            let mut stmt = conn.prepare(&query)
-                .map_err(|e| AppError::Storage(format!("Failed to prepare query: {}", e)))?;
+                let mut stmt = conn
+                    .prepare(&query)
+                    .map_err(|e| AppError::Storage(format!("Failed to prepare query: {}", e)))?;
 
-            let rows = stmt.query_map(rusqlite_params.as_slice(), |row| {
-                let id: String = row.get(0)?;
-                let organization_id: Option<String> = row.get(1)?;
-                let project_id: Option<String> = row.get(2)?;
-                let user_id: Option<String> = row.get(3)?;
-                let event_type: String = row.get(4)?;
-                let metadata_str: String = row.get(5)?;
-                let ip_address: Option<String> = row.get(6)?;
-                let user_agent: Option<String> = row.get(7)?;
-                let created_at_str: String = row.get(8)?;
+                let rows = stmt
+                    .query_map(rusqlite_params.as_slice(), |row| {
+                        let id: String = row.get(0)?;
+                        let organization_id: Option<String> = row.get(1)?;
+                        let project_id: Option<String> = row.get(2)?;
+                        let user_id: Option<String> = row.get(3)?;
+                        let event_type: String = row.get(4)?;
+                        let metadata_str: String = row.get(5)?;
+                        let ip_address: Option<String> = row.get(6)?;
+                        let user_agent: Option<String> = row.get(7)?;
+                        let created_at_str: String = row.get(8)?;
 
-                let metadata: serde_json::Value = serde_json::from_str(&metadata_str).unwrap_or(serde_json::Value::Null);
-                let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                    .map(|dt| dt.with_timezone(&chrono::Utc))
-                    .unwrap_or_else(|_| chrono::Utc::now());
+                        let metadata: serde_json::Value =
+                            serde_json::from_str(&metadata_str).unwrap_or(serde_json::Value::Null);
+                        let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                            .map(|dt| dt.with_timezone(&chrono::Utc))
+                            .unwrap_or_else(|_| chrono::Utc::now());
 
-                Ok(cms_entity::analytics::AnalyticsEvent {
-                    id,
-                    organization_id,
-                    project_id,
-                    user_id,
-                    event_type,
-                    metadata,
-                    ip_address,
-                    user_agent,
-                    created_at,
-                })
-            })
-            .map_err(|e| AppError::Storage(format!("Failed to query analytics: {}", e)))?;
+                        Ok(cms_entity::analytics::AnalyticsEvent {
+                            id,
+                            organization_id,
+                            project_id,
+                            user_id,
+                            event_type,
+                            metadata,
+                            ip_address,
+                            user_agent,
+                            created_at,
+                        })
+                    })
+                    .map_err(|e| AppError::Storage(format!("Failed to query analytics: {}", e)))?;
 
-            let mut result = Vec::new();
-            for event in rows.flatten() {
-                result.push(event);
-            }
+                let mut result = Vec::new();
+                for event in rows.flatten() {
+                    result.push(event);
+                }
 
-            Ok(result)
-        })
+                Ok(result)
+            },
+        )
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("SQLite query task panicked: {}", e)))??;
 
@@ -225,42 +236,60 @@ impl AnalyticsStore for SqliteAnalyticsStore {
         let start_date_str = start_date.to_rfc3339();
         let end_date_str = end_date.to_rfc3339();
 
-        let summary = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
-            let conn = conn.lock().map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
+        let summary =
+            tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
+                let conn = conn
+                    .lock()
+                    .map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
 
-            let total_events: i64 = conn.query_row(
-                "SELECT COUNT(*) FROM analytics_events WHERE organization_id = ?1 AND created_at >= ?2 AND created_at <= ?3",
-                rusqlite::params![org_id, start_date_str, end_date_str],
-                |row| row.get(0),
-            ).unwrap_or(0);
+                let total_events: i64 = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM analytics_events WHERE organization_id = ?1 AND \
+                         created_at >= ?2 AND created_at <= ?3",
+                        rusqlite::params![org_id, start_date_str, end_date_str],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or(0);
 
-            let page_views: i64 = conn.query_row(
-                "SELECT COUNT(*) FROM analytics_events WHERE organization_id = ?1 AND event_type = 'page_view' AND created_at >= ?2 AND created_at <= ?3",
-                rusqlite::params![org_id, start_date_str, end_date_str],
-                |row| row.get(0),
-            ).unwrap_or(0);
+                let page_views: i64 = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM analytics_events WHERE organization_id = ?1 AND \
+                         event_type = 'page_view' AND created_at >= ?2 AND created_at <= ?3",
+                        rusqlite::params![org_id, start_date_str, end_date_str],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or(0);
 
-            let unique_users: i64 = conn.query_row(
-                "SELECT COUNT(DISTINCT user_id) FROM analytics_events WHERE organization_id = ?1 AND user_id IS NOT NULL AND created_at >= ?2 AND created_at <= ?3",
-                rusqlite::params![org_id, start_date_str, end_date_str],
-                |row| row.get(0),
-            ).unwrap_or(0);
+                let unique_users: i64 = conn
+                    .query_row(
+                        "SELECT COUNT(DISTINCT user_id) FROM analytics_events WHERE \
+                         organization_id = ?1 AND user_id IS NOT NULL AND created_at >= ?2 AND \
+                         created_at <= ?3",
+                        rusqlite::params![org_id, start_date_str, end_date_str],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or(0);
 
-            let searches: i64 = conn.query_row(
-                "SELECT COUNT(*) FROM analytics_events WHERE organization_id = ?1 AND event_type = 'search' AND created_at >= ?2 AND created_at <= ?3",
-                rusqlite::params![org_id, start_date_str, end_date_str],
-                |row| row.get(0),
-            ).unwrap_or(0);
+                let searches: i64 = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM analytics_events WHERE organization_id = ?1 AND \
+                         event_type = 'search' AND created_at >= ?2 AND created_at <= ?3",
+                        rusqlite::params![org_id, start_date_str, end_date_str],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or(0);
 
-            Ok(serde_json::json!({
-                "total_events": total_events,
-                "unique_users": unique_users,
-                "page_views": page_views,
-                "searches": searches,
-            }))
-        })
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("SQLite summary task panicked: {}", e)))??;
+                Ok(serde_json::json!({
+                    "total_events": total_events,
+                    "unique_users": unique_users,
+                    "page_views": page_views,
+                    "searches": searches,
+                }))
+            })
+            .await
+            .map_err(|e| {
+                AppError::Internal(anyhow::anyhow!("SQLite summary task panicked: {}", e))
+            })??;
 
         Ok(summary)
     }

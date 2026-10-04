@@ -1,5 +1,4 @@
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 use cms_config::MailerConfig;
 use cms_mailer::{
@@ -126,7 +125,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let exe_path = Path::new("target/tools/mailpit.exe");
         if exe_path.exists() {
-            println!("-> Mailpit not detected on localhost:1025. Spawning detached target/tools/mailpit.exe...");
+            println!(
+                "-> Mailpit not detected on localhost:1025. Spawning detached \
+                 target/tools/mailpit.exe..."
+            );
             #[cfg(windows)]
             {
                 use std::os::windows::process::CommandExt;

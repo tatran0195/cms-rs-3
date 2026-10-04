@@ -3782,9 +3782,7 @@ pub async fn get_project_export_download_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<impl axum::response::IntoResponse, AppError> {
-    use cms_db::branch::BranchQueries;
-    use cms_db::language::LanguageQueries;
-    use cms_db::page::PageQueries;
+    use cms_db::{branch::BranchQueries, language::LanguageQueries, page::PageQueries};
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
         .await?;
@@ -4040,5 +4038,9 @@ fn build_continuation(instruction: &str) -> String {
     } else {
         instruction.trim()
     };
-    format!("\n## {} \n\nContinue expanding on the previous points, adding concrete details, examples, and a clear closing takeaway.", tip)
+    format!(
+        "\n## {} \n\nContinue expanding on the previous points, adding concrete details, \
+         examples, and a clear closing takeaway.",
+        tip
+    )
 }

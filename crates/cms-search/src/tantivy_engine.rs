@@ -8,10 +8,12 @@
 //! - Multi-process safe: IndexWriter is acquired with retry backoff and released immediately after commit.
 //! - Readers auto-reload on commit (`ReloadPolicy::OnCommitWithDelay`), keeping API and Worker in sync.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 
 use async_trait::async_trait;
 use cms_entity::{
@@ -720,9 +722,10 @@ impl SearchEngine for TantivySearchEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use chrono::Utc;
     use tempfile::TempDir;
+
+    use super::*;
 
     fn make_test_page(id: &str, project_id: &str, title: &str, content: &str) -> Page {
         Page {
@@ -757,7 +760,8 @@ mod tests {
             "p1",
             "project_alpha",
             "関西国際空港の利用案内",
-            "# 概要\n関西国際空港へのアクセス方法とターミナル案内です。\n\n## 鉄道アクセス\nJRと南海電鉄をご利用いただけます。",
+            "# 概要\n関西国際空港へのアクセス方法とターミナル案内です。\n\n## \
+             鉄道アクセス\nJRと南海電鉄をご利用いただけます。",
         );
 
         let page2 = make_test_page(
@@ -852,9 +856,10 @@ mod tests {
 
 #[cfg(test)]
 mod e2e_tests {
-    use super::*;
     use chrono::Utc;
     use tempfile::TempDir;
+
+    use super::*;
 
     fn make_page(id: &str, project_id: &str, title: &str, content: &str) -> Page {
         Page {
@@ -1218,7 +1223,9 @@ confファイルを適切に設定してください。
             "rag1",
             proj,
             "データベース設計ガイド",
-            "# データベース設計\nリレーショナルデータベースの設計とインデックス最適化について解説します。\n\n## テーブル設計\n正規化とパフォーマンスのバランスを考えた設計が重要です。",
+            "# データベース設計\\
+             nリレーショナルデータベースの設計とインデックス最適化について解説します。\n\n## \
+             テーブル設計\n正規化とパフォーマンスのバランスを考えた設計が重要です。",
         ))
         .await
         .unwrap();

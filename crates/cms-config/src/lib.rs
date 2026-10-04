@@ -176,8 +176,7 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-    use std::sync::Mutex;
+    use std::{env, sync::Mutex};
 
     use super::*;
 

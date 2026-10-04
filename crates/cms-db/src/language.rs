@@ -506,7 +506,8 @@ impl ProjectTranslationQueries {
         project_id: &str,
     ) -> Result<Vec<ProjectTranslation>, AppError> {
         let rows = sqlx::query_as::<_, ProjectTranslationRow>(
-            "SELECT * FROM \"ProjectTranslation\" WHERE project_id = $1 ORDER BY created_at ASC, id ASC",
+            "SELECT * FROM \"ProjectTranslation\" WHERE project_id = $1 ORDER BY created_at ASC, \
+             id ASC",
         )
         .bind(project_id)
         .fetch_all(pool)

@@ -18,13 +18,12 @@ use axum::{
     extract::{Path, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
 };
-use serde::Deserialize;
-use serde_json::json;
-
 use cms_biz::platform_event::{FunnelEventType, PlatformEventService};
 use cms_config::OAuthProviderConfig;
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use serde::Deserialize;
+use serde_json::json;
 
 fn internal(msg: String) -> AppError {
     AppError::Internal(anyhow::anyhow!(msg))
@@ -240,9 +239,7 @@ pub async fn oauth_callback_handler(
     Path(provider): Path<String>,
     Query(query): Query<CallbackQuery>,
 ) -> Result<axum::response::Response, AppError> {
-    use cms_db::auth::AccountQueries;
-    use cms_db::auth::SessionQueries;
-    use cms_db::auth::UserQueries;
+    use cms_db::auth::{AccountQueries, SessionQueries, UserQueries};
 
     let provider = provider.to_lowercase();
 

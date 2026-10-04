@@ -21,8 +21,10 @@ fn main() {
 fn run_e2e(extra_test_args: Vec<String>) {
     if env::var_os("CMS_E2E_DATABASE_URL").is_none() {
         eprintln!(
-            "CMS_E2E_DATABASE_URL is required and must point to a disposable PostgreSQL database.\
-             \nExample: CMS_E2E_DATABASE_URL=postgres://postgres:postgres@localhost:5432/cms_e2e cargo xtask e2e"
+            "CMS_E2E_DATABASE_URL is required and must point to a disposable PostgreSQL \
+             database.\nExample: \
+             CMS_E2E_DATABASE_URL=postgres://postgres:postgres@localhost:5432/cms_e2e cargo xtask \
+             e2e"
         );
         process::exit(2);
     }

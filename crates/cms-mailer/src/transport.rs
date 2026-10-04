@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use cms_error::AppError;
 use lettre::{
@@ -5,7 +7,6 @@ use lettre::{
     transport::smtp::authentication::Credentials,
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
 };
-use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::types::RenderedEmail;
@@ -45,8 +46,8 @@ pub fn create_mailer_with_noop_fallback(
     }
 
     tracing::warn!(
-        "No SMTP host configured — emails will be silently discarded. Set \
-         CMS_MAILER__SMTP_HOST to enable email delivery."
+        "No SMTP host configured — emails will be silently discarded. Set CMS_MAILER__SMTP_HOST \
+         to enable email delivery."
     );
     Ok(Arc::new(NoopMailer))
 }

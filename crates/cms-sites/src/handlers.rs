@@ -525,14 +525,16 @@ pub async fn robots_txt_handler(
                 format!("https://{}.{}", site.project.slug, site_host(&state))
             };
             Ok(format!(
-                "User-agent: *\nAllow: /\nSitemap: {}/sitemap.xml\n\nDisallow: /api/\nDisallow: /admin/\nDisallow: /private/\n",
+                "User-agent: *\nAllow: /\nSitemap: {}/sitemap.xml\n\nDisallow: /api/\nDisallow: \
+                 /admin/\nDisallow: /private/\n",
                 base_url
             ))
         }
         None => {
             // Default robots.txt
             Ok(
-                "User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n\nDisallow: /api/\nDisallow: /admin/\nDisallow: /private/\n"
+                "User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n\nDisallow: /api/\nDisallow: \
+                 /admin/\nDisallow: /private/\n"
                     .to_string(),
             )
         }

@@ -7,12 +7,13 @@
 //! - Unicode NFKC normalization and full-width to half-width ASCII conversion
 //! - Accurate byte offsets for Tantivy snippet generation and search result highlighting
 
-use std::borrow::Cow;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
-use lindera::dictionary::{load_dictionary, Dictionary};
-use lindera::mode::{Mode, Penalty};
-use lindera::segmenter::Segmenter;
+use lindera::{
+    dictionary::{load_dictionary, Dictionary},
+    mode::{Mode, Penalty},
+    segmenter::Segmenter,
+};
 use tantivy::tokenizer::{BoxTokenStream, Token, TokenStream, Tokenizer};
 use unicode_normalization::UnicodeNormalization;
 
@@ -53,7 +54,8 @@ impl JapaneseTokenizer {
                 };
                 load_dictionary(&uri).unwrap_or_else(|e| {
                     tracing::warn!(
-                        "Failed to load custom Lindera dictionary at '{}': {}. Falling back to embedded SudachiDict.",
+                        "Failed to load custom Lindera dictionary at '{}': {}. Falling back to \
+                         embedded SudachiDict.",
                         path,
                         e
                     );

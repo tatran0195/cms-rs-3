@@ -705,8 +705,10 @@ pub async fn accept_invitation_handler(
     auth: AuthExtractor,
     Json(body): Json<AcceptInvitationBody>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_db::auth::UserQueries;
-    use cms_db::org::{InvitationQueries, MemberQueries, OrganizationQueries};
+    use cms_db::{
+        auth::UserQueries,
+        org::{InvitationQueries, MemberQueries, OrganizationQueries},
+    };
 
     let invitation = InvitationQueries::get_by_token(&state.biz_context.pool, &body.invitation_id)
         .await?

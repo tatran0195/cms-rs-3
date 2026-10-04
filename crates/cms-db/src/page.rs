@@ -608,7 +608,8 @@ impl PageQueries {
         let effective_parent_id = parent_id.filter(|id| !id.is_empty());
         let path = if let Some(parent_id) = effective_parent_id {
             let parent = sqlx::query_as::<_, (String, String, Option<String>, String)>(
-                "SELECT project_id, branch_id, language_id, path FROM \"Page\" WHERE id = $1 FOR KEY SHARE",
+                "SELECT project_id, branch_id, language_id, path FROM \"Page\" WHERE id = $1 FOR \
+                 KEY SHARE",
             )
             .bind(parent_id)
             .fetch_optional(&mut *tx)
@@ -743,7 +744,8 @@ impl PageQueries {
                 ));
             }
             let parent = sqlx::query_as::<_, (String, String, Option<String>, String)>(
-                "SELECT project_id, branch_id, language_id, path FROM \"Page\" WHERE id = $1 FOR KEY SHARE",
+                "SELECT project_id, branch_id, language_id, path FROM \"Page\" WHERE id = $1 FOR \
+                 KEY SHARE",
             )
             .bind(parent_id)
             .fetch_optional(&mut *tx)
@@ -1132,7 +1134,9 @@ impl PageQueries {
         }
         if path_collision || duplicate_planned_path {
             return Err(AppError::Conflict(
-                "Deleting this page would create a path collision; rename or move its children first".to_string(),
+                "Deleting this page would create a path collision; rename or move its children \
+                 first"
+                    .to_string(),
             ));
         }
 
@@ -1427,7 +1431,8 @@ impl PageQueries {
         .map_err(map_page_write_error)?;
 
         let reordered = sqlx::query_as::<_, PageRow>(
-            "SELECT * FROM \"Page\" WHERE id = ANY($1) ORDER BY parent_id NULLS FIRST, position, id",
+            "SELECT * FROM \"Page\" WHERE id = ANY($1) ORDER BY parent_id NULLS FIRST, position, \
+             id",
         )
         .bind(&requested_ids)
         .fetch_all(&mut *tx)
