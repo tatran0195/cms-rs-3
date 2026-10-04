@@ -7,7 +7,7 @@ import { THEME_PRESET_IDS, type ThemePresetId } from '../packages/shared/src/the
 const targetArg = process.argv[2];
 const templateArg = process.argv[3] ?? 'harbor';
 if (!targetArg || !THEME_PRESET_IDS.includes(templateArg as ThemePresetId)) {
-  throw new Error('Usage: pnpm theme-repository:fixture <new-output-directory> [harbor|manuscript|signal]');
+  throw new Error('Usage: bun scripts/theme-repository-fixture.ts <new-output-directory> [harbor|manuscript|signal]');
 }
 const target = resolve(targetArg);
 const template = templateArg as ThemePresetId;

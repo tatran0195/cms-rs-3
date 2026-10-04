@@ -10,7 +10,7 @@
  *
  * Usage:
  *   node scripts/site-preview-mock.mjs                 # terminal 1 (port 4311)
- *   cd apps/app && pnpm dev                            # terminal 2 (port 4310)
+ *   bun --filter @cms/app dev                          # terminal 2 (port 4310)
  *   node scripts/site-preview-shots.mjs --label before [--base http://localhost:4310]
  *       [--presets harbor,manuscript,signal,legacy] [--deep guides/authentication]
  *       [--chromium <path to chrome.exe>] [--no-fullpage]

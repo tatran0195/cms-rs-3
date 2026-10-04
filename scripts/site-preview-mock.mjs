@@ -20,7 +20,7 @@
  *   ANY  /api/**                                         -> 204 (events, analytics, anything else)
  *
  * Usage: node scripts/site-preview-mock.mjs [--port 4311]
- * Then:  cd apps/app && pnpm dev   # proxies /api/** to http://localhost:4311
+ * Then:  bun --filter @cms/app dev   # proxies /api/** to http://localhost:4311
  *        open http://localhost:4310/sites/preview-harbor?lang=ar
  */
 import { createServer } from 'node:http';

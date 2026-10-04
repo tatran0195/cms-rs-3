@@ -8,6 +8,7 @@ upload
 tmp
 /out-tsc
 .pnpm-store
+pnpm-lock.yaml
 
 # data
 logfile

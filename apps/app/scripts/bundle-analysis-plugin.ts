@@ -4,7 +4,7 @@ import type { Plugin } from 'vite';
 
 /** Opt-in Rollup module attribution for production bundle investigations.
  * The report stays outside `.output/public`, so absolute source paths are never
- * deployed. Enable it with `BUNDLE_ANALYZE=true pnpm build:app`. */
+ * deployed. Enable it with `BUNDLE_ANALYZE=true bun --filter @cms/app build`. */
 export function bundleAnalysisPlugin(): Plugin {
   return {
     name: 'cms-bundle-analysis',

@@ -70,7 +70,7 @@ if (manifestFile) {
 }
 
 if (typeof manifestFactory !== 'function') {
-  console.error('Bundle manifest not found. Run `pnpm --filter @cms/app build` before this check.');
+  console.error('Bundle manifest not found. Run `bun --filter @cms/app build` before this check.');
   process.exit(2);
 }
 
