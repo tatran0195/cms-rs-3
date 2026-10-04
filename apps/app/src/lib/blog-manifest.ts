@@ -1,4 +1,3 @@
-import { translateFn } from '@cms/i18n';
 import type { BlogEntry } from './blog';
 
 /** Lightweight article metadata. Keep this in sync with MDX frontmatter.

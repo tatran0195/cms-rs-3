@@ -1,9 +1,9 @@
 export {
   CmsMark,
   CmsWordmark,
+  cmsMark,
+  cmsWordmark,
   TechnoStarLogo,
   TechnoStarMark,
   TechnoStarWordmark,
-  cmsMark,
-  cmsWordmark,
 } from './nibleaf-brand';

@@ -1,6 +1,5 @@
 import { CmsMark, CmsWordmark } from '@cms/design-system/brand';
 import { type MessageKey, type MessageVariables, translateFn } from '@cms/i18n';
-import { useLocale } from '@cms/i18n/react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowLeft, Check, ExternalLink, Languages, Search, Server, ShieldCheck } from 'lucide-react';
 import { type ReactNode, useCallback } from 'react';

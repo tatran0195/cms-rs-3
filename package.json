@@ -13,7 +13,7 @@
     "check": "ultracite check",
     "fix": "ultracite fix",
     "lint": "ultracite check",
-    "format": "biome format --write .",
+    "format": "biome check --write --unsafe --max-diagnostics=none .",
     "knip": "knip",
     "lint:md": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
     "lint:md:fix": "markdownlint-cli2 --fix \"docs/**/*.md\" \"!docs/**/node_modules/**\"",

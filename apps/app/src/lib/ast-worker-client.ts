@@ -3,11 +3,11 @@
  * Transparently falls back to inline synchronous parsing if Web Workers
  * are unavailable (e.g. server-side rendering or restricted worker environments).
  */
-import { extractHeadingsSync, parseFrontmatterSync, type AstWorkerParseRequest, type AstWorkerParseResponse } from './ast-worker';
+import { type AstWorkerParseRequest, type AstWorkerParseResponse, extractHeadingsSync, parseFrontmatterSync } from './ast-worker';
 
 class AstWorkerClient {
-  private worker: Worker | null = null;
-  private pending = new Map<string, { resolve: (val: any) => void; reject: (err: Error) => void }>();
+  private readonly worker: Worker | null = null;
+  private readonly pending = new Map<string, { resolve: (val: any) => void; reject: (err: Error) => void }>();
   private messageCounter = 0;
 
   constructor() {

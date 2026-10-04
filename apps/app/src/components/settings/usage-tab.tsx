@@ -20,6 +20,7 @@ export interface ProjectUsageData {
   availability: UsageAvailability;
   meters: UsageMetric[];
 }
+
 import {
   ArrowDownToLine,
   ArrowUpFromLine,

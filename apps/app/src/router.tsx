@@ -1,12 +1,11 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router';
-import { QueryClient } from '@tanstack/react-query';
 import { ErrorPage } from '@/components/error-page';
 import { NotFound } from '@/components/not-found';
 import { PageLoader } from '@/components/page-loader';
 import { hydratedCustomDomainProjectId, rewriteCustomDomainInput, rewriteCustomDomainOutput } from '@/lib/custom-domain-rewrite';
+import { queryClient } from '@/lib/query-client';
 import { routeTree } from './routeTree.gen';
 
-import { queryClient } from '@/lib/query-client';
 export { queryClient };
 
 export function getRouter() {

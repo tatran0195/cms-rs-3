@@ -19,7 +19,6 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 import { OPEN_MARKETING_PRIVACY_CHOICES } from './marketing/privacy-choices';
-
 import { MarketingAnalyticsConsent, marketingAnalyticsEnabled } from './marketing-analytics-consent';
 
 describe('marketingAnalyticsEnabled', () => {

@@ -1,6 +1,3 @@
-import { PageIcon } from '@/components/site/page-icon';
-import type { Language, Project } from '@/hooks/api';
-import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@/hooks/api';
 import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
@@ -22,12 +19,15 @@ import { useForm } from '@tanstack/react-form';
 import { GripVertical, Hash, Plus, RotateCcw, Search, Sparkles, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { PageIcon } from '@/components/site/page-icon';
+import type { Language, Project } from '@/hooks/api';
+import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@/hooks/api';
 import { IconPicker } from './icon-picker';
 import { SearchIndexDiagnostics } from './search-index-diagnostics';
 import {
   DirtyStateReporter,
-  Field,
   FIELD_INPUT,
+  Field,
   LanguageScopePicker,
   SaveBar,
   SectionHeader,

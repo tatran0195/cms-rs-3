@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-
 import { ArabicDocumentationPlatformsPage, ArabicLandingPage } from '@/components/marketing/arabic-seo';
 
 describe('Arabic marketing pages', () => {

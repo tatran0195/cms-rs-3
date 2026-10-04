@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authClient, signIn } from './auth-client';
 
 describe('Auth Client', () => {
@@ -7,7 +7,7 @@ describe('Auth Client', () => {
   });
 
   it('sendVerificationOtp calls Axum email-otp endpoint', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true })));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ success: true }));
     vi.stubGlobal('fetch', fetchMock);
 
     const res = await authClient.emailOtp.sendVerificationOtp({
@@ -27,7 +27,7 @@ describe('Auth Client', () => {
   });
 
   it('signOut calls /api/auth/sign-out', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true })));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ success: true }));
     vi.stubGlobal('fetch', fetchMock);
 
     await authClient.signOut();
@@ -42,12 +42,10 @@ describe('Auth Client', () => {
 
   it('signIn.emailOtp calls /api/auth/sign-in/email-otp', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          user: { id: 'u1', email: 'test@example.com' },
-          session: { id: 's1', userId: 'u1' },
-        }),
-      ),
+      Response.json({
+        user: { id: 'u1', email: 'test@example.com' },
+        session: { id: 's1', userId: 'u1' },
+      }),
     );
     vi.stubGlobal('fetch', fetchMock);
 

@@ -1,7 +1,6 @@
 import { MCP_SCOPES } from '@cms/shared/mcp';
 import { MAX_REDIRECT_RULES, validateRedirectGraph } from '@cms/shared/redirects';
 import { z } from 'zod';
-
 import { isSafeInlineAssetContentType, normalizeAssetContentType } from './assets';
 import { themeConfigSchema } from './themes';
 

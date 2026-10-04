@@ -38,10 +38,8 @@ function createApiProxy(segments: string[] = []): any {
             // Locale might not be loaded yet
           }
 
-          if (args?.json !== undefined) {
-            if (!headers.has('Content-Type')) {
-              headers.set('Content-Type', 'application/json');
-            }
+          if (args?.json !== undefined && !headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
           }
 
           return fetch(url.toString(), {

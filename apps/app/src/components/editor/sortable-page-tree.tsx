@@ -1,3 +1,6 @@
+import { Button } from '@cms/design-system/components/ui/button';
+import { cn } from '@cms/design-system/lib/utils';
+import { useT } from '@cms/i18n/react';
 import {
   closestCenter,
   DndContext,
@@ -13,12 +16,9 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button } from '@cms/design-system/components/ui/button';
-import { cn } from '@cms/design-system/lib/utils';
-import { useT } from '@cms/i18n/react';
-import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
-import { memo, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
+import { type CSSProperties, memo, useMemo, useRef, useState } from 'react';
 import { hasIcon, PageIcon } from '@/components/site/page-icon';
 import type { PageNode } from '@/hooks/api';
 
@@ -485,14 +485,19 @@ const SortableRow = memo(function SortableRow({
   onSettings: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
+  // Apply dnd-kit transform (drag delta only). contentVisibility/containIntrinsicSize are
+  // intentionally omitted — they cause getBoundingClientRect() to return zero rects for
+  // off-screen items, breaking collision detection.
+  const style: CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
-    contentVisibility: 'auto' as const,
-    containIntrinsicSize: '0 32px',
+    opacity: isDragging ? 0.4 : undefined,
+    // Prevent text selection while the drag sensor is active on this row.
+    userSelect: isDragging ? 'none' : undefined,
+    WebkitUserSelect: isDragging ? 'none' : undefined,
   };
   return (
-    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-40')}>
+    <div ref={setNodeRef} style={style}>
       <RowPresentation
         node={node}
         depth={depth}

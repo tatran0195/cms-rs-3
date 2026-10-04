@@ -1,6 +1,5 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { useConfirm } from '@cms/design-system/components/ui/confirm';
-import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { SegmentedControl, SegmentedControlItem } from '@cms/design-system/components/ui/segmented-control';
 import { Tabs, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
 import { cn } from '@cms/design-system/lib/utils';
@@ -8,7 +7,6 @@ import { useT } from '@cms/i18n/react';
 import { useDebouncedCallback } from '@tanstack/react-pacer';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Code2,
@@ -23,12 +21,12 @@ import {
   PanelRight,
   Pencil,
   Plus,
+  Search,
   Settings2,
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
   Type as TypeIcon,
-  Search,
   X,
 } from 'lucide-react';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
@@ -43,10 +41,8 @@ import { resolveEditorLayout } from '@/components/editor/editor-layout';
 import { LanguageSettingsDialog } from '@/components/editor/language-settings-dialog';
 import { MarkdownSourceEditor } from '@/components/editor/markdown-source-editor';
 import { PageSettingsDialog } from '@/components/editor/page-settings-dialog';
-import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/components/editor/site-config-panel';
-import { astWorkerClient } from '@/lib/ast-worker-client';
 import { SaveStatusIndicator } from '@/components/editor/save-status-indicator';
-import { editorStore } from '@/stores/editor-store';
+import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/components/editor/site-config-panel';
 import { SortablePageTree } from '@/components/editor/sortable-page-tree';
 import { TiptapEditor } from '@/components/editor/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/components/editor/unsupported-mdx';
@@ -65,9 +61,11 @@ import {
   useUploadAsset,
 } from '@/hooks/api';
 import { PublishControl } from '@/layouts/project';
+import { astWorkerClient } from '@/lib/ast-worker-client';
 import { draftPreviewHref } from '@/lib/draft-preview';
 import { recordFirstPublishStage } from '@/lib/first-publish-activation';
 import { typographyVars } from '@/lib/typography';
+import { editorStore } from '@/stores/editor-store';
 
 export const Route = createFileRoute('/app/projects/$projectId/editor')({
   component: EditorPage,
@@ -388,7 +386,7 @@ function EditorPage() {
     }
     setStatus('saving');
     saveDraft(page.id, { title, content });
-  }, [title, content, page, synced, saveDraft]);
+  }, [title, content, page, synced, saveDraft, setStatus]);
 
   const openDraftPreview = async () => {
     // Open synchronously so browsers treat this as a user-initiated popup. We
@@ -692,8 +690,8 @@ function EditorPage() {
             </div>
           ) : null}
 
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-1 px-2 py-2">
+          <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+            <div className="space-y-1 px-2 py-2 overflow-y-auto overflow-x-hidden flex-shrink-0 [scrollbar-gutter:stable]">
               {view === 'config' ? (
                 <ConfigSectionList
                   active={configSection}
@@ -783,7 +781,9 @@ function EditorPage() {
                           </div>
                         </div>
 
-                        {/* This language's page tree — Notion-style drag-and-drop */}
+                        {/* This language's page tree — rendered outside any scroll viewport so
+                            dnd-kit's PointerSensor is not blocked. The tree has its own
+                            overflow-y-auto scroll container inside SortablePageTree. */}
                         {langCollapsed ? null : (
                           <div className="space-y-0.5" dir={dir}>
                             {langPages.length === 0 ? (
@@ -820,7 +820,7 @@ function EditorPage() {
                 </>
               )}
             </div>
-          </ScrollArea>
+          </div>
           <AddLanguageDialog projectId={projectId} open={addLangOpen} onOpenChange={setAddLangOpen} onCreated={() => setAddLangOpen(false)} />
           {langSettings ? (
             <LanguageSettingsDialog

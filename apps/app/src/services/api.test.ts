@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from './api';
 
 describe('API Proxy Client', () => {
@@ -7,7 +7,7 @@ describe('API Proxy Client', () => {
   });
 
   it('builds correct URL and sends GET request with params and query', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { id: 'proj-123' } })));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ data: { id: 'proj-123' } }));
     vi.stubGlobal('fetch', fetchMock);
 
     const res = await (api as any).app.projects[':id'].$get({
@@ -24,7 +24,7 @@ describe('API Proxy Client', () => {
   });
 
   it('builds correct POST request with json body and content-type', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { success: true } })));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ data: { success: true } }));
     vi.stubGlobal('fetch', fetchMock);
 
     await (api as any).app.projects[':projectId'].pages.$post({
@@ -41,7 +41,7 @@ describe('API Proxy Client', () => {
   });
 
   it('handles DELETE request', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { deleted: true } })));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ data: { deleted: true } }));
     vi.stubGlobal('fetch', fetchMock);
 
     await (api as any).app.projects[':projectId'].branches[':id'].$delete({

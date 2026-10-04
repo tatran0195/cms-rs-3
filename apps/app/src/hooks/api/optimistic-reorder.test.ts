@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+
 import { QueryClient } from '@tanstack/react-query';
-import { queryKeys } from './query-keys';
+import { describe, expect, it } from 'vitest';
 import type { PageNode } from './index';
+import { queryKeys } from './query-keys';
 
 describe('Optimistic Reorder Mutation Pipeline', () => {
   it('immediately updates cache before network resolve and supports rollback', async () => {

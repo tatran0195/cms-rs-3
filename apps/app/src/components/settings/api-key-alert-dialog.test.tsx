@@ -1,8 +1,9 @@
 // Polyfill PointerEvent for jsdom
 if (typeof window !== 'undefined' && !window.PointerEvent) {
-  // @ts-ignore
+  // @ts-expect-error
   window.PointerEvent = class PointerEvent extends MouseEvent {};
 }
+
 /** @vitest-environment jsdom */
 
 import { act } from 'react';

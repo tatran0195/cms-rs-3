@@ -49,7 +49,7 @@ type Listener = () => void;
 
 class EditorStore {
   private state: EditorState;
-  private listeners = new Set<Listener>();
+  private readonly listeners = new Set<Listener>();
 
   constructor() {
     this.state = { ...DEFAULT_STATE };

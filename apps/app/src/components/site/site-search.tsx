@@ -1,8 +1,3 @@
-import { hasIcon, PageIcon } from '@/components/site/page-icon';
-import { useAnswerSite, useSiteSearch } from '@/hooks/api/site-search';
-import type { SiteSearchHit } from '@/hooks/api/types';
-import { siteHref } from '@/lib/site-paths';
-import { useSiteAnalytics } from '@/providers/site-analytics-provider';
 import { Button } from '@cms/design-system/components/ui/button';
 import { Command, CommandGroup, CommandItem, CommandList } from '@cms/design-system/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@cms/design-system/components/ui/dialog';
@@ -12,6 +7,11 @@ import { siteT } from '@cms/i18n/site';
 import { useDebouncedValue } from '@tanstack/react-pacer';
 import { AlertCircle, ArrowLeft, BookOpen, Check, ChevronRight, Copy, CornerDownLeft, FileText, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { hasIcon, PageIcon } from '@/components/site/page-icon';
+import { useAnswerSite, useSiteSearch } from '@/hooks/api/site-search';
+import type { SiteSearchHit } from '@/hooks/api/types';
+import { siteHref } from '@/lib/site-paths';
+import { useSiteAnalytics } from '@/providers/site-analytics-provider';
 
 // ── Fallback data (used when project has no custom config) ───────────────────
 
@@ -176,7 +176,7 @@ export function SiteSearch({
       answerMutation.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, version]);
+  }, [open, version, answerMutation.reset]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -417,7 +417,7 @@ export function SiteSearch({
               <div className="space-y-4">
                 <div className="rounded-xl border border-border/60 bg-muted/15 px-4 py-4">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground" dir={arabic ? 'rtl' : 'ltr'}>
-                    {answer!.answer}
+                    {answer?.answer}
                   </div>
                 </div>
 

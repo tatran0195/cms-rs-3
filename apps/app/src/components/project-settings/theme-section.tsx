@@ -6,8 +6,8 @@ import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { translateFn, useT } from '@cms/i18n/react';
 import {
-  MAX_THEME_TEMPLATE_BYTES,
   type cmsThemeConfig,
+  MAX_THEME_TEMPLATE_BYTES,
   resolveTheme,
   THEME_COLOR_KEYS,
   THEME_PRESET_IDS,

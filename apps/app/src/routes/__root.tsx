@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@cms/design-system/theme';
 import { createRootRoute, HeadContent, Outlet, useRouterState } from '@tanstack/react-router';
-import { useEffect, type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
 import type { SiteShell } from '@/hooks/api/types';
 import { siteThemeNoFlashScript } from '@/lib/site-theme';

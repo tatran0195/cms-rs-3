@@ -1,6 +1,6 @@
-import { memo } from 'react';
-import { Check, Loader2 } from 'lucide-react';
 import { useT } from '@cms/i18n/react';
+import { Check, Loader2 } from 'lucide-react';
+import { memo } from 'react';
 import { useEditorStore } from '@/stores/editor-store';
 
 /**

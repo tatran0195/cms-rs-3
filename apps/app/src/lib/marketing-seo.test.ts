@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-
 import { CMS_ORGANIZATION } from '@/lib/marketing-organization';
 import { marketingLd } from '@/lib/marketing-seo';
 

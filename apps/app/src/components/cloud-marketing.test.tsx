@@ -2,7 +2,6 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-
 import { CloudPage, GitHubStarLink, LandingPage } from '@/components/cloud-marketing';
 import { ArabicLandingPage } from '@/components/marketing/arabic-seo';
 
