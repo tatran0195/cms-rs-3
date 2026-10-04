@@ -1,4 +1,5 @@
 {
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
   "cSpell.words": [
     "apalis",
     "Casbin",

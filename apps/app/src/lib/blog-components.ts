@@ -4,11 +4,11 @@
  * metadata consumers (landing teaser, blog index, sitemap) stay light.
  */
 import type { ComponentType } from 'react';
+import type { MdxComponent } from '@/components/marketing/blog';
 
 const MDX_EXTENSION_RE = /\.mdx$/;
 
-// biome-ignore lint/suspicious/noExplicitAny: MDX component maps are untyped by design.
-const componentModules = import.meta.glob<{ default: ComponentType<{ components?: Record<string, ComponentType<any>> }> }>('../content/blog/*.mdx', {
+const componentModules = import.meta.glob<{ default: ComponentType<{ components?: Record<string, MdxComponent> }> }>('../content/blog/*.mdx', {
   eager: true,
 });
 

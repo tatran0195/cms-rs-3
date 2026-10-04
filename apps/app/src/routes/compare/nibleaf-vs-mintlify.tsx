@@ -33,10 +33,10 @@ export const Route = createFileRoute('/compare/nibleaf-vs-mintlify')({
       ]),
     ],
   }),
-  component: cmsVsMintlifyRoute,
+  component: CmsVsMintlifyRoute,
 });
 
-function cmsVsMintlifyRoute() {
+function CmsVsMintlifyRoute() {
   const { data, stars } = Route.useLoaderData();
   return <ComparePage data={data} stars={stars} />;
 }

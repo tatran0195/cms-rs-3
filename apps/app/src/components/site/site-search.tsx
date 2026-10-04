@@ -5,7 +5,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@cms/design-system/lib/utils';
 import { siteT } from '@cms/i18n/site';
 import { useDebouncedValue } from '@tanstack/react-pacer';
-import { AlertCircle, ArrowLeft, BookOpen, Check, ChevronRight, Copy, CornerDownLeft, FileText, Loader2, Search, Sparkles, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  BookOpen,
+  Check,
+  ChevronRight,
+  Copy,
+  CornerDownLeft,
+  FileText,
+  Loader2,
+  Search,
+  Sparkles,
+  TrendingUp,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hasIcon, PageIcon } from '@/components/site/page-icon';
 import { useAnswerSite, useSiteSearch } from '@/hooks/api/site-search';
@@ -122,6 +136,12 @@ export function SiteSearch({
 
   // ── Derived data ─────────────────────────────────────────────────────────────
   const activeQuestions = useMemo(() => (suggestedQuestions?.length ? suggestedQuestions.slice(0, 8) : FALLBACK_AI_QUESTIONS), [suggestedQuestions]);
+  const activePopularSearches = useMemo(() => {
+    if (!popularSearches?.length) return [];
+    return popularSearches
+      .map((item) => (typeof item === 'string' ? { label: item, icon: undefined } : item))
+      .filter((item) => Boolean(item?.label?.trim()));
+  }, [popularSearches]);
   const versionOptions = useMemo(() => versions.map((v) => ({ value: v.isDefault ? '__default' : v.slug, label: v.name })), [versions]);
 
   // ── Search query (debounced) ─────────────────────────────────────────────────
@@ -133,7 +153,7 @@ export function SiteSearch({
   const answerMutation = useAnswerSite();
   const answer = answerMutation.isPending ? null : (answerMutation.data ?? null);
   const answerError = !answerMutation.isPending && answerMutation.error ? t('answerFailed') : null;
-  const citations = useMemo(() => (!answer ? [] : ((answer as any).citations ?? (answer as any).sources ?? [])), [answer]);
+  const citations = useMemo(() => answer?.citations ?? [], [answer]);
 
   // ── Ask AI ───────────────────────────────────────────────────────────────────
   const askWithQuery = useCallback(
@@ -428,9 +448,9 @@ export function SiteSearch({
                       {t('sources')} ({citations.length})
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {citations.map((citation: any, idx: number) => (
+                      {citations.map((citation, idx) => (
                         <a
-                          key={citation.id ?? idx}
+                          key={citation.id || idx}
                           className="group block rounded-xl border border-border/70 bg-card p-3 text-start transition-all hover:border-primary/40 hover:bg-muted/40 hover:shadow-xs"
                           href={siteHref(projectId, citation.path, { lang, version: selectedVersion })}
                           dir={citation.direction}
@@ -472,58 +492,92 @@ export function SiteSearch({
           // ── Search panel ─────────────────────────────────────────────────────
           <div className="max-h-[58vh] overflow-y-auto">
             {!query.trim() ? (
-              aiAnswers && activeQuestions.length > 0 ? (
-                // Empty state — Popular Questions (instant AI answer)
-                <div className="p-4 sm:p-5">
-                  <div className="mb-3.5 flex items-center justify-between px-0.5">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      <div className="flex size-5 items-center justify-center rounded-md bg-primary/10">
-                        <Sparkles className="size-3 text-primary" />
+              activePopularSearches.length > 0 || (aiAnswers && activeQuestions.length > 0) ? (
+                <div className="space-y-4 p-4 sm:p-5">
+                  {/* Popular Searches / Topics */}
+                  {activePopularSearches.length > 0 ? (
+                    <div>
+                      <div className="mb-2 flex items-center gap-1.5 px-0.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <TrendingUp className="size-3.5 text-primary" />
+                        <span>{t('popularTopics')}</span>
                       </div>
-                      {t('popularQuestions')}
-                    </div>
-                    <span className="text-[11px] text-muted-foreground/60">{t('clickInstantAnswer')}</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    {activeQuestions.map((item, idx) => {
-                      const c = Q_COLORS[idx % Q_COLORS.length]!;
-                      const hasCustomIcon = item.icon && hasIcon(item.icon);
-                      return (
-                        <button
-                          key={`${item.question}-${idx}`}
-                          type="button"
-                          onClick={() => askWithQuery(item.question)}
-                          className={cn(
-                            'group flex cursor-pointer items-start gap-3 rounded-xl border border-s-2 bg-muted/20 p-3 text-start transition-all duration-150 hover:bg-muted/40 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                            c.border,
-                            c.active,
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              'mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105',
-                              c.icon,
-                            )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {activePopularSearches.map((topic) => (
+                          <button
+                            key={topic.label}
+                            type="button"
+                            onClick={() => {
+                              setQuery(topic.label);
+                              inputRef.current?.focus();
+                            }}
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border/70 bg-muted/25 px-2.5 py-1 text-xs font-medium text-foreground transition-all duration-150 hover:border-primary/40 hover:bg-muted/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                           >
-                            {hasCustomIcon ? <PageIcon name={item.icon!} className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                            {topic.icon && hasIcon(topic.icon) ? (
+                              <PageIcon name={topic.icon} className="size-3" />
+                            ) : (
+                              <Search className="size-3 text-muted-foreground/60" />
+                            )}
+                            <span>{topic.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Empty state — Popular Questions (instant AI answer) */}
+                  {aiAnswers && activeQuestions.length > 0 ? (
+                    <div>
+                      <div className="mb-3.5 flex items-center justify-between px-0.5">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          <div className="flex size-5 items-center justify-center rounded-md bg-primary/10">
+                            <Sparkles className="size-3 text-primary" />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <span className="block text-xs font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
-                              {item.question}
-                            </span>
-                            {item.category ? (
-                              <span className="mt-1 flex items-center gap-1 text-[11px] leading-tight text-muted-foreground/75">
-                                <span className="opacity-50">#</span>
-                                {item.category}
-                              </span>
-                            ) : null}
-                          </div>
-                          <CornerDownLeft className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/30 opacity-0 transition-all group-hover:opacity-100 group-hover:text-primary" />
-                        </button>
-                      );
-                    })}
-                  </div>
+                          {t('popularQuestions')}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground/60">{t('clickInstantAnswer')}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        {activeQuestions.map((item, idx) => {
+                          const c = Q_COLORS[idx % Q_COLORS.length] ?? Q_COLORS[0];
+                          const hasCustomIcon = Boolean(item.icon && hasIcon(item.icon));
+                          return (
+                            <button
+                              key={item.question}
+                              type="button"
+                              onClick={() => askWithQuery(item.question)}
+                              className={cn(
+                                'group flex cursor-pointer items-start gap-3 rounded-xl border border-s-2 bg-muted/20 p-3 text-start transition-all duration-150 hover:bg-muted/40 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                                c.border,
+                                c.active,
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  'mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg transition-transform group-hover:scale-105',
+                                  c.icon,
+                                )}
+                              >
+                                {hasCustomIcon && item.icon ? <PageIcon name={item.icon} className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="block text-xs font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                                  {item.question}
+                                </span>
+                                {item.category ? (
+                                  <span className="mt-1 flex items-center gap-1 text-[11px] leading-tight text-muted-foreground/75">
+                                    <span className="opacity-50">#</span>
+                                    {item.category}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <CornerDownLeft className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/30 opacity-0 transition-all group-hover:opacity-100 group-hover:text-primary" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 // Clean empty state when AI search is disabled or no questions configured

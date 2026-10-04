@@ -33,10 +33,10 @@ export const Route = createFileRoute('/compare/nibleaf-vs-gitbook')({
       ]),
     ],
   }),
-  component: cmsVsGitbookRoute,
+  component: CmsVsGitbookRoute,
 });
 
-function cmsVsGitbookRoute() {
+function CmsVsGitbookRoute() {
   const { data, stars } = Route.useLoaderData();
   return <ComparePage data={data} stars={stars} />;
 }

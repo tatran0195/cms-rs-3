@@ -77,11 +77,11 @@ class EditorStore {
     }
   }
 
-  public getState(): EditorState {
+  getState(): EditorState {
     return this.state;
   }
 
-  public setState(partial: Partial<EditorState> | ((prev: EditorState) => Partial<EditorState>)) {
+  setState(partial: Partial<EditorState> | ((prev: EditorState) => Partial<EditorState>)) {
     const nextUpdates = typeof partial === 'function' ? partial(this.state) : partial;
     let changed = false;
     for (const key of Object.keys(nextUpdates) as Array<keyof EditorState>) {
@@ -93,10 +93,12 @@ class EditorStore {
     if (!changed) return;
 
     this.state = { ...this.state, ...nextUpdates };
-    this.listeners.forEach((listener) => listener());
+    this.listeners.forEach((listener) => {
+      listener();
+    });
   }
 
-  public subscribe = (listener: Listener): (() => void) => {
+  subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
@@ -104,40 +106,48 @@ class EditorStore {
   };
 
   // Dedicated action setters with persistence
-  public setSyncStatus(syncStatus: EditorSyncStatus) {
+  setSyncStatus(syncStatus: EditorSyncStatus) {
     this.setState({
       syncStatus,
       lastSavedAt: syncStatus === 'saved' ? Date.now() : this.state.lastSavedAt,
     });
   }
 
-  public setEditorMode(mode: 'visual' | 'wysiwyg' | 'markdown') {
+  setEditorMode(mode: 'visual' | 'wysiwyg' | 'markdown') {
     this.setState({ editorMode: mode });
     try {
       window.localStorage.setItem('cms.editor.contentMode', mode);
-    } catch {}
+    } catch {
+      // ignore storage failures
+    }
   }
 
-  public setRailOpen(open: boolean) {
+  setRailOpen(open: boolean) {
     this.setState({ railOpen: open });
     try {
       window.localStorage.setItem('cms.editor.railOpen', open ? '1' : '0');
-    } catch {}
+    } catch {
+      // ignore storage failures
+    }
   }
 
-  public setSidebarCollapsed(collapsed: boolean) {
+  setSidebarCollapsed(collapsed: boolean) {
     this.setState({ sidebarCollapsed: collapsed });
     try {
       window.localStorage.setItem('cms.editor.sidebarCollapsed', collapsed ? '1' : '0');
-    } catch {}
+    } catch {
+      // ignore storage failures
+    }
   }
 
-  public setSidebarWidth(width: number) {
+  setSidebarWidth(width: number) {
     const clamped = Math.max(200, Math.min(520, width));
     this.setState({ sidebarWidth: clamped });
     try {
       window.localStorage.setItem('cms.editor.sidebarWidth', String(clamped));
-    } catch {}
+    } catch {
+      // ignore storage failures
+    }
   }
 }
 

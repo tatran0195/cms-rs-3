@@ -692,9 +692,7 @@
  * generated max-width, color, transition, and animation utilities on the same
  * nodes (the code block's hardcoded panel colour, the deck's list margins). */
 @layer utilities {
-  /* biome-ignore lint/style/noDescendingSpecificity: utilities-layer width tokens intentionally override template component layout. */
   .cms-site-chrome [data-theme-region="header"],
-  /* biome-ignore lint/style/noDescendingSpecificity: utilities-layer width tokens intentionally override template component layout. */
   .cms-site-chrome [data-theme-region="tabs"],
   .cms-site-chrome [data-theme-region="content-shell"],
   .cms-site-chrome [data-theme-region="footer"] {

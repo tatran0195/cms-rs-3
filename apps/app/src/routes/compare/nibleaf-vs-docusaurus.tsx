@@ -33,10 +33,10 @@ export const Route = createFileRoute('/compare/nibleaf-vs-docusaurus')({
       ]),
     ],
   }),
-  component: cmsVsDocusaurusRoute,
+  component: CmsVsDocusaurusRoute,
 });
 
-function cmsVsDocusaurusRoute() {
+function CmsVsDocusaurusRoute() {
   const { data, stars } = Route.useLoaderData();
   return <ComparePage data={data} stars={stars} />;
 }

@@ -7,7 +7,7 @@ import { type AstWorkerParseRequest, type AstWorkerParseResponse, extractHeading
 
 class AstWorkerClient {
   private readonly worker: Worker | null = null;
-  private readonly pending = new Map<string, { resolve: (val: any) => void; reject: (err: Error) => void }>();
+  private readonly pending = new Map<string, { resolve: (val: unknown) => void; reject: (err: Error) => void }>();
   private messageCounter = 0;
 
   constructor() {
@@ -46,16 +46,16 @@ class AstWorkerClient {
 
     const id = `ast-${++this.messageCounter}-${Date.now()}`;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      this.pending.set(id, { resolve: (val) => resolve(val as T), reject });
       this.worker?.postMessage({ id, type, payload });
     });
   }
 
-  public parseFrontmatter(markdown: string) {
+  parseFrontmatter(markdown: string) {
     return this.dispatch<{ frontmatter: Record<string, string>; content: string }>('parse-frontmatter', markdown);
   }
 
-  public extractHeadings(markdown: string) {
+  extractHeadings(markdown: string) {
     return this.dispatch<Array<{ level: number; text: string; id: string }>>('extract-headings', markdown);
   }
 }

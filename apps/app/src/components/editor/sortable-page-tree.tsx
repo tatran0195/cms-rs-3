@@ -197,7 +197,8 @@ export function reorderTree({
     const set = new Set<string>();
     const stack = [...(childrenMap.get(rootId) ?? [])];
     while (stack.length > 0) {
-      const child = stack.pop()!;
+      const child = stack.pop();
+      if (!child) continue;
       set.add(child);
       const grandchildren = childrenMap.get(child);
       if (grandchildren) {

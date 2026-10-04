@@ -233,12 +233,18 @@ function FirstPublishBridge({ source }: { source: FirstPublishSource }) {
   );
 }
 
+export type MdxComponent = ComponentType<{
+  children?: ReactNode;
+  title?: string;
+  source?: FirstPublishSource;
+  [key: string]: unknown;
+}>;
+
 /** Components every MDX article can use without importing them. */
-// biome-ignore lint/suspicious/noExplicitAny: MDX component maps are untyped by design.
-export const articleMdxComponents: Record<string, ComponentType<any>> = {
-  Callout,
-  FirstPublishBridge,
-  Note,
+export const articleMdxComponents: Record<string, MdxComponent> = {
+  Callout: Callout as MdxComponent,
+  FirstPublishBridge: FirstPublishBridge as MdxComponent,
+  Note: Note as MdxComponent,
 };
 
 function ArticleFaqSection({ faqs, language }: { faqs: BlogFaq[]; language: 'ar' | 'en' }) {

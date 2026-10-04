@@ -33,7 +33,9 @@ try {
     configurable: true,
     writable: true,
   });
-} catch {}
+} catch {
+  // Storage properties may be non-configurable in some test runner environments
+}
 
 if (typeof window !== 'undefined') {
   try {
@@ -47,5 +49,7 @@ if (typeof window !== 'undefined') {
       configurable: true,
       writable: true,
     });
-  } catch {}
+  } catch {
+    // Window storage properties may be non-configurable in some browser/JSDOM environments
+  }
 }

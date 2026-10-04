@@ -44,8 +44,9 @@ async function authFetch<T>(path: string, options?: RequestInit): Promise<{ data
     }
     const data = await res.json().catch(() => ({}));
     return { data };
-  } catch (e: any) {
-    return { error: { message: e.message || 'Network error' } };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Network error';
+    return { error: { message: message || 'Network error' } };
   }
 }
 

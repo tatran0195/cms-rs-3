@@ -29,7 +29,7 @@ import {
   Type as TypeIcon,
   X,
 } from 'lucide-react';
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
@@ -235,7 +235,7 @@ function EditorPage() {
   const unsupportedTags = useMemo(() => detectUnsupportedMdxTags(content), [content]);
   const effectiveMode = editorMode;
   // Save status is isolated inside atomic editorStore to prevent parent re-renders
-  const setStatus = (s: 'idle' | 'saving' | 'saved') => editorStore.setSyncStatus(s);
+  const setStatus = useCallback((s: 'idle' | 'saving' | 'saved') => editorStore.setSyncStatus(s), []);
   const [addLangOpen, setAddLangOpen] = useState(false);
   // The page whose settings dialog is open — independent of the active editor
   // page, so opening a page's settings from the tree does NOT switch what you're

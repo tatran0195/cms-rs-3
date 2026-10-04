@@ -4,7 +4,7 @@ import { api } from '@/services/api';
 
 export const getSiteFn = async ({ data }: { data: { projectId: string; language?: string; version?: string } }): Promise<SiteShell> =>
   getData<SiteShell>(
-    await (api as any).public.sites[':id'].$get({
+    await api.public.sites[':id'].$get({
       param: { id: data.projectId },
       query: { ...(data.language ? { lang: data.language } : {}), ...(data.version ? { version: data.version } : {}) },
     }),
@@ -17,7 +17,7 @@ export const getSitePageFn = async ({
   data: { projectId: string; path: string; language?: string; version?: string };
 }): Promise<SitePage> =>
   getData<SitePage>(
-    await (api as any).public.sites[':id'].page.$get({
+    await api.public.sites[':id'].page.$get({
       param: { id: data.projectId },
       query: {
         path: data.path,
@@ -29,9 +29,9 @@ export const getSitePageFn = async ({
   );
 
 export const listSiteChangelogFn = async ({ data }: { data: { projectId: string } }): Promise<ChangelogEntry[]> =>
-  getData<ChangelogEntry[]>(await (api as any).public.sites[':id'].changelog.$get({ param: { id: data.projectId } }), 'changelog');
+  getData<ChangelogEntry[]>(await api.public.sites[':id'].changelog.$get({ param: { id: data.projectId } }), 'changelog');
 
 export const getGitPreviewFn = async ({ data }: { data: { token: string } }): Promise<string> => {
-  const response = await (api as any).public.git.previews[':token'].$get({ param: { token: data.token } });
+  const response = await api.public.git.previews[':token'].$get({ param: { token: data.token } });
   return JSON.stringify(await getData(response, 'pull-request preview'));
 };

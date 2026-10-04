@@ -23,9 +23,15 @@ interface ProjectMember {
   user: ProjectMemberUser;
 }
 
+interface ProjectInvitation {
+  id: string;
+  email: string;
+  role: string;
+}
+
 interface ProjectMembersData {
   members: ProjectMember[];
-  invitations: any[];
+  invitations: ProjectInvitation[];
 }
 
 export function DangerSection({ project }: { project: Project }) {
