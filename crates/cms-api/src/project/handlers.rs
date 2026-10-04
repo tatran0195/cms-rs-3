@@ -1311,7 +1311,11 @@ pub async fn get_project_search_diagnostics_handler(
         .collect();
 
     // --- Health: derived purely from live Tantivy data -----------------------
-    let health = if stats.chunk_count > 0 { "ready" } else { "empty" };
+    let health = if stats.chunk_count > 0 {
+        "ready"
+    } else {
+        "empty"
+    };
 
     Ok(Json(serde_json::json!({
         "data": {
@@ -1341,7 +1345,6 @@ pub async fn get_project_search_diagnostics_handler(
         }
     })))
 }
-
 
 /// Reindex project search
 pub async fn reindex_project_search_handler(
@@ -2134,7 +2137,7 @@ pub async fn test_reader_jwt_handler(
         "data": {
             "configured": provider,
             "success": provider,
-            "valid": true,
+            "valid": provider,
         }
     })))
 }
@@ -2943,6 +2946,7 @@ pub async fn get_project_git_status_handler(
             "contentPath": ".",
             "credentialConfigured": true,
             "webhookConfigured": true,
+            "webhookSecret": format!("whsec_{}", &conn.id),
             "lastSyncStatus": operations.last().map(|o| format!("{:?}", o.status).to_lowercase()).unwrap_or_else(|| "idle".to_string()),
             "lastSyncError": operations.last().and_then(|o| o.error_message.clone()),
             "lastSyncedAt": last_sync.map(|t| t.to_rfc3339()),
@@ -3021,7 +3025,14 @@ pub async fn action_project_git_handler(
             .await?
         };
 
-        return Ok(Json(serde_json::json!({ "data": conn })));
+        let mut conn_json = serde_json::to_value(&conn).unwrap_or_default();
+        if let Some(obj) = conn_json.as_object_mut() {
+            obj.insert(
+                "webhookSecret".to_string(),
+                serde_json::Value::String(format!("whsec_{}", &conn.id)),
+            );
+        }
+        return Ok(Json(serde_json::json!({ "data": conn_json })));
     }
 
     // Trigger a manual sync (operations).
@@ -3036,7 +3047,13 @@ pub async fn action_project_git_handler(
         return Ok(Json(serde_json::json!({ "data": op })));
     }
 
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    let secret = format!("whsec_{}", uuid::Uuid::new_v4().simple());
+    Ok(Json(serde_json::json!({
+        "data": {
+            "success": true,
+            "webhookSecret": secret
+        }
+    })))
 }
 
 /// Project git connection delete
@@ -3950,14 +3967,6 @@ pub async fn deactivate_project_addon_handler(
     )
     .await?;
     Ok(Json(serde_json::json!({ "data": addon })))
-}
-
-/// Generic success handler for project action
-pub async fn project_action_success_handler(
-    State(_state): State<Arc<AppState>>,
-    _auth: AuthExtractor,
-) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
 }
 
 /// Deterministic outline of a Markdown document: the set of headings (this is the

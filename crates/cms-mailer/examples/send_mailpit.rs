@@ -20,17 +20,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         (
             "01_verification_code_en",
             "user@example.com",
-            render_verification_code_email("849201", VerificationPurpose::SignIn, Some(EmailLanguage::En))?,
+            render_verification_code_email(
+                "849201",
+                VerificationPurpose::SignIn,
+                Some(EmailLanguage::En),
+            )?,
         ),
         (
             "02_verification_code_ja",
             "japanese-user@example.com",
-            render_verification_code_email("930124", VerificationPurpose::SignIn, Some(EmailLanguage::Ja))?,
+            render_verification_code_email(
+                "930124",
+                VerificationPurpose::SignIn,
+                Some(EmailLanguage::Ja),
+            )?,
         ),
         (
             "03_email_verification_ja",
             "tanaka@example.com",
-            render_email_verification_email("http://localhost:3000/verify-email?token=sec_abc123&next=/dashboard", Some(EmailLanguage::Ja))?,
+            render_email_verification_email(
+                "http://localhost:3000/verify-email?token=sec_abc123&next=/dashboard",
+                Some(EmailLanguage::Ja),
+            )?,
         ),
         (
             "04_member_joined_ja",
@@ -45,22 +56,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         (
             "06_member_invitation_ja",
             "developer@example.com",
-            render_member_invitation_email("田中 太郎", "OpenSource Org", "Editor", "http://localhost:3000/invitations/accept?token=inv_9988", 7, Some(EmailLanguage::Ja))?,
+            render_member_invitation_email(
+                "田中 太郎",
+                "OpenSource Org",
+                "Editor",
+                "http://localhost:3000/invitations/accept?token=inv_9988",
+                7,
+                Some(EmailLanguage::Ja),
+            )?,
         ),
         (
             "07_reader_invitation_ja",
             "reader@example.com",
-            render_reader_invitation_email("API リファレンスガイド", "http://localhost:3000/reader/activate?key=rd_5521", 14, Some(EmailLanguage::Ja))?,
+            render_reader_invitation_email(
+                "API リファレンスガイド",
+                "http://localhost:3000/reader/activate?key=rd_5521",
+                14,
+                Some(EmailLanguage::Ja),
+            )?,
         ),
         (
             "08_deployment_ready_ja",
             "team@example.com",
-            render_deployment_email("開発者ポータル", 12, DeploymentOutcome::Ready, Some("https://docs.mycompany.com"), None, Some(EmailLanguage::Ja))?,
+            render_deployment_email(
+                "開発者ポータル",
+                12,
+                DeploymentOutcome::Ready,
+                Some("https://docs.mycompany.com"),
+                None,
+                Some(EmailLanguage::Ja),
+            )?,
         ),
         (
             "09_deployment_failed_ja",
             "devops@example.com",
-            render_deployment_email("開発者ポータル", 13, DeploymentOutcome::Failed, None, Some("ビルド失敗: doc/intro.md の 42 行目で構文エラー"), Some(EmailLanguage::Ja))?,
+            render_deployment_email(
+                "開発者ポータル",
+                13,
+                DeploymentOutcome::Failed,
+                None,
+                Some("ビルド失敗: doc/intro.md の 42 行目で構文エラー"),
+                Some(EmailLanguage::Ja),
+            )?,
         ),
     ];
 
@@ -68,7 +105,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let preview_dir = Path::new("previews");
     fs::create_dir_all(preview_dir)?;
 
-    println!("-> Rendering and saving {} email templates to `{}` folder...", emails.len(), preview_dir.display());
+    println!(
+        "-> Rendering and saving {} email templates to `{}` folder...",
+        emails.len(),
+        preview_dir.display()
+    );
     for (name, _, email) in &emails {
         let html_file = preview_dir.join(format!("{}.html", name));
         let txt_file = preview_dir.join(format!("{}.txt", name));
@@ -79,7 +120,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nAll HTML and plain-text preview files saved successfully.\n");
 
     // Check if Mailpit is running, if not start it from target/tools/mailpit.exe
-    if tokio::net::TcpStream::connect("127.0.0.1:1025").await.is_err() {
+    if tokio::net::TcpStream::connect("127.0.0.1:1025")
+        .await
+        .is_err()
+    {
         let exe_path = Path::new("target/tools/mailpit.exe");
         if exe_path.exists() {
             println!("-> Mailpit not detected on localhost:1025. Spawning detached target/tools/mailpit.exe...");

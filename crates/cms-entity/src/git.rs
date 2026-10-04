@@ -67,7 +67,10 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for GitSyncOperationType {
 /// Git sync operation status
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "\"GitSyncOperationStatus\"", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "\"GitSyncOperationStatus\"",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum GitSyncOperationStatus {
     Pending,
     Processing,

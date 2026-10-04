@@ -94,13 +94,15 @@ impl CommentService {
             .require_project_role(user_id, &_page_entity.project_id, MemberRole::Viewer)
             .await?;
 
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
         let comments = CommentQueries::get_by_page(
             &ctx.pool,
             page_id,
             parent_id,
             resolved,
-            Some(page as i64),
-            Some(page_size as i64),
+            Some(limit),
+            Some(offset),
         )
         .await?;
 

@@ -104,12 +104,14 @@ impl PlatformEventService {
         // Check if user has admin role in the organization
         ctx.authz.require_org_admin(user_id, org_id).await?;
 
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
         let events = PlatformEventQueries::get_by_organization(
             &ctx.pool,
             Some(org_id),
             event_type,
-            Some(page as i64),
-            Some(page_size as i64),
+            Some(limit),
+            Some(offset),
         )
         .await?;
 

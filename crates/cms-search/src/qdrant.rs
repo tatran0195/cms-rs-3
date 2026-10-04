@@ -51,11 +51,63 @@ impl SearchEngine for QdrantSearchEngine {
         Ok(())
     }
 
-    async fn rag_answer(&self, _project_id: &str, _question: &str) -> Result<RagAnswer, AppError> {
+    async fn rag_answer(&self, project_id: &str, question: &str) -> Result<RagAnswer, AppError> {
+        let hits = self
+            .hybrid_query(
+                project_id,
+                question,
+                SearchOptions {
+                    limit: 5,
+                    min_score: 0.0,
+                    fts_weight: 0.5,
+                },
+            )
+            .await?;
+
+        if hits.is_empty() {
+            return Ok(RagAnswer {
+                answer: format!("No relevant documentation found for '{}'.", question),
+                confidence: 0.0,
+                sources: Vec::new(),
+            });
+        }
+
+        let context = hits
+            .iter()
+            .map(|h| format!("### {}\n{}", h.title, h.chunk_text))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let answer = format!("Based on documentation in {}:\n\n{}", project_id, context);
+
+        let confidence = hits
+            .first()
+            .map(|h| (h.score / 2.0).min(1.0))
+            .unwrap_or(0.5);
+
         Ok(RagAnswer {
-            answer: "This is a placeholder answer".to_string(),
-            confidence: 0.0,
-            sources: Vec::new(),
+            answer,
+            confidence,
+            sources: hits,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_qdrant_rag_answer_empty_returns_not_found() {
+        let engine = QdrantSearchEngine::new("localhost".to_string(), 6333, None)
+            .await
+            .unwrap();
+
+        let ans = engine.rag_answer("proj_1", "how to install").await.unwrap();
+        assert_eq!(
+            ans.answer,
+            "No relevant documentation found for 'how to install'."
+        );
+        assert_eq!(ans.confidence, 0.0);
+        assert!(ans.sources.is_empty());
     }
 }

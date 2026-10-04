@@ -296,7 +296,11 @@ pub async fn check_domain_tls_handler(
     if is_allowed {
         Ok((StatusCode::OK, "Domain is authorized for TLS certificate").into_response())
     } else {
-        Ok((StatusCode::FORBIDDEN, "Domain is not authorized for TLS certificate").into_response())
+        Ok((
+            StatusCode::FORBIDDEN,
+            "Domain is not authorized for TLS certificate",
+        )
+            .into_response())
     }
 }
 

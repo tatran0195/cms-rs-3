@@ -171,13 +171,13 @@ impl UserQueries {
 
     /// Check the explicit platform-operator role (workspace ownership is not system admin).
     pub async fn is_system_admin(pool: &PgPool, user_id: &str) -> Result<bool, AppError> {
-        Ok(sqlx::query_scalar::<_, bool>(
-            r#"SELECT role = 'admin' FROM "User" WHERE id = $1"#,
+        Ok(
+            sqlx::query_scalar::<_, bool>(r#"SELECT role = 'admin' FROM "User" WHERE id = $1"#)
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await?
+                .unwrap_or(false),
         )
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await?
-        .unwrap_or(false))
     }
 
     /// Get a user by email
@@ -378,6 +378,31 @@ impl SessionQueries {
         Ok(result.rows_affected() > 0)
     }
 
+    /// Update session expiration time
+    pub async fn update_expires_at(
+        pool: &PgPool,
+        session_id: &str,
+        expires_at: DateTime<Utc>,
+    ) -> Result<Session, AppError> {
+        let now = Utc::now();
+        let row = sqlx::query_as::<_, SessionRow>(
+            r#"
+            UPDATE "Session"
+            SET expires_at = $1, updated_at = $2
+            WHERE id = $3
+            RETURNING *
+            "#,
+        )
+        .bind(expires_at)
+        .bind(now)
+        .bind(session_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(row.into())
+    }
+
     /// Delete all sessions for a user
     pub async fn delete_all_for_user(pool: &PgPool, user_id: &str) -> Result<u64, AppError> {
         let result = sqlx::query("DELETE FROM \"Session\" WHERE user_id = $1")
@@ -575,7 +600,10 @@ impl VerificationTokenQueries {
         token: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<VerificationToken, AppError> {
-        let mut tx = pool.begin().await.map_err(|e| AppError::Database(e.into()))?;
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
         sqlx::query("DELETE FROM \"VerificationToken\" WHERE identifier = $1")
             .bind(identifier)
             .execute(&mut *tx)
@@ -595,7 +623,9 @@ impl VerificationTokenQueries {
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| AppError::Database(e.into()))?;
-        tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
         Ok(row.into())
     }
 
@@ -625,14 +655,13 @@ impl VerificationTokenQueries {
         identifier: &str,
         token: &str,
     ) -> Result<bool, AppError> {
-        let result = sqlx::query(
-            "DELETE FROM \"VerificationToken\" WHERE identifier = $1 AND token = $2",
-        )
-        .bind(identifier)
-        .bind(token)
-        .execute(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        let result =
+            sqlx::query("DELETE FROM \"VerificationToken\" WHERE identifier = $1 AND token = $2")
+                .bind(identifier)
+                .bind(token)
+                .execute(pool)
+                .await
+                .map_err(|e| AppError::Database(e.into()))?;
         Ok(result.rows_affected() > 0)
     }
 

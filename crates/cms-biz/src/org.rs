@@ -90,9 +90,7 @@ impl OrgService {
         request: UpdateOrganizationRequest,
     ) -> Result<OrganizationResponse, AppError> {
         // Check if user is an admin or owner of the organization
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let org = OrganizationQueries::update(
             &ctx.pool,
@@ -113,9 +111,7 @@ impl OrgService {
         org_id: &str,
     ) -> Result<bool, AppError> {
         // Only the owner can delete an organization
-        ctx.authz
-            .require_org_owner(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_owner(user_id, org_id).await?;
 
         OrganizationQueries::delete(&ctx.pool, org_id).await
     }
@@ -162,9 +158,7 @@ impl OrgService {
         role: MemberRole,
     ) -> Result<MemberResponse, AppError> {
         // Check if current user is an admin or owner
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         // Check if the user is already a member
         let existing = MemberQueries::get_by_user_and_org(&ctx.pool, new_user_id, org_id).await?;
@@ -189,9 +183,7 @@ impl OrgService {
         new_role: MemberRole,
     ) -> Result<MemberResponse, AppError> {
         // Check if current user is an admin or owner
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         // Cannot demote yourself
         if member_id == user_id && new_role < MemberRole::Admin {
@@ -227,9 +219,7 @@ impl OrgService {
         member_id: &str,
     ) -> Result<bool, AppError> {
         // Check if current user is an admin or owner
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         // Cannot remove yourself
         if member_id == user_id {
@@ -267,9 +257,7 @@ impl OrgService {
         page_size: u64,
     ) -> Result<ListMembersResponse, AppError> {
         // Check if user is a member of the organization
-        ctx.authz
-            .require_org_member(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_member(user_id, org_id).await?;
 
         let offset = page.saturating_sub(1) * page_size;
         let members = MemberQueries::get_by_organization(
@@ -327,9 +315,7 @@ impl OrgService {
         request: CreateInvitationRequest,
     ) -> Result<InvitationResponse, AppError> {
         // Check if current user is an admin or owner
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let token = uuid::Uuid::new_v4().to_string();
         let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
@@ -396,9 +382,7 @@ impl OrgService {
         page_size: u64,
     ) -> Result<ListInvitationsResponse, AppError> {
         // Check if user is an admin or owner
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let invitations = InvitationQueries::get_by_organization(
             &ctx.pool,
@@ -426,9 +410,7 @@ impl OrgService {
         invitation_id: &str,
     ) -> Result<bool, AppError> {
         // Check if user is an admin or owner
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         InvitationQueries::delete(&ctx.pool, invitation_id).await
     }

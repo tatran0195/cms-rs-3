@@ -66,12 +66,14 @@ impl NotificationService {
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<NotificationResponse>, AppError> {
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
         let notifications = NotificationQueries::get_by_user(
             &ctx.pool,
             user_id,
             status.as_ref(),
-            Some(page as i64),
-            Some(page_size as i64),
+            Some(limit),
+            Some(offset),
         )
         .await?;
 

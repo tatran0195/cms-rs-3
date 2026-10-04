@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use async_trait::async_trait;
 use cms_error::AppError;
 use lettre::{
@@ -6,6 +5,7 @@ use lettre::{
     transport::smtp::authentication::Credentials,
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
 };
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::types::RenderedEmail;
@@ -76,7 +76,9 @@ impl SmtpMailer {
             AsyncSmtpTransport::<Tokio1Executor>::relay(host)
         } else if config.smtp_plain_no_tls {
             // Plain unencrypted SMTP — used for local dev tools like Mailpit.
-            Ok(AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(host))
+            Ok(AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(
+                host,
+            ))
         } else {
             AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(host)
         }
@@ -104,9 +106,9 @@ impl SmtpMailer {
 #[async_trait]
 impl Mailer for SmtpMailer {
     async fn send_email(&self, to: &str, subject: &str, body: &str) -> Result<(), AppError> {
-        let to_mailbox: Mailbox = to
-            .parse()
-            .map_err(|error| AppError::InvalidInput(format!("Invalid recipient address: {error}")))?;
+        let to_mailbox: Mailbox = to.parse().map_err(|error| {
+            AppError::InvalidInput(format!("Invalid recipient address: {error}"))
+        })?;
         let email = Message::builder()
             .from(self.from.clone())
             .to(to_mailbox)
@@ -123,17 +125,13 @@ impl Mailer for SmtpMailer {
     }
 
     async fn send_rendered_email(&self, to: &str, email: &RenderedEmail) -> Result<(), AppError> {
-        let to_mailbox: Mailbox = to
-            .parse()
-            .map_err(|error| AppError::InvalidInput(format!("Invalid recipient address: {error}")))?;
+        let to_mailbox: Mailbox = to.parse().map_err(|error| {
+            AppError::InvalidInput(format!("Invalid recipient address: {error}"))
+        })?;
 
         let multipart = MultiPart::alternative()
-            .singlepart(
-                SinglePart::plain(email.text.clone())
-            )
-            .singlepart(
-                SinglePart::html(email.html.clone())
-            );
+            .singlepart(SinglePart::plain(email.text.clone()))
+            .singlepart(SinglePart::html(email.html.clone()));
 
         let message = Message::builder()
             .from(self.from.clone())

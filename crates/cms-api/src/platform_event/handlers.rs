@@ -52,13 +52,16 @@ pub async fn list_platform_events_handler(
     Query(query): Query<ListPlatformEventsQuery>,
 ) -> Result<Json<PaginatedResponse<PlatformEventResponse>>, AppError> {
     let org_id = query.organization_id.as_deref().unwrap_or("");
+    let page_size = query.limit.unwrap_or(20).max(1) as u64;
+    let offset = query.offset.unwrap_or(0).max(0) as u64;
+    let page = (offset / page_size) + 1;
     let result = PlatformEventService::list_events(
         &state.biz_context,
         &auth.user.id,
         org_id,
         query.event_type.as_deref(),
-        query.limit.unwrap_or(1) as u64,
-        query.offset.unwrap_or(20) as u64,
+        page,
+        page_size,
     )
     .await?;
 

@@ -117,12 +117,21 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
 
     // Caddy on-demand TLS check internal endpoint: /api/v1/internal/domains/check
     let internal_domain_router = Router::new()
-        .route("/domains/check", get(domain::handlers::check_domain_tls_handler))
+        .route(
+            "/domains/check",
+            get(domain::handlers::check_domain_tls_handler),
+        )
         .with_state(state.clone());
     router = router.nest("/v1/internal", internal_domain_router);
-    router = router.nest("/internal", Router::new()
-        .route("/domains/check", get(domain::handlers::check_domain_tls_handler))
-        .with_state(state));
+    router = router.nest(
+        "/internal",
+        Router::new()
+            .route(
+                "/domains/check",
+                get(domain::handlers::check_domain_tls_handler),
+            )
+            .with_state(state),
+    );
 
     router
 }

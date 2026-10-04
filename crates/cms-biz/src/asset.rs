@@ -115,13 +115,10 @@ impl AssetService {
             .require_project_role(user_id, project_id, MemberRole::Viewer)
             .await?;
 
-        let assets = AssetQueries::get_by_project(
-            &ctx.pool,
-            project_id,
-            Some(page as i64),
-            Some(page_size as i64),
-        )
-        .await?;
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        let assets =
+            AssetQueries::get_by_project(&ctx.pool, project_id, Some(limit), Some(offset)).await?;
 
         let total = AssetQueries::count_by_project(&ctx.pool, project_id).await?;
 

@@ -135,9 +135,13 @@ mod tests {
         // MiniJinja auto-escapes HTML entities in href and text
         assert!(rendered.html.contains("token=abc&amp;next=&lt;home&gt;"));
         assert!(!rendered.html.contains("next=<home>"));
-        assert!(rendered.html.contains("src=\"https://cdn.example.com/custom-logo.png\""));
+        assert!(rendered
+            .html
+            .contains("src=\"https://cdn.example.com/custom-logo.png\""));
         // Text should contain unescaped URL
-        assert!(rendered.text.contains("https://example.com/verify?token=abc&next=<home>"));
+        assert!(rendered
+            .text
+            .contains("https://example.com/verify?token=abc&next=<home>"));
     }
 
     #[test]
@@ -159,6 +163,8 @@ mod tests {
         assert!(rendered.html.contains("dir=\"ltr\""));
         assert!(rendered.html.contains("lang=\"ja\""));
         assert!(rendered.html.contains("src=\"/brand/technostar-logo.png\""));
-        assert!(rendered.text.contains("新しいデバイスからのアカウントへのサインインを検出しました。"));
+        assert!(rendered
+            .text
+            .contains("新しいデバイスからのアカウントへのサインインを検出しました。"));
     }
 }

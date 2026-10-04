@@ -242,11 +242,13 @@ pub fn render_deployment_email(
     let title = translate(&lang, &title_key, vars);
     let message = translate(&lang, &message_key, vars);
 
-    let action = if outcome == DeploymentOutcome::Ready && site_url.is_some() {
-        let action_label = translate(&lang, "email.deployment.ready.action", vars);
-        Some(EmailAction {
-            label: action_label,
-            url: site_url.unwrap().to_string(),
+    let action = if outcome == DeploymentOutcome::Ready {
+        site_url.map(|url| {
+            let action_label = translate(&lang, "email.deployment.ready.action", vars);
+            EmailAction {
+                label: action_label,
+                url: url.to_string(),
+            }
         })
     } else {
         None

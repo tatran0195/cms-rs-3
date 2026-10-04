@@ -202,10 +202,8 @@ impl AnalyticsStore for SqliteAnalyticsStore {
             .map_err(|e| AppError::Storage(format!("Failed to query analytics: {}", e)))?;
 
             let mut result = Vec::new();
-            for r in rows {
-                if let Ok(event) = r {
-                    result.push(event);
-                }
+            for event in rows.flatten() {
+                result.push(event);
             }
 
             Ok(result)
@@ -274,7 +272,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_analytics_store() {
-        let store = SqliteAnalyticsStore::in_memory().expect("failed to create sqlite analytics store");
+        let store =
+            SqliteAnalyticsStore::in_memory().expect("failed to create sqlite analytics store");
 
         // Record events
         store
@@ -324,7 +323,16 @@ mod tests {
         assert_eq!(events.len(), 3);
 
         let pv_events = store
-            .query_events(Some("org-1"), None, None, Some("page_view"), None, None, None, None)
+            .query_events(
+                Some("org-1"),
+                None,
+                None,
+                Some("page_view"),
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(pv_events.len(), 2);
@@ -332,7 +340,11 @@ mod tests {
         // Get summary
         let now = chrono::Utc::now();
         let summary = store
-            .get_summary("org-1", now - chrono::Duration::hours(1), now + chrono::Duration::hours(1))
+            .get_summary(
+                "org-1",
+                now - chrono::Duration::hours(1),
+                now + chrono::Duration::hours(1),
+            )
             .await
             .unwrap();
 

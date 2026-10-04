@@ -41,11 +41,31 @@ use crate::auth::AuthExtractor;
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<LoginRequest>,
-) -> Result<Json<UserResponse>, AppError> {
+) -> Result<(HeaderMap, Json<UserResponse>), AppError> {
     // Delegate to auth service
     let user = AuthService::login(&state.biz_context, &request.email, &request.password).await?;
 
-    Ok(Json(user))
+    let session_token = uuid::Uuid::new_v4().to_string();
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
+    let _ = cms_db::auth::SessionQueries::create(
+        &state.biz_context.pool,
+        &user.id,
+        &session_token,
+        expires_at,
+    )
+    .await;
+
+    let mut res_headers = HeaderMap::new();
+    let cookie_val = format!(
+        "better-auth.session_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+        session_token,
+        30 * 24 * 3600
+    );
+    if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
+        res_headers.insert(axum::http::header::SET_COOKIE, val);
+    }
+
+    Ok((res_headers, Json(user)))
 }
 
 /// Register a new user
@@ -82,7 +102,7 @@ pub async fn register_handler(
 pub async fn logout_handler(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<(HeaderMap, Json<serde_json::Value>), AppError> {
     if let Some(cookie_header) = headers.get(axum::http::header::COOKIE) {
         if let Ok(cookie_str) = cookie_header.to_str() {
             if let Some(token) = AxumCookie::split_parse(cookie_str).find_map(|c| {
@@ -95,8 +115,17 @@ pub async fn logout_handler(
         }
     }
 
-    Ok(Json(
-        serde_json::json!({"message": "Logged out successfully"}),
+    let mut res_headers = HeaderMap::new();
+    res_headers.insert(
+        axum::http::header::SET_COOKIE,
+        axum::http::HeaderValue::from_static(
+            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+        ),
+    );
+
+    Ok((
+        res_headers,
+        Json(serde_json::json!({"message": "Logged out successfully"})),
     ))
 }
 
@@ -115,22 +144,33 @@ pub async fn get_current_user_handler(
 pub async fn refresh_session_handler(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-) -> Result<Json<UserResponse>, AppError> {
+) -> Result<(HeaderMap, Json<UserResponse>), AppError> {
     let cookie_header = headers
         .get(axum::http::header::COOKIE)
         .ok_or(AppError::Unauthorized)?;
     let cookie_str = cookie_header.to_str().map_err(|_| AppError::Unauthorized)?;
-    let refresh_token = AxumCookie::split_parse(cookie_str)
+    let session_token = AxumCookie::split_parse(cookie_str)
         .find_map(|c| {
             c.ok()
-                .filter(|c| c.name() == "refresh_token")
+                .filter(|c| c.name() == "refresh_token" || c.name() == "better-auth.session_token")
                 .map(|c| c.value().to_string())
         })
         .ok_or(AppError::Unauthorized)?;
 
-    let user = AuthService::refresh_session(&state.biz_context, &refresh_token).await?;
+    let user = AuthService::refresh_session(&state.biz_context, &session_token).await?;
 
-    Ok(Json(user))
+    let mut res_headers = HeaderMap::new();
+    let cookie_val = format!(
+        "better-auth.session_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+        session_token,
+        30 * 24 * 3600
+    );
+    res_headers.insert(
+        axum::http::header::SET_COOKIE,
+        axum::http::HeaderValue::from_str(&cookie_val).map_err(|e| AppError::Internal(e.into()))?,
+    );
+
+    Ok((res_headers, Json(user)))
 }
 
 /// List API keys handler
@@ -244,15 +284,13 @@ async fn issue_and_send_otp(state: &AppState, email: &str, purpose: &str) -> Res
     let verification_purpose = match purpose {
         "sign-in" => cms_biz::email::VerificationPurpose::SignIn,
         "change-email" => cms_biz::email::VerificationPurpose::ChangeEmail,
-        "forget-password" | "forgot-password" => cms_biz::email::VerificationPurpose::ForgetPassword,
+        "forget-password" | "forgot-password" => {
+            cms_biz::email::VerificationPurpose::ForgetPassword
+        }
         _ => cms_biz::email::VerificationPurpose::EmailVerification,
     };
-    let rendered = cms_biz::email::render_verification_code_email(
-        &otp,
-        verification_purpose,
-        None,
-    )
-    .map_err(|e| AppError::Internal(e.into()))?;
+    let rendered = cms_biz::email::render_verification_code_email(&otp, verification_purpose, None)
+        .map_err(|e| AppError::Internal(e.into()))?;
 
     if let Err(error) = state.mailer.send_rendered_email(&email, &rendered).await {
         let _ =

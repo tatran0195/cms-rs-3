@@ -185,8 +185,9 @@ impl Default for JapaneseTokenizer {
 }
 
 fn load_embedded_sudachidict() -> Dictionary {
-    load_dictionary("embedded://sudachidict")
-        .expect("embedded SudachiDict dictionary should always be present with feature embed-sudachidict")
+    load_dictionary("embedded://sudachidict").expect(
+        "embedded SudachiDict dictionary should always be present with feature embed-sudachidict",
+    )
 }
 
 fn is_punctuation_or_symbol(s: &str) -> bool {
@@ -289,7 +290,9 @@ impl Tokenizer for LinderaTantivyTokenizer {
 
                 let norm = t.get("normalized_form").map(|s| s.to_string());
                 let norm_term = match norm {
-                    Some(ref n) if n != "*" && !n.is_empty() => Some(n.nfkc().collect::<String>().to_lowercase()),
+                    Some(ref n) if n != "*" && !n.is_empty() => {
+                        Some(n.nfkc().collect::<String>().to_lowercase())
+                    }
                     _ => None,
                 };
                 let surface_norm = surface.nfkc().collect::<String>().to_lowercase();

@@ -103,10 +103,8 @@ pub fn extract_chunks(markdown: &str) -> Vec<DocumentChunk> {
                     current_text.push('\n');
                 }
             }
-            Event::End(TagEnd::Paragraph | TagEnd::Item) => {
-                if !in_heading {
-                    current_text.push('\n');
-                }
+            Event::End(TagEnd::Paragraph | TagEnd::Item) if !in_heading => {
+                current_text.push('\n');
             }
             _ => {}
         }

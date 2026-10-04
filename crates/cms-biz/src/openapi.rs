@@ -147,7 +147,6 @@ impl OpenApiService {
             .await?;
 
         // Fetch the OpenAPI document from the URL
-        // Note: This is a placeholder - actual implementation would use reqwest or similar
         let content = match fetch_openapi_content(&document.url).await {
             Ok(content) => content,
             Err(e) => {
@@ -163,8 +162,7 @@ impl OpenApiService {
             }
         };
 
-        // Parse the OpenAPI content
-        // Note: This is a placeholder - actual implementation would use openapi parser
+        // Parse the OpenAPI content (JSON or YAML) and count paths
         let paths_count = count_openapi_paths(&content);
 
         // Update the document with parsed content
@@ -260,13 +258,22 @@ async fn fetch_openapi_content(url: &str) -> Result<String, String> {
     Ok(text)
 }
 
-/// Parse OpenAPI content to count endpoints defined in `paths`
+/// Parse OpenAPI content to count endpoints defined in `paths` (supports both JSON and YAML)
 fn count_openapi_paths(content: &str) -> i32 {
     if let Ok(val) = serde_json::from_str::<serde_json::Value>(content) {
         if let Some(paths) = val.get("paths").and_then(|p| p.as_object()) {
             return paths.len() as i32;
         }
     }
+
+    if let Ok(docs) = yaml_rust2::YamlLoader::load_from_str(content) {
+        if let Some(doc) = docs.first() {
+            if let Some(paths) = doc["paths"].as_hash() {
+                return paths.len() as i32;
+            }
+        }
+    }
+
     0
 }
 
@@ -287,5 +294,21 @@ mod tests {
         }"#;
 
         assert_eq!(count_openapi_paths(json_spec), 3);
+
+        let yaml_spec = r#"
+openapi: 3.0.0
+info:
+  title: Sample API
+  version: 0.1.0
+paths:
+  /pets:
+    get:
+      description: Returns all pets
+  /pets/{id}:
+    get:
+      description: Returns a pet by ID
+"#;
+
+        assert_eq!(count_openapi_paths(yaml_spec), 2);
     }
 }

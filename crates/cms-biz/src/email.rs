@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 pub use cms_mailer::*;
 
-use cms_entity::email::{EmailRequest, EmailTemplate};
 use crate::AppError;
+use cms_entity::email::{EmailRequest, EmailTemplate};
 
 /// Email service
 pub struct EmailService;
@@ -62,12 +62,18 @@ impl EmailService {
         if let serde_json::Value::Object(map) = variables {
             for (key, value) in map {
                 let placeholder = format!("{{{}}}", key);
-                let replacement = value.as_str().unwrap_or("");
+                let replacement = match &value {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::Bool(b) => b.to_string(),
+                    serde_json::Value::Null => String::new(),
+                    other => other.to_string(),
+                };
 
-                subject = subject.replace(&placeholder, replacement);
-                body = body.replace(&placeholder, replacement);
+                subject = subject.replace(&placeholder, &replacement);
+                body = body.replace(&placeholder, &replacement);
                 if let Some(ref mut html) = html_body {
-                    *html = html.replace(&placeholder, replacement);
+                    *html = html.replace(&placeholder, &replacement);
                 }
             }
         }
@@ -118,6 +124,29 @@ mod tests {
             .send_email("user@example.com", "OTP", "123456")
             .await
             .unwrap_err();
-        assert!(error.to_string().contains("Email delivery is not configured"));
+        assert!(error
+            .to_string()
+            .contains("Email delivery is not configured"));
+    }
+
+    #[test]
+    fn test_render_template_with_numbers_and_bools() {
+        let template = EmailTemplate {
+            name: "otp".to_string(),
+            subject: "Your code is {code}".to_string(),
+            body: "Code {code} expires in {hours} hours. Active: {active}".to_string(),
+            html_body: Some("<p>Code: {code}</p>".to_string()),
+        };
+
+        let vars = serde_json::json!({
+            "code": 482910,
+            "hours": 24,
+            "active": true
+        });
+
+        let (subj, body, html) = EmailService::render_template(template, vars).unwrap();
+        assert_eq!(subj, "Your code is 482910");
+        assert_eq!(body, "Code 482910 expires in 24 hours. Active: true");
+        assert_eq!(html.unwrap(), "<p>Code: 482910</p>");
     }
 }

@@ -251,7 +251,8 @@ impl Authz for ProductionAuthz {
         let user = cms_db::auth::UserQueries::get_by_id(&self.pool, user_id)
             .await?
             .ok_or(AppError::Forbidden)?;
-        let database_admin = cms_db::auth::UserQueries::is_system_admin(&self.pool, user_id).await?;
+        let database_admin =
+            cms_db::auth::UserQueries::is_system_admin(&self.pool, user_id).await?;
         let configured_admin = self
             .system_admin_emails
             .iter()

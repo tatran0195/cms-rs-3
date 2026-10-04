@@ -8,7 +8,10 @@ use crate::common::{Id, Timestamp};
 /// Integration provider types
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "\"IntegrationProvider\"", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "\"IntegrationProvider\"",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum IntegrationProvider {
     Slack,
     Discord,
@@ -21,7 +24,10 @@ pub enum IntegrationProvider {
 /// Integration event status
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "IntegrationEventStatus", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "IntegrationEventStatus",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum IntegrationEventStatus {
     Pending,
     Processing,

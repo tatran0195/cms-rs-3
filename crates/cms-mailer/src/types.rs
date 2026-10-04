@@ -40,7 +40,13 @@ impl EmailLanguage {
     pub fn direction(&self) -> Direction {
         match self {
             Self::Ar => Direction::Rtl,
-            Self::Custom(s) if s.to_lowercase().starts_with("ar") || s.to_lowercase().starts_with("he") || s.to_lowercase().starts_with("fa") => Direction::Rtl,
+            Self::Custom(s)
+                if s.to_lowercase().starts_with("ar")
+                    || s.to_lowercase().starts_with("he")
+                    || s.to_lowercase().starts_with("fa") =>
+            {
+                Direction::Rtl
+            }
             _ => Direction::Ltr,
         }
     }

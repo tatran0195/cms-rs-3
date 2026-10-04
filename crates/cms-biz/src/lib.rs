@@ -51,13 +51,7 @@ pub struct BizContext {
 
 impl BizContext {
     /// Create a new BizContext
-    pub fn new(
-        pool: PgPool,
-        authz: std::sync::Arc<dyn cms_authz::Authz>,
-    ) -> Self {
-        Self {
-            pool,
-            authz,
-        }
+    pub fn new(pool: PgPool, authz: std::sync::Arc<dyn cms_authz::Authz>) -> Self {
+        Self { pool, authz }
     }
 }

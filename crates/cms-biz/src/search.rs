@@ -34,15 +34,21 @@ impl SearchService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
         if request.project_id != project_id {
-            return Err(AppError::InvalidInput("Search project scope mismatch".to_string()));
+            return Err(AppError::InvalidInput(
+                "Search project scope mismatch".to_string(),
+            ));
         }
 
         let query = request.query.trim();
         if query.is_empty() {
-            return Err(AppError::InvalidInput("Search query cannot be empty".to_string()));
+            return Err(AppError::InvalidInput(
+                "Search query cannot be empty".to_string(),
+            ));
         }
         if query.len() > 256 {
-            return Err(AppError::InvalidInput("Search query is too long".to_string()));
+            return Err(AppError::InvalidInput(
+                "Search query is too long".to_string(),
+            ));
         }
         let limit = request.limit.clamp(1, 100);
         let offset = request.offset.unwrap_or(0).clamp(0, 400);
@@ -312,7 +318,9 @@ impl SearchService {
                     }
                 }
                 Ok(Some(_)) => {}
-                Ok(None) => failures.push(format!("{}: page disappeared during reindex", page_item.id)),
+                Ok(None) => {
+                    failures.push(format!("{}: page disappeared during reindex", page_item.id))
+                }
                 Err(error) => failures.push(format!("{}: {}", page_item.id, error)),
             }
         }
@@ -327,13 +335,8 @@ impl SearchService {
                 .collect::<Vec<_>>()
                 .join("; ");
             let error_message = error_message.chars().take(4_000).collect::<String>();
-            SearchIndexRunQueries::mark_failed(
-                &ctx.pool,
-                &run.id,
-                indexed_count,
-                &error_message,
-            )
-            .await?
+            SearchIndexRunQueries::mark_failed(&ctx.pool, &run.id, indexed_count, &error_message)
+                .await?
         };
 
         tracing::info!(

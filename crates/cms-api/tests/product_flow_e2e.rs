@@ -900,14 +900,19 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     )?;
     anyhow::ensure!(reorder_unnest["data"]["success"] == true);
 
-    let draft_row: (Option<String>, String) = sqlx::query_as(
-        r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#,
-    )
-    .bind(&_draft_page_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    anyhow::ensure!(draft_row.0.is_none(), "draft page parent_id must be null after un-nesting");
-    anyhow::ensure!(draft_row.1 == "/draft", "draft page path must be /draft at root");
+    let draft_row: (Option<String>, String) =
+        sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
+            .bind(_draft_page_id)
+            .fetch_one(&state.biz_context.pool)
+            .await?;
+    anyhow::ensure!(
+        draft_row.0.is_none(),
+        "draft page parent_id must be null after un-nesting"
+    );
+    anyhow::ensure!(
+        draft_row.1 == "/draft",
+        "draft page path must be /draft at root"
+    );
 
     // 2. Re-nest draft page back under arabic group with new position
     let reorder_renest = expect_status(
@@ -930,12 +935,11 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     )?;
     anyhow::ensure!(reorder_renest["data"]["success"] == true);
 
-    let draft_nested_row: (Option<String>, String) = sqlx::query_as(
-        r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#,
-    )
-    .bind(&_draft_page_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
+    let draft_nested_row: (Option<String>, String) =
+        sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
+            .bind(_draft_page_id)
+            .fetch_one(&state.biz_context.pool)
+            .await?;
     anyhow::ensure!(
         draft_nested_row.0.as_deref() == Some(&arabic_group_id),
         "draft page parent_id must be arabic_group_id"

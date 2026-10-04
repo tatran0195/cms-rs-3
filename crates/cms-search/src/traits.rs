@@ -44,4 +44,3 @@ pub trait SearchEngine: Send + Sync {
     /// Get RAG answer for a question
     async fn rag_answer(&self, project_id: &str, question: &str) -> Result<RagAnswer, AppError>;
 }
-

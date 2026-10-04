@@ -216,10 +216,7 @@ fn pages_in_tree_order(pages: &[cms_entity::page::Page]) -> Vec<&cms_entity::pag
     // Group page indices by parent_id, sorted by position within each group.
     let mut by_parent: HashMap<Option<&str>, Vec<usize>> = HashMap::new();
     for (i, p) in pages.iter().enumerate() {
-        by_parent
-            .entry(p.parent_id.as_deref())
-            .or_default()
-            .push(i);
+        by_parent.entry(p.parent_id.as_deref()).or_default().push(i);
     }
     for indices in by_parent.values_mut() {
         indices.sort_by_key(|&i| pages[i].position);
@@ -259,10 +256,7 @@ fn build_nav(pages: &[cms_entity::page::Page]) -> Vec<serde_json::Value> {
     // Group page indices by parent_id, sorted by position within each group.
     let mut by_parent: HashMap<Option<&str>, Vec<usize>> = HashMap::new();
     for (i, p) in pages.iter().enumerate() {
-        by_parent
-            .entry(p.parent_id.as_deref())
-            .or_default()
-            .push(i);
+        by_parent.entry(p.parent_id.as_deref()).or_default().push(i);
     }
     for indices in by_parent.values_mut() {
         indices.sort_by_key(|&i| pages[i].position);
@@ -1193,9 +1187,38 @@ pub async fn answer_public_site_handler(
 
 /// Track public marketing events
 pub async fn post_public_marketing_events_handler(
-    State(_state): State<Arc<AppState>>,
-    Json(_body): Json<serde_json::Value>,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let event_type = body
+        .get("event")
+        .or_else(|| body.get("event_type"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("marketing_event");
+
+    let properties = body
+        .get("properties")
+        .or_else(|| body.get("metadata"))
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    let project_id = body
+        .get("project_id")
+        .or_else(|| body.get("projectId"))
+        .and_then(|v| v.as_str());
+
+    let _ = cms_biz::analytics::AnalyticsService::record_event(
+        &state.biz_context,
+        None,
+        project_id,
+        None,
+        event_type,
+        properties,
+        None,
+        None,
+    )
+    .await;
+
     Ok(Json(serde_json::json!({ "data": { "success": true } })))
 }
 
@@ -1622,11 +1645,32 @@ mod tests {
     fn test_pages_in_tree_order_respects_position_over_alphabetical_path() {
         let pages = vec![
             make_page("c-advanced", None, "/c-advanced", "Advanced", "GROUP", 2),
-            make_page("c-setup", Some("c-advanced"), "/c-advanced/setup", "Setup", "PAGE", 0),
+            make_page(
+                "c-setup",
+                Some("c-advanced"),
+                "/c-advanced/setup",
+                "Setup",
+                "PAGE",
+                0,
+            ),
             make_page("z-intro", None, "/z-intro", "Introduction", "PAGE", 0),
             make_page("a-guide", None, "/a-guide", "Guide", "PAGE", 1),
-            make_page("a-sub2", Some("a-guide"), "/a-guide/sub-2", "Sub 2", "PAGE", 1),
-            make_page("a-sub1", Some("a-guide"), "/a-guide/sub-1", "Sub 1", "PAGE", 0),
+            make_page(
+                "a-sub2",
+                Some("a-guide"),
+                "/a-guide/sub-2",
+                "Sub 2",
+                "PAGE",
+                1,
+            ),
+            make_page(
+                "a-sub1",
+                Some("a-guide"),
+                "/a-guide/sub-1",
+                "Sub 1",
+                "PAGE",
+                0,
+            ),
         ];
 
         let ordered = pages_in_tree_order(&pages);
@@ -1634,7 +1678,14 @@ mod tests {
 
         assert_eq!(
             ids,
-            vec!["z-intro", "a-guide", "a-sub1", "a-sub2", "c-advanced", "c-setup"]
+            vec![
+                "z-intro",
+                "a-guide",
+                "a-sub1",
+                "a-sub2",
+                "c-advanced",
+                "c-setup"
+            ]
         );
     }
 
@@ -1655,11 +1706,32 @@ mod tests {
     fn test_page_nav_prev_next_matches_sidebar_order() {
         let pages = vec![
             make_page("c-advanced", None, "/c-advanced", "Advanced", "GROUP", 2),
-            make_page("c-setup", Some("c-advanced"), "/c-advanced/setup", "Setup", "PAGE", 0),
+            make_page(
+                "c-setup",
+                Some("c-advanced"),
+                "/c-advanced/setup",
+                "Setup",
+                "PAGE",
+                0,
+            ),
             make_page("z-intro", None, "/z-intro", "Introduction", "PAGE", 0),
             make_page("a-guide", None, "/a-guide", "Guide", "PAGE", 1),
-            make_page("a-sub2", Some("a-guide"), "/a-guide/sub-2", "Sub 2", "PAGE", 1),
-            make_page("a-sub1", Some("a-guide"), "/a-guide/sub-1", "Sub 1", "PAGE", 0),
+            make_page(
+                "a-sub2",
+                Some("a-guide"),
+                "/a-guide/sub-2",
+                "Sub 2",
+                "PAGE",
+                1,
+            ),
+            make_page(
+                "a-sub1",
+                Some("a-guide"),
+                "/a-guide/sub-1",
+                "Sub 1",
+                "PAGE",
+                0,
+            ),
         ];
 
         // First page: /z-intro

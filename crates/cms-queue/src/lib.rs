@@ -67,10 +67,7 @@ pub async fn create_job_queue_with_pool(
     pool: cms_db::PgPool,
 ) -> Result<Arc<dyn JobQueue>, AppError> {
     match config.backend.as_str() {
-        "postgres" => Ok(Arc::new(PostgresJobQueue::new(
-            pool,
-            config.max_retries,
-        ))),
+        "postgres" => Ok(Arc::new(PostgresJobQueue::new(pool, config.max_retries))),
         _ => create_job_queue(config).await,
     }
 }

@@ -224,9 +224,7 @@ impl PageQueries {
         if language_ids.is_empty() {
             return Ok(Vec::new());
         }
-        let mut query = QueryBuilder::<Postgres>::new(
-            "SELECT * FROM \"Page\" WHERE project_id = ",
-        );
+        let mut query = QueryBuilder::<Postgres>::new("SELECT * FROM \"Page\" WHERE project_id = ");
         query.push_bind(project_id);
         query.push(" AND branch_id = ");
         query.push_bind(branch_id);
@@ -1004,12 +1002,11 @@ impl PageQueries {
     /// path and rejects collisions before any tree state is committed.
     pub async fn delete(pool: &PgPool, page_id: &str) -> Result<bool, AppError> {
         let mut tx = pool.begin().await?;
-        let Some(current) = sqlx::query_as::<_, PageRow>(
-            "SELECT * FROM \"Page\" WHERE id = $1 FOR UPDATE",
-        )
-        .bind(page_id)
-        .fetch_optional(&mut *tx)
-        .await?
+        let Some(current) =
+            sqlx::query_as::<_, PageRow>("SELECT * FROM \"Page\" WHERE id = $1 FOR UPDATE")
+                .bind(page_id)
+                .fetch_optional(&mut *tx)
+                .await?
         else {
             return Ok(false);
         };
@@ -1052,7 +1049,8 @@ impl PageQueries {
         .await?;
         if tree_state.0 {
             return Err(AppError::Conflict(
-                "All descendants must share the deleted page's project, branch, and language".to_string(),
+                "All descendants must share the deleted page's project, branch, and language"
+                    .to_string(),
             ));
         }
         if tree_state.1 {
@@ -1274,7 +1272,10 @@ impl PageQueries {
             .into_iter()
             .map(|row| (row.id.clone(), row))
             .collect::<std::collections::HashMap<_, _>>();
-        let requested_ids = items.iter().map(|(id, _, _)| id.clone()).collect::<Vec<_>>();
+        let requested_ids = items
+            .iter()
+            .map(|(id, _, _)| id.clone())
+            .collect::<Vec<_>>();
         if items.iter().any(|(id, _, _)| !nodes.contains_key(id)) {
             return Err(AppError::Conflict(
                 "All reordered pages must share a project, branch, and language".to_string(),
@@ -1291,7 +1292,9 @@ impl PageQueries {
             .collect::<std::collections::HashMap<_, _>>();
         for (id, parent_id, position) in items {
             if parent_id.as_deref() == Some(id.as_str()) {
-                return Err(AppError::Conflict("A page cannot be its own parent".to_string()));
+                return Err(AppError::Conflict(
+                    "A page cannot be its own parent".to_string(),
+                ));
             }
             if parent_id
                 .as_deref()
@@ -1326,9 +1329,9 @@ impl PageQueries {
                     "The proposed page tree contains a parent cycle".to_string(),
                 ));
             }
-            let node = nodes
-                .get(id)
-                .ok_or_else(|| AppError::Conflict("A page parent is outside the tree".to_string()))?;
+            let node = nodes.get(id).ok_or_else(|| {
+                AppError::Conflict("A page parent is outside the tree".to_string())
+            })?;
             if node.slug.is_empty()
                 || node.slug == "."
                 || node.slug == ".."

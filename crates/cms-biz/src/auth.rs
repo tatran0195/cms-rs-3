@@ -175,6 +175,10 @@ impl AuthService {
             .await?
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
         Self::ensure_active_account(ctx, &user.id).await?;
+
+        let new_expires_at = Utc::now() + chrono::Duration::days(30);
+        let _ = SessionQueries::update_expires_at(&ctx.pool, &session.id, new_expires_at).await?;
+
         Ok(user.into())
     }
 

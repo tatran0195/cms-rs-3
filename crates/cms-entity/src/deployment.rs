@@ -8,7 +8,10 @@ use crate::common::{Id, Timestamp};
 /// Deployment status
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "\"DeploymentStatus\"", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "\"DeploymentStatus\"",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum DeploymentStatus {
     Pending,
     Building,

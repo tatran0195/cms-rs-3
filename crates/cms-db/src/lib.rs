@@ -104,12 +104,23 @@ mod tests {
         let url = std::env::var("CMS_DATABASE__URL")
             .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
         if let Ok(pool) = create_pool(&url).await {
-            let res = crate::notification::NotificationQueries::count_unread_by_user(&pool, "nonexistent-user").await;
-            assert!(res.is_ok(), "Notification count should succeed: {:?}", res.err());
+            let res = crate::notification::NotificationQueries::count_unread_by_user(
+                &pool,
+                "nonexistent-user",
+            )
+            .await;
+            assert!(
+                res.is_ok(),
+                "Notification count should succeed: {:?}",
+                res.err()
+            );
 
             let mem_res = crate::org::MemberQueries::get_by_user(&pool, "nonexistent-user").await;
-            assert!(mem_res.is_ok(), "Member get should succeed: {:?}", mem_res.err());
+            assert!(
+                mem_res.is_ok(),
+                "Member get should succeed: {:?}",
+                mem_res.err()
+            );
         }
     }
 }
-

@@ -26,7 +26,9 @@ fn test_renders_japanese_email() {
 
     assert_eq!(email.subject, "CMS アカウントへの新しいサインイン");
     assert!(email.html.contains("lang=\"ja\""));
-    assert!(email.text.contains("新しいデバイスからのアカウントへのサインインを検出しました。"));
+    assert!(email
+        .text
+        .contains("新しいデバイスからのアカウントへのサインインを検出しました。"));
 }
 
 #[test]

@@ -104,7 +104,11 @@ pub struct UpdatePageRequest {
     pub kind: Option<String>,
     #[serde(alias = "languageId", default, skip_serializing_if = "Option::is_none")]
     pub language_id: Option<Id>,
-    #[serde(alias = "isPublished", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "isPublished",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub is_published: Option<bool>,
     #[serde(alias = "hidden", default, skip_serializing_if = "Option::is_none")]
     pub hidden: Option<bool>,
@@ -391,7 +395,8 @@ mod tests {
 
     #[test]
     fn test_create_page_request_from_frontend_json() {
-        let json_str = r#"{"title":"Untitled","parentId":null,"languageId":"lang-123","isPublished":false}"#;
+        let json_str =
+            r#"{"title":"Untitled","parentId":null,"languageId":"lang-123","isPublished":false}"#;
         let req: Result<CreatePageRequest, _> = serde_json::from_str(json_str);
         assert!(
             req.is_ok(),
@@ -407,8 +412,7 @@ mod tests {
 
     #[test]
     fn test_update_page_request_accepts_frontend_publication_field() {
-        let request: UpdatePageRequest =
-            serde_json::from_str(r#"{"isPublished":false}"#).unwrap();
+        let request: UpdatePageRequest = serde_json::from_str(r#"{"isPublished":false}"#).unwrap();
         assert_eq!(request.is_published, Some(false));
     }
 

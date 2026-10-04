@@ -81,9 +81,18 @@ impl TantivyFields {
         let description = builder.add_text_field("description", japanese_text_options.clone());
         let body = builder.add_text_field("body", japanese_text_options);
 
-        let chunk_index = builder.add_i64_field("chunk_index", NumericOptions::default().set_stored().set_fast());
-        let is_published = builder.add_u64_field("is_published", NumericOptions::default().set_stored().set_fast());
-        let updated_at = builder.add_i64_field("updated_at", NumericOptions::default().set_stored().set_fast());
+        let chunk_index = builder.add_i64_field(
+            "chunk_index",
+            NumericOptions::default().set_stored().set_fast(),
+        );
+        let is_published = builder.add_u64_field(
+            "is_published",
+            NumericOptions::default().set_stored().set_fast(),
+        );
+        let updated_at = builder.add_i64_field(
+            "updated_at",
+            NumericOptions::default().set_stored().set_fast(),
+        );
 
         let schema = builder.build();
         let fields = Self {
@@ -370,7 +379,10 @@ impl SearchEngine for TantivySearchEngine {
         // Fetch top docs
         let fetch_limit = (opts.limit * 3).max(10);
         let top_docs = searcher
-            .search(&*parsed_query, &TopDocs::with_limit(fetch_limit).order_by_score())
+            .search(
+                &*parsed_query,
+                &TopDocs::with_limit(fetch_limit).order_by_score(),
+            )
             .map_err(|e| {
                 AppError::SearchError(format!(
                     "Tantivy search error for project '{}': {}",
@@ -383,7 +395,8 @@ impl SearchEngine for TantivySearchEngine {
         }
 
         // Prepare snippet generator for body field
-        let snippet_generator = SnippetGenerator::create(&searcher, &*parsed_query, fields.body).ok();
+        let snippet_generator =
+            SnippetGenerator::create(&searcher, &*parsed_query, fields.body).ok();
 
         let mut hits: Vec<SearchHit> = Vec::new();
         let mut seen_pages: HashMap<String, usize> = HashMap::new();
@@ -510,7 +523,10 @@ impl SearchEngine for TantivySearchEngine {
                     vec![markdown::DocumentChunk {
                         chunk_index: 0,
                         heading: None,
-                        text: page.description.clone().unwrap_or_else(|| page.title.clone()),
+                        text: page
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| page.title.clone()),
                     }]
                 } else {
                     chunks
@@ -522,11 +538,17 @@ impl SearchEngine for TantivySearchEngine {
                     doc.add_text(fields.page_id, &page.id);
                     doc.add_text(fields.project_id, &page.project_id);
                     doc.add_text(fields.branch_id, &page.branch_id);
-                    doc.add_text(fields.language_id, page.language_id.as_deref().unwrap_or(""));
+                    doc.add_text(
+                        fields.language_id,
+                        page.language_id.as_deref().unwrap_or(""),
+                    );
                     doc.add_text(fields.title, &page.title);
                     doc.add_text(fields.path, &page.path);
                     doc.add_text(fields.slug, &page.slug);
-                    doc.add_text(fields.description, page.description.as_deref().unwrap_or(""));
+                    doc.add_text(
+                        fields.description,
+                        page.description.as_deref().unwrap_or(""),
+                    );
                     doc.add_text(fields.body, &chunk.text);
                     doc.add_i64(fields.chunk_index, chunk.chunk_index as i64);
                     doc.add_u64(fields.is_published, if page.is_published { 1 } else { 0 });
@@ -618,9 +640,9 @@ impl SearchEngine for TantivySearchEngine {
         const MAX_SCAN: usize = 500;
 
         'outer: for seg_reader in searcher.segment_readers() {
-            let store_reader = seg_reader
-                .get_store_reader(50)
-                .map_err(|e| AppError::SearchError(format!("index_stats store open failed: {}", e)))?;
+            let store_reader = seg_reader.get_store_reader(50).map_err(|e| {
+                AppError::SearchError(format!("index_stats store open failed: {}", e))
+            })?;
 
             for doc_id in 0..seg_reader.num_docs() {
                 if docs_visited >= MAX_SCAN {
@@ -663,7 +685,10 @@ impl SearchEngine for TantivySearchEngine {
 
         if hits.is_empty() {
             return Ok(RagAnswer {
-                answer: format!("'{}' に関する関連ドキュメントが見つかりませんでした。", question),
+                answer: format!(
+                    "'{}' に関する関連ドキュメントが見つかりませんでした。",
+                    question
+                ),
                 confidence: 0.0,
                 sources: Vec::new(),
             });
@@ -675,7 +700,10 @@ impl SearchEngine for TantivySearchEngine {
             .collect::<Vec<_>>()
             .join("\n\n");
 
-        let answer = format!("プロジェクト '{}' のドキュメントに基づく回答:\n\n{}", project_id, context);
+        let answer = format!(
+            "プロジェクト '{}' のドキュメントに基づく回答:\n\n{}",
+            project_id, context
+        );
 
         let confidence = hits
             .first()
@@ -857,7 +885,11 @@ mod e2e_tests {
     }
 
     fn opts(limit: usize) -> SearchOptions {
-        SearchOptions { limit, min_score: 0.0, fts_weight: 0.5 }
+        SearchOptions {
+            limit,
+            min_score: 0.0,
+            fts_weight: 0.5,
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -869,7 +901,12 @@ mod e2e_tests {
         let eng = new_engine(&dir);
         let proj = "proj_upsert";
 
-        let page = make_page("dup1", proj, "重複テストページ", "同じページを二回インデックスします。");
+        let page = make_page(
+            "dup1",
+            proj,
+            "重複テストページ",
+            "同じページを二回インデックスします。",
+        );
         eng.index_page(&page).await.unwrap();
         eng.index_page(&page).await.unwrap(); // second index of the same page
 
@@ -891,7 +928,10 @@ mod e2e_tests {
         eng.index_page(&page).await.unwrap();
 
         let hits = eng.hybrid_query(proj, "非公開", opts(10)).await.unwrap();
-        assert!(hits.is_empty(), "Unpublished pages must not appear in search results");
+        assert!(
+            hits.is_empty(),
+            "Unpublished pages must not appear in search results"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -903,12 +943,23 @@ mod e2e_tests {
         let eng = new_engine(&dir);
         let proj = "proj_noindex";
 
-        let mut page = make_page("nidx1", proj, "インデックス除外", "インデックス対象外のコンテンツです。");
+        let mut page = make_page(
+            "nidx1",
+            proj,
+            "インデックス除外",
+            "インデックス対象外のコンテンツです。",
+        );
         page.is_indexed = false;
         eng.index_page(&page).await.unwrap();
 
-        let hits = eng.hybrid_query(proj, "インデックス", opts(10)).await.unwrap();
-        assert!(hits.is_empty(), "Pages with is_indexed=false must not appear in results");
+        let hits = eng
+            .hybrid_query(proj, "インデックス", opts(10))
+            .await
+            .unwrap();
+        assert!(
+            hits.is_empty(),
+            "Pages with is_indexed=false must not appear in results"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -921,7 +972,12 @@ mod e2e_tests {
 
         // Same logical page indexed in two distinct projects.
         // Use a unique term that tokenizes as-is (katakana word passes through the Japanese tokenizer).
-        let mut pa = make_page("shared_page", "proj_a", "ネットワーク設定ガイド", "ネットワーク設定の方法を説明します。");
+        let mut pa = make_page(
+            "shared_page",
+            "proj_a",
+            "ネットワーク設定ガイド",
+            "ネットワーク設定の方法を説明します。",
+        );
         let mut pb = pa.clone();
         pb.project_id = "proj_b".to_string();
 
@@ -929,16 +985,40 @@ mod e2e_tests {
         eng.index_page(&pb).await.unwrap();
 
         // Both projects must have the page
-        let hits_a_before = eng.hybrid_query("proj_a", "ネットワーク", opts(10)).await.unwrap();
-        let hits_b_before = eng.hybrid_query("proj_b", "ネットワーク", opts(10)).await.unwrap();
-        assert!(!hits_a_before.is_empty(), "proj_a should have the shared page before removal");
-        assert!(!hits_b_before.is_empty(), "proj_b should have the shared page before removal");
+        let hits_a_before = eng
+            .hybrid_query("proj_a", "ネットワーク", opts(10))
+            .await
+            .unwrap();
+        let hits_b_before = eng
+            .hybrid_query("proj_b", "ネットワーク", opts(10))
+            .await
+            .unwrap();
+        assert!(
+            !hits_a_before.is_empty(),
+            "proj_a should have the shared page before removal"
+        );
+        assert!(
+            !hits_b_before.is_empty(),
+            "proj_b should have the shared page before removal"
+        );
 
         // remove_page (without project_id) must clear from all projects on disk
         eng.remove_page("shared_page").await.unwrap();
 
-        assert!(eng.hybrid_query("proj_a", "ネットワーク", opts(10)).await.unwrap().is_empty(), "Page should be removed from proj_a");
-        assert!(eng.hybrid_query("proj_b", "ネットワーク", opts(10)).await.unwrap().is_empty(), "Page should be removed from proj_b");
+        assert!(
+            eng.hybrid_query("proj_a", "ネットワーク", opts(10))
+                .await
+                .unwrap()
+                .is_empty(),
+            "Page should be removed from proj_a"
+        );
+        assert!(
+            eng.hybrid_query("proj_b", "ネットワーク", opts(10))
+                .await
+                .unwrap()
+                .is_empty(),
+            "Page should be removed from proj_b"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -951,16 +1031,29 @@ mod e2e_tests {
         let proj = "proj_boost";
 
         // page_a: target term only in body
-        let page_a = make_page("a", proj, "一般情報ページ", "このページでは東京の観光スポットについて解説します。");
+        let page_a = make_page(
+            "a",
+            proj,
+            "一般情報ページ",
+            "このページでは東京の観光スポットについて解説します。",
+        );
         // page_b: target term in title (and body) — should rank first due to 2.5× title boost
-        let page_b = make_page("b", proj, "東京観光ガイド", "東京の観光スポットと交通アクセスをまとめました。");
+        let page_b = make_page(
+            "b",
+            proj,
+            "東京観光ガイド",
+            "東京の観光スポットと交通アクセスをまとめました。",
+        );
 
         eng.index_page(&page_a).await.unwrap();
         eng.index_page(&page_b).await.unwrap();
 
         let hits = eng.hybrid_query(proj, "東京", opts(10)).await.unwrap();
         assert!(!hits.is_empty());
-        assert_eq!(hits[0].page_id, "b", "Title-matching page must outrank body-only match");
+        assert_eq!(
+            hits[0].page_id, "b",
+            "Title-matching page must outrank body-only match"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -977,7 +1070,11 @@ mod e2e_tests {
 
         for q in &["", "   ", "\t\n"] {
             let hits = eng.hybrid_query(proj, q, opts(10)).await.unwrap();
-            assert!(hits.is_empty(), "Empty/whitespace query must return no hits (query: {:?})", q);
+            assert!(
+                hits.is_empty(),
+                "Empty/whitespace query must return no hits (query: {:?})",
+                q
+            );
         }
     }
 
@@ -989,8 +1086,14 @@ mod e2e_tests {
         let dir = TempDir::new().unwrap();
         let eng = new_engine(&dir);
 
-        let hits = eng.hybrid_query("ghost_project", "何か", opts(10)).await.unwrap();
-        assert!(hits.is_empty(), "Non-existent project must silently return no hits");
+        let hits = eng
+            .hybrid_query("ghost_project", "何か", opts(10))
+            .await
+            .unwrap();
+        assert!(
+            hits.is_empty(),
+            "Non-existent project must silently return no hits"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -1002,14 +1105,25 @@ mod e2e_tests {
         let eng = new_engine(&dir);
         let proj = "proj_delete";
 
-        let page = make_page("d1", proj, "削除対象ページ", "このプロジェクトは削除されます。");
+        let page = make_page(
+            "d1",
+            proj,
+            "削除対象ページ",
+            "このプロジェクトは削除されます。",
+        );
         eng.index_page(&page).await.unwrap();
 
         let proj_path = eng.project_index_path(proj);
-        assert!(proj_path.exists(), "Index directory must exist after indexing");
+        assert!(
+            proj_path.exists(),
+            "Index directory must exist after indexing"
+        );
 
         eng.delete_project_index(proj).unwrap();
-        assert!(!proj_path.exists(), "Index directory must be removed after delete_project_index");
+        assert!(
+            !proj_path.exists(),
+            "Index directory must be removed after delete_project_index"
+        );
 
         // Searching the deleted project must return empty, not panic
         let hits = eng.hybrid_query(proj, "削除", opts(10)).await.unwrap();
@@ -1024,10 +1138,19 @@ mod e2e_tests {
         let dir = TempDir::new().unwrap();
         let eng = new_engine(&dir);
 
-        assert!(eng.list_projects().is_empty(), "Should start with no projects");
+        assert!(
+            eng.list_projects().is_empty(),
+            "Should start with no projects"
+        );
 
-        for (id, proj) in [("l1", "list_proj_a"), ("l2", "list_proj_b"), ("l3", "list_proj_c")] {
-            eng.index_page(&make_page(id, proj, "テスト", "コンテンツ")).await.unwrap();
+        for (id, proj) in [
+            ("l1", "list_proj_a"),
+            ("l2", "list_proj_b"),
+            ("l3", "list_proj_c"),
+        ] {
+            eng.index_page(&make_page(id, proj, "テスト", "コンテンツ"))
+                .await
+                .unwrap();
         }
 
         let mut projects = eng.list_projects();
@@ -1058,13 +1181,25 @@ confファイルを適切に設定してください。
         eng.index_page(&page).await.unwrap();
 
         // Term only in section 2
-        let hits_conf = eng.hybrid_query(proj, "設定ファイル", opts(10)).await.unwrap();
-        assert!(!hits_conf.is_empty(), "Section-specific term '設定ファイル' must be findable");
+        let hits_conf = eng
+            .hybrid_query(proj, "設定ファイル", opts(10))
+            .await
+            .unwrap();
+        assert!(
+            !hits_conf.is_empty(),
+            "Section-specific term '設定ファイル' must be findable"
+        );
         assert_eq!(hits_conf[0].page_id, "chunk_page");
 
         // Term only in section 3
-        let hits_log = eng.hybrid_query(proj, "ログファイル", opts(10)).await.unwrap();
-        assert!(!hits_log.is_empty(), "Section-specific term 'ログファイル' must be findable");
+        let hits_log = eng
+            .hybrid_query(proj, "ログファイル", opts(10))
+            .await
+            .unwrap();
+        assert!(
+            !hits_log.is_empty(),
+            "Section-specific term 'ログファイル' must be findable"
+        );
         assert_eq!(hits_log[0].page_id, "chunk_page");
     }
 
@@ -1091,10 +1226,19 @@ confファイルを適切に設定してください。
         // Query with a term that appears in the title/body so it must score > 0
         let answer = eng.rag_answer(proj, "データベース").await.unwrap();
 
-        assert!(answer.confidence > 0.0, "RAG confidence must be > 0 when hits exist");
-        assert!(!answer.sources.is_empty(), "RAG answer must reference source documents");
+        assert!(
+            answer.confidence > 0.0,
+            "RAG confidence must be > 0 when hits exist"
+        );
+        assert!(
+            !answer.sources.is_empty(),
+            "RAG answer must reference source documents"
+        );
         assert_eq!(answer.sources[0].page_id, "rag1");
-        assert!(answer.answer.contains(proj), "RAG answer text must mention the project");
+        assert!(
+            answer.answer.contains(proj),
+            "RAG answer text must mention the project"
+        );
     }
 
     #[tokio::test]
@@ -1103,7 +1247,10 @@ confファイルを適切に設定してください。
         let eng = new_engine(&dir);
 
         let answer = eng.rag_answer("no_such_project", "何でも").await.unwrap();
-        assert!(answer.sources.is_empty(), "RAG answer for empty project must have no sources");
+        assert!(
+            answer.sources.is_empty(),
+            "RAG answer for empty project must have no sources"
+        );
         assert_eq!(answer.confidence, 0.0);
     }
 
@@ -1128,6 +1275,9 @@ confファイルを適切に設定してください。
         }
 
         let hits = eng.hybrid_query(proj, "検索", opts(3)).await.unwrap();
-        assert!(hits.len() <= 3, "Result count must not exceed requested limit");
+        assert!(
+            hits.len() <= 3,
+            "Result count must not exceed requested limit"
+        );
     }
 }

@@ -57,8 +57,9 @@ impl UsageService {
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<UsagePlanResponse>, AppError> {
-        let plans =
-            UsagePlanQueries::get_all(&ctx.pool, Some(page as i64), Some(page_size as i64)).await?;
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        let plans = UsagePlanQueries::get_all(&ctx.pool, Some(limit), Some(offset)).await?;
 
         let total = UsagePlanQueries::count(&ctx.pool).await?;
 
@@ -102,9 +103,9 @@ impl UsageService {
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<UsageMeterResponse>, AppError> {
-        let meters =
-            UsageMeterQueries::get_all(&ctx.pool, Some(page as i64), Some(page_size as i64))
-                .await?;
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        let meters = UsageMeterQueries::get_all(&ctx.pool, Some(limit), Some(offset)).await?;
 
         let total = UsageMeterQueries::count(&ctx.pool).await?;
 
@@ -126,9 +127,7 @@ impl UsageService {
         ends_at: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<OrganizationUsagePlanResponse, AppError> {
         // Check if user has admin permissions for the organization
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let plan = UsagePlanQueries::get_by_id(&ctx.pool, plan_id)
             .await?
@@ -156,9 +155,7 @@ impl UsageService {
         org_id: &str,
     ) -> Result<Option<OrganizationUsagePlanResponse>, AppError> {
         // Check if user has access to the organization
-        ctx.authz
-            .require_org_member(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_member(user_id, org_id).await?;
 
         let org_plan = OrganizationUsagePlanQueries::get_by_organization(&ctx.pool, org_id).await?;
 
@@ -172,9 +169,7 @@ impl UsageService {
         org_id: &str,
         usage_plan_id: &str,
     ) -> Result<OrganizationUsagePlanResponse, AppError> {
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let _plan = UsagePlanQueries::get_by_id(&ctx.pool, usage_plan_id)
             .await?
@@ -205,9 +200,7 @@ impl UsageService {
         limit_value: Option<i64>,
     ) -> Result<UsageEntitlementResponse, AppError> {
         // Check if user has admin permissions for the organization
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let entitlement = UsageEntitlementQueries::create_or_update(
             &ctx.pool,
@@ -281,9 +274,7 @@ impl UsageService {
         user_id: &str,
         org_id: &str,
     ) -> Result<serde_json::Value, AppError> {
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
         let plan = Self::get_organization_usage_plan(ctx, user_id, org_id).await?;
         Ok(serde_json::json!({
             "organization_id": org_id,

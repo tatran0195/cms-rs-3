@@ -47,9 +47,7 @@ impl AnalyticsService {
         page_size: u64,
     ) -> Result<AnalyticsQueryResponse, AppError> {
         // Check if user has admin role in the organization
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         let limit = page_size as i64;
         let offset = ((page.saturating_sub(1)) as i64) * limit;
@@ -89,9 +87,7 @@ impl AnalyticsService {
         end_date: chrono::DateTime<chrono::Utc>,
     ) -> Result<serde_json::Value, AppError> {
         // Check if user has admin role in the organization
-        ctx.authz
-            .require_org_admin(user_id, org_id)
-            .await?;
+        ctx.authz.require_org_admin(user_id, org_id).await?;
 
         AnalyticsQueries::get_summary(&ctx.pool, org_id, start_date, end_date).await
     }

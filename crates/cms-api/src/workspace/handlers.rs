@@ -37,17 +37,27 @@ pub async fn get_workspace_settings_handler(
         .unwrap_or_else(|| ("Workspace".to_string(), "workspace".to_string()));
 
     let project_count = if !org_id.is_empty() {
-        cms_db::project::ProjectQueries::count_by_organization(&state.biz_context.pool, &org_id, None, None)
-            .await
-            .unwrap_or(0)
+        cms_db::project::ProjectQueries::count_by_organization(
+            &state.biz_context.pool,
+            &org_id,
+            None,
+            None,
+        )
+        .await
+        .unwrap_or(0)
     } else {
         0
     };
 
     let member_count = if !org_id.is_empty() {
-        cms_db::org::MemberQueries::count_by_organization(&state.biz_context.pool, &org_id, None, None)
-            .await
-            .unwrap_or(1)
+        cms_db::org::MemberQueries::count_by_organization(
+            &state.biz_context.pool,
+            &org_id,
+            None,
+            None,
+        )
+        .await
+        .unwrap_or(1)
     } else {
         1
     };
@@ -93,14 +103,9 @@ pub async fn update_workspace_settings_handler(
     let description = body.get("description").and_then(|v| v.as_str());
 
     if name.is_some() || logo.is_some() || description.is_some() {
-        let org = OrganizationQueries::update(
-            &state.biz_context.pool,
-            &org_id,
-            name,
-            description,
-            logo,
-        )
-        .await?;
+        let org =
+            OrganizationQueries::update(&state.biz_context.pool, &org_id, name, description, logo)
+                .await?;
         let _ = org;
     }
 
@@ -119,12 +124,10 @@ pub async fn get_workspace_analytics_handler(
     auth: AuthExtractor,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let org_id = resolve_workspace_org(&state, &auth.user.id).await?;
-    let stats = cms_biz::analytics::AnalyticsService::get_organization_stats(
-        &state.biz_context,
-        &org_id,
-    )
-    .await
-    .unwrap_or_else(|_| serde_json::json!({}));
+    let stats =
+        cms_biz::analytics::AnalyticsService::get_organization_stats(&state.biz_context, &org_id)
+            .await
+            .unwrap_or_else(|_| serde_json::json!({}));
 
     let total_views = stats
         .get("events")
@@ -199,18 +202,17 @@ pub async fn list_workspace_members_handler(
         let users = cms_db::auth::UserQueries::get_by_ids(&state.biz_context.pool, &user_ids)
             .await
             .unwrap_or_default();
-        let user_map: std::collections::HashMap<String, cms_entity::auth::User> = users
-            .into_iter()
-            .map(|u| (u.id.clone(), u))
-            .collect();
+        let user_map: std::collections::HashMap<String, cms_entity::auth::User> =
+            users.into_iter().map(|u| (u.id.clone(), u)).collect();
 
         let items: Vec<serde_json::Value> = org_members
             .into_iter()
             .map(|m| {
-                let (user_name, user_email, user_image) = if let Some(u) = user_map.get(&m.user_id) {
+                let (user_name, user_email, user_image) = if let Some(u) = user_map.get(&m.user_id)
+                {
                     (u.name.clone(), u.email.clone(), u.image.clone())
                 } else {
-                    (auth.user.name.clone(), auth.user.email.clone(), auth.user.image.clone())
+                    (None, String::new(), None)
                 };
                 serde_json::json!({
                     "id": m.id,
@@ -228,12 +230,10 @@ pub async fn list_workspace_members_handler(
             })
             .collect();
 
-        let invitations = cms_db::org::InvitationQueries::list_by_org(
-            &state.biz_context.pool,
-            &org_id,
-        )
-        .await
-        .unwrap_or_default();
+        let invitations =
+            cms_db::org::InvitationQueries::list_by_org(&state.biz_context.pool, &org_id)
+                .await
+                .unwrap_or_default();
 
         return Ok(Json(serde_json::json!({
             "data": {
@@ -287,9 +287,13 @@ pub async fn invite_workspace_member_handler(
     let role = parse_workspace_role(body.get("role").and_then(|v| v.as_str()));
 
     let request = cms_entity::org::CreateInvitationRequest { email, role };
-    let invitation =
-        cms_biz::org::OrgService::create_invitation(&state.biz_context, &auth.user.id, &org_id, request)
-            .await?;
+    let invitation = cms_biz::org::OrgService::create_invitation(
+        &state.biz_context,
+        &auth.user.id,
+        &org_id,
+        request,
+    )
+    .await?;
 
     Ok(Json(serde_json::json!({
         "data": {

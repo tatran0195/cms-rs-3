@@ -197,11 +197,13 @@ impl GitService {
             .require_project_role(user_id, &connection.project_id, MemberRole::Viewer)
             .await?;
 
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
         let operations = GitSyncOperationQueries::get_by_connection(
             &ctx.pool,
             connection_id,
-            Some(page as i64),
-            Some(page_size as i64),
+            Some(limit),
+            Some(offset),
         )
         .await?;
 
@@ -243,13 +245,11 @@ impl GitService {
             .require_project_role(user_id, project_id, MemberRole::Editor)
             .await?;
 
-        let conflicts = GitConflictQueries::get_by_project(
-            &ctx.pool,
-            project_id,
-            Some(page as i64),
-            Some(page_size as i64),
-        )
-        .await?;
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        let conflicts =
+            GitConflictQueries::get_by_project(&ctx.pool, project_id, Some(limit), Some(offset))
+                .await?;
 
         let total = GitConflictQueries::count_by_project(&ctx.pool, project_id).await?;
 
@@ -300,11 +300,13 @@ impl GitService {
             .require_project_role(user_id, &connection.project_id, MemberRole::Viewer)
             .await?;
 
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
         let prs = GitPullRequestQueries::get_by_connection(
             &ctx.pool,
             connection_id,
-            Some(page as i64),
-            Some(page_size as i64),
+            Some(limit),
+            Some(offset),
         )
         .await?;
 

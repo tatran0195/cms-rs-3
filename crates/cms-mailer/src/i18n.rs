@@ -2,9 +2,8 @@ use crate::types::EmailLanguage;
 
 /// Translate a message key for the given language, interpolating placeholders like `{key}`.
 pub fn translate(lang: &EmailLanguage, key: &str, vars: &[(&str, &str)]) -> String {
-    let raw = lookup_raw(lang, key).unwrap_or_else(|| {
-        lookup_raw(&EmailLanguage::En, key).unwrap_or(key)
-    });
+    let raw =
+        lookup_raw(lang, key).unwrap_or_else(|| lookup_raw(&EmailLanguage::En, key).unwrap_or(key));
 
     let mut result = raw.to_string();
     for (k, v) in vars {
@@ -99,7 +98,9 @@ fn lookup_en(key: &str) -> Option<&'static str> {
 fn lookup_ar(key: &str) -> Option<&'static str> {
     Some(match key {
         "email.brand.name" => "تكنوستار",
-        "email.brand.footer" => "تم إرسال هذه الرسالة الآلية بواسطة تكنوستار. إذا لم تكن قد طلبتها، يمكنك تجاهلها بأمان.",
+        "email.brand.footer" => {
+            "تم إرسال هذه الرسالة الآلية بواسطة تكنوستار. إذا لم تكن قد طلبتها، يمكنك تجاهلها بأمان."
+        }
         "email.brand.fallbackLink" => "إذا كان الزر لا يعمل، انسخ هذا الرابط والصقه في متصفحك:",
 
         "email.otp.signIn.subject" => "رمز تسجيل الدخول الخاص بك في نيبليف",
@@ -109,9 +110,13 @@ fn lookup_ar(key: &str) -> Option<&'static str> {
         "email.newSignIn.subject" => "تسجيل دخول جديد إلى حسابك في نيبليف",
         "email.newSignIn.preview" => "رصدنا تسجيل دخول من جهاز أو موقع جديد.",
         "email.newSignIn.title" => "تم رصد تسجيل دخول جديد",
-        "email.newSignIn.withIp" => "رصدنا تسجيل دخول جديد إلى حسابك من موقع جديد (عنوان IP {ipAddress}).",
+        "email.newSignIn.withIp" => {
+            "رصدنا تسجيل دخول جديد إلى حسابك من موقع جديد (عنوان IP {ipAddress})."
+        }
         "email.newSignIn.withoutIp" => "رصدنا تسجيل دخول جديد إلى حسابك من جهاز جديد.",
-        "email.newSignIn.detail" => "إذا لم يكن هذا أنت، قم بتسجيل الخروج من الجلسات الأخرى فوراً وتواصل مع الدعم.",
+        "email.newSignIn.detail" => {
+            "إذا لم يكن هذا أنت، قم بتسجيل الخروج من الجلسات الأخرى فوراً وتواصل مع الدعم."
+        }
 
         "email.verifyEmail.subject" => "تأكيد بريدك الإلكتروني في نيبليف",
         "email.verifyEmail.action" => "تأكيد البريد الإلكتروني",
@@ -203,11 +208,7 @@ mod tests {
 
     #[test]
     fn test_interpolation() {
-        let translated = translate(
-            &EmailLanguage::En,
-            "email.otp.expiry",
-            &[("minutes", "10")],
-        );
+        let translated = translate(&EmailLanguage::En, "email.otp.expiry", &[("minutes", "10")]);
         assert_eq!(
             translated,
             "The code expires in 10 minutes and can be used only once."

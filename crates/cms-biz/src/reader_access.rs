@@ -570,48 +570,37 @@ impl ReaderAccessService {
     /// List JWT access providers
     pub async fn list_jwt_access_providers(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
     ) -> Result<Vec<JwtAccessProvider>, AppError> {
-        // In a real implementation, this would be filtered by user permissions
-        // For now, return all providers
-
-        // This is a placeholder - in practice, we'd need to query with proper filtering
-        Ok(Vec::new())
+        JwtAccessProviderQueries::list(&ctx.pool).await
     }
 
     /// Delete a JWT access provider
     pub async fn delete_jwt_access_provider(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         provider_id: &str,
     ) -> Result<bool, AppError> {
-        // Check if user has permission to delete this provider
-        // (This would need to be implemented)
-
         JwtAccessProviderQueries::delete(&ctx.pool, provider_id).await
     }
 
     /// List audit logs for a reader
     pub async fn list_audit_logs(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         reader_id: &str,
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<ReaderAuditLog>, AppError> {
-        // Check if user has admin role
-        // (This would need to be implemented based on the project context)
+        let limit = page_size as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
 
-        let logs = ReaderAuditLogQueries::get_by_reader(
-            &ctx.pool,
-            reader_id,
-            Some(page as i64),
-            Some(page_size as i64),
-        )
-        .await?;
+        let logs =
+            ReaderAuditLogQueries::get_by_reader(&ctx.pool, reader_id, Some(limit), Some(offset))
+                .await?;
 
-        let total = 0; // Would need to count
+        let total = ReaderAuditLogQueries::count_by_reader(&ctx.pool, reader_id).await?;
 
-        Ok(PaginatedResponse::new(logs, total, page, page_size))
+        Ok(PaginatedResponse::new(logs, total as u64, page, page_size))
     }
 }

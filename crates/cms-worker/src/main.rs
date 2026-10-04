@@ -32,8 +32,7 @@ async fn main() -> Result<(), AppError> {
     // ensure a newly deployed worker has its durable queue schema before polling.
     let db = cms_db::create_pool(&config.database.url).await?;
     cms_db::run_migrations(&db).await?;
-    let job_queue =
-        cms_queue::create_job_queue_with_pool(&config.queue, db.clone()).await?;
+    let job_queue = cms_queue::create_job_queue_with_pool(&config.queue, db.clone()).await?;
 
     // Build worker adapters over that same pool.
     let state = Arc::new(WorkerState::with_pool(&config, job_queue.clone(), db).await?);

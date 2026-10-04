@@ -511,7 +511,7 @@ impl GitFileStateQueries {
 }
 
 // ============================================
-// Remaining Git tables (stubs for now)
+// Git Conflicts and Pull Requests
 // ============================================
 
 #[derive(Debug, FromRow)]
@@ -601,13 +601,12 @@ impl GitConflictQueries {
         pool: &PgPool,
         conflict_id: &str,
     ) -> Result<Option<GitConflict>, AppError> {
-        let row = sqlx::query_as::<_, GitConflictRow>(
-            "SELECT * FROM \"GitConflict\" WHERE id = $1",
-        )
-        .bind(conflict_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        let row =
+            sqlx::query_as::<_, GitConflictRow>("SELECT * FROM \"GitConflict\" WHERE id = $1")
+                .bind(conflict_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| AppError::Database(e.into()))?;
         Ok(row.map(|r| r.into()))
     }
 
@@ -630,13 +629,12 @@ impl GitConflictQueries {
     }
 
     pub async fn count_by_project(pool: &PgPool, project_id: &str) -> Result<i64, AppError> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"GitConflict\" WHERE project_id = $1",
-        )
-        .bind(project_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM \"GitConflict\" WHERE project_id = $1")
+                .bind(project_id)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| AppError::Database(e.into()))?;
         Ok(count)
     }
 
@@ -694,13 +692,12 @@ impl GitPullRequestQueries {
     }
 
     pub async fn count_by_connection(pool: &PgPool, connection_id: &str) -> Result<i64, AppError> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"GitPullRequest\" WHERE connection_id = $1",
-        )
-        .bind(connection_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM \"GitPullRequest\" WHERE connection_id = $1")
+                .bind(connection_id)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| AppError::Database(e.into()))?;
         Ok(count)
     }
 }
@@ -713,13 +710,11 @@ impl GitPreviewQueries {
         pool: &PgPool,
         preview_id: &str,
     ) -> Result<Option<GitPreview>, AppError> {
-        let row = sqlx::query_as::<_, GitPreviewRow>(
-            "SELECT * FROM \"GitPreview\" WHERE id = $1",
-        )
-        .bind(preview_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        let row = sqlx::query_as::<_, GitPreviewRow>("SELECT * FROM \"GitPreview\" WHERE id = $1")
+            .bind(preview_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
         Ok(row.map(|r| r.into()))
     }
 

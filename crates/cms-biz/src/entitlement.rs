@@ -86,7 +86,9 @@ impl EntitlementService {
         page: u64,
         page_size: u64,
     ) -> Result<Vec<UsageEntitlement>, AppError> {
-        UsageEntitlementQueries::get_all(&ctx.pool, Some(page as i64), Some(page_size as i64)).await
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        UsageEntitlementQueries::get_all(&ctx.pool, Some(limit), Some(offset)).await
     }
 
     /// Check whether an organization is entitled to a feature (Autumn-style check)

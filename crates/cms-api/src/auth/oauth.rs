@@ -30,32 +30,7 @@ fn internal(msg: String) -> AppError {
     AppError::Internal(anyhow::anyhow!(msg))
 }
 
-/// Base64-URL without padding — used for the state round-trip.
-fn b64url_encode(data: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(data)
-}
-fn b64url_decode(s: &str) -> Option<Vec<u8>> {
-    use base64::Engine;
-    base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(s)
-        .ok()
-}
-
-/// Encode the SPA `callbackURL` into the OAuth `state` parameter so the callback
-/// can recover it.
-pub(crate) fn encode_callback_state(callback_url: &str) -> String {
-    let payload = json!({ "cb": callback_url });
-    b64url_encode(payload.to_string().as_bytes())
-}
-
-/// Recover the SPA `callbackURL` from the OAuth `state` parameter.
-fn decode_callback_state(state: &str) -> Option<String> {
-    let bytes = b64url_decode(state)?;
-    let s = String::from_utf8(bytes).ok()?;
-    let v: serde_json::Value = serde_json::from_str(&s).ok()?;
-    v.get("cb").and_then(|c| c.as_str()).map(String::from)
-}
+pub(crate) use cms_auth::oauth::{b64url_encode, decode_callback_state, encode_callback_state};
 
 #[derive(Deserialize)]
 pub struct CallbackQuery {

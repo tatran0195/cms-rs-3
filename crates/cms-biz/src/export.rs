@@ -92,13 +92,11 @@ impl ExportService {
             .require_project_role(user_id, project_id, MemberRole::Viewer)
             .await?;
 
-        let snapshots = ExportSnapshotQueries::get_by_project(
-            &ctx.pool,
-            project_id,
-            Some(page as i64),
-            Some(page_size as i64),
-        )
-        .await?;
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        let snapshots =
+            ExportSnapshotQueries::get_by_project(&ctx.pool, project_id, Some(limit), Some(offset))
+                .await?;
 
         let total = ExportSnapshotQueries::count_by_project(&ctx.pool, project_id).await?;
 
@@ -127,7 +125,9 @@ impl ExportService {
             .await?;
 
         // Autumn-style active entitlement check: verify export feature is entitled
-        if let Ok(Some(proj)) = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, &snapshot.project_id).await {
+        if let Ok(Some(proj)) =
+            cms_db::project::ProjectQueries::get_by_id(&ctx.pool, &snapshot.project_id).await
+        {
             crate::entitlement::EntitlementService::require_feature_entitlement(
                 ctx,
                 &proj.organization_id,
@@ -181,13 +181,11 @@ impl ExportService {
             .require_project_role(user_id, project_id, MemberRole::Viewer)
             .await?;
 
-        let jobs = ExportJobQueries::get_by_project(
-            &ctx.pool,
-            project_id,
-            Some(page as i64),
-            Some(page_size as i64),
-        )
-        .await?;
+        let limit = page_size.max(1) as i64;
+        let offset = page.saturating_sub(1) as i64 * limit;
+        let jobs =
+            ExportJobQueries::get_by_project(&ctx.pool, project_id, Some(limit), Some(offset))
+                .await?;
 
         let total = ExportJobQueries::count_by_project(&ctx.pool, project_id).await?;
 
@@ -751,17 +749,20 @@ pub async fn generate_sqlite_export(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", project_id)))?;
 
-    let branches = cms_db::branch::BranchQueries::get_by_project(pool, project_id, None, Some(100), Some(0))
-        .await
-        .unwrap_or_default();
+    let branches =
+        cms_db::branch::BranchQueries::get_by_project(pool, project_id, None, Some(100), Some(0))
+            .await
+            .unwrap_or_default();
 
-    let assets = cms_db::asset::AssetQueries::get_by_project(pool, project_id, Some(10_000), Some(0))
-        .await
-        .unwrap_or_default();
+    let assets =
+        cms_db::asset::AssetQueries::get_by_project(pool, project_id, Some(10_000), Some(0))
+            .await
+            .unwrap_or_default();
 
-    let deployments = cms_db::deployment::DeploymentQueries::get_by_project(pool, project_id, Some(100), Some(0))
-        .await
-        .unwrap_or_default();
+    let deployments =
+        cms_db::deployment::DeploymentQueries::get_by_project(pool, project_id, Some(100), Some(0))
+            .await
+            .unwrap_or_default();
 
     let pages_vec = pages.to_vec();
 
@@ -1153,7 +1154,9 @@ mod tests {
         let name: String = stmt.query_row([], |r| r.get(0)).unwrap();
         assert_eq!(name, "Test Project");
 
-        let count: i64 = conn.query_row("SELECT count(*) FROM page", [], |r| r.get(0)).unwrap();
+        let count: i64 = conn
+            .query_row("SELECT count(*) FROM page", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(count, 2);
     }
 }

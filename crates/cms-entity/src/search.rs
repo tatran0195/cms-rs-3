@@ -8,7 +8,10 @@ use crate::common::{Id, Timestamp};
 /// Search index run status
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
-#[sqlx(type_name = "\"SearchIndexRunStatus\"", rename_all = "SCREAMING_SNAKE_CASE")]
+#[sqlx(
+    type_name = "\"SearchIndexRunStatus\"",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
 pub enum SearchIndexRunStatus {
     Pending,
     Processing,

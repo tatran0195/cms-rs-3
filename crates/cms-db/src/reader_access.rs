@@ -75,10 +75,7 @@ impl ReaderQueries {
     }
 
     /// List all readers granted access to any audience belonging to a project.
-    pub async fn get_by_project(
-        pool: &PgPool,
-        project_id: &str,
-    ) -> Result<Vec<Reader>, AppError> {
+    pub async fn get_by_project(pool: &PgPool, project_id: &str) -> Result<Vec<Reader>, AppError> {
         let rows = sqlx::query_as::<_, ReaderRow>(
             r#"
             SELECT DISTINCT r.* FROM "Reader" r
@@ -914,6 +911,17 @@ impl JwtAccessProviderQueries {
 
         Ok(result.rows_affected() > 0)
     }
+
+    pub async fn list(pool: &PgPool) -> Result<Vec<JwtAccessProvider>, AppError> {
+        let rows = sqlx::query_as::<_, JwtAccessProviderRow>(
+            "SELECT * FROM \"JwtAccessProvider\" ORDER BY created_at DESC",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(rows.into_iter().map(|r| r.into()).collect())
+    }
 }
 
 // ============================================
@@ -1098,5 +1106,16 @@ impl ReaderAuditLogQueries {
             .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(rows.into_iter().map(|r| r.into()).collect())
+    }
+
+    pub async fn count_by_reader(pool: &PgPool, reader_id: &str) -> Result<i64, AppError> {
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM \"ReaderAuditLog\" WHERE reader_id = $1")
+                .bind(reader_id)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(count)
     }
 }

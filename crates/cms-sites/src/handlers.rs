@@ -690,7 +690,9 @@ pub async fn image_handler(
 }
 
 /// Favicon handler
-pub async fn favicon_handler(State(state): State<Arc<SitesAppState>>) -> Result<Response, StatusCode> {
+pub async fn favicon_handler(
+    State(state): State<Arc<SitesAppState>>,
+) -> Result<Response, StatusCode> {
     let spa_res = serve_spa_file("favicon.ico");
     if spa_res.status() == StatusCode::OK
         && spa_res
