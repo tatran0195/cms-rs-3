@@ -48,7 +48,7 @@ const snapshot: SiteSnapshot = {
     config: { theme: { preset: 'harbor', layout: { density: 'compact' } }, styling: { theme: 'system' } },
     languages: [
       { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null },
-      { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: true, config: null },
+      { code: 'he', label: 'עברית', direction: 'RTL', isDefault: false, enabled: true, config: null },
     ],
     versions: [
       { id: 'version_main', name: 'Main', slug: 'main', isDefault: true },
@@ -67,10 +67,10 @@ const snapshot: SiteSnapshot = {
     page({ id: 'group_guides', kind: 'GROUP', title: 'Guides', path: '/guides', position: 1, content: '' }),
     page({ id: 'page_auth', parentId: 'group_guides', title: 'Authentication', path: '/guides/authentication', position: 0 }),
     page({ id: 'page_hidden', title: 'Internal notes', path: '/internal', position: 2, hidden: true }),
-    page({ id: 'page_welcome_ar', languageCode: 'ar', title: 'مرحبًا', path: '/مرحبا', translationKey: 'welcome' }),
-    page({ id: 'page_auth_ar', languageCode: 'ar', title: 'المصادقة', path: '/المصادقة', position: 1 }),
+    page({ id: 'page_welcome_he', languageCode: 'he', title: 'שלום', path: '/שלום', translationKey: 'welcome' }),
+    page({ id: 'page_auth_he', languageCode: 'he', title: 'אימות', path: '/אימות', position: 1 }),
     page({ id: 'page_next', versionId: 'version_next', title: 'Next release', path: '/next-release' }),
-    page({ id: 'page_next_ar', versionId: 'version_next', languageCode: 'ar', title: 'الإصدار التالي', path: '/الإصدار-التالي' }),
+    page({ id: 'page_next_he', versionId: 'version_next', languageCode: 'he', title: 'גרסה הבאה', path: '/גרסה-הבאה' }),
   ],
   generatedAt: '2026-08-23T00:00:00.000Z',
 };
@@ -122,7 +122,6 @@ describe('Git-native repository contract v2', () => {
     expect(byPath.get('src/lib/markdown.tsx')?.content).toContain('rehypeSanitize, sanitizeSchema');
     expect(byPath.get('src/components/mdx/index.tsx')?.content).toContain('relatedcard: RelatedCard');
     expect(byPath.get('src/components/mdx/tooltip.tsx')?.content).toContain('role="tooltip"');
-    expect(byPath.get('messages/ar.json')?.content).toContain('ابحث في التوثيق');
     expect(byPath.get('messages/en.json')?.content).toContain('No pages match this search.');
 
     const readme = byPath.get('README.md');
@@ -156,7 +155,7 @@ describe('Git-native repository contract v2', () => {
       'x-cms': { label: 'English', direction: 'LTR', default: true },
       pages: [{ group: 'Guides', pages: ['guides/authentication'] }, 'welcome'],
     });
-    expect(main.languages[1].pages).toEqual(['ar/مرحبا', 'ar/المصادقة']);
+    expect(main.languages[1].pages).toEqual(['he/שלום', 'he/אימות']);
     expect(docs.navigation.versions[1].languages[0].pages).toEqual(['versions/next/next-release']);
     expect(docs['x-cms'].template).toEqual({ id: 'harbor', version: 2 });
     expect(docs['x-cms'].theme.id).toBe('harbor');
@@ -164,7 +163,7 @@ describe('Git-native repository contract v2', () => {
     expect(docs['x-cms'].appearance).toBe('system');
     expect(docs['x-cms'].languages).toEqual([
       { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, directory: '' },
-      { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: true, directory: 'ar' },
+      { code: 'he', label: 'עברית', direction: 'RTL', isDefault: false, enabled: true, directory: 'he' },
     ]);
     expect(docs['x-cms'].versions[1]).toEqual({ id: 'version_next', name: 'Next', slug: 'next', isDefault: false, directory: 'versions/next' });
     expect(docs['x-cms'].contentPath).toBe('content');
@@ -177,14 +176,14 @@ describe('Git-native repository contract v2', () => {
     expect(second).toEqual(first);
   });
 
-  it('places pages in the content tree by language and version and keeps Arabic slugs readable', () => {
+  it('places pages in the content tree by language and version and keeps Hebrew RTL slugs readable', () => {
     const byId = new Map(snapshot.pages.map((item) => [item.id, item]));
     const pathOf = (id: string) => themeContentPath(byId.get(id) as SnapshotPage, snapshot);
     expect(pathOf('page_welcome')).toBe('content/welcome.mdx');
     expect(pathOf('page_auth')).toBe('content/guides/authentication.mdx');
-    expect(pathOf('page_auth_ar')).toBe('content/ar/المصادقة.mdx');
+    expect(pathOf('page_auth_he')).toBe('content/he/אימות.mdx');
     expect(pathOf('page_next')).toBe('content/versions/next/next-release.mdx');
-    expect(pathOf('page_next_ar')).toBe('content/versions/next/ar/الإصدار-التالي.mdx');
+    expect(pathOf('page_next_he')).toBe('content/versions/next/he/גרסה-הבאה.mdx');
     expect(themeContentPath({ ...(byId.get('page_welcome') as SnapshotPage), path: '../../unsafe:name' }, snapshot)).toBe(
       'content/unsafe~3a~name.mdx',
     );
@@ -195,23 +194,23 @@ describe('Git-native repository contract v2', () => {
       page_welcome: 'content/welcome.mdx',
       page_auth: 'content/guides/authentication.mdx',
       page_hidden: 'content/internal.mdx',
-      page_welcome_ar: 'content/ar/مرحبا.mdx',
-      page_auth_ar: 'content/ar/المصادقة.mdx',
+      page_welcome_he: 'content/he/שלום.mdx',
+      page_auth_he: 'content/he/אימות.mdx',
       page_next: 'content/versions/next/next-release.mdx',
-      page_next_ar: 'content/versions/next/ar/الإصدار-التالي.mdx',
+      page_next_he: 'content/versions/next/he/גרסה-הבאה.mdx',
     });
   });
 
   it('reads a repository path back to its version and language', () => {
     expect(themeContentLocation('content/welcome.mdx', snapshot)).toEqual({ versionId: 'version_main', languageCode: 'en', relative: 'welcome' });
-    expect(themeContentLocation('content/ar/المصادقة.mdx', snapshot)).toEqual({
+    expect(themeContentLocation('content/he/אימות.mdx', snapshot)).toEqual({
       versionId: 'version_main',
-      languageCode: 'ar',
-      relative: 'المصادقة',
+      languageCode: 'he',
+      relative: 'אימות',
     });
-    expect(themeContentLocation('content/versions/next/ar/x.mdx', snapshot)).toEqual({
+    expect(themeContentLocation('content/versions/next/he/x.mdx', snapshot)).toEqual({
       versionId: 'version_next',
-      languageCode: 'ar',
+      languageCode: 'he',
       relative: 'x',
     });
     expect(themeContentLocation('content/guides/index.mdx', snapshot)).toEqual({
@@ -226,7 +225,7 @@ describe('Git-native repository contract v2', () => {
 
   it('rejects page paths that would read back as another language or version', () => {
     const welcome = snapshot.pages[0] as SnapshotPage;
-    expect(() => buildThemeRepository({ ...snapshot, pages: [{ ...welcome, path: '/ar/welcome' }] })).toThrow(/different language or version/);
+    expect(() => buildThemeRepository({ ...snapshot, pages: [{ ...welcome, path: '/he/welcome' }] })).toThrow(/different language or version/);
     expect(() => buildThemeRepository({ ...snapshot, pages: [{ ...welcome, path: '/versions/next/welcome' }] })).toThrow(
       /different language or version/,
     );

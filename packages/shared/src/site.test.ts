@@ -43,9 +43,9 @@ describe('extractHeadings', () => {
     const hs = extractHeadings('# Real\n```\n# Not a heading\n```\n## Also real');
     expect(hs.map((h) => h.text)).toEqual(['Real', 'Also real']);
   });
-  it('produces a non-empty github-slugger id for an Arabic heading', () => {
-    const [h] = extractHeadings('# مقدمة');
-    expect(h?.text).toBe('مقدمة');
+  it('produces a non-empty github-slugger id for a Hebrew RTL heading', () => {
+    const [h] = extractHeadings('# מבוא');
+    expect(h?.text).toBe('מבוא');
     expect(h?.id).toBeTruthy();
     expect(h?.id).not.toContain(' ');
   });
@@ -111,7 +111,7 @@ describe('buildNavTree', () => {
     expect(tree.map((n) => n.title)).toEqual(['Short', 'Plain']);
   });
   it('filters pages strictly by language', () => {
-    const tree = buildNavTree([page({ id: 'en1', languageCode: 'en' }), page({ id: 'ar1', languageCode: 'ar' })], 'en');
+    const tree = buildNavTree([page({ id: 'en1', languageCode: 'en' }), page({ id: 'ja1', languageCode: 'ja' })], 'en');
     expect(tree.map((n) => n.id)).toEqual(['en1']);
   });
   it('groups categorized siblings without changing their paths', () => {
@@ -155,12 +155,6 @@ describe('resolvePageCategory', () => {
     expect(resolvePageCategory(page({ id: 'start', title: 'Get started with JoodBooking', slug: 'setup-your-joodbooking' }), 30)).toMatchObject({
       title: 'Getting started',
       order: 0,
-    });
-  });
-  it('uses localized Arabic workflow labels for large imports', () => {
-    expect(resolvePageCategory(page({ id: 'ar-hotel', title: 'إضافة فندق جديد', languageCode: 'ar' }), 30)).toMatchObject({
-      title: 'الفنادق والغرف',
-      order: 1,
     });
   });
 });
@@ -223,7 +217,7 @@ describe('buildSnapshot', () => {
         ...projectRow,
         languages: [
           { code: 'en', label: 'English', direction: 'LTR' as const, isDefault: true, config: null },
-          { code: 'ar', label: 'العربية', direction: 'RTL' as const, isDefault: false, enabled: false, config: null },
+          { code: 'ja', label: 'Japanese', direction: 'LTR' as const, isDefault: false, enabled: false, config: null },
         ],
       },
       [rawPage],
@@ -231,7 +225,7 @@ describe('buildSnapshot', () => {
     );
     expect(snap.project.languages.map((l) => [l.code, l.enabled])).toEqual([
       ['en', true],
-      ['ar', false],
+      ['ja', false],
     ]);
   });
   it('layers ProjectTranslation identity into the published language config', () => {
@@ -385,10 +379,10 @@ describe('pageDescription and defaultLanguage', () => {
   it('drops dangling punctuation before the ellipsis and keeps a single long token', () => {
     expect(pageExcerpt({ content: 'Introduction, then a very long explanation follows.' }, 14)).toBe('Introduction…');
     expect(pageExcerpt({ content: 'x'.repeat(50) }, 10)).toBe(`${'x'.repeat(9)}…`);
-    expect(pageExcerpt({ content: 'ابدأ باستخدام واجهة أكمي البرمجية خلال عشر دقائق، مع المصادقة والترقيم.' }, 30)).toBe('ابدأ باستخدام واجهة أكمي…');
+    expect(pageExcerpt({ content: 'התחל להשתמש בממשק אקמי תוך עשר דקות, כולל אימות וחלוקה לעמודים.' }, 30)).toBe('התחל להשתמש בממשק אקמי תוך…');
   });
   it('returns the one configured default language', () => {
-    expect(defaultLanguage(proj([{ code: 'ar', label: 'ع', direction: 'RTL', isDefault: true, config: null }])).code).toBe('ar');
+    expect(defaultLanguage(proj([{ code: 'he', label: 'ע', direction: 'RTL', isDefault: true, config: null }])).code).toBe('he');
   });
   it('rejects a snapshot without one default language', () => {
     expect(() => defaultLanguage(proj([]))).toThrow('exactly one default language');
@@ -407,17 +401,17 @@ describe('publicLanguages', () => {
   it('drops disabled languages and keeps enabled ones', () => {
     const served = publicLanguages([
       lang({ code: 'en', isDefault: true, enabled: true }),
-      lang({ code: 'ar', enabled: false }),
+      lang({ code: 'ja', enabled: false }),
       lang({ code: 'fr', enabled: true }),
     ]);
     expect(served.map((l) => l.code)).toEqual(['en', 'fr']);
   });
   it('treats a missing enabled flag (pre-toggle snapshots) as enabled', () => {
-    const served = publicLanguages([lang({ code: 'en', isDefault: true }), lang({ code: 'ar' })]);
-    expect(served.map((l) => l.code)).toEqual(['en', 'ar']);
+    const served = publicLanguages([lang({ code: 'en', isDefault: true }), lang({ code: 'ja' })]);
+    expect(served.map((l) => l.code)).toEqual(['en', 'ja']);
   });
   it('always serves the default language, even with a stale disabled flag', () => {
-    const served = publicLanguages([lang({ code: 'en', isDefault: true, enabled: false }), lang({ code: 'ar', enabled: false })]);
+    const served = publicLanguages([lang({ code: 'en', isDefault: true, enabled: false }), lang({ code: 'ja', enabled: false })]);
     expect(served.map((l) => l.code)).toEqual(['en']);
   });
 });
@@ -489,11 +483,11 @@ describe('publicSiteSnapshot', () => {
       config: null,
       languages: [
         { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null },
-        { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: false, config: null },
+        { code: 'ja', label: 'Japanese', direction: 'LTR', isDefault: false, enabled: false, config: null },
       ],
       versions: [{ id: 'v1', name: 'main', slug: 'main', isDefault: true }],
     },
-    pages: [page({ id: 'en1', languageCode: 'en' }), page({ id: 'ar1', languageCode: 'ar' })],
+    pages: [page({ id: 'en1', languageCode: 'en' }), page({ id: 'ja1', languageCode: 'ja' })],
     generatedAt: '2026-01-01',
   };
 

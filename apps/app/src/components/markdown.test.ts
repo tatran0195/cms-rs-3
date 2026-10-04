@@ -153,7 +153,7 @@ describe('Markdown renderer — Mintlify component parity', () => {
     expect(html).toContain('href="/sites/reader-test/guide?lang=en"');
   });
 
-  it('localizes code controls and default MDX labels for an Arabic reader', async () => {
+  it('localizes code controls and default MDX labels for a Japanese reader', async () => {
     const html = await render(
       [
         '```text',
@@ -161,33 +161,33 @@ describe('Markdown renderer — Mintlify component parity', () => {
         '```',
         '',
         '<Accordion>',
-        'تفاصيل داخلية',
+        '内部の詳細',
         '</Accordion>',
         '',
         '<Tabs>',
         '<Tab>',
-        'المحتوى',
+        'コンテンツ',
         '</Tab>',
         '</Tabs>',
         '',
         '<ParamField name="status" type="string" required deprecated default="ready">',
-        'وصف',
+        '説明',
         '</ParamField>',
         '',
         '<Expandable>',
-        'خاصية داخلية',
+        '内部プロパティ',
         '</Expandable>',
       ].join('\n'),
-      'ar-SA',
+      'ja',
     );
 
-    expect(html).toContain('aria-label="نسخ الشيفرة"');
-    expect(html).toContain('التفاصيل');
-    expect(html).toContain('علامة التبويب 1');
-    expect(html).toContain('مطلوب');
-    expect(html).toContain('مهمل');
-    expect(html).toContain('الافتراضي');
-    expect(html).toContain('عرض الخصائص');
+    expect(html).toContain('aria-label="コードをコピーする"');
+    expect(html).toContain('詳細');
+    expect(html).toContain('タブ 1');
+    expect(html).toContain('必須');
+    expect(html).toContain('廃止された');
+    expect(html).toContain('デフォルト');
+    expect(html).toContain('プロパティを表示する');
   });
 
   it('preserves English MDX defaults when no site language is supplied', async () => {
@@ -199,8 +199,8 @@ describe('Markdown renderer — Mintlify component parity', () => {
     expect(html).toContain('Show properties');
   });
 
-  it('localizes the fallback label for an unlabeled Arabic CodeGroup tab', async () => {
-    const html = await render('<CodeGroup>\n\n```\necho ready\n```\n\n</CodeGroup>', 'ar');
-    expect(html).toContain('علامة التبويب 1');
+  it('localizes the fallback label for an unlabeled Japanese CodeGroup tab', async () => {
+    const html = await render('<CodeGroup>\n\n```\necho ready\n```\n\n</CodeGroup>', 'ja');
+    expect(html).toContain('タブ 1');
   });
 });

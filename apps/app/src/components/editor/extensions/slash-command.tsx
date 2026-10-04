@@ -67,13 +67,12 @@ export interface SlashItem {
 /** Uploads a picked image and returns its hosted URL (or null on failure). */
 type UploadFn = (file: File) => Promise<string | null>;
 
-/** Default text for an inserted block, written in the page language (an Arabic
- *  page gets Arabic placeholders whatever the dashboard locale is). */
+/** Default text for an inserted block, written in the page language (an RTL
+ *  page gets matching placeholders whatever the dashboard locale is). */
 const scaffoldText = (key: MessageKey, locale: Locale, variables?: MessageVariables): string => translateFn(key, variables, locale);
 
 /** The page language scaffolds are written in: an explicit extension option wins,
- *  then a `lang` on the editor's direction scope (the host's `dir` wrapper), then
- *  that scope's direction — a right-to-left page defaults to Arabic. */
+ *  then a `lang` on the editor's direction scope (the host's `dir` wrapper). */
 export const scaffoldLocaleOf = (scope: { lang?: string; dir?: string } | null | undefined, explicit?: Locale): Locale => {
   if (explicit) return explicit;
   const fromLang = scope?.lang ? resolveLocale(scope.lang) : null;

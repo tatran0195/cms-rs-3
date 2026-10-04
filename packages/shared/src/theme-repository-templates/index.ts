@@ -64,7 +64,6 @@ export const themeRepositoryTemplateFiles = (options: ThemeRepositoryTemplateOpt
     { path: '.gitignore', content: gitignoreTemplate() },
     { path: 'project.inlang/settings.json', content: inlangSettingsTemplate() },
     { path: 'messages/en.json', content: messages.en },
-    { path: 'messages/ar.json', content: messages.ar },
     { path: 'public/favicon.svg', content: faviconTemplate(options) },
     { path: 'src/router.tsx', content: routerTemplate() },
     { path: 'src/routeTree.gen.ts', content: routeTreeTemplate() },

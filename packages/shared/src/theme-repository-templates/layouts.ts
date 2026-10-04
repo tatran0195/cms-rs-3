@@ -19,7 +19,7 @@ export interface LayoutProps {
   children: ReactNode;
 }
 
-export type Locale = 'en' | 'ar';
+export type Locale = 'en';
 export const localeOf = (language: SiteLanguage): Locale => chromeLocale(language.code);
 
 export function SkipLink({ locale }: { locale: Locale }) {

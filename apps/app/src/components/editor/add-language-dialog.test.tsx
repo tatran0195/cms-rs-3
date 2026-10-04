@@ -63,7 +63,7 @@ async function render(onCreated = vi.fn()) {
 
 const optionFor = (code: string): HTMLElement => {
   const options = Array.from(document.querySelectorAll<HTMLElement>('[cmdk-item], [role="option"]'));
-  const option = options.find((element) => element.textContent?.includes(code) && element.textContent.includes('Arabic'));
+  const option = options.find((element) => element.textContent?.includes(code) && element.textContent.includes('Hebrew'));
   if (!option) {
     throw new Error(`No option for ${code} in: ${options.map((element) => element.textContent).join(' | ')}`);
   }
@@ -74,21 +74,21 @@ describe('AddLanguageDialog', () => {
   it('stores the native name as the language label while keeping the English name searchable', async () => {
     const onCreated = await render();
 
-    const arabic = optionFor('ar');
+    const hebrew = optionFor('he');
     // The English name stays in the row (and the cmdk value) for search.
-    expect(arabic.textContent).toContain('العربية');
-    expect(arabic.textContent).toContain('Arabic');
+    expect(hebrew.textContent).toContain('עברית');
+    expect(hebrew.textContent).toContain('Hebrew');
 
     await act(async () => {
-      arabic.click();
+      hebrew.click();
     });
 
     expect(mocks.mutateAsync).toHaveBeenCalledWith({
-      code: 'ar',
-      label: 'العربية',
+      code: 'he',
+      label: 'עברית',
       direction: 'RTL',
     });
-    expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ code: 'ar', label: 'العربية' }));
+    expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ code: 'he', label: 'עברית' }));
   });
 
   it('hides languages the project already has', async () => {

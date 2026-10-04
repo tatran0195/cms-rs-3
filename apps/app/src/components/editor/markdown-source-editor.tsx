@@ -95,7 +95,7 @@ export function MarkdownSourceEditor({ value, onChange, label, placeholder, dir 
           ref={textarea}
           aria-label={label}
           // Markdown punctuation and indentation have LTR source semantics even
-          // when the prose is Arabic. Keeping the source canvas LTR prevents
+          // when the prose is RTL. Keeping the source canvas LTR prevents
           // headings, fences, and list markers from jumping to the visual end.
           dir="ltr"
           value={value}

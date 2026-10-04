@@ -59,7 +59,7 @@ export const inlangSettingsTemplate = (): string =>
   json({
     $schema: 'https://inlang.com/schema/project-settings',
     baseLocale: 'en',
-    locales: ['en', 'ar'],
+    locales: ['en'],
     modules: ['https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@4/dist/index.js'],
     'plugin.inlang.messageFormat': { pathPattern: './messages/{locale}.json' },
   });

@@ -83,17 +83,12 @@
   max-width: 100%;
 }
 
-.pl-editor:lang(ar) .ProseMirror,
 .pl-editor:lang(fa) .ProseMirror,
 .pl-editor:lang(ur) .ProseMirror {
-  font-family: var(
-    --font-arabic,
-    "Noto Sans Arabic Variable",
-    "Noto Sans Arabic",
+  font-family:
     Tahoma,
     Arial,
-    sans-serif
-  );
+    sans-serif;
 }
 
 .pl-editor .ProseMirror > * + * {

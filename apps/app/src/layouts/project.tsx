@@ -10,14 +10,12 @@ import { DeployPipeline } from '@/components/project/deploy-pipeline';
 import { PublishModal } from '@/components/project/publish-modal';
 import { useDeployments, useProject } from '@/hooks/api';
 import type { Project } from '@/hooks/api/types';
-import type { FirstPublishAttribution } from '@/lib/first-publish-activation';
 
 /** Top-bar status badge + Publish button. Publishing happens through the modal → pipeline flow.
  *  `initialPublishOpen` opens the publish modal on mount (deep link: editor?publish=true). */
 export function PublishControl({ project, initialPublishOpen = false }: { project: Project; initialPublishOpen?: boolean }) {
   const [publishOpen, setPublishOpen] = useState(initialPublishOpen);
   const [deployOpen, setDeployOpen] = useState(false);
-  const [publishedAttribution, setPublishedAttribution] = useState<FirstPublishAttribution | null>(null);
   const [publishedDeploymentId, setPublishedDeploymentId] = useState<string | null>(null);
   const t = useT();
 
@@ -39,8 +37,7 @@ export function PublishControl({ project, initialPublishOpen = false }: { projec
 
       <PublishModal
         onOpenChange={setPublishOpen}
-        onPublished={(deployment, attribution) => {
-          setPublishedAttribution(attribution);
+        onPublished={(deployment) => {
           setPublishedDeploymentId(deployment.id);
           setDeployOpen(true);
         }}
@@ -51,7 +48,6 @@ export function PublishControl({ project, initialPublishOpen = false }: { projec
         onOpenChange={setDeployOpen}
         open={deployOpen}
         project={project}
-        trackedAttribution={publishedAttribution}
         trackedDeploymentId={publishedDeploymentId}
       />
     </div>

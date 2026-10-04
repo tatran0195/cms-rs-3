@@ -8,7 +8,7 @@ describe('nextExportRunAt', () => {
     expect(nextExportRunAt(timing, new Date('2026-11-01T14:00:00Z')).toISOString()).toBe('2026-11-01T14:15:00.000Z');
   });
 
-  it('supports Arabic-region timezones and weekly cadence', () => {
+  it('supports non-UTC timezones and weekly cadence', () => {
     const next = nextExportRunAt({ cadence: 'WEEKLY', timezone: 'Africa/Cairo', hour: 8, minute: 30, weekday: 1 }, new Date('2026-08-16T00:00:00Z'));
     expect(next.toISOString()).toBe('2026-08-17T05:30:00.000Z');
   });

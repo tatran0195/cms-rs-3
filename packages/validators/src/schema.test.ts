@@ -93,7 +93,7 @@ describe('projectConfigSchema', () => {
       maxResults: 12,
       filtersEnabled: true,
       versionFilterEnabled: true,
-      aiAnswers: false,
+      aiAnswers: true,
       hotkey: 'cmdk',
     });
     expect(searchConfigurationSchema.safeParse({ maxResults: 0 }).success).toBe(false);
@@ -251,7 +251,7 @@ describe('createLanguageBody', () => {
     expect(createLanguageBody.safeParse({ code: 'not_a_tag', label: 'x' }).success).toBe(false);
   });
   it('accepts the enabled serving toggle', () => {
-    expect(createLanguageBody.safeParse({ code: 'ar', label: 'العربية', enabled: false }).success).toBe(true);
+    expect(createLanguageBody.safeParse({ code: 'ja', label: '日本語', enabled: false }).success).toBe(true);
     expect(updateLanguageBody.safeParse({ enabled: true }).success).toBe(true);
   });
 });
@@ -261,14 +261,14 @@ describe('languageConfigSchema (per-language chrome overrides)', () => {
     expect(
       languageConfigSchema.safeParse({
         navbar: {
-          ctaLabel: 'احجز عرضًا',
-          links: [{ label: 'المستندات', href: '/ar/docs' }],
+          ctaLabel: 'デモを予約',
+          links: [{ label: 'ドキュメント', href: '/ja/docs' }],
           tabs: [],
-          anchors: [{ label: 'المجتمع', href: '/x', icon: 'users' }],
+          anchors: [{ label: 'コミュニティ', href: '/x', icon: 'users' }],
         },
-        footer: { copyright: '© أكمي ٢٠٢٦' },
-        banner: { enabled: true, message: 'الإصدار الثالث هنا', linkLabel: 'اقرأ المزيد', linkUrl: '/changelog', dismissible: true },
-        search: { placeholder: 'ابحث في المستندات…' },
+        footer: { copyright: '© Acme 2026' },
+        banner: { enabled: true, message: 'v3 がリリースされました', linkLabel: '詳細を見る', linkUrl: '/changelog', dismissible: true },
+        search: { placeholder: 'ドキュメントを検索…' },
       }).success,
     ).toBe(true);
   });
@@ -295,7 +295,7 @@ describe('languageConfigSchema (per-language chrome overrides)', () => {
 
 describe('project translation input', () => {
   it('accepts localized project identity through the language update body', () => {
-    expect(updateLanguageBody.safeParse({ translation: { name: 'وثائق أكمي', description: 'دليل المنتج' } }).success).toBe(true);
+    expect(updateLanguageBody.safeParse({ translation: { name: 'Acme ドキュメント', description: '製品ガイド' } }).success).toBe(true);
     expect(updateLanguageBody.safeParse({ translation: null }).success).toBe(true);
   });
 });

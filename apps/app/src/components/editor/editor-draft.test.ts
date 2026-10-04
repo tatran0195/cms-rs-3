@@ -4,7 +4,7 @@ import { type DraftState, isDirty, nextHydration, type ServerSnapshot, shouldAut
 const pageA: ServerSnapshot = { id: 'a', title: 'Getting started', content: '# Hello\n\n- one\n- two', updatedAt: '2026-09-01T10:00:00.000Z' };
 const pageB: ServerSnapshot = { id: 'b', title: 'Authentication', content: 'Use a bearer token.', updatedAt: '2026-09-01T11:00:00.000Z' };
 const newPage: ServerSnapshot = { id: 'new', title: 'Untitled', content: '', updatedAt: '2026-09-01T12:00:00.000Z' };
-const arabicPage: ServerSnapshot = { id: 'ar', title: 'المصادقة', content: 'استخدم رمز الحامل.', updatedAt: '2026-09-01T12:30:00.000Z' };
+const rtlPage: ServerSnapshot = { id: 'he', title: 'אימות', content: 'השתמש בטוקן נושא.', updatedAt: '2026-09-01T12:30:00.000Z' };
 
 const cleanState = (page: ServerSnapshot): DraftState => ({ synced: snapshotOf(page), draft: { title: page.title, content: page.content } });
 
@@ -37,8 +37,8 @@ describe('nextHydration', () => {
   });
 
   it('switches across languages (RTL page)', () => {
-    expect(nextHydration(cleanState(pageA), arabicPage)).toEqual(snapshotOf(arabicPage));
-    expect(nextHydration(cleanState(arabicPage), newPage)).toEqual(snapshotOf(newPage));
+    expect(nextHydration(cleanState(pageA), rtlPage)).toEqual(snapshotOf(rtlPage));
+    expect(nextHydration(cleanState(rtlPage), newPage)).toEqual(snapshotOf(newPage));
   });
 
   it('leaves a clean, unchanged page alone', () => {

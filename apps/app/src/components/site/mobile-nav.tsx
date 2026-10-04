@@ -51,7 +51,7 @@ export function MobileNav({
       >
         <Menu className="size-5" />
       </SheetTrigger>
-      {/* Open from the reading-start edge: left in LTR, right in RTL (Arabic). */}
+      {/* Open from the reading-start edge: left in LTR, right in RTL. */}
       <SheetContent side={isRtl ? 'right' : 'left'} className="w-80 p-0">
         <SheetHeader className="sr-only">
           <SheetTitle>{label}</SheetTitle>

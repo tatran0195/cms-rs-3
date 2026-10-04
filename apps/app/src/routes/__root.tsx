@@ -1,7 +1,6 @@
 import { ThemeProvider } from '@cms/design-system/theme';
 import { createRootRoute, HeadContent, Outlet, useRouterState } from '@tanstack/react-router';
 import { type ReactNode, useEffect } from 'react';
-import { RootMarketingAnalytics } from '@/components/root-marketing-analytics';
 import type { SiteShell } from '@/hooks/api/types';
 import { siteThemeNoFlashScript } from '@/lib/site-theme';
 import appCss from '@/styles.css?url';
@@ -40,23 +39,11 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
-  const { lang, dir, pathname, siteProjectId, siteThemeDefault } = useRouterState({
+  const { lang, dir, siteProjectId, siteThemeDefault } = useRouterState({
     select: (state) => {
       const match = state.matches.find((m) => m.routeId === '/sites/$projectId');
       const site = (match?.loaderData as { site?: SiteShell } | undefined)?.site;
       if (!site) {
-        const articleMatch = state.matches.find((m) => m.routeId === '/blog/$slug');
-        const language = (articleMatch?.loaderData as { language?: 'ar' | 'en' } | undefined)?.language ?? 'en';
-        const arabicMarketingRoute = state.location.pathname === '/ar' || state.location.pathname.startsWith('/ar/');
-        if (language === 'ar' || arabicMarketingRoute) {
-          return {
-            lang: 'ar',
-            dir: 'rtl' as const,
-            pathname: state.location.pathname,
-            siteProjectId: undefined,
-            siteThemeDefault: undefined,
-          };
-        }
         return {
           lang: 'en',
           dir: 'ltr' as const,
@@ -90,7 +77,6 @@ function RootDocument({ children }: { children: ReactNode }) {
       <ThemeProvider applyDocumentTheme={!siteProjectId} initialThemeScript={siteThemeBootstrap ?? undefined}>
         {children}
       </ThemeProvider>
-      <RootMarketingAnalytics pathname={pathname} siteProjectId={siteProjectId} language={lang === 'ar' ? 'ar' : 'en'} />
     </>
   );
 }

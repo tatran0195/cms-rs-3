@@ -32,7 +32,7 @@ const THEMES: ThemeOption[] = [
   },
 ];
 
-// Base UI's <SelectValue /> renders the raw value ("ar") unless the root knows
+// Base UI's <SelectValue /> renders the raw value ("ja") unless the root knows
 // the items, so the trigger can show the language's own name instead.
 const LOCALE_ITEMS = INTERFACE_LOCALES.map((option) => ({
   value: option.code,

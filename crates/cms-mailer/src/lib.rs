@@ -3,7 +3,7 @@
 //! Features:
 //! - MiniJinja template rendering mirroring `@cms/email` design and structure.
 //! - Responsive HTML email container with brand header, divider, and muted footer.
-//! - Support for OTP verification codes, action CTA buttons with fallback links, and RTL layouts (e.g. Arabic).
+//! - Support for OTP verification codes, action CTA buttons with fallback links, and RTL layouts.
 //! - Dual HTML and plain-text output with automatic entity escaping and header sanitization.
 //! - Pluggable `Mailer` trait with real SMTP (via `lettre`), `NoopMailer`, `UnconfiguredMailer`, and `MockMailer`.
 

@@ -202,7 +202,7 @@ interface BuildExtensionsOptions {
 }
 
 /** Let every prose block choose LTR/RTL from its own content. This keeps an
- * English installation section LTR inside an Arabic page while Arabic blocks
+ * English installation section LTR inside an RTL page while RTL blocks
  * remain RTL, without persisting presentation-only attributes to Markdown. */
 const AutomaticBlockDirection = Extension.create({
   name: 'automaticBlockDirection',

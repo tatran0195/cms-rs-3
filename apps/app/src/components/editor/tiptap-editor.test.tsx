@@ -104,17 +104,17 @@ describe('TiptapEditor', () => {
     const { container, prose } = await mount(
       <TiptapEditor
         dir="rtl"
-        lang="ar"
+        lang="he"
         onChange={onChange}
-        titleSlot={<input aria-label="Document title" defaultValue="عنوان المستند" />}
-        value="English text داخل مستند عربي"
+        titleSlot={<input aria-label="Document title" defaultValue="כותרת המסמך" />}
+        value="English text בתוך מסמך עברי"
         variant="wysiwyg"
       />,
     );
 
     const editor = container.querySelector('[data-editor-variant="wysiwyg"]');
     const page = container.querySelector('.pl-document-page');
-    expect(editor?.getAttribute('lang')).toBe('ar');
+    expect(editor?.getAttribute('lang')).toBe('he');
     expect(container.querySelector('[role="toolbar"]')).not.toBeNull();
     expect(page?.querySelector('[aria-label="Document title"]')).not.toBeNull();
     expect(page?.contains(prose())).toBe(true);

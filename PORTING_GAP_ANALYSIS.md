@@ -120,8 +120,8 @@ this follow-up also ran the PostgreSQL-backed product flow and exercised the act
   the same snapshot capture/render/publish pipeline and returns a ready release instead of only
   leaving an unqueued `BUILDING` deployment behind.
 - **New-language document creation and translation coverage are exercised.** The E2E creates an
-  `ar-EG` language and Arabic group/page, verifies persisted language IDs, rejects a parent from a
-  different language/project, and proves Arabic/English content remains isolated. Coverage uses the
+  `he-IL` language and RTL group/page, verifies persisted language IDs, rejects a parent from a
+  different language/project, and proves RTL/English content remains isolated. Coverage uses the
   existing scoped `PageQueries` list API, counts `PAGE`-kind records on the default branch (including
   drafts as editor records), and matches translations by identical path; groups are excluded. The
   unit/E2E assertions include missing, extra and draft pages.

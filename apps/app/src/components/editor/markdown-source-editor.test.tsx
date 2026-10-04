@@ -6,15 +6,15 @@ vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => key }));
 import { MarkdownSourceEditor } from './markdown-source-editor';
 
 describe('MarkdownSourceEditor', () => {
-  it('keeps Markdown source LTR even when the document prose is Arabic', () => {
+  it('keeps Markdown source LTR even when the document prose is RTL', () => {
     const markup = renderToStaticMarkup(
-      <MarkdownSourceEditor dir="rtl" label="Markdown" onChange={vi.fn()} placeholder="Write Markdown" value={'## التثبيت\n\n- الخطوة الأولى'} />,
+      <MarkdownSourceEditor dir="rtl" label="Markdown" onChange={vi.fn()} placeholder="Write Markdown" value={'## התקנה\n\n- שלב ראשון'} />,
     );
 
     expect(markup).toContain('<textarea aria-label="Markdown" dir="ltr"');
     expect(markup).toContain('dir="rtl"');
     expect(markup).toContain('text-left');
-    expect(markup).toContain('## التثبيت');
+    expect(markup).toContain('## התקנה');
   });
 
   it('renders a full-width formatting toolbar and title inside the source canvas', () => {

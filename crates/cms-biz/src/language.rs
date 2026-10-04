@@ -642,9 +642,9 @@ mod tests {
             page("en", "/section", "GROUP", None),
             // Translation keys deliberately disagree: identical paths are the
             // matching rule for coverage.
-            page("ar", "/guide", "PAGE", Some("different-key")),
+            page("ja", "/guide", "PAGE", Some("different-key")),
             // Matching translation keys must not make a different path count.
-            page("ar", "/guide-ar", "PAGE", Some("source-key")),
+            page("ja", "/guide-ja", "PAGE", Some("source-key")),
         ];
         let mut languages = vec![
             LanguageResponse {
@@ -663,12 +663,12 @@ mod tests {
                 updated_at: Utc::now(),
             },
             LanguageResponse {
-                id: "ar".to_string(),
+                id: "ja".to_string(),
                 project_id: "project".to_string(),
-                code: "ar".to_string(),
-                name: "Arabic".to_string(),
+                code: "ja".to_string(),
+                name: "Japanese".to_string(),
                 is_default: false,
-                is_rtl: true,
+                is_rtl: false,
                 enabled: true,
                 position: 1,
                 config: None,

@@ -47,7 +47,7 @@ const draftOf = (language: Language): TranslationDraft => ({
 });
 
 /** The `dir` for an input that holds text written in `language` — the CONTENT
- *  language, independent of the interface locale, so an Arabic site name edits
+ *  language, independent of the interface locale, so an RTL site name edits
  *  RTL inside an English dashboard and vice versa. */
 const dirOf = (language: Pick<Language, 'direction'> | undefined) => (language ? (language.direction === 'RTL' ? 'rtl' : 'ltr') : undefined);
 

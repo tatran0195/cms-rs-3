@@ -1,6 +1,5 @@
 /** `src/components/*`: shared site chrome (search, switchers, navigation,
- * outline, theme toggle). Real components, no native selects; every visible
- * label comes from Paraglide so Arabic chrome stays Arabic. */
+ * outline, theme toggle). Real components, no native selects. */
 export const routeLinkTemplate = (): string => String.raw`import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -29,7 +28,7 @@ const STORAGE_KEY = 'cms-docs-theme';
 
 /** Toggles the ".dark" class the inline bootstrap script in __root.tsx sets
  * before first paint; the choice persists per browser. */
-export function ThemeToggle({ locale }: { locale: 'en' | 'ar' }) {
+export function ThemeToggle({ locale }: { locale: 'en' }) {
   const [dark, setDark] = useState(false);
   useEffect(() => {
     setDark(document.documentElement.classList.contains('dark'));
@@ -273,7 +272,7 @@ export function MobileMenu({ children, closeLabel, label }: { children: ReactNod
 export const notFoundTemplate = (): string => `import * as m from '../paraglide/messages.js';
 import { RouteLink } from './route-link';
 
-export function NotFound({ locale, startRoute }: { locale: 'en' | 'ar'; startRoute: string }) {
+export function NotFound({ locale, startRoute }: { locale: 'en'; startRoute: string }) {
   return (
     <div className="py-16 text-center">
       <p className="eyebrow">404</p>

@@ -340,7 +340,7 @@ export const extractHeadings = (body: string): Heading[] => {
   return headings;
 };
 
-export const chromeLocale = (code: string): 'en' | 'ar' => (code === 'ar' || code.startsWith('ar-') ? 'ar' : 'en');
+export const chromeLocale = (_code: string): 'en' => 'en';
 
 export const site = {
   name: docs.name,

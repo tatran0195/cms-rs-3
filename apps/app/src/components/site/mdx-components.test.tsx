@@ -41,7 +41,7 @@ describe('interactive MDX components', () => {
     await act(async () =>
       root.render(
         <div dir="rtl">
-          <CodeGroup language="ar">
+          <CodeGroup language="he">
             <pre data-title="one.js">
               <code className="language-js">one</code>
             </pre>

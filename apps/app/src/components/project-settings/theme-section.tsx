@@ -76,15 +76,15 @@ const downloadText = (fileName: string, contents: string) => {
   URL.revokeObjectURL(href);
 };
 
-export function ThemePreview({ config, mode, arabic }: { config: ProjectConfig; mode: PreviewMode; arabic: boolean }) {
+export function ThemePreview({ config, mode, rtl }: { config: ProjectConfig; mode: PreviewMode; rtl?: boolean }) {
   const theme = resolveTheme(config as ThemeOwnedProjectConfig);
-  const t = (key: MessageKey) => translateFn(key, undefined, arabic ? 'ar' : 'en');
+  const t = (key: MessageKey) => translateFn(key);
   return (
     <DocumentationThemeProvider
       appearance={mode}
       className="overflow-hidden rounded-xl border border-border text-sm shadow-sm"
       context="studio-preview"
-      direction={arabic ? 'rtl' : 'ltr'}
+      direction={rtl ? 'rtl' : 'ltr'}
       style={{
         ...projectThemeVariables(config, mode),
         ...projectThemeStyle(config),
@@ -302,7 +302,7 @@ export function ThemeSection({ project }: { project: Project }) {
   const [draft, setDraft] = useState<ThemeDraft>(saved);
   const [history, setHistory] = useState<ThemeDraft[]>([]);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(saved.appearance === 'dark' ? 'dark' : 'light');
-  const [previewArabic, setPreviewArabic] = useState(false);
+  const [previewRtl, setPreviewRtl] = useState(false);
   const [colorMode, setColorMode] = useState<PreviewMode>('light');
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   const [importText, setImportText] = useState('');
@@ -631,18 +631,17 @@ export function ThemeSection({ project }: { project: Project }) {
             value={previewMode}
           />
           <Button
-            dir={previewArabic ? 'ltr' : 'rtl'}
-            lang={previewArabic ? 'en' : 'ar'}
-            onClick={() => setPreviewArabic((value) => !value)}
+            dir={previewRtl ? 'ltr' : 'rtl'}
+            onClick={() => setPreviewRtl((value) => !value)}
             type="button"
             variant="outline"
           >
-            {previewArabic
-              ? translateFn('settings.theme.preview.switchEnglish', undefined, 'en')
-              : translateFn('settings.theme.preview.switchArabic', undefined, 'ar')}
+            {previewRtl
+              ? translateFn('settings.theme.preview.switchEnglish')
+              : translateFn('settings.theme.preview.switchRtl')}
           </Button>
         </div>
-        <ThemePreview arabic={previewArabic} config={config} mode={previewMode} />
+        <ThemePreview rtl={previewRtl} config={config} mode={previewMode} />
       </Field>
 
       <div className="mb-8 flex flex-wrap items-center gap-2 border-border border-y py-4">

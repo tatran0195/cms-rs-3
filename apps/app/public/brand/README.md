@@ -38,11 +38,11 @@ Do not redraw, rotate, outline, add a shadow, or place another symbol inside the
 
 - `cms-icon*.svg`: standalone marks for light, dark, monochrome, and current-color contexts.
 - `cms-logo-horizontal*.svg`: navigation, README, partner, LTR, and RTL lockups.
-- `cms-logo-stacked*.svg`: light, dark, transparent, monochrome, and Arabic presentation lockups.
+- `cms-logo-stacked*.svg`: light, dark, transparent, monochrome, and RTL presentation lockups.
 - `cms-wordmark*.svg`: wordmark-only placements.
 - `cms-sidebar-lockup*.svg`: compact product and documentation navigation.
 - `cms-app-icon.svg`, `cms-favicon.svg`, `cms-social-avatar.svg`: controlled-background square assets.
-- `cms-og-card*.svg`: English and Arabic social cards.
+- `cms-og-card*.svg`: English and RTL social cards.
 
 Raster exports, ICO files, PWA icons, and public copies are generated from these sources with:
 

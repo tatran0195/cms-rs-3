@@ -131,7 +131,7 @@ function SiteChrome() {
   const isRtl = activeLanguage?.direction === 'RTL';
   const defaultLanguage = languages.find((language) => language.isDefault)?.code;
   const navigationLanguage = siteLanguageParam(activeLanguage?.code, defaultLanguage);
-  // Chrome strings follow the active language so an Arabic site reads Arabic.
+  // Chrome strings follow the active language.
   const t = siteT(activeLanguage?.code);
 
   // The published site manages its OWN light/dark theme (a class on the chrome
@@ -628,6 +628,7 @@ function SiteChrome() {
                   aiAnswers={config?.search?.aiAnswers !== false}
                   suggestedQuestions={config?.search?.suggestedQuestions}
                   popularSearches={config?.search?.popularSearches}
+                  direction={isRtl ? 'rtl' : 'ltr'}
                 />
               ) : null}
               <SiteAnalyticsConsent projectId={projectId} config={config} lang={activeLanguage?.code} />

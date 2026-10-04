@@ -189,31 +189,31 @@ describe('pageHead canonical + hreflang', () => {
   });
 
   it('uses the resolved language for canonical even when the request fell back', () => {
-    // Requested ?lang=ar but the page only exists in the default (en) → resolved en.
-    const head = pageHead(base({ activeLanguage: 'en' }), 'p1', 'ar');
+    // Requested ?lang=ja but the page only exists in the default (en) → resolved en.
+    const head = pageHead(base({ activeLanguage: 'en' }), 'p1', 'ja');
     expect(canonical(head)).toBe('http://localhost:4310/sites/p1/quickstart');
   });
 
   it('emits hreflang only for languages that actually have the page, default param-less', () => {
     const head = pageHead(
       base({
-        activeLanguage: 'ar',
+        activeLanguage: 'ja',
         languages: [
           { code: 'en', isDefault: true, path: 'quickstart' },
-          { code: 'ar', isDefault: false, path: 'quickstart' },
+          { code: 'ja', isDefault: false, path: 'quickstart' },
           { code: 'fr', isDefault: false, path: null }, // no French page → omitted
         ],
       }),
       'p1',
-      'ar',
+      'ja',
     );
     const alts = hreflangs(head);
     expect(alts.en).toBe('http://localhost:4310/sites/p1/quickstart');
-    expect(alts.ar).toBe('http://localhost:4310/sites/p1/quickstart?lang=ar');
+    expect(alts.ja).toBe('http://localhost:4310/sites/p1/quickstart?lang=ja');
     expect(alts['x-default']).toBe('http://localhost:4310/sites/p1/quickstart');
     expect(alts.fr).toBeUndefined();
     // Non-default active language canonicalizes WITH its ?lang param.
-    expect(canonical(head)).toBe('http://localhost:4310/sites/p1/quickstart?lang=ar');
+    expect(canonical(head)).toBe('http://localhost:4310/sites/p1/quickstart?lang=ja');
   });
 
   it('omits hreflang entirely when only one language has the page', () => {
@@ -221,7 +221,7 @@ describe('pageHead canonical + hreflang', () => {
       base({
         languages: [
           { code: 'en', isDefault: true, path: 'quickstart' },
-          { code: 'ar', isDefault: false, path: null },
+          { code: 'ja', isDefault: false, path: null },
         ],
       }),
       'p1',
@@ -254,19 +254,19 @@ describe('canonical consolidation across origins', () => {
   it('builds hreflang alternates and x-default on the same canonical base', () => {
     const head = pageHead(
       withPrimary({
-        activeLanguage: 'ar',
+        activeLanguage: 'ja',
         languages: [
           { code: 'en', isDefault: true, path: 'quickstart' },
-          { code: 'ar', isDefault: false, path: 'quickstart' },
+          { code: 'ja', isDefault: false, path: 'quickstart' },
         ],
       }),
       'p1',
-      'ar',
+      'ja',
       'https://old-docs.acme.com',
     );
     const alts = hreflangs(head);
     expect(alts.en).toBe('https://docs.acme.com/quickstart');
-    expect(alts.ar).toBe('https://docs.acme.com/quickstart?lang=ar');
+    expect(alts.ja).toBe('https://docs.acme.com/quickstart?lang=ja');
     expect(alts['x-default']).toBe('https://docs.acme.com/quickstart');
   });
 
@@ -320,16 +320,16 @@ describe('pageHead og:locale', () => {
   it('lists the other real translations as og:locale:alternate', () => {
     const head = pageHead(
       base({
-        activeLanguage: 'ar',
+        activeLanguage: 'ja',
         languages: [
-          { code: 'ar', isDefault: false, path: 'quickstart' },
+          { code: 'ja', isDefault: false, path: 'quickstart' },
           { code: 'en', isDefault: true, path: 'quickstart' },
         ],
       }),
       'p1',
-      'ar',
+      'ja',
     );
-    expect(meta(head, 'og:locale')).toBe('ar_AR');
+    expect(meta(head, 'og:locale')).toBe('ja_JP');
     expect(head.meta?.some((m) => m.property === 'og:locale:alternate' && m.content === 'en_US')).toBe(true);
   });
 });

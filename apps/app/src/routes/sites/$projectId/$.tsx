@@ -75,7 +75,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     const prefix = resolvedVersion && !resolvedVersion.isDefault ? resolvedVersion.slug : undefined;
     const requestedContent =
       prefix && (requested === prefix || requested.startsWith(`${prefix}/`)) ? requested.slice(prefix.length).replace(/^\/+/, '') : requested;
-    // Compare decoded so an encoded splat (Arabic slugs) never loops the redirect.
+    // Compare decoded so an encoded splat (non-ASCII slugs) never loops the redirect.
     const safeDecode = (value: string): string => {
       try {
         return decodeURIComponent(value);

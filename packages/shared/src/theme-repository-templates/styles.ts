@@ -5,16 +5,16 @@ const RADIUS: Record<string, string> = { sharp: '0', rounded: '0.5rem', pill: '0
 
 const FONTS = {
   reference: {
-    sans: "Inter, 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif",
-    heading: "Inter, 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif",
+    sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    heading: 'Inter, ui-sans-serif, system-ui, sans-serif',
   },
   editorial: {
-    sans: "Inter, 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif",
-    heading: "Georgia, 'Noto Naskh Arabic', 'Times New Roman', serif",
+    sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    heading: "Georgia, 'Times New Roman', serif",
   },
   console: {
-    sans: "Inter, 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif",
-    heading: "Inter, 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif",
+    sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    heading: 'Inter, ui-sans-serif, system-ui, sans-serif',
   },
 } as const;
 

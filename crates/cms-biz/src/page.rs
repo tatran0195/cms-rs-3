@@ -35,7 +35,7 @@ fn normalize_page_kind(kind: Option<&str>) -> Result<String, AppError> {
 }
 
 /// Build a stable Unicode-aware URL slug. Keeping letters from non-Latin scripts
-/// prevents Arabic/Chinese/Japanese titles from collapsing to `untitled`.
+/// prevents Hebrew/Chinese/Japanese titles from collapsing to `untitled`.
 fn normalize_page_slug(value: &str) -> String {
     let mut slug = String::new();
     let mut pending_separator = false;

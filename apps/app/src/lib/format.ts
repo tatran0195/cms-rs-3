@@ -2,7 +2,6 @@ import { useLocale } from '@cms/i18n/react';
 
 /**
  * Locale-aware number/date formatters bound to the dashboard's active locale.
- * Arabic keeps its localized words and ordering while using Western digits.
  * Centralized so every count/date renders consistently with the chosen
  * language and the product-wide 0-9 numeral convention.
  */
@@ -16,14 +15,14 @@ export function useFormatters() {
     date: (value: string | number | Date) => new Intl.DateTimeFormat(tag, { dateStyle: 'medium' }).format(new Date(value)),
     /** A signed percentage like “+12.5%” / “−4%” for trend badges. `value` is
      *  already in percent units (e.g. 12.5 → “+12.5%”). `style:'percent'` lets
-     *  Intl supply the locale percent sign + digits (Arabic-Indic ٪). */
+     *  Intl supply the locale percent sign + digits. */
     percent: (value: number) =>
       new Intl.NumberFormat(tag, { style: 'percent', signDisplay: 'exceptZero', maximumFractionDigits: 1 }).format(value / 100),
     /** A short axis label (e.g. “Jun 23”) for time-series charts. */
     shortDate: (value: string | number | Date) => new Intl.DateTimeFormat(tag, { month: 'short', day: 'numeric' }).format(new Date(value)),
     /** Full date + time (e.g. for "last imported"), locale-aware. */
     dateTime: (value: string | number | Date) => new Intl.DateTimeFormat(tag, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)),
-    /** Locale-aware relative time (e.g. “5m ago” / “قبل 5 دقائق”). Picks the
+    /** Locale-aware relative time (e.g. “5m ago” / “5分前”). Picks the
      *  largest sensible unit and lets Intl supply the words + digits. */
     relativeTime: (value: string | number | Date) => {
       const rtf = new Intl.RelativeTimeFormat(tag, { numeric: 'auto', style: 'narrow' });
@@ -42,9 +41,9 @@ export function useFormatters() {
   };
 }
 
-/** The BCP-47 tag used for UI formatting. Arabic uses Western 0-9 digits. */
+/** The BCP-47 tag used for UI formatting. */
 export function localeTag(locale: string) {
-  return locale.toLowerCase().startsWith('ar') ? `${locale}-u-nu-latn` : locale;
+  return locale;
 }
 
 /** Whole-unit currency formatting (no trailing “.00”) so a free plan reads “$0”, not “$0.00”. */

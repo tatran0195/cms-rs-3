@@ -63,7 +63,6 @@ import {
 import { PublishControl } from '@/layouts/project';
 import { astWorkerClient } from '@/lib/ast-worker-client';
 import { draftPreviewHref } from '@/lib/draft-preview';
-import { recordFirstPublishStage } from '@/lib/first-publish-activation';
 import { typographyVars } from '@/lib/typography';
 import { editorStore } from '@/stores/editor-store';
 
@@ -86,10 +85,6 @@ function EditorPage() {
   const { projectId } = Route.useParams();
   const { firstPublish, page: pageParam, publish: publishParam } = Route.useSearch();
   const { data: project } = useProject(projectId);
-
-  useEffect(() => {
-    if (firstPublish && project) void recordFirstPublishStage('editor_entered');
-  }, [firstPublish, project]);
 
   // Top-level editor view: writing content vs. configuring the whole site.
   const [view, setView] = useState<'content' | 'config'>('content');
@@ -434,7 +429,7 @@ function EditorPage() {
     createPage.mutate(
       // Localized placeholder title with a pinned 'untitled' slug: the server treats
       // that slug as a placeholder to swap for the real title's slug on first rename,
-      // and deriving it from e.g. an Arabic title would strip to a broken 'page' slug.
+      // and deriving it from e.g. a non-Latin title would strip to a broken 'page' slug.
       {
         title: t('editor.untitled'),
         slug: 'untitled',
@@ -456,7 +451,7 @@ function EditorPage() {
     creationInFlight.current = true;
     createPage.mutate(
       // The display title is localized, but the slug is pinned: deriving it from
-      // a non-Latin title (e.g. Arabic) would strip to a broken 'page' slug.
+      // a non-Latin title would strip to a broken 'page' slug.
       {
         title: t('editor.newGroup'),
         kind: 'GROUP',

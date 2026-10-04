@@ -134,7 +134,7 @@ const snapshot = (redirects: Array<{ from: string; to: string }>): SiteSnapshot 
     config: { redirects },
     languages: [
       { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true, config: null },
-      { code: 'ar', label: 'Arabic', direction: 'RTL', isDefault: false, enabled: true, config: null },
+      { code: 'he', label: 'Hebrew', direction: 'RTL', isDefault: false, enabled: true, config: null },
       { code: 'fr', label: 'French', direction: 'LTR', isDefault: false, enabled: false, config: null },
     ],
     versions: [
@@ -146,7 +146,7 @@ const snapshot = (redirects: Array<{ from: string; to: string }>): SiteSnapshot 
     page({ id: 'group', path: 'getting-started', versionId: 'main', languageCode: 'en', kind: 'GROUP', position: 0 }),
     page({ id: 'intro', path: 'getting-started/intro', versionId: 'main', languageCode: 'en', parentId: 'group', position: 0 }),
     page({ id: 'secret', path: 'secret', versionId: 'main', languageCode: 'en', hidden: true }),
-    page({ id: 'ar-intro', path: 'البدء/مقدمة', versionId: 'main', languageCode: 'ar' }),
+    page({ id: 'he-intro', path: 'התחלה/מבוא', versionId: 'main', languageCode: 'he' }),
     page({ id: 'fr-page', path: 'bonjour', versionId: 'main', languageCode: 'fr' }),
     page({ id: 'v2-guide', path: 'guide', versionId: 'v2', languageCode: 'en' }),
   ],
@@ -159,14 +159,14 @@ describe('validateSnapshotRedirects', () => {
       snapshot([
         { from: '/legacy', to: '/getting-started' },
         { from: '/old-v2', to: '/v2/guide#usage' },
-        { from: '/قديم', to: '/البدء/مقدمة?lang=ar' },
+        { from: '/ישן', to: '/התחלה/מבוא?lang=he' },
       ]),
     );
     expect(result.issues).toEqual([]);
     expect((result.snapshot.project.config as { redirects: unknown }).redirects).toEqual([
       { from: '/legacy', to: '/getting-started/intro' },
       { from: '/old-v2', to: '/v2/guide#usage' },
-      { from: '/قديم', to: '/البدء/مقدمة?lang=ar' },
+      { from: '/ישן', to: '/התחלה/מבוא?lang=he' },
     ]);
   });
 

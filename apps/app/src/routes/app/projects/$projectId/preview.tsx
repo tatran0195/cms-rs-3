@@ -44,7 +44,7 @@ function ProjectPreview() {
   const { data: branches } = useBranches(projectId);
   const activeLanguageId = search.languageId ?? languages?.find((language) => language.isDefault)?.id ?? languages?.[0]?.id;
   const activeLanguage = languages?.find((language) => language.id === activeLanguageId);
-  // Content direction follows the previewed language (Arabic → RTL), mirroring
+  // Content direction follows the previewed language (RTL languages → RTL), mirroring
   // the published site so authors preview real layout, not always-LTR.
   const contentDir = activeLanguage?.direction === 'RTL' ? 'rtl' : 'ltr';
   const activeBranchId = search.branchId ?? branches?.find((branch) => branch.isDefault)?.id ?? branches?.[0]?.id;

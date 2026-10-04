@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * Capture screenshots of the published-site reader for every theme preset,
- * light + dark, English + Arabic (RTL), desktop + mobile, on the home page and
+ * light + dark, English + Hebrew (RTL), desktop + mobile, on the home page and
  * one component-heavy deep page. Pairs with scripts/site-preview-mock.mjs.
  *
- * Output: output/theme-shots/<label>/<preset>-<light|dark>-<en|ar>-<desktop|mobile>-<home|deep>.png
+ * Output: output/theme-shots/<label>/<preset>-<light|dark>-<en|he>-<desktop|mobile>-<home|deep>.png
  *         output/theme-shots/<label>/index.html   (contact sheet)
  *         output/theme-shots/<label>/manifest.json
  *
@@ -51,7 +51,7 @@ const FULL_PAGE = flag('no-fullpage', false) !== true;
 const OUT_DIR = path.join(REPO_ROOT, 'output', 'theme-shots', LABEL);
 
 const MODES = ['light', 'dark'];
-const LANGS = ['en', 'ar'];
+const LANGS = ['en', 'he'];
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900, isMobile: false },
   mobile: { width: 390, height: 844, isMobile: true },

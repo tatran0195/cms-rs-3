@@ -14,7 +14,6 @@ export interface CatalogLanguage {
 
 export const LANGUAGE_CATALOG: CatalogLanguage[] = [
   { code: 'en', label: 'English', native: 'English', rtl: false },
-  { code: 'ar', label: 'Arabic', native: 'العربية', rtl: true },
   { code: 'he', label: 'Hebrew', native: 'עברית', rtl: true },
   { code: 'fa', label: 'Persian', native: 'فارسی', rtl: true },
   { code: 'ur', label: 'Urdu', native: 'اردو', rtl: true },

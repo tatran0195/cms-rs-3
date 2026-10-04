@@ -60,7 +60,7 @@ const sha256 = (value: string): string => createHash('sha256').update(value).dig
 
 const normalizedContentPath = (value = 'content'): string => value.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
 
-/** Keeps Unicode letters and digits (Arabic slugs stay readable) and encodes
+/** Keeps Unicode letters and digits (non-ASCII and RTL slugs stay readable) and encodes
  * everything else so a page path can never escape or alias another file. */
 export const safeThemePathSegment = (value: string): string => {
   const encoded = [...value.trim()]

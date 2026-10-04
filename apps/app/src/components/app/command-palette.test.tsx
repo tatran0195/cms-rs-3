@@ -37,7 +37,7 @@ beforeEach(() => {
   mocks.useProjects.mockReturnValue({
     data: [
       { id: 'project-1', name: 'cms Docs' },
-      { id: 'project-2', name: 'دليل المنتج' },
+      { id: 'project-2', name: 'מדריך מוצר' },
     ],
   });
 });
@@ -97,7 +97,7 @@ describe('CommandPalette', () => {
 
     const text = dialog?.textContent ?? '';
     expect(text).toContain('cms Docs');
-    expect(text).toContain('دليل المنتج');
+    expect(text).toContain('מדריך מוצר');
     for (const key of [
       'command.group.projects',
       'command.group.goTo',
@@ -110,29 +110,29 @@ describe('CommandPalette', () => {
     }
   });
 
-  it('marks project names as auto-directional so Arabic and Latin titles align correctly', async () => {
+  it('marks project names as auto-directional so RTL and Latin titles align correctly', async () => {
     await render(true);
 
     const names = [...document.querySelectorAll('[data-slot="command-item"] [dir="auto"]')].map((node) => node.textContent);
-    expect(names).toEqual(['cms Docs', 'دليل المنتج']);
+    expect(names).toEqual(['cms Docs', 'מדריך מוצר']);
   });
 
   it('finds go-to shortcuts by their localized label, not only the English value', async () => {
-    const arabic: Record<string, string> = {
-      'command.allProjects': 'كل المشاريع',
-      'nav.sites': 'المواقع',
-      'command.analytics': 'التحليلات',
-      'command.accountSettings': 'إعدادات الحساب',
+    const localized: Record<string, string> = {
+      'command.allProjects': 'すべてのプロジェクト',
+      'nav.sites': 'サイト',
+      'command.analytics': 'アナリティクス',
+      'command.accountSettings': 'アカウント設定',
     };
-    mocks.t.mockImplementation((key: string) => arabic[key] ?? key);
+    mocks.t.mockImplementation((key: string) => localized[key] ?? key);
     await render(true);
     const input = document.querySelector<HTMLInputElement>('[data-slot="command-input"]');
     expect(input).not.toBeNull();
 
-    await typeInto(input as HTMLInputElement, 'المواقع');
+    await typeInto(input as HTMLInputElement, 'サイト');
 
-    expect(itemLabels()).toContain('المواقع');
-    expect(itemLabels()).not.toContain('التحليلات');
+    expect(itemLabels()).toContain('サイト');
+    expect(itemLabels()).not.toContain('アナリティクス');
     expect(document.body.textContent).not.toContain('command.noResults');
   });
 

@@ -48,7 +48,7 @@ export function AddLanguageDialog({ projectId, open, onOpenChange, onCreated }: 
     setSubmitting(true);
     try {
       // The stored label is what readers see in the language switcher and the page
-      // tree, so it defaults to the endonym ("العربية", not "Arabic"). Authors can
+      // tree, so it defaults to the endonym ("עברית", not "Hebrew"). Authors can
       // still rename it in the language settings.
       const language = await createLanguage.mutateAsync({
         code: lang.code,

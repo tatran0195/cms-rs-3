@@ -64,7 +64,7 @@ it('accepts a Fetch-compatible framework request without cloning private runtime
 });
 
 describe('isDocumentPath', () => {
-  it.each(['/', '/pricing', '/blog/article', '/sites/project/page'])('identifies %s as a document route', (pathname) => {
+  it.each(['/', '/app', '/app/projects', '/sites/project/page'])('identifies %s as a document route', (pathname) => {
     expect(isDocumentPath(pathname)).toBe(true);
   });
 

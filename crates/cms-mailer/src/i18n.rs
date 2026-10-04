@@ -15,7 +15,6 @@ pub fn translate(lang: &EmailLanguage, key: &str, vars: &[(&str, &str)]) -> Stri
 
 fn lookup_raw(lang: &EmailLanguage, key: &str) -> Option<&'static str> {
     match lang {
-        EmailLanguage::Ar => lookup_ar(key).or_else(|| lookup_en(key)),
         EmailLanguage::Ja => lookup_ja(key).or_else(|| lookup_en(key)),
         _ => lookup_en(key),
     }
@@ -118,40 +117,6 @@ fn lookup_en(key: &str) -> Option<&'static str> {
             "Publishing version v{version} of {projectName} failed."
         }
         "email.deployment.failed.detail" => "Error: {error}",
-
-        _ => return None,
-    })
-}
-
-fn lookup_ar(key: &str) -> Option<&'static str> {
-    Some(match key {
-        "email.brand.name" => "تكنوستار",
-        "email.brand.footer" => {
-            "تم إرسال هذه الرسالة الآلية بواسطة تكنوستار. إذا لم تكن قد طلبتها، يمكنك تجاهلها \
-             بأمان."
-        }
-        "email.brand.fallbackLink" => "إذا كان الزر لا يعمل، انسخ هذا الرابط والصقه في متصفحك:",
-
-        "email.otp.signIn.subject" => "رمز تسجيل الدخول الخاص بك في نيبليف",
-        "email.otp.signIn.preview" => "استخدم هذا الرمز لمرة واحدة لتسجيل الدخول.",
-        "email.otp.signIn.message" => "استخدم هذا الرمز لمرة واحدة لتسجيل الدخول.",
-
-        "email.newSignIn.subject" => "تسجيل دخول جديد إلى حسابك في نيبليف",
-        "email.newSignIn.preview" => "رصدنا تسجيل دخول من جهاز أو موقع جديد.",
-        "email.newSignIn.title" => "تم رصد تسجيل دخول جديد",
-        "email.newSignIn.withIp" => {
-            "رصدنا تسجيل دخول جديد إلى حسابك من موقع جديد (عنوان IP {ipAddress})."
-        }
-        "email.newSignIn.withoutIp" => "رصدنا تسجيل دخول جديد إلى حسابك من جهاز جديد.",
-        "email.newSignIn.detail" => {
-            "إذا لم يكن هذا أنت، قم بتسجيل الخروج من الجلسات الأخرى فوراً وتواصل مع الدعم."
-        }
-
-        "email.verifyEmail.subject" => "تأكيد بريدك الإلكتروني في نيبليف",
-        "email.verifyEmail.action" => "تأكيد البريد الإلكتروني",
-
-        "email.invite.action" => "قبول الدعوة",
-        "email.readerInvite.action" => "تفعيل وصول القارئ",
 
         _ => return None,
     })
@@ -290,8 +255,8 @@ mod tests {
     }
 
     #[test]
-    fn test_arabic_override() {
-        let translated = translate(&EmailLanguage::Ar, "email.newSignIn.subject", &[]);
-        assert_eq!(translated, "تسجيل دخول جديد إلى حسابك في نيبليف");
+    fn test_japanese_override() {
+        let translated = translate(&EmailLanguage::Ja, "email.otp.signIn.subject", &[]);
+        assert_eq!(translated, "CMS サインイン コード");
     }
 }

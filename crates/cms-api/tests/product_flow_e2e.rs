@@ -651,28 +651,28 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         required_string(english, "id", "default English language")?.to_string();
     anyhow::ensure!(english["code"] == "en");
 
-    let arabic_language_response = expect_status(
+    let rtl_language_response = expect_status(
         request(
             &app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/languages"),
             Some(&cookie),
             Some(json!({
-                "code": "ar-eg",
-                "name": "Arabic (Egypt)",
+                "code": "he-il",
+                "name": "Hebrew (Israel)",
                 "direction": "RTL",
-                "config": { "reader": { "greeting": "مرحبا" } },
+                "config": { "reader": { "greeting": "שלום" } },
             })),
         )
         .await?,
         StatusCode::OK,
-        "create Arabic language",
+        "create RTL language",
     )?;
-    let arabic_language = arabic_language_response["data"].clone();
-    let arabic_language_id =
-        required_string(&arabic_language, "id", "Arabic language")?.to_string();
-    anyhow::ensure!(arabic_language["code"] == "ar-EG");
-    anyhow::ensure!(arabic_language["direction"] == "RTL");
+    let rtl_language = rtl_language_response["data"].clone();
+    let rtl_language_id =
+        required_string(&rtl_language, "id", "RTL language")?.to_string();
+    anyhow::ensure!(rtl_language["code"] == "he-IL");
+    anyhow::ensure!(rtl_language["direction"] == "RTL");
 
     // BCP-47 canonicalization and duplicate codes are observable API failures.
     expect_status(
@@ -693,7 +693,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Method::POST,
             &format!("/api/app/projects/{project_id}/languages"),
             Some(&cookie),
-            Some(json!({ "code": "AR-eg", "name": "Duplicate" })),
+            Some(json!({ "code": "HE-il", "name": "Duplicate" })),
         )
         .await?,
         StatusCode::CONFLICT,
@@ -716,21 +716,21 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     let english_group_id =
         required_string(&english_group, "id", "English guide group")?.to_string();
 
-    let arabic_group = create_page(
+    let rtl_group = create_page(
         &app,
         &cookie,
         &project_id,
         json!({
-            "title": "دليل",
+            "title": "מדריך",
             "slug": "guide",
             "kind": "GROUP",
-            "languageId": arabic_language_id,
+            "languageId": rtl_language_id,
             "isPublished": true,
         }),
     )
     .await?;
-    let arabic_group_id = required_string(&arabic_group, "id", "Arabic guide group")?.to_string();
-    anyhow::ensure!(arabic_group["languageId"] == arabic_language_id);
+    let rtl_group_id = required_string(&rtl_group, "id", "RTL guide group")?.to_string();
+    anyhow::ensure!(rtl_group["languageId"] == rtl_language_id);
 
     let english_page = create_page(
         &app,
@@ -764,25 +764,25 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "creating a document should emit one trusted edit event"
     );
 
-    let arabic_page = create_page(
+    let rtl_page = create_page(
         &app,
         &cookie,
         &project_id,
         json!({
-            "title": "البدء",
+            "title": "התחלה",
             "slug": "start",
             "kind": "PAGE",
-            "parentId": arabic_group_id,
-            "languageId": arabic_language_id,
+            "parentId": rtl_group_id,
+            "languageId": rtl_language_id,
             "translationKey": "getting-started",
             "isPublished": true,
-            "content": "# البدء\n\nمحتوى الإصدار العربي.",
+            "content": "# התחלה\n\nתוכן גרסה עברית.",
         }),
     )
     .await?;
-    let arabic_page_id = required_string(&arabic_page, "id", "Arabic page")?.to_string();
-    anyhow::ensure!(arabic_page["languageId"] == arabic_language_id);
-    anyhow::ensure!(arabic_page["path"] == "/guide/start");
+    let rtl_page_id = required_string(&rtl_page, "id", "RTL page")?.to_string();
+    anyhow::ensure!(rtl_page["languageId"] == rtl_language_id);
+    anyhow::ensure!(rtl_page["path"] == "/guide/start");
 
     // A parent from a different language and a language from a different
     // project must not leak records across the scope boundary.
@@ -796,7 +796,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
                 "title": "Wrong scope",
                 "slug": "wrong-scope",
                 "parentId": english_group_id,
-                "languageId": arabic_language_id,
+                "languageId": rtl_language_id,
             })),
         )
         .await?,
@@ -831,8 +831,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         json!({
             "title": "Draft",
             "slug": "draft",
-            "parentId": arabic_group_id,
-            "languageId": arabic_language_id,
+            "parentId": rtl_group_id,
+            "languageId": rtl_language_id,
             "isPublished": false,
             "content": "DO NOT SHIP",
         }),
@@ -848,15 +848,15 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": null, "position": 0 },
-                    { "id": arabic_page_id, "parentId": arabic_group_id, "position": 1 },
-                    { "id": _draft_page_id, "parentId": arabic_group_id, "position": 2 },
+                    { "id": rtl_group_id, "parentId": null, "position": 0 },
+                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
+                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 2 },
                 ]
             })),
         )
         .await?,
         StatusCode::OK,
-        "reorder Arabic page tree",
+        "reorder RTL page tree",
     )?;
     anyhow::ensure!(reorder["data"]["success"] == true);
     expect_status(
@@ -867,9 +867,9 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": arabic_page_id, "position": 0 },
-                    { "id": arabic_page_id, "parentId": arabic_group_id, "position": 1 },
-                    { "id": _draft_page_id, "parentId": arabic_group_id, "position": 2 },
+                    { "id": rtl_group_id, "parentId": rtl_page_id, "position": 0 },
+                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
+                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 2 },
                 ]
             })),
         )
@@ -888,8 +888,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": null, "position": 0 },
-                    { "id": arabic_page_id, "parentId": arabic_group_id, "position": 0 },
+                    { "id": rtl_group_id, "parentId": null, "position": 0 },
+                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 0 },
                     { "id": _draft_page_id, "parentId": null, "position": 1 },
                 ]
             })),
@@ -914,7 +914,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "draft page path must be /draft at root"
     );
 
-    // 2. Re-nest draft page back under arabic group with new position
+    // 2. Re-nest draft page back under RTL group with new position
     let reorder_renest = expect_status(
         request(
             &app,
@@ -923,15 +923,15 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": null, "position": 0 },
-                    { "id": _draft_page_id, "parentId": arabic_group_id, "position": 0 },
-                    { "id": arabic_page_id, "parentId": arabic_group_id, "position": 1 },
+                    { "id": rtl_group_id, "parentId": null, "position": 0 },
+                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 0 },
+                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
                 ]
             })),
         )
         .await?,
         StatusCode::OK,
-        "re-nest draft page back under arabic group",
+        "re-nest draft page back under RTL group",
     )?;
     anyhow::ensure!(reorder_renest["data"]["success"] == true);
 
@@ -941,8 +941,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             .fetch_one(&state.biz_context.pool)
             .await?;
     anyhow::ensure!(
-        draft_nested_row.0.as_deref() == Some(&arabic_group_id),
-        "draft page parent_id must be arabic_group_id"
+        draft_nested_row.0.as_deref() == Some(&rtl_group_id),
+        "draft page parent_id must be rtl_group_id"
     );
     anyhow::ensure!(
         draft_nested_row.1.ends_with("/draft"),
@@ -958,8 +958,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": null, "position": 0 },
-                    { "id": arabic_group_id, "parentId": null, "position": 1 },
+                    { "id": rtl_group_id, "parentId": null, "position": 0 },
+                    { "id": rtl_group_id, "parentId": null, "position": 1 },
                 ]
             })),
         )
@@ -977,7 +977,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": arabic_group_id, "position": 0 },
+                    { "id": rtl_group_id, "parentId": rtl_group_id, "position": 0 },
                 ]
             })),
         )
@@ -995,7 +995,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_page_id, "parentId": "non-existent-page-id", "position": 0 },
+                    { "id": rtl_page_id, "parentId": "non-existent-page-id", "position": 0 },
                 ]
             })),
         )
@@ -1013,15 +1013,15 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             Some(&cookie),
             Some(json!({
                 "items": [
-                    { "id": arabic_group_id, "parentId": null, "position": 0 },
-                    { "id": arabic_page_id, "parentId": arabic_group_id, "position": 1 },
-                    { "id": _draft_page_id, "parentId": arabic_group_id, "position": 2 },
+                    { "id": rtl_group_id, "parentId": null, "position": 0 },
+                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
+                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 2 },
                 ]
             })),
         )
         .await?,
         StatusCode::OK,
-        "final reorder Arabic page tree",
+        "final reorder RTL page tree",
     )?;
     anyhow::ensure!(reorder_final["data"]["success"] == true);
 
@@ -1141,23 +1141,23 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             "sites/{project_id}/{deployment_id}/en/guide/start.html"
         ))
         .await?;
-    let arabic_artifact = state
+    let rtl_artifact = state
         .storage
         .get(&format!(
-            "sites/{project_id}/{deployment_id}/ar-EG/guide/start.html"
+            "sites/{project_id}/{deployment_id}/he-IL/guide/start.html"
         ))
         .await?;
     let english_html = String::from_utf8(english_artifact.to_vec())?;
-    let arabic_html = String::from_utf8(arabic_artifact.to_vec())?;
+    let rtl_html = String::from_utf8(rtl_artifact.to_vec())?;
     anyhow::ensure!(english_html.contains("lang=\"en\""));
     anyhow::ensure!(english_html.contains("English release content"));
-    anyhow::ensure!(arabic_html.contains("lang=\"ar-EG\""));
-    anyhow::ensure!(arabic_html.contains("محتوى الإصدار العربي"));
+    anyhow::ensure!(rtl_html.contains("lang=\"he-IL\""));
+    anyhow::ensure!(rtl_html.contains("תוכן גרסה עברית"));
     anyhow::ensure!(
         !state
             .storage
             .exists(&format!(
-                "sites/{project_id}/{deployment_id}/ar-EG/quickstart/draft.html"
+                "sites/{project_id}/{deployment_id}/he-IL/quickstart/draft.html"
             ))
             .await?
     );
@@ -1186,7 +1186,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "published sitemap endpoint failed: {sitemap_body}"
     );
     anyhow::ensure!(sitemap_body.contains("/guide/start"));
-    anyhow::ensure!(!sitemap_body.contains("/ar-EG/"));
+    anyhow::ensure!(!sitemap_body.contains("/he-IL/"));
     let (robots_status, robots_body) = site_request(&app, &public_host, "/robots.txt").await?;
     anyhow::ensure!(robots_status == StatusCode::OK);
     anyhow::ensure!(robots_body.contains("https://"));
@@ -1243,7 +1243,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::GET,
-            &format!("/api/public/pages/{arabic_page_id}"),
+            &format!("/api/public/pages/{rtl_page_id}"),
             None,
             None,
         )
@@ -1320,13 +1320,13 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         .as_array()
         .is_some_and(|hits| {
             hits.iter().any(|hit| hit["id"] == english_page_id)
-                && hits.iter().all(|hit| hit["id"] != arabic_page_id)
+                && hits.iter().all(|hit| hit["id"] != rtl_page_id)
         }));
-    let arabic_search = expect_status(
+    let rtl_search = expect_status(
         request(
             &app,
             Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=English&lang=ar-EG&version=main"),
+            &format!("/api/public/sites/{project_id}/search?q=English&lang=he-IL&version=main"),
             None,
             None,
         )
@@ -1334,7 +1334,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         StatusCode::OK,
         "keep public search scoped to the selected language",
     )?;
-    anyhow::ensure!(arabic_search["data"]["hits"]
+    anyhow::ensure!(rtl_search["data"]["hits"]
         .as_array()
         .is_some_and(Vec::is_empty));
     let grounded_answer = expect_status(
@@ -1344,8 +1344,8 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &format!("/api/public/sites/{project_id}/answer"),
             None,
             Some(json!({
-                "question": "البدء",
-                "lang": "ar-EG",
+                "question": "התחלה",
+                "lang": "he-IL",
                 "version": "main",
             })),
         )
@@ -1356,7 +1356,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     anyhow::ensure!(grounded_answer["data"]["mode"] == "extractive");
     anyhow::ensure!(grounded_answer["data"]["sources"]
         .as_array()
-        .is_some_and(|sources| { sources.iter().any(|source| source["id"] == arabic_page_id) }));
+        .is_some_and(|sources| { sources.iter().any(|source| source["id"] == rtl_page_id) }));
 
     let legacy_project = expect_status(
         request(
@@ -1398,7 +1398,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     )?;
     anyhow::ensure!(legacy_pages.as_array().is_some_and(|pages| {
         pages.iter().any(|page| page["id"] == english_page_id)
-            && pages.iter().all(|page| page["id"] != arabic_page_id)
+            && pages.iter().all(|page| page["id"] != rtl_page_id)
     }));
     let legacy_search = expect_status(
         request(
@@ -1439,41 +1439,41 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::GET,
-            &format!("/api/public/sites/{project_id}?lang=ar-EG"),
+            &format!("/api/public/sites/{project_id}?lang=he-IL"),
             None,
             None,
         )
         .await?,
         StatusCode::OK,
-        "resolve Arabic site shell",
+        "resolve RTL site shell",
     )?;
-    anyhow::ensure!(after_create_shell["data"]["activeLanguage"] == "ar-EG");
-    let arabic_nav = after_create_shell["data"]["nav"]
+    anyhow::ensure!(after_create_shell["data"]["activeLanguage"] == "he-IL");
+    let rtl_nav = after_create_shell["data"]["nav"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("public nav is not an array"))?;
-    anyhow::ensure!(arabic_nav.iter().any(|node| node["title"] == "دليل"));
+    anyhow::ensure!(rtl_nav.iter().any(|node| node["title"] == "מדריך"));
 
-    let arabic_public_page = expect_status(
+    let rtl_public_page = expect_status(
         request(
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
             ),
             None,
             None,
         )
         .await?,
         StatusCode::OK,
-        "read Arabic public page",
+        "read RTL public page",
     )?;
-    anyhow::ensure!(arabic_public_page["data"]["activeLanguage"] == "ar-EG");
-    anyhow::ensure!(arabic_public_page["data"]["page"]["title"] == "البدء");
-    anyhow::ensure!(arabic_public_page["data"]["page"]["content"]
+    anyhow::ensure!(rtl_public_page["data"]["activeLanguage"] == "he-IL");
+    anyhow::ensure!(rtl_public_page["data"]["page"]["title"] == "התחלה");
+    anyhow::ensure!(rtl_public_page["data"]["page"]["content"]
         .as_str()
         .unwrap()
-        .contains("محتوى الإصدار العربي"));
-    anyhow::ensure!(arabic_public_page["data"]["languages"]
+        .contains("תוכן גרסה עברית"));
+    anyhow::ensure!(rtl_public_page["data"]["languages"]
         .as_array()
         .is_some_and(|items| {
             items
@@ -1527,19 +1527,19 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         StatusCode::OK,
         "read page translation coverage",
     )?;
-    let arabic_coverage = refreshed_languages["data"]
+    let rtl_coverage = refreshed_languages["data"]
         .as_array()
         .and_then(|languages| {
             languages
                 .iter()
-                .find(|language| language["id"] == arabic_language_id)
+                .find(|language| language["id"] == rtl_language_id)
         })
         .and_then(|language| language.get("coverage"))
-        .ok_or_else(|| anyhow::anyhow!("Arabic coverage missing from {refreshed_languages}"))?;
-    anyhow::ensure!(arabic_coverage["sourcePageCount"] == 1);
-    anyhow::ensure!(arabic_coverage["pageCount"] == 2);
-    anyhow::ensure!(arabic_coverage["matchedPages"] == 1);
-    anyhow::ensure!(arabic_coverage["extraPages"] == 1);
+        .ok_or_else(|| anyhow::anyhow!("RTL coverage missing from {refreshed_languages}"))?;
+    anyhow::ensure!(rtl_coverage["sourcePageCount"] == 1);
+    anyhow::ensure!(rtl_coverage["pageCount"] == 2);
+    anyhow::ensure!(rtl_coverage["matchedPages"] == 1);
+    anyhow::ensure!(rtl_coverage["extraPages"] == 1);
 
     // Rename one language's parent and verify descendant paths recompute without
     // changing the corresponding tree in English.
@@ -1547,27 +1547,27 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::PATCH,
-            &format!("/api/app/projects/{project_id}/pages/{arabic_group_id}"),
+            &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"),
             Some(&cookie),
             Some(json!({ "slug": "quickstart" })),
         )
         .await?,
         StatusCode::OK,
-        "rename Arabic group",
+        "rename RTL group",
     )?;
-    let moved_arabic_page = expect_status(
+    let moved_rtl_page = expect_status(
         request(
             &app,
             Method::GET,
-            &format!("/api/app/projects/{project_id}/pages/{arabic_page_id}"),
+            &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"),
             Some(&cookie),
             None,
         )
         .await?,
         StatusCode::OK,
-        "read moved Arabic page",
+        "read moved RTL page",
     )?;
-    anyhow::ensure!(moved_arabic_page["data"]["path"] == "/quickstart/start");
+    anyhow::ensure!(moved_rtl_page["data"]["path"] == "/quickstart/start");
     let unchanged_english_page = expect_status(
         request(
             &app,
@@ -1594,7 +1594,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
             ),
             None,
             None,
@@ -1603,7 +1603,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         StatusCode::OK,
         "keep published v1 paths immutable after editor rename",
     )?;
-    anyhow::ensure!(old_release_page["data"]["page"]["id"] == arabic_page_id);
+    anyhow::ensure!(old_release_page["data"]["page"]["id"] == rtl_page_id);
     anyhow::ensure!(old_release_page["data"]["activeVersion"] == "main");
     anyhow::ensure!(old_release_page["data"]["version"] == 1);
     expect_status(
@@ -1611,7 +1611,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&\
+                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=he-IL&\
                  version=main"
             ),
             None,
@@ -1625,7 +1625,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=quickstart&lang=ar-EG&version=main"),
+            &format!("/api/public/sites/{project_id}/search?q=quickstart&lang=he-IL&version=main"),
             None,
             None,
         )
@@ -1642,7 +1642,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::GET,
-            &format!("/api/public/sites/{project_id}/page?path=quickstart%2Fdraft&lang=ar-EG"),
+            &format!("/api/public/sites/{project_id}/page?path=quickstart%2Fdraft&lang=he-IL"),
             None,
             None,
         )
@@ -1737,21 +1737,21 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "do not issue TLS for an unverified hostname",
     )?;
 
-    let second_arabic_artifact = state
+    let second_rtl_artifact = state
         .storage
         .get(&format!(
-            "sites/{project_id}/{second_deployment_id}/ar-EG/quickstart/start.html"
+            "sites/{project_id}/{second_deployment_id}/he-IL/quickstart/start.html"
         ))
         .await?;
     anyhow::ensure!(
-        String::from_utf8(second_arabic_artifact.to_vec())?.contains("محتوى الإصدار العربي")
+        String::from_utf8(second_rtl_artifact.to_vec())?.contains("תוכן גרסה עברית")
     );
     let second_public_page = expect_status(
         request(
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&\
+                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=he-IL&\
                  version=main"
             ),
             None,
@@ -1768,7 +1768,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
             ),
             None,
             None,
@@ -1781,7 +1781,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=quickstart&lang=ar-EG&version=main"),
+            &format!("/api/public/sites/{project_id}/search?q=quickstart&lang=he-IL&version=main"),
             None,
             None,
         )
@@ -1791,12 +1791,12 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     )?;
     anyhow::ensure!(new_release_search["data"]["hits"]
         .as_array()
-        .is_some_and(|hits| { hits.iter().any(|hit| hit["id"] == arabic_page_id) }));
+        .is_some_and(|hits| { hits.iter().any(|hit| hit["id"] == rtl_page_id) }));
     let page_by_id_after_v2 = expect_status(
         request(
             &app,
             Method::GET,
-            &format!("/api/public/pages/{arabic_page_id}"),
+            &format!("/api/public/pages/{rtl_page_id}"),
             None,
             None,
         )
@@ -1843,7 +1843,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         state
             .storage
             .exists(&format!(
-                "sites/{project_id}/{rollback_id}/ar-EG/guide/start.html"
+                "sites/{project_id}/{rollback_id}/he-IL/guide/start.html"
             ))
             .await?
     );
@@ -1852,7 +1852,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
             ),
             None,
             None,
@@ -2068,7 +2068,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=ar-EG&\
+                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=he-IL&\
                  version=main"
             ),
             None,
@@ -2086,20 +2086,20 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         request(
             &app,
             Method::DELETE,
-            &format!("/api/app/projects/{project_id}/pages/{arabic_group_id}"),
+            &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"),
             Some(&cookie),
             None,
         )
         .await?,
         StatusCode::OK,
-        "delete Arabic navigation group",
+        "delete RTL navigation group",
     )?;
     anyhow::ensure!(delete_group["data"]["success"] == true);
     let reparented_page = expect_status(
         request(
             &app,
             Method::GET,
-            &format!("/api/app/projects/{project_id}/pages/{arabic_page_id}"),
+            &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"),
             Some(&cookie),
             None,
         )
@@ -2113,7 +2113,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         state
             .storage
             .exists(&format!(
-                "sites/{project_id}/{deployment_id}/ar-EG/guide/start.html"
+                "sites/{project_id}/{deployment_id}/he-IL/guide/start.html"
             ))
             .await?
     );
@@ -2121,7 +2121,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         state
             .storage
             .exists(&format!(
-                "sites/{project_id}/{second_deployment_id}/ar-EG/quickstart/start.html"
+                "sites/{project_id}/{second_deployment_id}/he-IL/quickstart/start.html"
             ))
             .await?
     );
@@ -2129,7 +2129,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         state
             .storage
             .exists(&format!(
-                "sites/{project_id}/{rollback_id}/ar-EG/guide/start.html"
+                "sites/{project_id}/{rollback_id}/he-IL/guide/start.html"
             ))
             .await?
     );
@@ -2138,7 +2138,7 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
             &app,
             Method::GET,
             &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=ar-EG&version=main"
+                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
             ),
             None,
             None,

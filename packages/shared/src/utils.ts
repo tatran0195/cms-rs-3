@@ -3,8 +3,7 @@
 const MAX_SLUG_LENGTH = 200;
 
 /** Vocalisation marks that are optional in running text and never belong in a
- *  URL: Arabic tashkeel (U+064B–U+065F, U+0670), Quranic annotation marks,
- *  tatweel (U+0640), and Hebrew niqqud/cantillation. Other scripts' combining
+ *  URL: Hebrew niqqud/cantillation and optional diacritics. Other scripts' combining
  *  marks (Devanagari vowel signs, Thai tone marks…) spell the word and stay. */
 const OPTIONAL_MARKS =
   /[\u0640\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/gu;
@@ -48,8 +47,8 @@ export const slugify = (value: string, options?: SlugifyOptions): string => {
   return slug;
 };
 
-/** Slug for content that lives in a URL path (page slugs): keeps Arabic, Hebrew,
- *  CJK, Indic… letters so an Arabic title gets an Arabic slug instead of the
+/** Slug for content that lives in a URL path (page slugs): keeps Hebrew, Persian,
+ *  CJK, Indic… letters so non-Latin titles get meaningful slugs instead of the
  *  'page' fallback. Latin input slugs exactly like `slugify`. */
 export const slugifyUnicode = (value: string): string => slugify(value, { unicode: true });
 

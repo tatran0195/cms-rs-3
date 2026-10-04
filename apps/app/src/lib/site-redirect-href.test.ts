@@ -3,13 +3,13 @@ import { buildSiteRedirectHref } from './site-redirect-href';
 
 describe('buildSiteRedirectHref', () => {
   it('preserves configured query and fragment under the app base path', () => {
-    expect(buildSiteRedirectHref({ projectId: 'project-1', target: '/guide?campaign=launch#install', lang: 'ar', customDomain: false })).toBe(
-      '/sites/project-1/guide?campaign=launch&lang=ar#install',
+    expect(buildSiteRedirectHref({ projectId: 'project-1', target: '/guide?campaign=launch#install', lang: 'he', customDomain: false })).toBe(
+      '/sites/project-1/guide?campaign=launch&lang=he#install',
     );
   });
 
   it('keeps an explicitly selected locale and uses the custom-domain root', () => {
-    expect(buildSiteRedirectHref({ projectId: 'project-1', target: '/guide?lang=en#top', lang: 'ar', customDomain: true })).toBe(
+    expect(buildSiteRedirectHref({ projectId: 'project-1', target: '/guide?lang=en#top', lang: 'he', customDomain: true })).toBe(
       '/guide?lang=en#top',
     );
   });

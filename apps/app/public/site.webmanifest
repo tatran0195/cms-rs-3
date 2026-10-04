@@ -1,7 +1,7 @@
 {
   "name": "TechnoStar",
   "short_name": "TechnoStar",
-  "description": "Documentation publishing with Arabic-ready authoring, search, and versioned releases.",
+  "description": "Documentation publishing with RTL-ready authoring, search, and versioned releases.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "/",

@@ -34,7 +34,7 @@ const data = (overrides: Partial<SitePage> = {}): SitePage => ({
   languageConfig: null,
   languages: [
     { code: 'en', isDefault: true, path: 'start' },
-    { code: 'ar', isDefault: false, path: 'start' },
+    { code: 'ja', isDefault: false, path: 'start' },
   ],
   breadcrumbs: [{ title: 'Start', path: 'start' }],
   prev: null,
@@ -43,7 +43,7 @@ const data = (overrides: Partial<SitePage> = {}): SitePage => ({
 });
 
 describe('published page presentation', () => {
-  it.each(['en', 'ar'])('uses clean navigation and body links for the configured default %s language', (code) => {
+  it.each(['en', 'ja'])('uses clean navigation and body links for the configured default %s language', (code) => {
     const fixture = data({
       activeLanguage: code,
       languages: [{ code, isDefault: true, path: 'start' }],
@@ -64,15 +64,15 @@ describe('published page presentation', () => {
 
   it('keeps a non-default language and version on generated reader links', () => {
     const fixture = data({
-      activeLanguage: 'ar',
+      activeLanguage: 'ja',
       activeVersion: 'v2',
       versions: [{ id: 'v2', name: 'V2', slug: 'v2', isDefault: false }],
       page: { ...data().page, content: '[Sibling](/sibling#setup)' },
       next: { title: 'Next', path: 'next' },
     });
-    const html = renderToStaticMarkup(<SitePageView data={fixture} lang="ar" projectId="project-1" />);
-    expect(html).toContain('href="/sites/project-1/v2/sibling?lang=ar#setup"');
-    expect(html).toContain('href="/sites/project-1/v2/next?lang=ar"');
+    const html = renderToStaticMarkup(<SitePageView data={fixture} lang="ja" projectId="project-1" />);
+    expect(html).toContain('href="/sites/project-1/v2/sibling?lang=ja#setup"');
+    expect(html).toContain('href="/sites/project-1/v2/next?lang=ja"');
   });
   it('excludes literal image examples from article screenshot counts but counts prose images', () => {
     const examples = ['````mdx', '<img src="/literal.png" />', '```', '![Example](/literal.png)', '````', '`<img src="/inline.png" />`'].join('\n');
@@ -83,11 +83,11 @@ describe('published page presentation', () => {
     expect(render(`${examples}\n![Actual](/actual.png)`)).not.toContain('screenshots');
   });
 
-  it.each(['en', 'ar'])('shows public %s content without Markdown source controls', (language) => {
+  it.each(['en', 'ja'])('shows public %s content without Markdown source controls', (language) => {
     const html = renderToStaticMarkup(<SitePageView data={data({ activeLanguage: language })} lang={language} projectId="project-1" />);
     expect(html).toContain('Public body.');
     expect(html).not.toContain('type="text/markdown"');
-    expect(html).not.toMatch(/View Markdown|Copy Markdown|عرض Markdown|نسخ Markdown/);
+    expect(html).not.toMatch(/View Markdown|Copy Markdown/);
   });
 
   it.each([

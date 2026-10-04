@@ -63,6 +63,7 @@ Following layering discipline:
 - ✅ No GoTrue - In-process auth
 - ✅ No Docker - Single Windows machine deployment
 - ✅ Pluggable backends - Swap implementations without code changes
+- ✅ Internal company use - Dedicated internal documentation workspace; no public marketing landing pages and no SaaS Plan/Billing (root `/` routes directly to `/app`)
 
 ---
 

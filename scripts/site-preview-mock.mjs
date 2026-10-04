@@ -21,7 +21,7 @@
  *
  * Usage: node scripts/site-preview-mock.mjs [--port 4311]
  * Then:  bun --filter @cms/app dev   # proxies /api/** to http://localhost:4311
- *        open http://localhost:4310/sites/preview-harbor?lang=ar
+ *        open http://localhost:4310/sites/preview-harbor?lang=he
  */
 import { createServer } from 'node:http';
 
@@ -33,12 +33,12 @@ const GENERATED_AT = '2026-09-01T09:00:00.000Z';
 const VERSIONS = [{ id: 'ver_latest', name: 'Latest', slug: 'latest', isDefault: true }];
 const LANGUAGES = [
   { code: 'en', label: 'English', direction: 'LTR', isDefault: true, enabled: true },
-  { code: 'ar', label: 'العربية', direction: 'RTL', isDefault: false, enabled: true },
+  { code: 'he', label: 'עברית', direction: 'RTL', isDefault: false, enabled: true },
 ];
 
 // ─── Sample image (served under /api/public/assets so the dev proxy routes it) ─
 
-const DIAGRAM_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" font-family="Segoe UI, Noto Sans Arabic, sans-serif">
+const DIAGRAM_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" font-family="Segoe UI, sans-serif">
   <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#0f766e"/><stop offset="1" stop-color="#c2410c"/></linearGradient></defs>
   <rect width="960" height="420" rx="18" fill="#f6f4ef"/>
   <rect x="48" y="60" width="240" height="120" rx="14" fill="#fff" stroke="#d6d3cd"/>
@@ -64,9 +64,9 @@ const DIAGRAM_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 42
 // Tabs, CardGroup/Card, Steps, Accordion, an image, a blockquote.
 
 const GROUPS = [
-  { slug: 'getting-started', icon: 'rocket', title: { en: 'Getting started', ar: 'البدء' } },
-  { slug: 'guides', icon: 'book-open', title: { en: 'Guides', ar: 'الأدلة' } },
-  { slug: 'reference', icon: 'braces', title: { en: 'Reference', ar: 'المرجع' } },
+  { slug: 'getting-started', icon: 'rocket', title: { en: 'Getting started', he: 'התחלה' } },
+  { slug: 'guides', icon: 'book-open', title: { en: 'Guides', he: 'מדריכים' } },
+  { slug: 'reference', icon: 'braces', title: { en: 'Reference', he: 'תיעוד' } },
 ];
 
 const CURL_SHIPMENT = `\`\`\`bash
@@ -139,49 +139,49 @@ All endpoints are versioned under \`/v1\`. Breaking changes ship under a new pre
 2. Follow the [quickstart](/getting-started/quickstart) to book a test shipment.
 3. Read about [authentication](/guides/authentication) before going live.`,
     },
-    ar: {
-      title: 'مقدمة',
-      description: 'تايدووتر واجهة برمجية للشحن البحري تتيح حجز الحاويات وتتبعها وتسوية تكاليفها من تكامل واحد.',
-      content: `تمنح تايدووتر منتجك واجهة واحدة موثقة جيدًا لعالم الشحن البحري المعقد. أنت تنشئ **شحنة**، ونحن نتفاوض مع شركات النقل، وتتلقى إشعارات \`shipment.updated\` كلما تحركت الحاويات.
+    he: {
+      title: 'מבוא',
+      description: 'Tidewater היא ממשק API לשילוח ימי המאפשר הזמנה, מעקב והסדרה של מטעני מכולות מאינטגרציה אחת.',
+      content: `Tidewater מעניקה למוצר שלכם ממשק אחיד ומתועד היטב לעולם המורכב של שילוח ימי. אתם יוצרים **משלוח**, אנחנו מנהלים משא ומתן עם המובילים, ואתם מקבלים התראות \`shipment.updated\` ככל שהמכולות נעות.
 
-## ما الذي يمكنك بناؤه
+## מה ניתן לבנות
 
 <CardGroup cols="2">
-  <Card title="حجز الشحنات" icon="ship" href="/guides/webhooks">
-    أنشئ شحنات بين أي ميناءين من 40 ميناءً مدعومًا بطلب واحد.
+  <Card title="הזמנת שילוח" icon="ship" href="/guides/webhooks">
+    צרו משלוחים בין כל אחד מ-40 הנמלים הנתמכים בבקשה אחת.
   </Card>
-  <Card title="تتبع الحاويات" icon="radar" href="/guides/webhooks">
-    اشترك في أحداث الموقع والجمارك المباشرة بدلًا من الاستعلام المتكرر.
+  <Card title="מעקב אחר מכולות" icon="radar" href="/guides/webhooks">
+    הירשמו לאירועי מיקום ומכס חיים במקום ביצוע פניות חוזרות.
   </Card>
-  <Card title="المصادقة" icon="key" href="/guides/authentication">
-    مفاتيح واجهة برمجية محددة النطاق، وأسرار دوّارة، وبيانات اعتماد لكل بيئة.
+  <Card title="אימות" icon="key" href="/guides/authentication">
+    מפתחות API מוגדרי טווח, סודות מתחלפים ואישורי גישה לכל סביבה.
   </Card>
-  <Card title="معالجة الأخطاء" icon="shield-alert" href="/guides/errors">
-    لكل فشل رمز ثابت ورسالة مفهومة وتلميح لإعادة المحاولة.
+  <Card title="טיפול בשגיאות" icon="shield-alert" href="/guides/errors">
+    לכל כשל יש קוד קבוע, הודעה ברורה ורמז לניסיון חוזר.
   </Card>
 </CardGroup>
 
-## كيف تترابط الأجزاء
+## כיצד החלקים משתלבים
 
-<Frame caption="يمر طلب الشحنة عبر الواجهة البرمجية إلى شبكة شركات النقل، وتعود تغييرات الحالة على شكل إشعارات ويب.">
-![بنية تايدووتر](/api/public/assets/preview/architecture.svg)
+<Frame caption="בקשת משלוח עוברת דרך ה-API לרשת המובילים; שינויי סטטוס חוזרים כהתראות webhook.">
+![ארכיטקטורת Tidewater](/api/public/assets/preview/architecture.svg)
 </Frame>
 
-تنتظم الواجهة البرمجية حول ثلاثة موارد:
+ה-API מאורגן סביב שלושה משאבים:
 
-- **الشحنات** — حجز بين ميناء المنشأ وميناء الوجهة.
-- **الحاويات** — الصناديق الفعلية المرتبطة بالشحنة، ولكل منها سجل تتبع خاص.
-- **المستندات** — بوالص الشحن والتصريحات الجمركية والفواتير التي تُنشأ نيابة عنك.
+- **משלוחים** — הזמנה בין נמל מוצא לנמל יעד.
+- **מכולות** — הקופסאות הפיזיות המשויכות למשלוח, לכל אחת היסטוריית מעקב משלה.
+- **מסמכים** — שטרי מטען, הצהרות מכס וחשבוניות המופקים עבורכם.
 
 <Callout type="info">
-جميع نقاط النهاية مُصدَّرة تحت \`/v1\`. تُطرح التغييرات الجذرية تحت بادئة جديدة، ويبقى الإصدار السابق متاحًا لمدة اثني عشر شهرًا على الأقل.
+כל נקודות הקצה מנוהלות תחת \`/v1\`. שינויים מהותיים יוצאים תחת קידומת חדשה והגרסה הקודמת נשארת זמינה למשך 12 חודשים לפחות.
 </Callout>
 
-## الخطوات التالية
+## הצעדים הבאים
 
-1. [ثبّت حزمة التطوير](/getting-started/installation) للغة التي تستخدمها.
-2. اتبع [دليل البدء السريع](/getting-started/quickstart) لحجز شحنة تجريبية.
-3. اقرأ عن [المصادقة](/guides/authentication) قبل الانتقال إلى الإنتاج.`,
+1. [התקינו את ה-SDK](/getting-started/installation) עבור השפה שלכם.
+2. עקבו אחר [מדריך ההתחלה המהירה](/getting-started/quickstart) להזמנת משלוח ניסיון.
+3. קראו על [אימות](/guides/authentication) לפני העלייה לסביבת ייצור.`,
     },
   },
   {
@@ -242,12 +242,12 @@ Never commit live keys. Sandbox keys start with \`tw_test_\`, live keys with \`t
 | Python | 3.10 | Async client via \`tidewater.aio\` |
 | Deno | 1.44 | Import from npm: specifier |`,
     },
-    ar: {
-      title: 'التثبيت',
-      description: 'ثبّت حزمة التطوير الرسمية أو استدعِ واجهة REST مباشرة.',
-      content: `تغلّف حزمة التطوير واجهة REST بدوال ذات أنواع محددة، وإعادة محاولة تلقائية، والتحقق من توقيع إشعارات الويب.
+    he: {
+      title: 'התקנה',
+      description: 'התקינו את ה-SDK הרשמי או בצעו קריאות ישירות ל-REST API.',
+      content: `ה-SDK עוטף את ה-REST API במתודות בעלות טיפוסים, ניסיונות חוזרים אוטומטיים ואימות חתימות של webhooks.
 
-## تثبيت حزمة التطوير
+## התקנת ה-SDK
 
 <Tabs>
   <Tab title="npm">
@@ -267,34 +267,34 @@ pip install tidewater
   </Tab>
 </Tabs>
 
-## إعداد بيانات الاعتماد
+## הגדרת פרטי גישה
 
 <Steps>
-  <Step title="أنشئ مفتاح واجهة برمجية">
-    افتح **الإعدادات ← مفاتيح الواجهة البرمجية** في لوحة التحكم وأنشئ مفتاحًا محدود النطاق لبيئة \`sandbox\`.
+  <Step title="יצירת מפתח API">
+    פתחו את **הגדרות ← מפתחות API** בלוח הבקרה וצרו מפתח המוגבל לסביבת \`sandbox\`.
   </Step>
-  <Step title="خزّنه كمتغير بيئة">
+  <Step title="שמירה כמשתנה סביבה">
 \`\`\`bash
 export TIDEWATER_KEY="tw_test_4b1e…"
 \`\`\`
   </Step>
-  <Step title="تحقق من الاتصال">
-    استدعِ \`client.ping()\` — تعيد الاستجابة السليمة اسم البيئة والحد المتبقي من معدل الطلبات.
+  <Step title="אימות החיבור">
+    קראו ל-\`client.ping()\` — תגובה תקינה מחזירה את שם הסביבה ואת מגבלת הקצב הנותרת.
   </Step>
 </Steps>
 
 <Callout type="warning">
-لا تودع المفاتيح الحية في المستودع أبدًا. تبدأ مفاتيح البيئة التجريبية بـ \`tw_test_\` والمفاتيح الحية بـ \`tw_live_\`، وترفض الواجهة البرمجية أي مفتاح حي يُرسل إلى مضيف البيئة التجريبية.
+לעולם אל תשמרו מפתחות ייצור (live) במאגר הקוד. מפתחות בדיקה מתחילים ב-\`tw_test_\`, מפתחות ייצור ב-\`tw_live_\`; ה-API דוחה מפתח ייצור שנשלח לשרת הבדיקות (sandbox).
 </Callout>
 
-## بيئات التشغيل المدعومة
+## סביבות הרצה נתמכות
 
-| بيئة التشغيل | أدنى إصدار | ملاحظات |
+| סביבת הרצה | גרסה מינימלית | הערות |
 | --- | --- | --- |
-| Node.js | 20 | \`fetch\` مدمج، وإصدارات ESM وCJS |
-| Bun | 1.1 | يستخدم إصدار Node |
-| Python | 3.10 | عميل غير متزامن عبر \`tidewater.aio\` |
-| Deno | 1.44 | الاستيراد عبر محدد npm: |`,
+| Node.js | 20 | \`fetch\` מובנה, גרסאות ESM ו-CJS |
+| Bun | 1.1 | משתמש בגרסת Node |
+| Python | 3.10 | לקוח אסינכרוני דרך \`tidewater.aio\` |
+| Deno | 1.44 | ייבוא באמצעות מזהה npm: |`,
     },
   },
   {
@@ -340,20 +340,20 @@ Pass \`"speed": "fast"\` in the sandbox request body to compress the whole lifec
 
 > Sandbox data is wiped every Sunday at 02:00 UTC. Anything you need to keep should be recreated by your test setup.`,
     },
-    ar: {
-      title: 'البدء السريع',
-      description: 'احجز أول شحنة تجريبية في أقل من خمس دقائق.',
-      content: `ينشئ هذا الدليل شحنة من جبل علي إلى روتردام في البيئة التجريبية ويتابع حركتها.
+    he: {
+      title: 'מדריך התחלה מהירה',
+      description: 'הזמינו את משלוח הבדיקה הראשון שלכם תוך פחות מחמש דקות.',
+      content: `מדריך זה יוצר משלוח מג'בל עלי לרוטרדם בסביבת הבדיקות ועוקב אחר התקדמותו.
 
-## إنشاء شحنة
+## יצירת משלוח
 
 ${TS_CLIENT}
 
-الاستدعاء نفسه عبر HTTP مباشرة:
+אותה קריאה באמצעות HTTP ישיר:
 
 ${CURL_SHIPMENT}
 
-## قراءة الاستجابة
+## קריאת התגובה
 
 \`\`\`json
 {
@@ -364,19 +364,19 @@ ${CURL_SHIPMENT}
 }
 \`\`\`
 
-## متابعة الحركة
+## מעקב אחר המשלוח
 
-في البيئة التجريبية تتقدم الشحنات في دورة حياتها كل ثلاثين ثانية، لتتمكن من اختبار معالجات إشعارات الويب دون انتظار سفينة حقيقية.
+בסביבת הבדיקות, משלוחים מתקדמים במחזור החיים שלהם בכל שלושים שניות כדי שתוכלו לבדוק את מטפלי ה-webhook מבלי להמתין לאונייה אמיתית.
 
-1. سجّل نقطة نهاية لإشعارات الويب (انظر [إشعارات الويب](/guides/webhooks)).
-2. أنشئ الشحنة الموضحة أعلاه.
-3. توقّع أحداث \`shipment.updated\` للحالات \`booked → loaded → at_sea → arrived\`.
+1. רשמו נקודת קצה ל-webhook (ראו [Webhooks](/guides/webhooks)).
+2. צרו את המשלוח שלמעלה.
+3. צפו לאירועי \`shipment.updated\` עבור המצבים \`booked → loaded → at_sea → arrived\`.
 
 <Tip>
-مرّر \`"speed": "fast"\` في جسم الطلب التجريبي لضغط دورة الحياة كاملة في نحو دقيقتين.
+העבירו \`"speed": "fast"\` בגוף הבקשה בסביבת הבדיקות כדי לדחוס את כל מחזור החיים לכשתי דקות.
 </Tip>
 
-> تُمسح بيانات البيئة التجريبية كل يوم أحد في الساعة 02:00 بالتوقيت العالمي. أي شيء تحتاج إلى الاحتفاظ به ينبغي أن يعيد إعداد الاختبار إنشاءه.`,
+> הנתונים בסביבת הבדיקות נמחקים מדי יום ראשון בשעה 02:00 UTC. כל מה שנדרש להמשך יש לשחזר באמצעות תהליך הבדיקות שלכם.`,
     },
   },
   {
@@ -487,20 +487,20 @@ A key with \`shipments:write\` can incur real charges in the live environment. R
 
 > Treat API keys like passwords: store them in a secrets manager, never in source control, and rotate them on a schedule.`,
     },
-    ar: {
-      title: 'المصادقة',
-      description: 'صادق على الطلبات بمفاتيح واجهة برمجية محددة النطاق، وبدّلها دون انقطاع في الخدمة.',
-      content: `يحمل كل طلب إلى تايدووتر رمز حامل. المفاتيح محددة النطاق حسب **البيئة** (\`sandbox\` أو \`live\`) وحسب مجموعة من **الصلاحيات**، فالمفتاح الذي يتتبع الحاويات فقط لا يمكنه إنشاء حجز أبدًا.
+    he: {
+      title: 'אימות',
+      description: 'אימות בקשות באמצעות מפתחות API מוגדרי טווח, והחלפתם ללא השבתה.',
+      content: `כל בקשה ל-Tidewater נושאת טוקן מסוג Bearer. המפתחות מוגדרים לפי **סביבה** (\`sandbox\` או \`live\`) ולפי קבוצת **הרשאות**, כך שמפתח המשמש רק למעקב מכולות אינו יכול ליצור הזמנה.
 
-## إرسال الرمز
+## שליחת הטוקן
 
-مرّر المفتاح في ترويسة \`Authorization\`. تعيد الطلبات التي لا تحمله — أو تحمل مفتاحًا من بيئة خاطئة — الاستجابة \`401 unauthorized\`.
+העבירו את המפתח בכותרת \`Authorization\`. בקשות ללא המפתח — או עם מפתח מסביבה שגויה — יחזירו תגובת \`401 unauthorized\`.
 
 ${CURL_SHIPMENT}
 
-### من حزمة التطوير
+### באמצעות ה-SDK
 
-تقرأ حزمة التطوير \`TIDEWATER_KEY\` تلقائيًا، أو يمكنك تمريره صراحةً:
+ה-SDK קורא את \`TIDEWATER_KEY\` באופן אוטומטי, או שתוכלו להעביר אותו מפורשות:
 
 \`\`\`ts
 import { Tidewater } from '@tidewater/sdk';
@@ -513,83 +513,83 @@ export const tidewater = new Tidewater({
 \`\`\`
 
 <Callout type="info">
-تُخزَّن المفاتيح مجزأة ولا تُعرض إلا مرة واحدة عند إنشائها. إذا فقدت أحدها فألغِه وأنشئ بديلًا.
+מפתחות נשמרים כ-hash ומוצגים פעם אחת בלבד בעת יצירתם. אם איבדתם מפתח, בטלו אותו וצרו מפתח חלופי.
 </Callout>
 
-## اختيار نوع المفتاح
+## בחירת סוג מפתח
 
 <Tabs>
-  <Tab title="مفاتيح الخادم">
-    مفاتيح كاملة الصلاحيات للخوادم الموثوقة. لا تضمّنها أبدًا في متصفح أو تطبيق جوال.
+  <Tab title="מפתחות שרת">
+    מפתחות בעלי הרשאות מלאות עבור שרתי backend מהימנים. לעולם אל תפיצו אותם בדפדפן או באפליקציית מובייל.
 
-    - البادئة: \`tw_live_\` أو \`tw_test_\`
-    - حد المعدل: 600 طلب في الدقيقة
+    - קידומת: \`tw_live_\` או \`tw_test_\`
+    - מגבלת קצב: 600 בקשות לדקה
   </Tab>
-  <Tab title="المفاتيح المقيدة">
-    مفاتيح بقائمة صلاحيات صريحة — مثالية للشركاء وأنظمة التكامل المستمر والأدوات الداخلية.
+  <Tab title="מפתחות מוגבלים">
+    מפתחות עם רשימת הרשאות מפורשת — אידיאליים לשותפים, CI או כלים פנימיים.
 
-    - البادئة: \`tw_rk_\`
-    - حد المعدل: 120 طلبًا في الدقيقة
+    - קידומת: \`tw_rk_\`
+    - מגבלת קצב: 120 בקשות לדקה
   </Tab>
-  <Tab title="المفاتيح القابلة للنشر">
-    مفاتيح للقراءة فقط يمكن تضمينها بأمان في كود العميل لأدوات التتبع.
+  <Tab title="מפתחות לקריאה בלבד">
+    מפתחות לקריאה בלבד שניתן להטמיע בבטחה בקוד צד לקוח עבור יישומוני מעקב.
 
-    - البادئة: \`tw_pk_\`
-    - حد المعدل: 60 طلبًا في الدقيقة لكل عنوان IP
+    - קידומת: \`tw_pk_\`
+    - מגבלת קצב: 60 בקשות לדקה לכל כתובת IP
   </Tab>
 </Tabs>
 
-## الصلاحيات
+## הרשאות
 
-| الصلاحية | تمنح | الاستخدام المعتاد |
+| הרשאה | הענקת גישה | שימוש נפוץ |
 | --- | --- | --- |
-| \`shipments:read\` | عرض الشحنات واسترجاعها | لوحات التحكم وصفحات التتبع |
-| \`shipments:write\` | إنشاء الشحنات وتعديلها وإلغاؤها | مسارات الحجز |
-| \`documents:read\` | تنزيل المستندات المُنشأة | الوسطاء الجمركيون |
-| \`webhooks:manage\` | تسجيل نقاط النهاية وتبديلها | أتمتة البنية التحتية |
+| \`shipments:read\` | הצגת וקבלת משלוחים | לוחות בקרה, דפי מעקב |
+| \`shipments:write\` | יצירה, עדכון וביטול משלוחים | תהליכי הזמנה |
+| \`documents:read\` | הורדת מסמכים שנוצרו | עמילי מכס |
+| \`webhooks:manage\` | רישום ורוטציית נקודות קצה | אוטומציית תשתית |
 
 <Warning>
-قد يتسبب مفتاح يحمل \`shipments:write\` في رسوم حقيقية في البيئة الحية. اقصره على الخدمات التي تحتاجه.
+מפתח עם הרשאת \`shipments:write\` עלול לחייב עלויות ממשיות בסביבת הייצור. הגבילו אותו לשירותים שזקוקים לו בלבד.
 </Warning>
 
-## تبديل مفتاح دون انقطاع
+## רוטציית מפתחות ללא השבתה
 
 <Steps>
-  <Step title="أنشئ البديل">
-    أنشئ مفتاحًا جديدًا بالصلاحيات نفسها. يكون المفتاحان صالحين في الوقت ذاته.
+  <Step title="יצירת מפתח חלופי">
+    צרו מפתח חדש עם אותן הרשאות. שני המפתחות תקפים בו-זמנית.
   </Step>
-  <Step title="انشر المفتاح الجديد">
-    حدّث مخزن الأسرار وأعد تشغيل خدماتك. راقب عمود **آخر استخدام** في لوحة التحكم.
+  <Step title="פריסת המפתח החדש">
+    עדכנו את מנהל הסודות שלכם ופרסו את השירותים מחדש. עקבו אחר עמודת **שימוש אחרון** בלוח הבקרה.
   </Step>
-  <Step title="ألغِ المفتاح القديم">
-    عندما يظهر المفتاح القديم دون أي حركة ليوم كامل، ألغِه. الإلغاء فوري ولا يمكن التراجع عنه.
+  <Step title="ביטול המפתח הישן">
+    ברגע שהמפתח הישן אינו מציג תעבורה במשך יום שלם, בטלו אותו. הביטול מיידי ואינו ניתן להפיכה.
   </Step>
 </Steps>
 
-## أسئلة شائعة
+## שאלות נפוצות
 
 <AccordionGroup>
-  <Accordion title="هل يعمل مفتاح واحد في البيئتين؟">
-    لا. البيئتان معزولتان تمامًا؛ يُرفض مفتاح البيئة التجريبية المرسل إلى المضيف الحي قبل تشغيل أي معالج.
+  <Accordion title="האם מפתח אחד יכול לפעול בשתי הסביבות?">
+    לא. הסביבות מבודדות לחלוטין; מפתח sandbox שנשלח לשרת הייצור יידחה לפני הפעלת מטפל כלשהו.
   </Accordion>
-  <Accordion title="كيف أصادق على إشعارات الويب؟">
-    تُوقَّع إشعارات الويب بسر منفصل. انظر [إشعارات الويب](/guides/webhooks) للاطلاع على مقطع التحقق.
+  <Accordion title="כיצד מאמתים webhooks?">
+    Webhooks נחתמים באמצעות סוד נפרד. ראו [Webhooks](/guides/webhooks) לקוד האימות.
   </Accordion>
-  <Accordion title="هل تدعمون OAuth؟" defaultOpen>
-    بيانات اعتماد عميل OAuth 2.0 متاحة في خطة المؤسسات للشركاء الذين يتصرفون نيابة عن حسابات عديدة.
+  <Accordion title="האם יש תמיכה ב-OAuth?" defaultOpen>
+    אישורי לקוח OAuth 2.0 זמינים במסגרת תוכנית Enterprise עבור שותפים הפועלים בשם חשבונות מרובים.
   </Accordion>
 </AccordionGroup>
 
 <CardGroup cols="2">
-  <Card title="إشعارات الويب" icon="webhook" href="/guides/webhooks">
-    تحقق من التوقيعات وعالج إعادة المحاولات.
+  <Card title="Webhooks" icon="webhook" href="/guides/webhooks">
+    אימות חתימות וטיפול בניסיונות חוזרים.
   </Card>
-  <Card title="رموز الأخطاء" icon="shield-alert" href="/guides/errors">
-    شرح كل استجابة \`401\` و\`403\`.
+  <Card title="קודי שגיאה" icon="shield-alert" href="/guides/errors">
+    הסבר מפורט על כל שגיאת \`401\` ו-\`403\`.
   </Card>
 </CardGroup>
 
-> تعامل مع مفاتيح الواجهة البرمجية كما تتعامل مع كلمات المرور: خزّنها في مدير أسرار، ولا تضعها أبدًا في نظام التحكم بالمصدر، وبدّلها وفق جدول زمني.`,
+> התייחסו למפתחות API כאל סיסמאות: שמרו אותם במנהל סודות, לעולם לא בניהול גרסאות, ובצעו רוטציה תקופתית.`,
     },
   },
   {
@@ -635,12 +635,12 @@ export async function handler(request: Request) {
 Respond with a \`2xx\` within five seconds. Slower endpoints are retried with exponential backoff for up to 24 hours.
 </Callout>`,
     },
-    ar: {
-      title: 'إشعارات الويب',
-      description: 'استقبل أحداث الشحنات على نقطة نهاية خاصة بك وتحقق من توقيعاتها.',
-      content: `تدفع إشعارات الويب تغييرات الحالة إلى نقطة نهاية HTTPS تتحكم بها، فلا تحتاج إلى الاستعلام المتكرر أبدًا.
+    he: {
+      title: 'Webhooks',
+      description: 'קבלו אירועי משלוחים בנקודת קצה משלכם ואמתו את חתימותיהם.',
+      content: `Webhooks דוחפים שינויי סטטוס לנקודת קצה מסוג HTTPS שבשליטתכם, ללא צורך בפניות חוזרות (polling).
 
-## تسجيل نقطة نهاية
+## רישום נקודת קצה
 
 \`\`\`bash
 curl -X POST https://api.tidewater.dev/v1/webhooks \\
@@ -648,7 +648,7 @@ curl -X POST https://api.tidewater.dev/v1/webhooks \\
   -d '{"url":"https://example.com/hooks/tidewater","events":["shipment.updated"]}'
 \`\`\`
 
-## التحقق من التوقيع
+## אימות החתימה
 
 \`\`\`ts
 import { verifyWebhook } from '@tidewater/sdk';
@@ -662,16 +662,16 @@ export async function handler(request: Request) {
 }
 \`\`\`
 
-## فهرس الأحداث
+## קטלוג אירועים
 
-| الحدث | متى | الحمولة |
+| אירוע | מתי נשלח | תוכן המטען |
 | --- | --- | --- |
-| \`shipment.updated\` | أي تغيير في دورة الحياة | الشحنة كاملة |
-| \`container.position\` | كل تحديث موقع من نظام AIS | معرّف الحاوية والإحداثيات والطابع الزمني |
-| \`document.ready\` | توفر مستند مُنشأ | معرّف المستند ورابط التنزيل |
+| \`shipment.updated\` | כל שינוי במחזור החיים | נתוני המשלוח המלאים |
+| \`container.position\` | כל עדכון מיקום מ-AIS | מזהה מכולה, קואורדינטות, חותמת זמן |
+| \`document.ready\` | מסמך שנוצר זמין להורדה | מזהה מסמך וכתובת URL להורדה |
 
 <Callout type="tip">
-استجب برمز \`2xx\` خلال خمس ثوانٍ. تُعاد المحاولة مع نقاط النهاية الأبطأ بتراجع أسّي لمدة تصل إلى 24 ساعة.
+החזירו קוד \`2xx\` בתוך 5 שניות. עבור נקודות קצה איטיות יותר יבוצעו ניסיונות חוזרים במרווחי זמן מעריכיים למשך עד 24 שעות.
 </Callout>`,
     },
   },
@@ -714,10 +714,10 @@ Do not retry \`400\`–\`404\` responses automatically: the request will fail id
 
 Send an \`Idempotency-Key\` header on every \`POST\`. Replays within 24 hours return the original response instead of creating a duplicate booking.`,
     },
-    ar: {
-      title: 'معالجة الأخطاء',
-      description: 'يحمل كل خطأ رمزًا ثابتًا ورسالة مقروءة وبيانًا بما إذا كانت إعادة المحاولة آمنة.',
-      content: `تستخدم الأخطاء رموز حالة HTTP المتعارف عليها وجسم JSON يمكنك التفرع بناءً عليه.
+    he: {
+      title: 'טיפול בשגיאות',
+      description: 'כל שגיאה כוללת קוד קבוע, הודעה קריאה וחיווי האם ניסיון חוזר הינו בטוח.',
+      content: `שגיאות משתמשות בקודי מצב מקובלים של HTTP ובגוף JSON המאפשר הסתעפות לוגית.
 
 \`\`\`json
 {
@@ -729,25 +729,25 @@ Send an \`Idempotency-Key\` header on every \`POST\`. Replays within 24 hours re
 }
 \`\`\`
 
-## رموز الحالة
+## קודי מצב
 
-| الحالة | المعنى | إعادة المحاولة؟ |
+| קוד | משמעות | ניסיון חוזר? |
 | --- | --- | --- |
-| \`400\` | جسم طلب غير صالح | لا |
-| \`401\` | مفتاح مفقود أو غير صالح | لا |
-| \`403\` | المفتاح يفتقر إلى الصلاحية المطلوبة | لا |
-| \`404\` | المورد غير موجود في هذه البيئة | لا |
-| \`409\` | تغيرت الشحنة أثناء تعديلك لها | نعم، بعد إعادة الجلب |
-| \`429\` | تجاوز حد المعدل | نعم، بعد \`Retry-After\` |
-| \`5xx\` | مشكلة في تايدووتر | نعم، مع تراجع أسّي |
+| \`400\` | גוף בקשה לא תקין | לא |
+| \`401\` | מפתח API חסר או לא תקין | לא |
+| \`403\` | למפתח חסרה ההרשאה הנדרשת | לא |
+| \`404\` | המשאב אינו קיים בסביבה זו | לא |
+| \`409\` | המשלוח עודכן בזמן שערכתם אותו | כן, לאחר שליפה מחדש |
+| \`429\` | חריגה ממגבלת הקצב | כן, לאחר הזמן המצוין ב-\`Retry-After\` |
+| \`5xx\` | תקלה במערכת Tidewater | כן, עם השהיה מעריכית |
 
 <Danger>
-لا تعد محاولة الاستجابات \`400\`–\`404\` تلقائيًا: سيفشل الطلب بالطريقة نفسها ويُحتسب ضمن حد المعدل.
+אל תבצעו ניסיונות חוזרים אוטומטיים לתגובות \`400\`–\`404\`: הבקשה תיכשל שוב באותו אופן ותיגרע ממגבלת הקצב שלכם.
 </Danger>
 
-## التكرار الآمن
+## Idempotency (פעולות ללא השפעה כפולה)
 
-أرسل ترويسة \`Idempotency-Key\` مع كل طلب \`POST\`. تعيد الطلبات المكررة خلال 24 ساعة الاستجابة الأصلية بدلًا من إنشاء حجز مكرر.`,
+שלחו כותרת \`Idempotency-Key\` בכל בקשת \`POST\`. פניות חוזרות בתוך 24 שעות יחזירו את התגובה המקורית במקום ליצור הזמנה כפולה.`,
     },
   },
   {
@@ -783,34 +783,34 @@ Returns the shipment with its containers, current position, and document links.
 
 Cancellation is free until the containers are gated in at the origin port; after that a carrier fee applies and is itemised in the response.`,
     },
-    ar: {
-      title: 'الشحنات',
-      description: 'إنشاء الشحنات واسترجاعها وتعديلها وإلغاؤها.',
-      content: `## إنشاء شحنة
+    he: {
+      title: 'משלוחים',
+      description: 'יצירה, קבלה, עדכון וביטול משלוחים.',
+      content: `## יצירת משלוח
 
 \`POST /v1/shipments\`
 
-| الحقل | النوع | مطلوب | الوصف |
+| שדה | סוג | חובה | תיאור |
 | --- | --- | --- | --- |
-| \`origin\` | نص | نعم | رمز UN/LOCODE لميناء التحميل |
-| \`destination\` | نص | نعم | رمز UN/LOCODE لميناء التفريغ |
-| \`containers\` | عدد صحيح | نعم | عدد حاويات 40 قدمًا (1–200) |
-| \`incoterm\` | نص | لا | الافتراضي \`FOB\` |
-| \`speed\` | نص | البيئة التجريبية فقط | \`normal\` أو \`fast\` |
+| \`origin\` | string | כן | קוד UN/LOCODE של נמל הטעינה |
+| \`destination\` | string | כן | קוד UN/LOCODE של נמל הפריקה |
+| \`containers\` | integer | כן | מספר מכולות של 40 רגל (1–200) |
+| \`incoterm\` | string | לא | ברירת מחדל היא \`FOB\` |
+| \`speed\` | string | סביבת בדיקות בלבד | \`normal\` או \`fast\` |
 
 ${CURL_SHIPMENT}
 
-## استرجاع شحنة
+## קבלת פרטי משלוח
 
 \`GET /v1/shipments/{id}\`
 
-يعيد الشحنة مع حاوياتها وموقعها الحالي وروابط مستنداتها.
+מחזיר את פרטי המשלוח יחד עם המכולות שלו, המיקום הנוכחי וקישורי המסמכים.
 
-## إلغاء شحنة
+## ביטול משלוח
 
 \`POST /v1/shipments/{id}/cancel\`
 
-الإلغاء مجاني حتى دخول الحاويات بوابة ميناء المنشأ؛ بعد ذلك تُطبَّق رسوم شركة النقل وتُفصَّل في الاستجابة.`,
+הביטול הוא ללא עלות עד שהמכולות נכנסות לשער נמל המוצא; לאחר מכן יחולו דמי מוביל שיפורטו בתגובה.`,
     },
   },
   {
@@ -838,25 +838,25 @@ Every response includes:
 Need more headroom? Enterprise plans include dedicated capacity and per-endpoint limits.
 </Note>`,
     },
-    ar: {
-      title: 'حدود المعدل',
-      description: 'ميزانيات الطلبات لكل مفتاح والترويسات التي تُبلغ عنها.',
-      content: `تُطبَّق الحدود لكل مفتاح واجهة برمجية على نافذة منزلقة مدتها ستون ثانية.
+    he: {
+      title: 'מגבלות קצב',
+      description: 'תקציב בקשות לפי מפתח והכותרות המדווחות עליו.',
+      content: `המגבלות נאכפות לכל מפתח API בחלון זמן נע של 60 שניות.
 
-| نوع المفتاح | الطلبات في الدقيقة | الدفعة القصوى |
+| סוג מפתח | בקשות לדקה | התפרצות (Burst) |
 | --- | --- | --- |
-| الخادم | 600 | 100 |
-| المقيد | 120 | 30 |
-| القابل للنشر | 60 لكل عنوان IP | 10 |
+| שרת (Server) | 600 | 100 |
+| מוגבל (Restricted) | 120 | 30 |
+| ניתן לפרסום (Publishable) | 60 לכל כתובת IP | 10 |
 
-تتضمن كل استجابة:
+כל תגובה כוללת את הכותרות הבאות:
 
-- \`RateLimit-Limit\` — ميزانية النافذة الحالية
-- \`RateLimit-Remaining\` — الطلبات المتبقية في النافذة
-- \`RateLimit-Reset\` — الثواني المتبقية حتى إعادة ضبط النافذة
+- \`RateLimit-Limit\` — התקציב עבור חלון הזמן הנוכחי
+- \`RateLimit-Remaining\` — יתרת הבקשות בחלון הזמן
+- \`RateLimit-Reset\` — מספר שניות עד לאיפוס חלון הזמן
 
 <Note>
-هل تحتاج إلى سعة أكبر؟ تشمل خطط المؤسسات سعة مخصصة وحدودًا لكل نقطة نهاية.
+זקוקים למכסה גבוהה יותר? תוכניות Enterprise כוללות קיבולת ייעודית ומגבלות מותאמות אישית לכל נקודת קצה.
 </Note>`,
     },
   },
@@ -864,10 +864,10 @@ Need more headroom? Enterprise plans include dedicated capacity and per-endpoint
 
 // ─── Projects ────────────────────────────────────────────────────────────────
 
-const SITE_NAME = { en: 'Tidewater Docs', ar: 'مستندات تايدووتر' };
+const SITE_NAME = { en: 'Tidewater Docs', he: 'תיעוד Tidewater' };
 const SITE_DESCRIPTION = {
   en: 'Developer documentation for the Tidewater shipping API.',
-  ar: 'وثائق المطورين لواجهة تايدووتر البرمجية للشحن.',
+  he: 'תיעוד מפתחים עבור ה-API של Tidewater.',
 };
 
 const baseConfig = () => ({
@@ -921,19 +921,19 @@ const projectConfig = (preset) => {
 // project.config for non-default languages like the real server does).
 const LANGUAGE_CONFIG = {
   en: { name: SITE_NAME.en, description: SITE_DESCRIPTION.en },
-  ar: {
-    name: SITE_NAME.ar,
-    description: SITE_DESCRIPTION.ar,
+  he: {
+    name: SITE_NAME.he,
+    description: SITE_DESCRIPTION.he,
     navbar: {
-      ctaLabel: 'احصل على مفتاح API',
+      ctaLabel: 'קבל מפתח API',
       links: [
-        { label: 'الأدلة', href: '/guides' },
-        { label: 'المرجع', href: '/reference' },
-        { label: 'الحالة', href: 'https://status.example.com', external: true },
+        { label: 'מדריכים', href: '/guides' },
+        { label: 'תיעוד', href: '/reference' },
+        { label: 'סטטוס', href: 'https://status.example.com', external: true },
       ],
     },
-    footer: { copyright: '© 2026 مختبرات تايدووتر. جميع الحقوق محفوظة.' },
-    search: { placeholder: 'ابحث في المستندات…' },
+    footer: { copyright: '© 2026 Tidewater Labs. כל הזכויות שמורות.' },
+    search: { placeholder: 'חיפוש בתיעוד…' },
   },
 };
 

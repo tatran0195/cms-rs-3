@@ -255,81 +255,47 @@ export const resolvePageCategory = (page: SnapshotPage, siblingPageCount: number
   }
 
   const haystack = `${page.title} ${page.slug}`.toLocaleLowerCase(page.languageCode);
-  const ar = page.languageCode.toLowerCase().startsWith('ar');
-  const rules: Array<{ title: string; icon: string; order: number; keywords: string[] }> = ar
-    ? [
-        { title: 'ابدأ هنا', icon: 'rocket', order: 0, keywords: ['ابدأ', 'مقدمة', 'الخطوات الأولى', 'إعداد', 'تجربة المنصة', 'لوحة التحكم'] },
-        {
-          title: 'التقارير والعمليات',
-          icon: 'chart-no-axes-column',
-          order: 6,
-          keywords: ['تقرير', 'تقارير', 'إحصائ', 'عمليات', 'تتبع', 'مراجعة الحجوزات'],
-        },
-        {
-          title: 'المحاسبة والفوترة',
-          icon: 'receipt-text',
-          order: 5,
-          keywords: ['محاسب', 'فاتور', 'دفع', 'دفعات', 'سداد', 'مالي', 'بنك', 'زكاة', 'ضريب', 'zatca', 'رصيد'],
-        },
-        { title: 'الفنادق والغرف', icon: 'hotel', order: 1, keywords: ['فندق', 'فنادق', 'غرفة', 'غرف', 'تسكين', 'الوصول', 'المغادرة', 'إتاحة'] },
-        {
-          title: 'العقود والأسعار',
-          icon: 'badge-dollar-sign',
-          order: 3,
-          keywords: ['عقد', 'عقود', 'سعر', 'أسعار', 'عرض', 'عروض', 'برومو', 'خدمة', 'خصم'],
-        },
-        { title: 'الحجوزات', icon: 'calendar-check', order: 2, keywords: ['حجز', 'حجوزات', 'ضيف', 'نقل', 'مواصلات'] },
-        { title: 'العملاء والوكالات', icon: 'users-round', order: 4, keywords: ['عميل', 'عملاء', 'وكالة', 'وكالات', 'وكيل', 'مورد', 'شركة'] },
-        {
-          title: 'المستخدمون والصلاحيات',
-          icon: 'shield-check',
-          order: 7,
-          keywords: ['مستخدم', 'مستخدمين', 'صلاحية', 'صلاحيات', 'دور', 'أدوار', 'مجموعة'],
-        },
-        { title: 'التواصل', icon: 'messages-square', order: 8, keywords: ['رسالة', 'رسائل', 'بريد', 'واتساب', 'إشعار', 'موقع إلكتروني'] },
-        { title: 'التكاملات', icon: 'blocks', order: 9, keywords: ['تكامل', 'ربط', 'channel manager', 'pms', 'stc', 'hyperpay'] },
-      ]
-    : [
-        {
-          title: 'Getting started',
-          icon: 'rocket',
-          order: 0,
-          keywords: ['getting started', 'get started', 'first step', 'introduction', 'setup your', 'setup-your', 'dashboard', 'trial platform'],
-        },
-        {
-          title: 'Reports & operations',
-          icon: 'chart-no-axes-column',
-          order: 6,
-          keywords: ['report', 'statistics', 'operation', 'tracking', 'audit'],
-        },
-        {
-          title: 'Accounting & invoicing',
-          icon: 'receipt-text',
-          order: 5,
-          keywords: ['account', 'invoice', 'payment', 'receipt', 'financial', 'bank', 'tax', 'zatca', 'balance'],
-        },
-        {
-          title: 'Hotels & rooms',
-          icon: 'hotel',
-          order: 1,
-          keywords: ['hotel', 'room', 'check-in', 'check in', 'check-out', 'check out', 'arrival', 'departure', 'accommodation', 'availability'],
-        },
-        {
-          title: 'Contracts & pricing',
-          icon: 'badge-dollar-sign',
-          order: 3,
-          keywords: ['contract', 'price', 'pricing', 'promo', 'offer', 'service', 'discount'],
-        },
-        { title: 'Reservations', icon: 'calendar-check', order: 2, keywords: ['reservation', 'booking', 'guest', 'transportation'] },
-        { title: 'Customers & agencies', icon: 'users-round', order: 4, keywords: ['client', 'customer', 'agency', 'agent', 'provider', 'company'] },
-        { title: 'Users & access', icon: 'shield-check', order: 7, keywords: ['user', 'role', 'permission', 'access', 'group'] },
-        { title: 'Communications', icon: 'messages-square', order: 8, keywords: ['sms', 'e-mail', 'email', 'whatsapp', 'notification', 'website'] },
-        { title: 'Integrations', icon: 'blocks', order: 9, keywords: ['integration', 'channel manager', 'pms', 'stc', 'hyperpay'] },
-      ];
+  const rules: Array<{ title: string; icon: string; order: number; keywords: string[] }> = [
+    {
+      title: 'Getting started',
+      icon: 'rocket',
+      order: 0,
+      keywords: ['getting started', 'get started', 'first step', 'introduction', 'setup your', 'setup-your', 'dashboard', 'trial platform'],
+    },
+    {
+      title: 'Reports & operations',
+      icon: 'chart-no-axes-column',
+      order: 6,
+      keywords: ['report', 'statistics', 'operation', 'tracking', 'audit'],
+    },
+    {
+      title: 'Accounting & invoicing',
+      icon: 'receipt-text',
+      order: 5,
+      keywords: ['account', 'invoice', 'payment', 'receipt', 'financial', 'bank', 'tax', 'zatca', 'balance'],
+    },
+    {
+      title: 'Hotels & rooms',
+      icon: 'hotel',
+      order: 1,
+      keywords: ['hotel', 'room', 'check-in', 'check in', 'check-out', 'check out', 'arrival', 'departure', 'accommodation', 'availability'],
+    },
+    {
+      title: 'Contracts & pricing',
+      icon: 'badge-dollar-sign',
+      order: 3,
+      keywords: ['contract', 'price', 'pricing', 'promo', 'offer', 'service', 'discount'],
+    },
+    { title: 'Reservations', icon: 'calendar-check', order: 2, keywords: ['reservation', 'booking', 'guest', 'transportation'] },
+    { title: 'Customers & agencies', icon: 'users-round', order: 4, keywords: ['client', 'customer', 'agency', 'agent', 'provider', 'company'] },
+    { title: 'Users & access', icon: 'shield-check', order: 7, keywords: ['user', 'role', 'permission', 'access', 'group'] },
+    { title: 'Communications', icon: 'messages-square', order: 8, keywords: ['sms', 'e-mail', 'email', 'whatsapp', 'notification', 'website'] },
+    { title: 'Integrations', icon: 'blocks', order: 9, keywords: ['integration', 'channel manager', 'pms', 'stc', 'hyperpay'] },
+  ];
   const match = rules.find((rule) => rule.keywords.some((keyword) => haystack.includes(keyword)));
   return match
     ? { title: match.title, icon: match.icon, order: match.order }
-    : { title: ar ? 'أدلة إضافية' : 'More guides', icon: 'book-open', order: 10 };
+    : { title: 'More guides', icon: 'book-open', order: 10 };
 };
 
 /** Build a navigation tree from snapshot pages, hiding pages flagged `hidden`.
@@ -437,7 +403,7 @@ const parseHeading = (line: string): { depth: number; text: string } | null => {
 
 /** Extract markdown headings (h1–h4) with slug ids — powers search + the TOC.
  *  Ids are produced with github-slugger, the same slugger rehype-slug uses to
- *  set DOM ids, so TOC anchors resolve for Unicode (e.g. Arabic) headings and
+ *  set DOM ids, so TOC anchors resolve for Unicode (e.g. Hebrew or CJK) headings and
  *  duplicate headings get matching -1/-2 suffixes on both sides. */
 export const extractHeadings = (markdown: string): Heading[] => {
   const headings: Heading[] = [];

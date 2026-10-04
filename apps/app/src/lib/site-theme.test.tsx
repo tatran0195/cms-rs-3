@@ -50,9 +50,9 @@ describe('published theme projection', () => {
     expect(script).not.toContain(`+"${projectId}"`);
   });
 
-  it('accepts bounded Unicode family names and keeps Arabic fallbacks', () => {
-    const css = projectThemeCss({ typography: { headingFont: 'نسق عربي' } });
-    expect(css).toContain("font-family:'نسق عربي','Noto Sans Arabic'");
+  it('accepts bounded Unicode family names', () => {
+    const css = projectThemeCss({ typography: { headingFont: 'גופן עברי' } });
+    expect(css).toContain("font-family:'גופן עברי','Segoe UI'");
   });
 
   it('keeps pre-v1 projects on their existing design-system palette', () => {
@@ -63,14 +63,14 @@ describe('published theme projection', () => {
   });
 
   it('renders an RTL theme preview while preserving LTR code', () => {
-    const markup = renderToStaticMarkup(<ThemePreview arabic config={{ theme: { preset: 'manuscript' } }} mode="dark" />);
+    const markup = renderToStaticMarkup(<ThemePreview rtl config={{ theme: { preset: 'manuscript' } }} mode="dark" />);
     expect(markup).toContain('dir="rtl"');
     expect(markup).toContain('data-theme-id="manuscript"');
     expect(markup).toContain('data-theme-shell="editorial"');
     expect(markup).toContain('data-theme-navigation="tree"');
     expect(markup).toContain('data-theme-sidebar="soft"');
     expect(markup).toContain('dir="ltr"');
-    expect(markup).toContain(translateFn('settings.theme.preview.productDocs', undefined, 'ar'));
+    expect(markup).toContain(translateFn('settings.theme.preview.productDocs'));
   });
 
   it.each([

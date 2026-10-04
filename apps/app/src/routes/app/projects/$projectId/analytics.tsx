@@ -256,7 +256,7 @@ function AnalyticsPage() {
   );
 }
 
-/** A language code's endonym (e.g. "ar" → "العربية"), falling back to the code. */
+/** A language code's endonym (e.g. "ja" → "日本語"), falling back to the code. */
 function languageName(code: string): string {
   if (code === 'unknown') {
     return code;

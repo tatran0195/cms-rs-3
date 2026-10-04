@@ -59,7 +59,7 @@ describe('SiteAnalyticsConsent', () => {
 
   it.each([
     { lang: 'en', declineLabel: 'Decline', acceptLabel: 'Accept analytics', manageLabel: 'Privacy choices' },
-    { lang: 'ar', declineLabel: 'رفض', acceptLabel: 'قبول التحليلات', manageLabel: 'خيارات الخصوصية' },
+    { lang: 'ja', declineLabel: '衰退', acceptLabel: '分析を受け入れる', manageLabel: 'プライバシーの選択' },
   ])('renders equal-weight $lang choices and keeps both actions available', async ({ lang, declineLabel, acceptLabel, manageLabel }) => {
     await act(async () => root.render(createElement(SiteAnalyticsConsent, { projectId: `project-${lang}`, config: consentConfig, lang })));
 

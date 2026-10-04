@@ -116,7 +116,7 @@ export const projectThemeCss = (config?: ProjectConfig | null): string => {
   return [
     ...colorRules,
     headingFont
-      ? `.cms-site-chrome :is(h1,h2,h3,h4,h5,h6){font-family:'${headingFont}','Noto Sans Arabic','Segoe UI',var(--font-sans,sans-serif)}`
+      ? `.cms-site-chrome :is(h1,h2,h3,h4,h5,h6){font-family:'${headingFont}','Segoe UI',var(--font-sans,sans-serif)}`
       : '',
     codeFont ? `.cms-site-chrome :is(code,pre,kbd){font-family:'${codeFont}',var(--font-mono,monospace)}` : '',
   ]
@@ -152,6 +152,6 @@ export const projectThemeStyle = (config?: ProjectConfig | null): CSSProperties 
   } as Record<string, string>;
   if (typography?.baseSize) style.fontSize = `${typography.baseSize}px`;
   const bodyFont = safeThemeFontFamily(typography?.bodyFont);
-  if (bodyFont) style.fontFamily = `'${bodyFont}','Noto Sans Arabic','Segoe UI',var(--font-sans,system-ui,sans-serif)`;
+  if (bodyFont) style.fontFamily = `'${bodyFont}','Segoe UI',var(--font-sans,system-ui,sans-serif)`;
   return style as CSSProperties;
 };

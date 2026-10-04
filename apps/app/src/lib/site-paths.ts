@@ -10,7 +10,7 @@ const safeDecode = (value: string): string => {
   }
 };
 
-/** Percent-encode one path segment exactly once: a raw Arabic slug from the
+/** Percent-encode one path segment exactly once: a raw non-ASCII slug from the
  *  snapshot and an already-encoded segment from an authored link both come out
  *  encoded a single time, so the route's decoded splat matches `page.path`. */
 const encodeSegment = (segment: string): string => encodeURIComponent(safeDecode(segment));

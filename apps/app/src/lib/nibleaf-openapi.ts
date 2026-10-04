@@ -51,7 +51,7 @@ const languageAndVersionParameters = [
     in: 'query',
     required: false,
     description: 'Requested enabled language code. Falls back to the site default when omitted or unavailable.',
-    schema: { type: 'string', minLength: 2, maxLength: 35, examples: ['en', 'ar'] },
+    schema: { type: 'string', minLength: 2, maxLength: 35, examples: ['en', 'ja'] },
   },
   {
     name: 'version',

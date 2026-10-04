@@ -37,7 +37,7 @@ export function LanguageSwitcher({
           <button
             type="button"
             // The min width keeps the header from shifting when the label changes
-            // script ("English" ↔ "العربية"); the chevron stays pinned at the end.
+            // script ("English" ↔ "עברית"); the chevron stays pinned at the end.
             className="flex h-8 min-w-[7.5rem] cursor-pointer items-center gap-1.5 rounded-full border border-border/70 px-3 font-medium text-muted-foreground text-xs transition-colors hover:bg-muted/60 hover:text-foreground"
             aria-label={t('changeLanguage')}
           >

@@ -15,7 +15,7 @@ export interface ViewsPoint {
 /**
  * The page-views-over-time plot shared by the overviews and both analytics
  * pages, so axes, tooltip and colours are identical everywhere. Ticks and the
- * tooltip go through the locale formatters (Arabic-Indic digits in Arabic).
+ * tooltip go through the locale formatters.
  * Recharts lays the plot out left→right whatever the writing direction, so the
  * container is pinned to `dir="ltr"`; only the tooltip text follows the
  * interface direction.

@@ -301,7 +301,7 @@ mod tests {
         let mut language: LanguageResponse = sample_language().into();
         language.enabled = false;
         language.position = 4;
-        language.config = Some(serde_json::json!({"name":"Arabic"}));
+        language.config = Some(serde_json::json!({"name":"Hebrew"}));
         let value = serde_json::to_value(&language).unwrap();
         assert_eq!(value["projectId"], "proj-1");
         assert_eq!(value["label"], "Japanese");
@@ -309,6 +309,6 @@ mod tests {
         assert_eq!(value["isDefault"], true);
         assert_eq!(value["enabled"], false);
         assert_eq!(value["position"], 4);
-        assert_eq!(value["config"]["name"], "Arabic");
+        assert_eq!(value["config"]["name"], "Hebrew");
     }
 }

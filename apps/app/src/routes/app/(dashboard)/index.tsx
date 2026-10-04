@@ -16,7 +16,6 @@ import { SectionCard } from '@/components/analytics/section-card';
 import { ViewsAreaChart } from '@/components/analytics/views-area-chart';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useCreateProject, useProjects, useWorkspaceAnalytics } from '@/hooks/api';
-import { recordFirstPublishStage } from '@/lib/first-publish-activation';
 import { required } from '@/lib/form';
 import { useFormatters, viewsTrend } from '@/lib/format';
 
@@ -130,7 +129,6 @@ function ProjectsPage() {
   useEffect(() => {
     const starterProject = projects?.[0];
     if (!firstPublish || !starterProject) return;
-    void recordFirstPublishStage('project_entered');
     void navigate({
       to: '/app/projects/$projectId/editor',
       params: { projectId: starterProject.id },

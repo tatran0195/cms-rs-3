@@ -44,7 +44,7 @@ const OPTION_IDS = [
   'rows',
   'cards',
 ];
-const translations: Record<string, string> = Object.fromEntries(OPTION_IDS.map((id) => [`settings.theme.option.${id}`, `تسمية ${id}`]));
+const translations: Record<string, string> = Object.fromEntries(OPTION_IDS.map((id) => [`settings.theme.option.${id}`, `Label ${id}`]));
 
 const mutation = { isPending: false, mutate: vi.fn() };
 
@@ -137,7 +137,7 @@ describe('ThemeSection controls', () => {
     expect(labels[0]).toBe(translations[`settings.theme.option.${resolved.layout.shell}`]);
     expect(labels[7]).toBe(translations[`settings.theme.option.${resolved.components.codeBlocks}`]);
     for (const label of labels) {
-      expect(label).toMatch(/^تسمية /);
+      expect(label).toMatch(/^Label /);
     }
     // Every trigger is labelled for assistive tech through its visible label.
     for (const trigger of triggers()) {
@@ -170,7 +170,7 @@ describe('ThemeSection controls', () => {
     expect(triggerLabel(triggers()[0] as HTMLElement)).toBe(translations['settings.theme.option.console']);
   });
 
-  it('switches the preview to a preset and to Arabic without native controls', async () => {
+  it('switches the preview to a preset and to RTL without native controls', async () => {
     const gallery = [...container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]:has(strong)')];
     expect(gallery).toHaveLength(3);
     const signal = gallery[2];
@@ -179,13 +179,13 @@ describe('ThemeSection controls', () => {
     expect(preview()?.dataset.preset).toBe('signal');
     expect(preview()?.dataset.shell).toBe(THEME_PRESETS.signal.layout.shell);
 
-    const toggle = container.querySelector<HTMLButtonElement>('button[lang="ar"]');
-    if (!toggle) throw new Error('missing preview language toggle');
+    const toggle = container.querySelector<HTMLButtonElement>('button[dir="rtl"]');
+    if (!toggle) throw new Error('missing preview direction toggle');
     expect(toggle.getAttribute('dir')).toBe('rtl');
     expect(preview()?.getAttribute('dir')).toBe('ltr');
     await act(async () => toggle.click());
     expect(preview()?.getAttribute('dir')).toBe('rtl');
-    expect(container.querySelector('button[lang="en"]')?.getAttribute('dir')).toBe('ltr');
+    expect(toggle.getAttribute('dir')).toBe('ltr');
   });
 
   it('keeps code-like values left-to-right inside the RTL form', () => {

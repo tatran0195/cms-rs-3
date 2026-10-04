@@ -17,10 +17,9 @@ describe('getByteQuantityParts', () => {
 
   it.each([
     ['en', '.', 'GiB', '1.5 GiB'],
-    ['ar', '.', 'غيبيبايت', '1.5 غيبيبايت'],
+    ['fr', ',', 'Go', '1,5 Go'],
   ])('renders the decimal remainder with %s digits and unit order', (locale, separator, gib, expected) => {
-    const tag = locale === 'ar' ? 'ar-u-nu-latn' : locale;
-    const number = (value: bigint) => new Intl.NumberFormat(tag).format(value);
+    const number = (value: bigint) => new Intl.NumberFormat(locale).format(value);
     expect(
       formatByteQuantity('1610612736', {
         number,
@@ -32,10 +31,9 @@ describe('getByteQuantityParts', () => {
 
   it.each([
     ['en', '.', 'GiB', '-1.5 GiB'],
-    ['ar', '.', 'غيبيبايت', '\u200e-1.5 غيبيبايت'],
+    ['fr', ',', 'Go', '-1,5 Go'],
   ])('renders a negative decimal correction with %s digits and sign', (locale, separator, gib, expected) => {
-    const tag = locale === 'ar' ? 'ar-u-nu-latn' : locale;
-    const number = (value: bigint) => new Intl.NumberFormat(tag).format(value);
+    const number = (value: bigint) => new Intl.NumberFormat(locale).format(value);
     expect(
       formatByteQuantity('-1610612736', {
         number,

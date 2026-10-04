@@ -33,8 +33,8 @@ it('segmented settings actions expose selection and never submit their surroundi
           <SegmentedControlItem active={value === 'en'} onClick={() => setValue('en')}>
             English
           </SegmentedControlItem>
-          <SegmentedControlItem active={value === 'ar'} onClick={() => setValue('ar')}>
-            العربية
+          <SegmentedControlItem active={value === 'he'} onClick={() => setValue('he')}>
+            עברית
           </SegmentedControlItem>
           <SegmentedControlItem active={false} disabled onClick={() => setValue('disabled')}>
             Unavailable
@@ -44,14 +44,14 @@ it('segmented settings actions expose selection and never submit their surroundi
     );
   }
   const container = await render(<Example />);
-  const [english, arabic, disabled] = container.querySelectorAll('button');
-  if (!(english && arabic && disabled)) throw new Error('Expected all three segment actions');
+  const [english, rtlOption, disabled] = container.querySelectorAll('button');
+  if (!(english && rtlOption && disabled)) throw new Error('Expected all three segment actions');
   expect(english.getAttribute('aria-pressed')).toBe('true');
-  await act(async () => arabic.click());
-  expect(arabic.getAttribute('aria-pressed')).toBe('true');
+  await act(async () => rtlOption.click());
+  expect(rtlOption.getAttribute('aria-pressed')).toBe('true');
   expect(english.getAttribute('aria-pressed')).toBe('false');
   await act(async () => disabled.click());
-  expect(arabic.getAttribute('aria-pressed')).toBe('true');
+  expect(rtlOption.getAttribute('aria-pressed')).toBe('true');
   expect(submit).not.toHaveBeenCalled();
 });
 
@@ -62,9 +62,9 @@ it('compact input density preserves the native size attribute and typing behavio
   expect(input?.size).toBe(12);
   expect(input?.hasAttribute('density')).toBe(false);
   await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, 'العربية');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, 'עברית');
     input?.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  expect(input?.value).toBe('العربية');
+  expect(input?.value).toBe('עברית');
   expect(change).toHaveBeenCalledOnce();
 });

@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             const normalized = id.replaceAll('\\', '/');
-            if (/\/packages\/i18n\/src\/paraglide\/messages\/(?:site_|marketing_arabic(?:landing|platforms)_)/.test(normalized)) {
+            if (/\/packages\/i18n\/src\/paraglide\/messages\/site_/.test(normalized)) {
               return 'public-site-i18n';
             }
             if (

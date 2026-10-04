@@ -68,7 +68,7 @@ export function resolveLanguagePathRedirect(input: LanguagePathRedirectInput): s
   } else {
     params.set('lang', language.code);
   }
-  // Re-encode segment by segment so encoded and decoded (Arabic) slugs both
+  // Re-encode segment by segment so encoded and decoded (non-ASCII) slugs both
   // yield one valid Location.
   const path = rest.map((segment) => encodeURIComponent(safeDecode(segment))).join('/');
   const pathname = `${siteBasePath(input.projectId, input.isCustomDomain)}${path ? `/${path}` : ''}` || '/';

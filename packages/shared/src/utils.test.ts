@@ -14,8 +14,8 @@ describe('slugify', () => {
     expect(slugify(`start${'-'.repeat(100_000)}end`)).toBe('start-end');
   });
   it('stays ASCII-only by default so hostnames and storage keys are unaffected', () => {
-    expect(slugify('المصادقة')).toBe('');
-    expect(slugify('API الوصول')).toBe('api');
+    expect(slugify('אימות')).toBe('');
+    expect(slugify('API גישה')).toBe('api');
     expect(slugify('Café au lait')).toBe('caf-au-lait');
   });
   it('caps the slug length at a dash boundary', () => {
@@ -30,18 +30,17 @@ describe('slugifyUnicode', () => {
       expect(slugifyUnicode(input)).toBe(slugify(input));
     }
   });
-  it('turns an Arabic title into an Arabic slug', () => {
-    expect(slugifyUnicode('المصادقة')).toBe('المصادقة');
-    expect(slugifyUnicode('  الدليل  السريع ')).toBe('الدليل-السريع');
+  it('turns a Hebrew RTL title into a Hebrew slug', () => {
+    expect(slugifyUnicode('אימות')).toBe('אימות');
+    expect(slugifyUnicode('  המדריך  המהיר ')).toBe('המדריך-המהיר');
   });
-  it('keeps mixed Arabic and Latin words, lowercasing the Latin part', () => {
-    expect(slugifyUnicode('API الوصول')).toBe('api-الوصول');
-    expect(slugifyUnicode('مفاتيح API v2')).toBe('مفاتيح-api-v2');
+  it('keeps mixed RTL and Latin words, lowercasing the Latin part', () => {
+    expect(slugifyUnicode('API גישה')).toBe('api-גישה');
+    expect(slugifyUnicode('מפתחות API v2')).toBe('מפתחות-api-v2');
   });
-  it('strips Arabic diacritics and tatweel so vocalised and plain titles share a slug', () => {
-    expect(slugifyUnicode('اَلْمُصَادَقَة')).toBe('المصادقة');
-    expect(slugifyUnicode('المصـــادقة')).toBe('المصادقة');
-    expect(slugifyUnicode('كلمةٌ ثانيةً')).toBe('كلمة-ثانية');
+  it('strips Hebrew niqqud diacritics so vocalised and plain titles share a slug', () => {
+    expect(slugifyUnicode('בְּרֵאשִׁית')).toBe('בראשית');
+    expect(slugifyUnicode('שָׁלוֹם')).toBe('שלום');
   });
   it('drops zero-width joiners without splitting the word', () => {
     expect(slugifyUnicode('می\u200cخواهم')).toBe('میخواهم');

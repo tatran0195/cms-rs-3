@@ -35,7 +35,7 @@ Migrate the original CMS frontend (`apps/app/`) from its Node.js + Hono backend 
 - Documentation viewer
 - Admin interface
 - MDX-based documentation
-- i18n (English + Arabic)
+- i18n (Multilingual + RTL support)
 - Custom domain support
 
 ---

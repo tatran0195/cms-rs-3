@@ -108,6 +108,7 @@ export function SiteSearch({
   aiAnswers = true,
   suggestedQuestions,
   popularSearches,
+  direction = 'ltr',
 }: {
   projectId: string;
   open: boolean;
@@ -122,10 +123,11 @@ export function SiteSearch({
   aiAnswers?: boolean;
   suggestedQuestions?: Array<{ question: string; category?: string; icon?: string }> | null;
   popularSearches?: Array<string | { label: string; icon?: string }> | null;
+  direction?: 'ltr' | 'rtl';
 }) {
   const { track } = useSiteAnalytics();
   const t = siteT(lang);
-  const arabic = lang?.toLowerCase().startsWith('ar') ?? false;
+  const isRtl = direction === 'rtl';
 
   // ── Local state ─────────────────────────────────────────────────────────────
   const [query, setQuery] = useState('');
@@ -344,7 +346,7 @@ export function SiteSearch({
         {/* ── Content ─────────────────────────────────────────────────────────── */}
         {showAnswer ? (
           // ── AI Answer panel ──────────────────────────────────────────────────
-          <div className="max-h-[58vh] overflow-y-auto p-4 sm:p-5" dir={arabic ? 'rtl' : 'ltr'}>
+          <div className="max-h-[58vh] overflow-y-auto p-4 sm:p-5" dir={isRtl ? 'rtl' : 'ltr'}>
             {/* Topbar: back + badge + copy */}
             <div className="mb-4 flex items-center justify-between border-b border-border/50 pb-3">
               <Button
@@ -436,7 +438,7 @@ export function SiteSearch({
             {hasAnswer ? (
               <div className="space-y-4">
                 <div className="rounded-xl border border-border/60 bg-muted/15 px-4 py-4">
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground" dir={arabic ? 'rtl' : 'ltr'}>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground" dir={isRtl ? 'rtl' : 'ltr'}>
                     {answer?.answer}
                   </div>
                 </div>

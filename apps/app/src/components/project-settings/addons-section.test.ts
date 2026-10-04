@@ -7,25 +7,25 @@ import type { ProjectAddon } from '@/hooks/api/types';
 import { AddonsSection } from './addons-section';
 
 const translations: Record<string, string> = {
-  'settings.addons.feedback.placement': 'الموضع',
-  'settings.addons.feedback.placement.afterContent': 'بعد محتوى الصفحة',
-  'settings.addons.feedback.placement.afterNavigation': 'بعد روابط السابق والتالي',
-  'settings.addons.feedback.presentation': 'طريقة العرض',
-  'settings.addons.feedback.presentation.compact': 'صف مدمج',
-  'settings.addons.feedback.presentation.card': 'بطاقة',
-  'settings.addons.consent.placement': 'موضع البطاقة',
-  'settings.addons.consent.placement.start': 'أسفل البداية',
-  'settings.addons.consent.placement.center': 'أسفل الوسط',
-  'settings.addons.consent.placement.end': 'أسفل النهاية',
-  'settings.addons.consent.presentation': 'كثافة البطاقة',
-  'settings.addons.consent.presentation.compact': 'مدمجة',
-  'settings.addons.consent.presentation.comfortable': 'مريحة',
-  'settings.addons.consent.buttons': 'تخطيط الإجراءات',
-  'settings.addons.consent.buttons.inline': 'جنبًا إلى جنب',
-  'settings.addons.consent.buttons.stacked': 'مكدّسة',
-  'settings.addons.group.engagement.title': 'تفاعل القرّاء',
-  'settings.addons.group.privacy.title': 'الخصوصية والموافقة',
-  'settings.addons.group.publishing.title': 'سير عمل النشر',
+  'settings.addons.feedback.placement': '配置',
+  'settings.addons.feedback.placement.afterContent': 'コンテンツの後',
+  'settings.addons.feedback.placement.afterNavigation': 'ナビゲーションの後',
+  'settings.addons.feedback.presentation': '表示スタイル',
+  'settings.addons.feedback.presentation.compact': 'コンパクトな行',
+  'settings.addons.feedback.presentation.card': 'カード',
+  'settings.addons.consent.placement': 'バナーの配置',
+  'settings.addons.consent.placement.start': '下部左',
+  'settings.addons.consent.placement.center': '下部中央',
+  'settings.addons.consent.placement.end': '下部右',
+  'settings.addons.consent.presentation': 'バナーの密度',
+  'settings.addons.consent.presentation.compact': 'コンパクト',
+  'settings.addons.consent.presentation.comfortable': 'ゆったり',
+  'settings.addons.consent.buttons': 'ボタンスタイル',
+  'settings.addons.consent.buttons.inline': '横並び',
+  'settings.addons.consent.buttons.stacked': '縦並び',
+  'settings.addons.group.engagement.title': '読者エンゲージメント',
+  'settings.addons.group.privacy.title': 'プライバシーと同意',
+  'settings.addons.group.publishing.title': '公開ワークフロー',
 };
 
 const mutation = { isPending: false, mutate: vi.fn() };
@@ -90,20 +90,20 @@ describe('AddonsSection localized select values', () => {
     vi.clearAllMocks();
   });
 
-  it('renders Arabic labels instead of raw add-on enum tokens', async () => {
+  it('renders localized labels instead of raw add-on enum tokens in RTL', async () => {
     const root = createRoot(container);
     await act(async () => root.render(createElement(AddonsSection, { projectId: 'project-a' })));
 
-    expect(container.textContent).toContain('بعد محتوى الصفحة');
-    expect(container.textContent).toContain('بطاقة');
+    expect(container.textContent).toContain('コンテンツの後');
+    expect(container.textContent).toContain('カード');
     expect(container.textContent).not.toContain('after-content');
 
-    const privacy = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('الخصوصية والموافقة'));
+    const privacy = [...container.querySelectorAll('button')].find((button) => button.textContent?.includes('プライバシーと同意'));
     await act(async () => privacy?.click());
 
-    expect(container.textContent).toContain('أسفل النهاية');
-    expect(container.textContent).toContain('مريحة');
-    expect(container.textContent).toContain('جنبًا إلى جنب');
+    expect(container.textContent).toContain('下部右');
+    expect(container.textContent).toContain('ゆったり');
+    expect(container.textContent).toContain('横並び');
     expect(container.textContent).not.toMatch(/bottom-end|comfortable|inline/);
 
     act(() => root.unmount());

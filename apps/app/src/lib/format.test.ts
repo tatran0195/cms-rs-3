@@ -40,11 +40,10 @@ describe('viewsTrend', () => {
 });
 
 describe('localeTag', () => {
-  it('requests Western digits for Arabic and passes other locales through', () => {
-    expect(localeTag('ar')).toBe('ar-u-nu-latn');
-    expect(localeTag('ar-SA')).toBe('ar-SA-u-nu-latn');
+  it('passes locales through', () => {
     expect(localeTag('en')).toBe('en');
     expect(localeTag('fr')).toBe('fr');
+    expect(localeTag('ja')).toBe('ja');
   });
 });
 
@@ -56,10 +55,5 @@ describe('formatCurrency', () => {
 
   it('keeps cents for fractional amounts', () => {
     expect(formatCurrency('en', 9.5)).toBe('$9.50');
-  });
-
-  it('uses Western digits under the Arabic tag', () => {
-    expect(formatCurrency(localeTag('ar'), 0)).toContain('0');
-    expect(formatCurrency(localeTag('ar'), 0)).not.toMatch(/[٠-٩]/);
   });
 });

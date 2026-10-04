@@ -8,8 +8,8 @@ describe('integration configuration enum labels', () => {
     expect(Object.keys(CLICKHOUSE_MODE_MESSAGE_KEYS)).toEqual(['disabled', 'dual_write', 'shadow_read', 'clickhouse']);
 
     for (const [raw, key] of [...Object.entries(SEARCH_RUNTIME_MESSAGE_KEYS), ...Object.entries(CLICKHOUSE_MODE_MESSAGE_KEYS)]) {
-      expect(translateFn(key, undefined, 'ar')).not.toBe(raw);
-      expect(translateFn(key, undefined, 'ar')).not.toContain('_');
+      expect(translateFn(key, undefined, 'ja')).not.toBe(raw);
+      expect(translateFn(key, undefined, 'ja')).not.toContain('_');
     }
   });
 });

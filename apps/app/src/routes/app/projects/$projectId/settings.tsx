@@ -12,7 +12,6 @@ import {
   Braces,
   ChartNoAxesCombined,
   CirclePlus,
-  Gem,
   GitBranch,
   Globe2,
   Import,
@@ -35,7 +34,6 @@ import { GeneralSection } from '@/components/project-settings/general-section';
 import { LanguagesSection } from '@/components/project-settings/languages-section';
 import { MembersSection } from '@/components/project-settings/members-section';
 import { OpenApiSection } from '@/components/project-settings/openapi-section';
-import { PlanSection } from '@/components/project-settings/plan-section';
 import { SearchSection } from '@/components/project-settings/search-section';
 import { ApiKeysTab } from '@/components/settings/api-keys-tab';
 import { GitTab } from '@/components/settings/git-tab';
@@ -63,7 +61,6 @@ type SectionId =
   | 'contentImport'
   | 'members'
   | 'apiKeys'
-  | 'plan'
   | 'usage'
   | 'integrations'
   | 'notifications'
@@ -92,7 +89,6 @@ const SECTIONS = [
   { id: 'contentImport', group: 'deployment', icon: Import },
   { id: 'members', group: 'workspace', icon: Users },
   { id: 'apiKeys', group: 'workspace', icon: KeyRound },
-  { id: 'plan', group: 'workspace', icon: Gem },
   { id: 'usage', group: 'workspace', icon: ChartNoAxesCombined },
   { id: 'integrations', group: 'workspace', icon: Plug },
   { id: 'notifications', group: 'workspace', icon: Bell },
@@ -217,7 +213,6 @@ function ActiveSection({ project, section, projectId }: { project: Project; sect
     contentImport: <ImportTab key={`import-${projectId}`} projectId={projectId} />,
     members: <MembersSection key={`members-${projectId}`} projectId={projectId} />,
     apiKeys: <ApiKeysTab key={`api-keys-${projectId}`} projectId={projectId} />,
-    plan: <PlanSection key={`plan-${project.id}`} project={project} />,
     usage: <UsageTab key={`usage-${project.id}`} project={project} />,
     integrations: <IntegrationsTab key={`integrations-${projectId}`} projectId={projectId} project={project} />,
     notifications: <NotificationsTab key={`notifications-${projectId}`} projectId={projectId} />,

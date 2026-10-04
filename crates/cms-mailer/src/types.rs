@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 pub enum EmailLanguage {
     #[default]
     En,
-    Ar,
     Ja,
     ZhCn,
     Custom(String),
@@ -15,7 +14,6 @@ impl EmailLanguage {
     pub fn as_str(&self) -> &str {
         match self {
             Self::En => "en",
-            Self::Ar => "ar",
             Self::Ja => "ja",
             Self::ZhCn => "zh-CN",
             Self::Custom(s) => s.as_str(),
@@ -24,9 +22,7 @@ impl EmailLanguage {
 
     pub fn parse_locale(s: &str) -> Self {
         let normalized = s.trim().to_lowercase();
-        if normalized == "ar" || normalized.starts_with("ar-") {
-            Self::Ar
-        } else if normalized == "ja" || normalized.starts_with("ja-") {
+        if normalized == "ja" || normalized.starts_with("ja-") {
             Self::Ja
         } else if normalized == "zh-cn" || normalized == "zh" || normalized.starts_with("zh-") {
             Self::ZhCn
@@ -39,11 +35,10 @@ impl EmailLanguage {
 
     pub fn direction(&self) -> Direction {
         match self {
-            Self::Ar => Direction::Rtl,
             Self::Custom(s)
-                if s.to_lowercase().starts_with("ar")
-                    || s.to_lowercase().starts_with("he")
-                    || s.to_lowercase().starts_with("fa") =>
+                if s.to_lowercase().starts_with("he")
+                    || s.to_lowercase().starts_with("fa")
+                    || s.to_lowercase().starts_with("ur") =>
             {
                 Direction::Rtl
             }
