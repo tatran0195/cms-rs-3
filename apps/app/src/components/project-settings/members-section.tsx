@@ -1,24 +1,18 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { useConfirm } from "@cms/design-system/components/ui/confirm";
-import { FieldError } from "@cms/design-system/components/ui/form-field";
-import { Input } from "@cms/design-system/components/ui/input";
-import { Label } from "@cms/design-system/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@cms/design-system/components/ui/select";
-import { Skeleton } from "@cms/design-system/components/ui/skeleton";
-import type { MessageKey } from "@cms/i18n";
-import { useT } from "@cms/i18n/react";
-import { canAdminister } from "@cms/shared/rbac";
-import { useForm } from "@tanstack/react-form";
-import { Check, Copy, Crown, Link2, Mail, Trash2, Users } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { GradientAvatar } from "@/components/settings/section";
+import { Button } from '@cms/design-system/components/ui/button';
+import { useConfirm } from '@cms/design-system/components/ui/confirm';
+import { FieldError } from '@cms/design-system/components/ui/form-field';
+import { Input } from '@cms/design-system/components/ui/input';
+import { Label } from '@cms/design-system/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
+import { Skeleton } from '@cms/design-system/components/ui/skeleton';
+import type { MessageKey } from '@cms/i18n';
+import { useT } from '@cms/i18n/react';
+import { canAdminister } from '@cms/shared/rbac';
+import { useForm } from '@tanstack/react-form';
+import { Check, Copy, Crown, Link2, Mail, Trash2, Users } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { GradientAvatar } from '@/components/settings/section';
 import {
   useCancelProjectInvitation,
   useInviteProjectMember,
@@ -26,11 +20,11 @@ import {
   useRemoveProjectMember,
   useTransferProjectOwnership,
   useUpdateProjectMemberRole,
-} from "@/hooks/api";
-import { email as validateEmail } from "@/lib/form";
-import { copyToClipboard, inviteAcceptUrl } from "@/lib/invitations";
-import { useSession } from "@/services/auth-client";
-import { SectionHeader } from "./shared";
+} from '@/hooks/api';
+import { email as validateEmail } from '@/lib/form';
+import { copyToClipboard, inviteAcceptUrl } from '@/lib/invitations';
+import { useSession } from '@/services/auth-client';
+import { SectionHeader } from './shared';
 
 /** A small button that copies an invite link to the clipboard with feedback. */
 function CopyLinkButton({ link, label }: { link: string; label: string }) {
@@ -46,10 +40,10 @@ function CopyLinkButton({ link, label }: { link: string; label: string }) {
         const ok = await copyToClipboard(link);
         if (ok) {
           setCopied(true);
-          toast.success(t("settings.members.linkCopied"));
+          toast.success(t('settings.members.linkCopied'));
           setTimeout(() => setCopied(false), 1500);
         } else {
-          toast.error(t("settings.members.copyFailed"));
+          toast.error(t('settings.members.copyFailed'));
         }
       }}
     >
@@ -60,11 +54,11 @@ function CopyLinkButton({ link, label }: { link: string; label: string }) {
 
 /** Grantable roles — `owner` is intentionally absent: there is exactly one
  *  owner, and ownership only moves via the transfer-ownership flow. */
-type AssignableRole = "admin" | "member";
+type AssignableRole = 'admin' | 'member';
 const ROLE_LABEL_KEYS: Record<string, MessageKey> = {
-  owner: "settings.members.role.owner",
-  admin: "settings.members.role.admin",
-  member: "settings.members.role.member",
+  owner: 'settings.members.role.owner',
+  admin: 'settings.members.role.admin',
+  member: 'settings.members.role.member',
 };
 
 interface ProjectMemberItem {
@@ -100,11 +94,9 @@ export function MembersSection({ projectId }: { projectId: string }) {
   const invitations = data?.invitations ?? [];
   // The transfer action is only offered to the current owner (server-enforced too).
   const currentUserId = session?.user?.id;
-  const currentMember = members.find(
-    (member) => member.user.id === currentUserId,
-  );
-  const isCurrentOwner = currentMember?.role === "owner";
-  const canManageMembers = canAdminister(currentMember?.role ?? "");
+  const currentMember = members.find((member) => member.user.id === currentUserId);
+  const isCurrentOwner = currentMember?.role === 'owner';
+  const canManageMembers = canAdminister(currentMember?.role ?? '');
   const [lastInvite, setLastInvite] = useState<{
     email: string;
     link: string;
@@ -112,12 +104,12 @@ export function MembersSection({ projectId }: { projectId: string }) {
   // No `owner` option: invitations and role changes can never grant ownership.
   // One array feeds both the trigger label (`items`) and the rendered options so they can't drift.
   const roleOptions = [
-    { value: "member", label: t("settings.members.role.member") },
-    { value: "admin", label: t("settings.members.role.admin") },
+    { value: 'member', label: t('settings.members.role.member') },
+    { value: 'admin', label: t('settings.members.role.admin') },
   ] as const satisfies ReadonlyArray<{ value: AssignableRole; label: string }>;
 
   const form = useForm({
-    defaultValues: { email: "", role: "member" as AssignableRole },
+    defaultValues: { email: '', role: 'member' as AssignableRole },
     onSubmit: async ({ value }) => {
       if (!canManageMembers) return;
       const invited = value.email.trim();
@@ -130,18 +122,12 @@ export function MembersSection({ projectId }: { projectId: string }) {
                 email: invited,
                 link: inviteAcceptUrl(created.id),
               });
-              toast.success(
-                t("settings.members.inviteCreated", { email: invited }),
-              );
+              toast.success(t('settings.members.inviteCreated', { email: invited }));
               form.reset();
               resolve();
             },
             onError: (error) => {
-              toast.error(
-                error instanceof Error
-                  ? error.message
-                  : t("settings.members.toast.inviteError"),
-              );
+              toast.error(error instanceof Error ? error.message : t('settings.members.toast.inviteError'));
               resolve();
             },
           },
@@ -152,11 +138,7 @@ export function MembersSection({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <SectionHeader
-        icon={<Users className="size-4" />}
-        title={t("settings.members.title")}
-        description={t("settings.members.description")}
-      />
+      <SectionHeader icon={<Users className="size-4" />} title={t('settings.members.title')} description={t('settings.members.description')} />
 
       {canManageMembers && (
         <form
@@ -166,17 +148,11 @@ export function MembersSection({ projectId }: { projectId: string }) {
             form.handleSubmit();
           }}
         >
-          <form.Field
-            name="email"
-            validators={{ onChange: ({ value }) => validateEmail(value, t) }}
-          >
+          <form.Field name="email" validators={{ onChange: ({ value }) => validateEmail(value, t) }}>
             {(field) => (
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <Label
-                  className="font-medium text-[13px]"
-                  htmlFor="project-member-email"
-                >
-                  {t("settings.members.inviteByEmail")}
+                <Label className="font-medium text-[13px]" htmlFor="project-member-email">
+                  {t('settings.members.inviteByEmail')}
                 </Label>
                 <Input
                   className="bg-background"
@@ -194,15 +170,8 @@ export function MembersSection({ projectId }: { projectId: string }) {
           <div className="flex w-full items-end gap-2.5 sm:w-auto">
             <form.Field name="role">
               {(field) => (
-                <Select
-                  items={roleOptions}
-                  onValueChange={(v) => field.handleChange(v ?? "member")}
-                  value={field.state.value}
-                >
-                  <SelectTrigger
-                    aria-label={t("settings.members.roleLabel")}
-                    className="min-w-0 flex-1 bg-background sm:w-32"
-                  >
+                <Select items={roleOptions} onValueChange={(v) => field.handleChange(v ?? 'member')} value={field.state.value}>
+                  <SelectTrigger aria-label={t('settings.members.roleLabel')} className="min-w-0 flex-1 bg-background sm:w-32">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -215,18 +184,10 @@ export function MembersSection({ projectId }: { projectId: string }) {
                 </Select>
               )}
             </form.Field>
-            <form.Subscribe
-              selector={(state) =>
-                [state.isSubmitting, state.values.email] as const
-              }
-            >
+            <form.Subscribe selector={(state) => [state.isSubmitting, state.values.email] as const}>
               {([isSubmitting, emailValue]) => (
-                <Button
-                  className="flex-1 sm:flex-none"
-                  disabled={isSubmitting || !emailValue.trim()}
-                  type="submit"
-                >
-                  <Mail className="size-4" /> {t("settings.members.invite")}
+                <Button className="flex-1 sm:flex-none" disabled={isSubmitting || !emailValue.trim()} type="submit">
+                  <Mail className="size-4" /> {t('settings.members.invite')}
                 </Button>
               )}
             </form.Subscribe>
@@ -237,20 +198,14 @@ export function MembersSection({ projectId }: { projectId: string }) {
       {canManageMembers && lastInvite ? (
         <div className="mb-5 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="font-medium text-[13px]">
-              {t("settings.members.inviteCreated", { email: lastInvite.email })}
-            </span>
-            <Button
-              onClick={() => setLastInvite(null)}
-              size="sm"
-              variant="ghost"
-            >
-              {t("settings.members.dismiss")}
+            <span className="font-medium text-[13px]">{t('settings.members.inviteCreated', { email: lastInvite.email })}</span>
+            <Button onClick={() => setLastInvite(null)} size="sm" variant="ghost">
+              {t('settings.members.dismiss')}
             </Button>
           </div>
           <div className="flex items-center gap-2">
             <Input
-              aria-label={t("settings.members.copyLink")}
+              aria-label={t('settings.members.copyLink')}
               className="flex-1 font-mono text-sm"
               onFocus={(event) => event.currentTarget.select()}
               readOnly
@@ -259,29 +214,21 @@ export function MembersSection({ projectId }: { projectId: string }) {
             <Button
               onClick={async () => {
                 const ok = await copyToClipboard(lastInvite.link);
-                toast[ok ? "success" : "error"](
-                  t(
-                    ok
-                      ? "settings.members.linkCopied"
-                      : "settings.members.copyFailed",
-                  ),
-                );
+                toast[ok ? 'success' : 'error'](t(ok ? 'settings.members.linkCopied' : 'settings.members.copyFailed'));
               }}
               type="button"
             >
-              <Copy className="size-4" /> {t("settings.members.copyLink")}
+              <Copy className="size-4" /> {t('settings.members.copyLink')}
             </Button>
           </div>
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            {t("settings.members.inviteLinkHint")}
-          </p>
+          <p className="mt-2 text-[12px] text-muted-foreground">{t('settings.members.inviteLinkHint')}</p>
         </div>
       ) : null}
 
       <div className="mb-3 font-mono text-[12px] text-muted-foreground">
         {members.length === 1
-          ? t("settings.members.count.one", { count: members.length })
-          : t("settings.members.count.other", { count: members.length })}
+          ? t('settings.members.count.one', { count: members.length })
+          : t('settings.members.count.other', { count: members.length })}
       </div>
 
       {isPending ? (
@@ -289,55 +236,38 @@ export function MembersSection({ projectId }: { projectId: string }) {
       ) : (
         <>
           {members.map((member) => (
-            <div
-              className="flex items-center gap-3 border-border border-t py-3"
-              key={member.id}
-            >
-              <GradientAvatar
-                className="size-8 text-[12px]"
-                name={member.user.name}
-              />
+            <div className="flex items-center gap-3 border-border border-t py-3" key={member.id}>
+              <GradientAvatar className="size-8 text-[12px]" name={member.user.name} />
               <div className="min-w-0 leading-tight">
-                <div className="truncate font-medium text-[13.5px]">
-                  {member.user.name}
-                </div>
-                <div className="truncate text-[12px] text-muted-foreground">
-                  {member.user.email}
-                </div>
+                <div className="truncate font-medium text-[13.5px]">{member.user.name}</div>
+                <div className="truncate text-[12px] text-muted-foreground">{member.user.email}</div>
               </div>
               <div className="ms-auto flex items-center gap-1.5">
-                {member.role === "owner" ? (
+                {member.role === 'owner' ? (
                   // The single owner: a badge, never a role select — ownership
                   // only moves via the explicit transfer action below.
                   <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 font-medium text-[12px] text-primary">
                     <Crown className="size-3.5" />
-                    {t("settings.members.role.owner")}
+                    {t('settings.members.role.owner')}
                   </span>
                 ) : !canManageMembers ? (
-                  <span className="text-muted-foreground text-sm">
-                    {t(
-                      ROLE_LABEL_KEYS[member.role] ??
-                        "settings.members.role.member",
-                    )}
-                  </span>
+                  <span className="text-muted-foreground text-sm">{t(ROLE_LABEL_KEYS[member.role] ?? 'settings.members.role.member')}</span>
                 ) : (
                   <>
-                    {isCurrentOwner && member.role === "admin" ? (
+                    {isCurrentOwner && member.role === 'admin' ? (
                       <Button
                         size="icon-sm"
                         variant="ghost"
-                        aria-label={t("settings.members.transferOwnership")}
-                        title={t("settings.members.transferOwnership")}
+                        aria-label={t('settings.members.transferOwnership')}
+                        title={t('settings.members.transferOwnership')}
                         disabled={transfer.isPending}
                         onClick={async () => {
                           const ok = await confirm({
-                            title: t("settings.members.transferOwnership"),
-                            description: t("settings.members.transferConfirm", {
+                            title: t('settings.members.transferOwnership'),
+                            description: t('settings.members.transferConfirm', {
                               name: member.user.name || member.user.email,
                             }),
-                            confirmLabel: t(
-                              "settings.members.transferOwnership",
-                            ),
+                            confirmLabel: t('settings.members.transferOwnership'),
                             destructive: true,
                           });
                           if (!ok) {
@@ -346,18 +276,8 @@ export function MembersSection({ projectId }: { projectId: string }) {
                           transfer.mutate(
                             { memberId: member.id },
                             {
-                              onSuccess: () =>
-                                toast.success(
-                                  t(
-                                    "settings.members.toast.ownershipTransferred",
-                                  ),
-                                ),
-                              onError: (error) =>
-                                toast.error(
-                                  error instanceof Error
-                                    ? error.message
-                                    : t("settings.members.toast.transferError"),
-                                ),
+                              onSuccess: () => toast.success(t('settings.members.toast.ownershipTransferred')),
+                              onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.members.toast.transferError')),
                             },
                           );
                         }}
@@ -372,28 +292,16 @@ export function MembersSection({ projectId }: { projectId: string }) {
                         updateRole.mutate(
                           {
                             id: member.id,
-                            body: { role: (v ?? "member") as AssignableRole },
+                            body: { role: (v ?? 'member') as AssignableRole },
                           },
                           {
-                            onSuccess: () =>
-                              toast.success(
-                                t("settings.members.toast.roleUpdated"),
-                              ),
-                            onError: (error) =>
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : t("settings.members.toast.roleError"),
-                              ),
+                            onSuccess: () => toast.success(t('settings.members.toast.roleUpdated')),
+                            onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.members.toast.roleError')),
                           },
                         )
                       }
                     >
-                      <SelectTrigger
-                        aria-label={t("settings.members.roleLabel")}
-                        className="w-28"
-                        size="sm"
-                      >
+                      <SelectTrigger aria-label={t('settings.members.roleLabel')} className="w-28" size="sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -407,18 +315,12 @@ export function MembersSection({ projectId }: { projectId: string }) {
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      aria-label={t("settings.members.remove")}
-                      title={t("settings.members.remove")}
+                      aria-label={t('settings.members.remove')}
+                      title={t('settings.members.remove')}
                       onClick={() =>
                         remove.mutate(member.id, {
-                          onSuccess: () =>
-                            toast.success(t("settings.members.toast.removed")),
-                          onError: (error) =>
-                            toast.error(
-                              error instanceof Error
-                                ? error.message
-                                : t("settings.members.toast.removeError"),
-                            ),
+                          onSuccess: () => toast.success(t('settings.members.toast.removed')),
+                          onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.members.toast.removeError')),
                         })
                       }
                     >
@@ -429,63 +331,38 @@ export function MembersSection({ projectId }: { projectId: string }) {
               </div>
             </div>
           ))}
-          {members.length === 0 ? (
-            <p className="border-border border-t py-3 text-muted-foreground text-sm">
-              {t("settings.members.empty")}
-            </p>
-          ) : null}
+          {members.length === 0 ? <p className="border-border border-t py-3 text-muted-foreground text-sm">{t('settings.members.empty')}</p> : null}
 
           {invitations.length > 0 ? (
             <>
-              <div className="mt-6 mb-1 font-mono text-[12px] text-muted-foreground">
-                {t("settings.members.pendingInvitations")}
-              </div>
+              <div className="mt-6 mb-1 font-mono text-[12px] text-muted-foreground">{t('settings.members.pendingInvitations')}</div>
               {invitations.map((inv) => (
-                <div
-                  className="flex items-center gap-3 border-border border-t py-3"
-                  key={inv.id}
-                >
+                <div className="flex items-center gap-3 border-border border-t py-3" key={inv.id}>
                   <div className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground">
                     <Mail className="size-4" />
                   </div>
                   <div className="min-w-0 leading-tight">
-                    <div className="truncate font-medium text-[13.5px]">
-                      {inv.email}
-                    </div>
+                    <div className="truncate font-medium text-[13.5px]">{inv.email}</div>
                     <div className="text-[12px] text-muted-foreground">
-                      {t("settings.members.invitedAs", {
-                        role: t(
-                          ROLE_LABEL_KEYS[inv.role ?? "member"] ??
-                            "settings.members.role.member",
-                        ),
+                      {t('settings.members.invitedAs', {
+                        role: t(ROLE_LABEL_KEYS[inv.role ?? 'member'] ?? 'settings.members.role.member'),
                       })}
                     </div>
                   </div>
                   {canManageMembers && (
                     <div className="ms-auto flex items-center gap-1">
-                      <CopyLinkButton
-                        label={t("settings.members.copyInviteLink")}
-                        link={inviteAcceptUrl(inv.id)}
-                      />
+                      <CopyLinkButton label={t('settings.members.copyInviteLink')} link={inviteAcceptUrl(inv.id)} />
                       <Button
                         onClick={() =>
                           cancelInvite.mutate(inv.id, {
-                            onSuccess: () =>
-                              toast.success(
-                                t("settings.members.toast.invitationRevoked"),
-                              ),
-                            onError: (error) =>
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : t("settings.members.toast.revokeError"),
-                              ),
+                            onSuccess: () => toast.success(t('settings.members.toast.invitationRevoked')),
+                            onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.members.toast.revokeError')),
                           })
                         }
                         size="icon-sm"
                         variant="ghost"
-                        aria-label={t("settings.members.revokeInvite")}
-                        title={t("settings.members.revokeInvite")}
+                        aria-label={t('settings.members.revokeInvite')}
+                        title={t('settings.members.revokeInvite')}
                       >
                         <Trash2 className="size-4" />
                       </Button>

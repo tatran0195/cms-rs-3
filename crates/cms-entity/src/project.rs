@@ -40,8 +40,12 @@ pub struct CreateProjectRequest {
     pub description: Option<String>,
     #[serde(default)]
     pub icon: Option<String>,
-    #[serde(alias = "isPublic", default)]
+    #[serde(alias = "isPublic", default = "default_is_public")]
     pub is_public: bool,
+}
+
+fn default_is_public() -> bool {
+    true
 }
 
 /// Project update request

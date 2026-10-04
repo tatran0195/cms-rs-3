@@ -10,30 +10,17 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Button } from "@cms/design-system/components/ui/button";
-import { cn } from "@cms/design-system/lib/utils";
-import { useT } from "@cms/i18n/react";
-import {
-  ChevronRight,
-  FileText,
-  Folder,
-  GripVertical,
-  Plus,
-  Settings2,
-} from "lucide-react";
-import { memo, useMemo, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { hasIcon, PageIcon } from "@/components/site/page-icon";
-import type { PageNode } from "@/hooks/api";
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Button } from '@cms/design-system/components/ui/button';
+import { cn } from '@cms/design-system/lib/utils';
+import { useT } from '@cms/i18n/react';
+import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
+import { memo, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { hasIcon, PageIcon } from '@/components/site/page-icon';
+import type { PageNode } from '@/hooks/api';
 
 /**
  * A Notion-style page tree with @dnd-kit: drag the handle to reorder, drag
@@ -56,7 +43,7 @@ export interface Flat {
 export function flatten(pages: PageNode[]): Flat[] {
   const byParent = new Map<string, PageNode[]>();
   for (const page of pages) {
-    const key = page.parentId ?? "__root";
+    const key = page.parentId ?? '__root';
     const list = byParent.get(key) ?? [];
     list.push(page);
     byParent.set(key, list);
@@ -66,7 +53,7 @@ export function flatten(pages: PageNode[]): Flat[] {
   }
   const out: Flat[] = [];
   const walk = (parentId: string | null, depth: number) => {
-    for (const node of byParent.get(parentId ?? "__root") ?? []) {
+    for (const node of byParent.get(parentId ?? '__root') ?? []) {
       out.push({ id: node.id, parentId, depth, node });
       walk(node.id, depth + 1);
     }
@@ -95,10 +82,7 @@ export function hideCollapsed(items: Flat[], collapsed: Set<string>): Flat[] {
   }
   const hidden = new Set<string>();
   return items.filter((item) => {
-    if (
-      item.parentId &&
-      (collapsed.has(item.parentId) || hidden.has(item.parentId))
-    ) {
+    if (item.parentId && (collapsed.has(item.parentId) || hidden.has(item.parentId))) {
       hidden.add(item.id);
       return false;
     }
@@ -106,11 +90,10 @@ export function hideCollapsed(items: Flat[], collapsed: Set<string>): Flat[] {
   });
 }
 
-const collapsedStoreKey = (treeKey: string) =>
-  `cms.editor.collapsedGroups:${treeKey}`;
+const collapsedStoreKey = (treeKey: string) => `cms.editor.collapsedGroups:${treeKey}`;
 
 function readCollapsed(treeKey?: string): Set<string> {
-  if (typeof window === "undefined" || !treeKey) {
+  if (typeof window === 'undefined' || !treeKey) {
     return new Set();
   }
   try {
@@ -126,13 +109,7 @@ export interface Projection {
   parentId: string | null;
 }
 
-export function getProjection(
-  items: Flat[],
-  activeId: string,
-  overId: string,
-  dragOffset: number,
-  indent: number,
-): Projection {
+export function getProjection(items: Flat[], activeId: string, overId: string, dragOffset: number, indent: number): Projection {
   const overIndex = items.findIndex((i) => i.id === overId);
   const activeIndex = items.findIndex((i) => i.id === activeId);
   if (overIndex < 0 || activeIndex < 0) {
@@ -147,12 +124,7 @@ export function getProjection(
   const projectedDepth = (activeItem?.depth ?? 0) + dragDepth;
   const maxDepth = previousItem ? previousItem.depth + 1 : 0;
   const minDepth = nextItem ? nextItem.depth : 0;
-  const depth =
-    projectedDepth > maxDepth
-      ? maxDepth
-      : projectedDepth < minDepth
-        ? minDepth
-        : projectedDepth;
+  const depth = projectedDepth > maxDepth ? maxDepth : projectedDepth < minDepth ? minDepth : projectedDepth;
 
   const parentId = (() => {
     if (depth === 0 || !previousItem) {
@@ -240,15 +212,11 @@ export function reorderTree({
   };
 
   const activeDescendantSet = getDescendantSet(activeId);
-  const activeDescendants = flatFull.filter((item) =>
-    activeDescendantSet.has(item.id),
-  );
+  const activeDescendants = flatFull.filter((item) => activeDescendantSet.has(item.id));
 
   // Other hidden descendants (e.g. collapsed groups) that were not in visible flat
   const flatIdSet = new Set(flat.map((f) => f.id));
-  const otherHiddenItems = flatFull.filter(
-    (item) => !flatIdSet.has(item.id) && !activeDescendantSet.has(item.id),
-  );
+  const otherHiddenItems = flatFull.filter((item) => !flatIdSet.has(item.id) && !activeDescendantSet.has(item.id));
 
   // Build the complete ordered list
   const fullOrdered: Array<{ id: string; parentId: string | null }> = [];
@@ -278,9 +246,7 @@ export function reorderTree({
 
     // Attach any collapsed/hidden descendants for this item
     const itemDescendantSet = getDescendantSet(item.id);
-    const hiddenDescendants = otherHiddenItems.filter(
-      (h) => !inserted.has(h.id) && itemDescendantSet.has(h.id),
-    );
+    const hiddenDescendants = otherHiddenItems.filter((h) => !inserted.has(h.id) && itemDescendantSet.has(h.id));
     for (const h of hiddenDescendants) {
       fullOrdered.push({
         id: h.id,
@@ -304,7 +270,7 @@ export function reorderTree({
   // Assign 0-based positions per parent
   const posByParent = new Map<string, number>();
   return fullOrdered.map((it) => {
-    const key = it.parentId ?? "__root";
+    const key = it.parentId ?? '__root';
     const position = posByParent.get(key) ?? 0;
     posByParent.set(key, position + 1);
     return { id: it.id, parentId: it.parentId, position };
@@ -325,9 +291,7 @@ export function SortablePageTree({
   onSelect: (id: string) => void;
   onAddChild: (parentId: string) => void;
   onSettings: (id: string) => void;
-  onMove: (
-    items: Array<{ id: string; parentId: string | null; position: number }>,
-  ) => void;
+  onMove: (items: Array<{ id: string; parentId: string | null; position: number }>) => void;
   /** Namespace for persisting which groups are collapsed (e.g. the language id). */
   treeKey?: string;
 }) {
@@ -336,9 +300,7 @@ export function SortablePageTree({
   const [offsetLeft, setOffsetLeft] = useState(0);
 
   // Which GROUP rows are collapsed (their children hidden). Persisted per tree.
-  const [collapsed, setCollapsed] = useState<Set<string>>(() =>
-    readCollapsed(treeKey),
-  );
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => readCollapsed(treeKey));
   const toggleCollapse = (id: string) => {
     const next = new Set(collapsed);
     if (next.has(id)) {
@@ -349,10 +311,7 @@ export function SortablePageTree({
     setCollapsed(next);
     if (treeKey) {
       try {
-        window.localStorage.setItem(
-          collapsedStoreKey(treeKey),
-          JSON.stringify([...next]),
-        );
+        window.localStorage.setItem(collapsedStoreKey(treeKey), JSON.stringify([...next]));
       } catch {
         // ignore storage failures (private mode etc.)
       }
@@ -371,20 +330,11 @@ export function SortablePageTree({
     return set;
   }, [flatFull]);
   // Hide collapsed groups' descendants, then (while dragging) the dragged subtree.
-  const visible = useMemo(
-    () => hideCollapsed(flatFull, collapsed),
-    [flatFull, collapsed],
-  );
-  const flat = useMemo(
-    () => (draggingId ? removeDescendants(visible, draggingId) : visible),
-    [visible, draggingId],
-  );
+  const visible = useMemo(() => hideCollapsed(flatFull, collapsed), [flatFull, collapsed]);
+  const flat = useMemo(() => (draggingId ? removeDescendants(visible, draggingId) : visible), [visible, draggingId]);
   const ids = flat.map((f) => f.id);
 
-  const projection =
-    draggingId && overId
-      ? getProjection(flat, draggingId, overId, offsetLeft, INDENT)
-      : null;
+  const projection = draggingId && overId ? getProjection(flat, draggingId, overId, offsetLeft, INDENT) : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -404,16 +354,13 @@ export function SortablePageTree({
     setOverId(String(active.id));
   };
   const onDragMove = ({ delta }: DragMoveEvent) => setOffsetLeft(delta.x);
-  const onDragOver = ({ over }: DragOverEvent) =>
-    setOverId(over ? String(over.id) : null);
+  const onDragOver = ({ over }: DragOverEvent) => setOverId(over ? String(over.id) : null);
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     const finalOverId = over ? String(over.id) : null;
     const finalActiveId = String(active.id);
 
     // Compute fresh projection directly using actual drop targets to avoid stale render timing
-    const currentProjection = finalOverId
-      ? getProjection(flat, finalActiveId, finalOverId, offsetLeft, INDENT)
-      : null;
+    const currentProjection = finalOverId ? getProjection(flat, finalActiveId, finalOverId, offsetLeft, INDENT) : null;
 
     reset();
 
@@ -434,9 +381,7 @@ export function SortablePageTree({
     }
   };
 
-  const draggingNode = draggingId
-    ? flatFull.find((f) => f.id === draggingId)?.node
-    : null;
+  const draggingNode = draggingId ? flatFull.find((f) => f.id === draggingId)?.node : null;
 
   // Windowed Virtualization using @tanstack/react-virtual for scaling to 10,000+ items
   const parentRef = useRef<HTMLDivElement>(null);
@@ -470,15 +415,12 @@ export function SortablePageTree({
       onDragCancel={reset}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div
-          ref={parentRef}
-          className="relative max-h-[calc(100vh-14rem)] w-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]"
-        >
+        <div ref={parentRef} className="relative max-h-[calc(100vh-14rem)] w-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
           <div
             style={{
               height: `${virtualizer.getTotalSize() || flat.length * 32}px`,
-              position: "relative",
-              width: "100%",
+              position: 'relative',
+              width: '100%',
             }}
           >
             {displayItems.map((virtualRow) => {
@@ -488,10 +430,10 @@ export function SortablePageTree({
                 <div
                   key={item.id}
                   style={{
-                    position: "absolute",
+                    position: 'absolute',
                     top: 0,
                     left: 0,
-                    width: "100%",
+                    width: '100%',
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
@@ -499,11 +441,7 @@ export function SortablePageTree({
                   <SortableRow
                     id={item.id}
                     node={item.node}
-                    depth={
-                      item.id === draggingId && projection
-                        ? projection.depth
-                        : item.depth
-                    }
+                    depth={item.id === draggingId && projection ? projection.depth : item.depth}
                     active={activeId === item.id}
                     hasChildren={parentIds.has(item.id)}
                     collapsed={collapsed.has(item.id)}
@@ -518,11 +456,7 @@ export function SortablePageTree({
           </div>
         </div>
       </SortableContext>
-      <DragOverlay>
-        {draggingNode ? (
-          <RowPresentation node={draggingNode} depth={0} overlay />
-        ) : null}
-      </DragOverlay>
+      <DragOverlay>{draggingNode ? <RowPresentation node={draggingNode} depth={0} overlay /> : null}</DragOverlay>
     </DndContext>
   );
 }
@@ -550,26 +484,15 @@ const SortableRow = memo(function SortableRow({
   onAddChild: (parentId: string) => void;
   onSettings: (id: string) => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    contentVisibility: "auto" as const,
-    containIntrinsicSize: "0 32px",
+    contentVisibility: 'auto' as const,
+    containIntrinsicSize: '0 32px',
   };
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(isDragging && "opacity-40")}
-    >
+    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-40')}>
       <RowPresentation
         node={node}
         depth={depth}
@@ -612,24 +535,22 @@ const RowPresentation = memo(function RowPresentation({
   handleProps?: Record<string, unknown>;
 }) {
   const t = useT();
-  const isGroup = node.kind === "GROUP";
+  const isGroup = node.kind === 'GROUP';
   const label = node.config?.sidebarTitle?.trim() || node.title;
   const collapsible = isGroup && hasChildren && Boolean(onToggleCollapse);
   return (
     <div
       className={cn(
-        "group/row flex items-center gap-1 rounded-md pe-1",
-        overlay && "bg-card shadow-lg ring-1 ring-border",
-        !overlay && active && "bg-primary/10 font-medium text-primary",
-        !overlay &&
-          !active &&
-          "text-foreground/80 hover:bg-muted hover:text-foreground",
+        'group/row flex items-center gap-1 rounded-md pe-1',
+        overlay && 'bg-card shadow-lg ring-1 ring-border',
+        !overlay && active && 'bg-primary/10 font-medium text-primary',
+        !overlay && !active && 'text-foreground/80 hover:bg-muted hover:text-foreground',
       )}
       style={{ marginInlineStart: depth * INDENT }}
     >
       <button
         type="button"
-        aria-label={t("editor.dragToReorder")}
+        aria-label={t('editor.dragToReorder')}
         className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing touch-none select-none"
         {...handleProps}
       >
@@ -640,7 +561,7 @@ const RowPresentation = memo(function RowPresentation({
       {collapsible ? (
         <button
           type="button"
-          aria-label={collapsed ? t("editor.expand") : t("editor.collapse")}
+          aria-label={collapsed ? t('editor.expand') : t('editor.collapse')}
           aria-expanded={!collapsed}
           className="flex size-4 shrink-0 cursor-pointer items-center justify-center text-muted-foreground hover:text-foreground"
           onClick={(event) => {
@@ -650,12 +571,7 @@ const RowPresentation = memo(function RowPresentation({
         >
           {/* expanded → points down (both dirs); collapsed → points to the reading
               start (right in LTR, left in RTL). */}
-          <ChevronRight
-            className={cn(
-              "size-3.5 transition-transform",
-              collapsed ? "rtl:rotate-180" : "rotate-90",
-            )}
-          />
+          <ChevronRight className={cn('size-3.5 transition-transform', collapsed ? 'rtl:rotate-180' : 'rotate-90')} />
         </button>
       ) : (
         <span className="size-4 shrink-0" aria-hidden />
@@ -664,32 +580,16 @@ const RowPresentation = memo(function RowPresentation({
         type="button"
         onClick={() => onSelect?.(node.id)}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-2 py-1.5 text-start text-sm",
-          isGroup && "font-semibold text-[11px] uppercase tracking-wide",
+          'flex min-w-0 flex-1 items-center gap-2 py-1.5 text-start text-sm',
+          isGroup && 'font-semibold text-[11px] uppercase tracking-wide',
         )}
       >
         {isGroup ? (
-          <Folder
-            className={cn(
-              "size-3.5 shrink-0",
-              active ? "text-primary" : "text-muted-foreground",
-            )}
-          />
+          <Folder className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
         ) : hasIcon(node.icon) ? (
-          <PageIcon
-            name={node.icon}
-            className={cn(
-              "size-3.5 shrink-0",
-              active ? "text-primary" : "text-muted-foreground",
-            )}
-          />
+          <PageIcon name={node.icon} className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
         ) : (
-          <FileText
-            className={cn(
-              "size-3.5 shrink-0",
-              active ? "text-primary" : "text-muted-foreground",
-            )}
-          />
+          <FileText className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
         )}
         <span className="truncate">{label}</span>
       </button>
@@ -699,8 +599,8 @@ const RowPresentation = memo(function RowPresentation({
           variant="ghost"
           className="shrink-0 cursor-pointer opacity-0 group-hover/row:opacity-100"
           onClick={() => onSettings(node.id)}
-          title={t("editor.pageSettings.title")}
-          aria-label={t("editor.pageSettings.title")}
+          title={t('editor.pageSettings.title')}
+          aria-label={t('editor.pageSettings.title')}
         >
           <Settings2 className="size-3" />
         </Button>
@@ -711,8 +611,8 @@ const RowPresentation = memo(function RowPresentation({
           variant="ghost"
           className="shrink-0 cursor-pointer opacity-0 group-hover/row:opacity-100"
           onClick={() => onAddChild(node.id)}
-          title={t("editor.newPage")}
-          aria-label={t("editor.newPage")}
+          title={t('editor.newPage')}
+          aria-label={t('editor.newPage')}
         >
           <Plus className="size-3" />
         </Button>

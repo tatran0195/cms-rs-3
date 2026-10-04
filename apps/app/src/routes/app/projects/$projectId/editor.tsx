@@ -1,19 +1,12 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { useConfirm } from "@cms/design-system/components/ui/confirm";
-import { ScrollArea } from "@cms/design-system/components/ui/scroll-area";
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from "@cms/design-system/components/ui/segmented-control";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@cms/design-system/components/ui/tabs";
-import { cn } from "@cms/design-system/lib/utils";
-import { useT } from "@cms/i18n/react";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from '@cms/design-system/components/ui/button';
+import { useConfirm } from '@cms/design-system/components/ui/confirm';
+import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
+import { SegmentedControl, SegmentedControlItem } from '@cms/design-system/components/ui/segmented-control';
+import { Tabs, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
+import { cn } from '@cms/design-system/lib/utils';
+import { useT } from '@cms/i18n/react';
+import { useDebouncedCallback } from '@tanstack/react-pacer';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   Check,
   ChevronLeft,
@@ -37,42 +30,27 @@ import {
   Type as TypeIcon,
   Search,
   X,
-} from "lucide-react";
-import {
-  type CSSProperties,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { toast } from "sonner";
-import { z } from "zod";
-import { AddLanguageDialog } from "@/components/editor/add-language-dialog";
-import { AiAssist } from "@/components/editor/ai-assist";
-import { BranchSwitcher } from "@/components/editor/branch-switcher";
-import { CommentsPanel } from "@/components/editor/comments-panel";
-import {
-  isDirty,
-  nextHydration,
-  type ServerSnapshot,
-  shouldAutosave,
-} from "@/components/editor/editor-draft";
-import { resolveEditorLayout } from "@/components/editor/editor-layout";
-import { LanguageSettingsDialog } from "@/components/editor/language-settings-dialog";
-import { MarkdownSourceEditor } from "@/components/editor/markdown-source-editor";
-import { PageSettingsDialog } from "@/components/editor/page-settings-dialog";
-import {
-  ConfigSection,
-  type ConfigSectionId,
-  ConfigSectionList,
-} from "@/components/editor/site-config-panel";
-import { astWorkerClient } from "@/lib/ast-worker-client";
-import { SaveStatusIndicator } from "@/components/editor/save-status-indicator";
-import { editorStore } from "@/stores/editor-store";
-import { SortablePageTree } from "@/components/editor/sortable-page-tree";
-import { TiptapEditor } from "@/components/editor/tiptap-editor";
-import { detectUnsupportedMdxTags } from "@/components/editor/unsupported-mdx";
-import type { Language, PageNode } from "@/hooks/api";
+} from 'lucide-react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { z } from 'zod';
+import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
+import { AiAssist } from '@/components/editor/ai-assist';
+import { BranchSwitcher } from '@/components/editor/branch-switcher';
+import { CommentsPanel } from '@/components/editor/comments-panel';
+import { isDirty, nextHydration, type ServerSnapshot, shouldAutosave } from '@/components/editor/editor-draft';
+import { resolveEditorLayout } from '@/components/editor/editor-layout';
+import { LanguageSettingsDialog } from '@/components/editor/language-settings-dialog';
+import { MarkdownSourceEditor } from '@/components/editor/markdown-source-editor';
+import { PageSettingsDialog } from '@/components/editor/page-settings-dialog';
+import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/components/editor/site-config-panel';
+import { astWorkerClient } from '@/lib/ast-worker-client';
+import { SaveStatusIndicator } from '@/components/editor/save-status-indicator';
+import { editorStore } from '@/stores/editor-store';
+import { SortablePageTree } from '@/components/editor/sortable-page-tree';
+import { TiptapEditor } from '@/components/editor/tiptap-editor';
+import { detectUnsupportedMdxTags } from '@/components/editor/unsupported-mdx';
+import type { Language, PageNode } from '@/hooks/api';
 import {
   useBranches,
   useComments,
@@ -85,34 +63,22 @@ import {
   useReorderPages,
   useUpdatePage,
   useUploadAsset,
-} from "@/hooks/api";
-import { PublishControl } from "@/layouts/project";
-import { draftPreviewHref } from "@/lib/draft-preview";
-import { recordFirstPublishStage } from "@/lib/first-publish-activation";
-import { typographyVars } from "@/lib/typography";
+} from '@/hooks/api';
+import { PublishControl } from '@/layouts/project';
+import { draftPreviewHref } from '@/lib/draft-preview';
+import { recordFirstPublishStage } from '@/lib/first-publish-activation';
+import { typographyVars } from '@/lib/typography';
 
-export const Route = createFileRoute("/app/projects/$projectId/editor")({
+export const Route = createFileRoute('/app/projects/$projectId/editor')({
   component: EditorPage,
   // Deep links from the dashboard: `?page=<id>` opens a specific page (e.g. a
   // publish-check issue), `?publish=true` opens the publish flow directly.
   validateSearch: (search) =>
     z
       .object({
-        firstPublish: z.preprocess(
-          (value) =>
-            value === true || value === "true" || value === "1"
-              ? true
-              : undefined,
-          z.literal(true).optional(),
-        ),
+        firstPublish: z.preprocess((value) => (value === true || value === 'true' || value === '1' ? true : undefined), z.literal(true).optional()),
         page: z.string().min(1).optional().catch(undefined),
-        publish: z.preprocess(
-          (value) =>
-            value === true || value === "true" || value === "1"
-              ? true
-              : undefined,
-          z.literal(true).optional(),
-        ),
+        publish: z.preprocess((value) => (value === true || value === 'true' || value === '1' ? true : undefined), z.literal(true).optional()),
       })
       .parse(search),
 });
@@ -120,21 +86,16 @@ export const Route = createFileRoute("/app/projects/$projectId/editor")({
 function EditorPage() {
   const t = useT();
   const { projectId } = Route.useParams();
-  const {
-    firstPublish,
-    page: pageParam,
-    publish: publishParam,
-  } = Route.useSearch();
+  const { firstPublish, page: pageParam, publish: publishParam } = Route.useSearch();
   const { data: project } = useProject(projectId);
 
   useEffect(() => {
-    if (firstPublish && project) void recordFirstPublishStage("editor_entered");
+    if (firstPublish && project) void recordFirstPublishStage('editor_entered');
   }, [firstPublish, project]);
 
   // Top-level editor view: writing content vs. configuring the whole site.
-  const [view, setView] = useState<"content" | "config">("content");
-  const [configSection, setConfigSection] =
-    useState<ConfigSectionId>("branding");
+  const [view, setView] = useState<'content' | 'config'>('content');
+  const [configSection, setConfigSection] = useState<ConfigSectionId>('branding');
 
   // ─── Branches: the editor works on one branch at a time (default 'main') ─────
   const { data: branches } = useBranches(projectId);
@@ -151,11 +112,7 @@ function EditorPage() {
 
   // ─── Data: all languages + all pages on the active branch (every language) ───
   const { data: languages } = useLanguages(projectId);
-  const { data: allPages, isPending } = usePages(
-    projectId,
-    undefined,
-    activeBranchId ?? undefined,
-  );
+  const { data: allPages, isPending } = usePages(projectId, undefined, activeBranchId ?? undefined);
   const createPage = useCreatePage(projectId);
   const deletePage = useDeletePage(projectId);
   const updatePage = useUpdatePage(projectId);
@@ -168,19 +125,14 @@ function EditorPage() {
     try {
       return (await uploadAsset.mutateAsync(file)).url;
     } catch {
-      toast.error(t("editor.imageUploadFailed"));
+      toast.error(t('editor.imageUploadFailed'));
       return null;
     }
   };
 
   // Languages ordered default-first, then by position; pages grouped per language.
   const orderedLanguages = useMemo<Language[]>(
-    () =>
-      [...(languages ?? [])].sort(
-        (a, b) =>
-          (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) ||
-          a.position - b.position,
-      ),
+    () => [...(languages ?? [])].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.position - b.position),
     [languages],
   );
   const defaultLanguageId = orderedLanguages[0]?.id ?? null;
@@ -193,7 +145,7 @@ function EditorPage() {
     }
     return map;
   }, [allPages]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredPagesByLanguage = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -231,9 +183,7 @@ function EditorPage() {
     return map;
   }, [pagesByLanguage, searchQuery]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(
-    pageParam ?? null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(pageParam ?? null);
   // Follow ?page= deep links even when the editor is already mounted (e.g. a
   // second publish-issue link). Only reacts to the param changing, so it never
   // overrides a page the user picked from the tree afterwards.
@@ -242,31 +192,25 @@ function EditorPage() {
       setSelectedId(pageParam);
     }
   }, [pageParam]);
-  const firstPageId = useMemo(
-    () => (allPages ?? []).find((p) => p.kind === "PAGE")?.id ?? null,
-    [allPages],
-  );
-  const selectedNode = useMemo(
-    () => (allPages ?? []).find((p) => p.id === selectedId) ?? null,
-    [allPages, selectedId],
-  );
-  const selectedGroup = selectedNode?.kind === "GROUP" ? selectedNode : null;
+  const firstPageId = useMemo(() => (allPages ?? []).find((p) => p.kind === 'PAGE')?.id ?? null, [allPages]);
+  const selectedNode = useMemo(() => (allPages ?? []).find((p) => p.id === selectedId) ?? null, [allPages, selectedId]);
+  const selectedGroup = selectedNode?.kind === 'GROUP' ? selectedNode : null;
   const activeId = selectedGroup ? null : (selectedId ?? firstPageId);
   const activeTreeId = selectedId ?? activeId;
 
   const { data: page } = usePage(projectId, activeId ?? undefined);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [railTab, setRailTab] = useState<"comments" | "ai">("comments");
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [railTab, setRailTab] = useState<'comments' | 'ai'>('comments');
   // The comments/AI rail starts closed (an empty "No comments yet" panel would
   // otherwise claim 300px on the first visit); the author's toggle is persisted.
   const [railOpen, setRailOpen] = useState(false);
   useEffect(() => {
-    setRailOpen(window.localStorage.getItem("cms.editor.railOpen") === "1");
+    setRailOpen(window.localStorage.getItem('cms.editor.railOpen') === '1');
   }, []);
   useEffect(() => {
     try {
-      window.localStorage.setItem("cms.editor.railOpen", railOpen ? "1" : "0");
+      window.localStorage.setItem('cms.editor.railOpen', railOpen ? '1' : '0');
     } catch {
       // ignore storage failures
     }
@@ -283,24 +227,17 @@ function EditorPage() {
   // How the page body is edited: a visual canvas, rich text, or raw Markdown/MDX.
   // Preview is deliberately an action, not an editing mode: it opens the current
   // unpublished draft in its own tab through the authenticated preview route.
-  const [editorMode, setEditorMode] = useState<
-    "visual" | "wysiwyg" | "markdown"
-  >("visual");
+  const [editorMode, setEditorMode] = useState<'visual' | 'wysiwyg' | 'markdown'>('visual');
   useEffect(() => {
-    const stored = window.localStorage.getItem("cms.editor.contentMode");
-    setEditorMode(
-      stored === "wysiwyg" || stored === "markdown" ? stored : "visual",
-    );
+    const stored = window.localStorage.getItem('cms.editor.contentMode');
+    setEditorMode(stored === 'wysiwyg' || stored === 'markdown' ? stored : 'visual');
   }, []);
   // Unknown JSX components are represented by local opaque nodes. Inventory
   // them for the explanatory banner without locking the rest of the page.
-  const unsupportedTags = useMemo(
-    () => detectUnsupportedMdxTags(content),
-    [content],
-  );
+  const unsupportedTags = useMemo(() => detectUnsupportedMdxTags(content), [content]);
   const effectiveMode = editorMode;
   // Save status is isolated inside atomic editorStore to prevent parent re-renders
-  const setStatus = (s: "idle" | "saving" | "saved") => editorStore.setSyncStatus(s);
+  const setStatus = (s: 'idle' | 'saving' | 'saved') => editorStore.setSyncStatus(s);
   const [addLangOpen, setAddLangOpen] = useState(false);
   // The page whose settings dialog is open — independent of the active editor
   // page, so opening a page's settings from the tree does NOT switch what you're
@@ -316,20 +253,15 @@ function EditorPage() {
   // Resizable left sidebar (persisted). Clamp to a sensible range.
   const [sidebarWidth, setSidebarWidth] = useState(260);
   useEffect(() => {
-    const stored = Number(
-      window.localStorage.getItem("cms.editor.sidebarWidth"),
-    );
+    const stored = Number(window.localStorage.getItem('cms.editor.sidebarWidth'));
     setSidebarWidth(stored >= 200 && stored <= 520 ? stored : 260);
   }, []);
   useEffect(() => {
-    window.localStorage.setItem(
-      "cms.editor.sidebarWidth",
-      String(sidebarWidth),
-    );
+    window.localStorage.setItem('cms.editor.sidebarWidth', String(sidebarWidth));
   }, [sidebarWidth]);
   useEffect(() => {
     try {
-      window.localStorage.setItem("cms.editor.contentMode", editorMode);
+      window.localStorage.setItem('cms.editor.contentMode', editorMode);
     } catch {
       // ignore storage failures (private mode etc.)
     }
@@ -338,16 +270,11 @@ function EditorPage() {
   // the toggle lives in the editor toolbar, not a breadcrumb). Persisted.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   useEffect(() => {
-    setSidebarCollapsed(
-      window.localStorage.getItem("cms.editor.sidebarCollapsed") === "1",
-    );
+    setSidebarCollapsed(window.localStorage.getItem('cms.editor.sidebarCollapsed') === '1');
   }, []);
   useEffect(() => {
     try {
-      window.localStorage.setItem(
-        "cms.editor.sidebarCollapsed",
-        sidebarCollapsed ? "1" : "0",
-      );
+      window.localStorage.setItem('cms.editor.sidebarCollapsed', sidebarCollapsed ? '1' : '0');
     } catch {
       // ignore storage failures
     }
@@ -358,11 +285,11 @@ function EditorPage() {
 
   // Which per-language sections are collapsed in the page tree. Persisted.
   const [collapsedLangs, setCollapsedLangs] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === 'undefined') {
       return new Set();
     }
     try {
-      const raw = window.localStorage.getItem("cms.editor.collapsedLangs");
+      const raw = window.localStorage.getItem('cms.editor.collapsedLangs');
       return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
     } catch {
       return new Set();
@@ -370,10 +297,7 @@ function EditorPage() {
   });
   const persistLangs = (set: Set<string>) => {
     try {
-      window.localStorage.setItem(
-        "cms.editor.collapsedLangs",
-        JSON.stringify([...set]),
-      );
+      window.localStorage.setItem('cms.editor.collapsedLangs', JSON.stringify([...set]));
     } catch {
       // ignore storage failures
     }
@@ -400,12 +324,8 @@ function EditorPage() {
   };
 
   // The active page's language drives the editor/preview text direction.
-  const activeLanguage = useMemo(
-    () => languages?.find((l) => l.id === page?.languageId),
-    [languages, page?.languageId],
-  );
-  const activeLangDir: "ltr" | "rtl" =
-    activeLanguage?.direction === "RTL" ? "rtl" : "ltr";
+  const activeLanguage = useMemo(() => languages?.find((l) => l.id === page?.languageId), [languages, page?.languageId]);
+  const activeLangDir: 'ltr' | 'rtl' = activeLanguage?.direction === 'RTL' ? 'rtl' : 'ltr';
 
   // Load the selected page into the local draft. Re-seed when switching pages, OR
   // when a NEWER server copy arrives while the draft is still clean (matches what
@@ -421,7 +341,7 @@ function EditorPage() {
     setSynced(hydration);
     setTitle(hydration.title);
     setContent(hydration.content);
-    setStatus("idle");
+    setStatus('idle');
     // Offload frontmatter / heading parsing to web worker without blocking the render pipeline
     if (hydration.content) {
       void astWorkerClient.parseFrontmatter(hydration.content);
@@ -438,7 +358,7 @@ function EditorPage() {
         { pageId, body: draft },
         {
           onSuccess: (saved) => {
-            setStatus("saved");
+            setStatus('saved');
             // The saved draft is now the synced server state — but only while
             // that page is still the one open; a save that lands after a page
             // switch must not disturb the new page's draft.
@@ -453,7 +373,7 @@ function EditorPage() {
                 : current,
             );
           },
-          onError: () => setStatus("idle"),
+          onError: () => setStatus('idle'),
         },
       );
     },
@@ -466,16 +386,16 @@ function EditorPage() {
     if (!page || !shouldAutosave({ synced, draft: { title, content } }, page)) {
       return;
     }
-    setStatus("saving");
+    setStatus('saving');
     saveDraft(page.id, { title, content });
   }, [title, content, page, synced, saveDraft]);
 
   const openDraftPreview = async () => {
     // Open synchronously so browsers treat this as a user-initiated popup. We
     // navigate it only after the current draft is safely stored server-side.
-    const previewWindow = window.open("about:blank", "_blank");
+    const previewWindow = window.open('about:blank', '_blank');
     if (!previewWindow) {
-      toast.error(t("editor.previewPopupBlocked"));
+      toast.error(t('editor.previewPopupBlocked'));
       return;
     }
     previewWindow.opener = null;
@@ -487,28 +407,21 @@ function EditorPage() {
     });
 
     try {
-      const draftIsCurrent =
-        page &&
-        synced?.id === page.id &&
-        !isDirty({ synced, draft: { title, content } });
+      const draftIsCurrent = page && synced?.id === page.id && !isDirty({ synced, draft: { title, content } });
       if (page && !draftIsCurrent) {
-        setStatus("saving");
+        setStatus('saving');
         const saved = await updatePage.mutateAsync({
           pageId: page.id,
           body: { title, content },
         });
-        setSynced((current) =>
-          current?.id === page.id
-            ? { id: page.id, title, content, updatedAt: saved.updatedAt }
-            : current,
-        );
-        setStatus("saved");
+        setSynced((current) => (current?.id === page.id ? { id: page.id, title, content, updatedAt: saved.updatedAt } : current));
+        setStatus('saved');
       }
       previewWindow.location.replace(previewUrl);
     } catch {
       previewWindow.close();
-      setStatus("idle");
-      toast.error(t("editor.previewSaveError"));
+      setStatus('idle');
+      toast.error(t('editor.previewSaveError'));
     }
   };
 
@@ -525,18 +438,15 @@ function EditorPage() {
       // that slug as a placeholder to swap for the real title's slug on first rename,
       // and deriving it from e.g. an Arabic title would strip to a broken 'page' slug.
       {
-        title: t("editor.untitled"),
-        slug: "untitled",
+        title: t('editor.untitled'),
+        slug: 'untitled',
         parentId,
         languageId,
         ...branchScope,
       },
       {
         onSuccess: (created) => setSelectedId(created.id),
-        onError: (e) =>
-          toast.error(
-            e instanceof Error ? e.message : t("editor.createFailed"),
-          ),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t('editor.createFailed')),
         onSettled: () => {
           creationInFlight.current = false;
         },
@@ -550,9 +460,9 @@ function EditorPage() {
       // The display title is localized, but the slug is pinned: deriving it from
       // a non-Latin title (e.g. Arabic) would strip to a broken 'page' slug.
       {
-        title: t("editor.newGroup"),
-        kind: "GROUP",
-        slug: "new-group",
+        title: t('editor.newGroup'),
+        kind: 'GROUP',
+        slug: 'new-group',
         languageId,
         ...branchScope,
       },
@@ -561,10 +471,7 @@ function EditorPage() {
           setSelectedId(created.id);
           setSettingsForId(created.id);
         },
-        onError: (e) =>
-          toast.error(
-            e instanceof Error ? e.message : t("editor.createFailed"),
-          ),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t('editor.createFailed')),
         onSettled: () => {
           creationInFlight.current = false;
         },
@@ -579,13 +486,7 @@ function EditorPage() {
   // The tree stays reachable through a toolbar button that floats it over the
   // canvas as a temporary overlay (never persisted; closed on page pick).
   const [focusedTreeOpen, setFocusedTreeOpen] = useState(false);
-  const {
-    markdownFocused,
-    navigationCollapsed,
-    treeOverlay,
-    navigationHidden,
-    showRail,
-  } = resolveEditorLayout({
+  const { markdownFocused, navigationCollapsed, treeOverlay, navigationHidden, showRail } = resolveEditorLayout({
     view,
     mode: effectiveMode,
     hasPage: Boolean(activeId && page),
@@ -604,12 +505,12 @@ function EditorPage() {
     }
     const onKeyDown = (event: KeyboardEvent) => {
       // A dialog opened from the tree (page settings) handles its own Escape.
-      if (event.key === "Escape" && !event.defaultPrevented) {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
         setFocusedTreeOpen(false);
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [treeOverlay]);
 
   // Comments on the active page — anchored highlights in the editor + the rail.
@@ -620,7 +521,7 @@ function EditorPage() {
         .filter((c) => c.anchor?.quote)
         .map((c) => ({
           id: c.id,
-          quote: c.anchor?.quote ?? "",
+          quote: c.anchor?.quote ?? '',
           resolved: c.resolved,
         })),
     [pageComments],
@@ -628,9 +529,9 @@ function EditorPage() {
   const toggleCommentMode = () => {
     const next = !commentMode;
     if (next) {
-      setEditorMode("visual");
+      setEditorMode('visual');
       setRailOpen(true);
-      setRailTab("comments");
+      setRailTab('comments');
     } else {
       setPendingAnchor(null);
     }
@@ -639,12 +540,12 @@ function EditorPage() {
 
   const pageTitleInput = (
     <input
-      aria-label={t("editor.pageTitlePlaceholder")}
+      aria-label={t('editor.pageTitlePlaceholder')}
       className="w-full min-w-0 rounded-sm border-0 bg-transparent font-semibold text-3xl leading-[1.2] tracking-tight outline-none placeholder:text-muted-foreground/40 focus-visible:ring-2 focus-visible:ring-ring/40 sm:text-[2.1rem]"
       dir="auto"
       lang={activeLanguage?.code}
       onChange={(event) => setTitle(event.target.value)}
-      placeholder={t("editor.pageTitlePlaceholder")}
+      placeholder={t('editor.pageTitlePlaceholder')}
       value={title}
     />
   );
@@ -658,19 +559,13 @@ function EditorPage() {
           to="/app/projects/$projectId"
           params={{ projectId }}
           className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title={t("editor.backToDashboard")}
+          title={t('editor.backToDashboard')}
         >
           <ChevronLeft className="size-4 rtl:-scale-x-100" />
-          {project?.name ? (
-            <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">
-              {project.name}
-            </span>
-          ) : null}
+          {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
         </Link>
         {/* Divider only once the project name is loaded — otherwise it dangles next to the chevron. */}
-        {project?.name ? (
-          <span className="hidden h-5 w-px bg-border sm:block" />
-        ) : null}
+        {project?.name ? <span className="hidden h-5 w-px bg-border sm:block" /> : null}
         <BranchSwitcher
           projectId={projectId}
           branches={branches ?? []}
@@ -684,40 +579,25 @@ function EditorPage() {
         <SaveStatusIndicator />
         <div className="ms-auto flex items-center gap-1 sm:gap-2">
           <Button
-            aria-label={t("editor.mode.configuration")}
+            aria-label={t('editor.mode.configuration')}
             size="sm"
-            variant={view === "config" ? "secondary" : "ghost"}
+            variant={view === 'config' ? 'secondary' : 'ghost'}
             className="cursor-pointer"
             onClick={() => {
-              const nextView = view === "config" ? "content" : "config";
+              const nextView = view === 'config' ? 'content' : 'config';
               setView(nextView);
-              if (nextView === "config") {
+              if (nextView === 'config') {
                 setSidebarCollapsed(false);
                 setMobileSidebarOpen(true);
               }
             }}
           >
-            <SlidersHorizontal className="size-3.5" />{" "}
-            <span className="hidden md:inline">
-              {t("editor.mode.configuration")}
-            </span>
+            <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
           </Button>
-          <Button
-            aria-label={t("project.preview")}
-            onClick={() => void openDraftPreview()}
-            size="sm"
-            variant="outline"
-            className="cursor-pointer"
-          >
-            <Eye className="size-3.5" />{" "}
-            <span className="hidden md:inline">{t("project.preview")}</span>
+          <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
+            <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
           </Button>
-          {project ? (
-            <PublishControl
-              project={project}
-              initialPublishOpen={publishParam}
-            />
-          ) : null}
+          {project ? <PublishControl project={project} initialPublishOpen={publishParam} /> : null}
         </div>
       </header>
 
@@ -727,50 +607,44 @@ function EditorPage() {
           tallest column's content and break scrolling. */}
       <div
         className={cn(
-          "relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)]",
+          'relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)]',
           // The overlay leaves the grid (absolute), so the canvas must own the only column.
-          !treeOverlay && "lg:grid-cols-[var(--editor-sidebar)_1fr]",
-          showRail && "xl:grid-cols-[var(--editor-sidebar)_1fr_300px]",
+          !treeOverlay && 'lg:grid-cols-[var(--editor-sidebar)_1fr]',
+          showRail && 'xl:grid-cols-[var(--editor-sidebar)_1fr_300px]',
         )}
         style={
           {
-            "--editor-sidebar": navigationCollapsed
-              ? "0px"
-              : `${sidebarWidth}px`,
+            '--editor-sidebar': navigationCollapsed ? '0px' : `${sidebarWidth}px`,
           } as CSSProperties
         }
       >
         {treeOverlay ? (
           <button
             type="button"
-            aria-label={t("editor.hidePages")}
+            aria-label={t('editor.hidePages')}
             className="absolute inset-0 z-20 cursor-default bg-background/40"
             onClick={() => setFocusedTreeOpen(false)}
           />
         ) : null}
         <aside
           className={cn(
-            "relative flex min-h-0 flex-col overflow-hidden border-border border-e bg-sidebar/95",
+            'relative flex min-h-0 flex-col overflow-hidden border-border border-e bg-sidebar/95',
             // Below lg the tree is an on-demand drawer; in the focused Markdown layout
             // it is a drawer at every size (the grid column stays collapsed).
             treeOverlay
-              ? "absolute inset-y-0 start-0 z-30 w-[min(85vw,320px)] shadow-xl"
-              : "max-lg:absolute max-lg:inset-y-0 max-lg:start-0 max-lg:z-30 max-lg:w-[min(85vw,320px)] max-lg:shadow-xl lg:bg-sidebar/40",
-            !mobileSidebarOpen && !treeOverlay && "max-lg:hidden",
-            navigationHidden && "invisible pointer-events-none border-e-0",
+              ? 'absolute inset-y-0 start-0 z-30 w-[min(85vw,320px)] shadow-xl'
+              : 'max-lg:absolute max-lg:inset-y-0 max-lg:start-0 max-lg:z-30 max-lg:w-[min(85vw,320px)] max-lg:shadow-xl lg:bg-sidebar/40',
+            !mobileSidebarOpen && !treeOverlay && 'max-lg:hidden',
+            navigationHidden && 'invisible pointer-events-none border-e-0',
           )}
           aria-hidden={navigationHidden}
           inert={navigationHidden}
         >
-          {!navigationCollapsed ? (
-            <SidebarResizer onResize={setSidebarWidth} />
-          ) : null}
+          {!navigationCollapsed ? <SidebarResizer onResize={setSidebarWidth} /> : null}
           {/* Sidebar header: section label + the collapse control (lives ON the sidebar). */}
           <div className="flex h-12 shrink-0 items-center justify-between border-border border-b ps-3 pe-1.5">
             <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-              {view === "config"
-                ? t("editor.config.heading")
-                : t("editor.pages")}
+              {view === 'config' ? t('editor.config.heading') : t('editor.pages')}
             </span>
             <Button
               size="icon-xs"
@@ -779,25 +653,21 @@ function EditorPage() {
               onClick={() => {
                 if (treeOverlay) {
                   setFocusedTreeOpen(false);
-                } else if (window.matchMedia("(max-width: 1023px)").matches) {
+                } else if (window.matchMedia('(max-width: 1023px)').matches) {
                   setMobileSidebarOpen(false);
                 } else {
                   setSidebarCollapsed(true);
                 }
               }}
-              aria-label={
-                treeOverlay ? t("editor.hidePages") : t("editor.hideSidebar")
-              }
-              title={
-                treeOverlay ? t("editor.hidePages") : t("editor.hideSidebar")
-              }
+              aria-label={treeOverlay ? t('editor.hidePages') : t('editor.hideSidebar')}
+              title={treeOverlay ? t('editor.hidePages') : t('editor.hideSidebar')}
             >
               <PanelLeftClose className="size-3.5 rtl:-scale-x-100" />
             </Button>
           </div>
 
           {/* Quick filter input for large documentation trees (100+ to 1,000+ docs) */}
-          {view === "content" && (allPages?.length ?? 0) > 0 ? (
+          {view === 'content' && (allPages?.length ?? 0) > 0 ? (
             <div className="border-border border-b px-2 py-1.5">
               <div className="relative flex items-center">
                 <Search className="pointer-events-none absolute start-2 size-3.5 text-muted-foreground/60" />
@@ -811,7 +681,7 @@ function EditorPage() {
                 {searchQuery ? (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => setSearchQuery('')}
                     className="absolute end-1.5 flex size-4 items-center justify-center text-muted-foreground hover:text-foreground"
                     aria-label="Clear filter"
                   >
@@ -824,7 +694,7 @@ function EditorPage() {
 
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-1 px-2 py-2">
-              {view === "config" ? (
+              {view === 'config' ? (
                 <ConfigSectionList
                   active={configSection}
                   onSelect={(section) => {
@@ -833,13 +703,11 @@ function EditorPage() {
                   }}
                 />
               ) : isPending ? (
-                <p className="px-2 text-muted-foreground text-sm">
-                  {t("common.loading")}
-                </p>
+                <p className="px-2 text-muted-foreground text-sm">{t('common.loading')}</p>
               ) : (
                 <>
                   {orderedLanguages.map((lang) => {
-                    const dir = lang.direction === "RTL" ? "rtl" : "ltr";
+                    const dir = lang.direction === 'RTL' ? 'rtl' : 'ltr';
                     const langPages = filteredPagesByLanguage.get(lang.id) ?? [];
                     const langCollapsed = collapsedLangs.has(lang.id);
                     return (
@@ -850,33 +718,26 @@ function EditorPage() {
                             type="button"
                             onClick={() => toggleLang(lang.id)}
                             aria-expanded={!langCollapsed}
-                            title={
-                              langCollapsed
-                                ? t("editor.expand")
-                                : t("editor.collapse")
-                            }
+                            title={langCollapsed ? t('editor.expand') : t('editor.collapse')}
                             className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 font-semibold text-[12.5px] text-foreground"
                             dir={dir}
                           >
                             <ChevronRight
                               className={cn(
-                                "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                                langCollapsed ? "rtl:rotate-180" : "rotate-90",
+                                'size-3.5 shrink-0 text-muted-foreground transition-transform',
+                                langCollapsed ? 'rtl:rotate-180' : 'rotate-90',
                               )}
                             />
                             <Languages className="size-3.5 shrink-0 text-muted-foreground" />
                             {/* The label owns the row's flexible space: the code lives in its
                               tooltip and the badge never shrinks, so "English" only truncates
                               when the sidebar is genuinely too narrow for it. */}
-                            <span
-                              className="min-w-0 truncate"
-                              title={`${lang.label} (${lang.code})`}
-                            >
+                            <span className="min-w-0 truncate" title={`${lang.label} (${lang.code})`}>
                               {lang.label}
                             </span>
                             {lang.isDefault ? (
                               <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 font-medium text-[9px] text-accent-foreground">
-                                {t("editor.default")}
+                                {t('editor.default')}
                               </span>
                             ) : null}
                           </button>
@@ -886,8 +747,8 @@ function EditorPage() {
                               variant="ghost"
                               className="cursor-pointer"
                               onClick={() => setLangSettings(lang)}
-                              aria-label={t("editor.langSettings.settings")}
-                              title={t("editor.langSettings.settings")}
+                              aria-label={t('editor.langSettings.settings')}
+                              title={t('editor.langSettings.settings')}
                             >
                               <Settings2 className="size-3" />
                             </Button>
@@ -899,8 +760,8 @@ function EditorPage() {
                                 expandLang(lang.id);
                                 addGroup(lang.id);
                               }}
-                              aria-label={t("editor.newGroup")}
-                              title={t("editor.newGroup")}
+                              aria-label={t('editor.newGroup')}
+                              title={t('editor.newGroup')}
                               disabled={createPage.isPending}
                             >
                               <FolderPlus className="size-3" />
@@ -913,8 +774,8 @@ function EditorPage() {
                                 expandLang(lang.id);
                                 addPage(null, lang.id);
                               }}
-                              aria-label={t("editor.newPage")}
-                              title={t("editor.newPage")}
+                              aria-label={t('editor.newPage')}
+                              title={t('editor.newPage')}
                               disabled={createPage.isPending}
                             >
                               <Plus className="size-3" />
@@ -926,9 +787,7 @@ function EditorPage() {
                         {langCollapsed ? null : (
                           <div className="space-y-0.5" dir={dir}>
                             {langPages.length === 0 ? (
-                              <p className="px-2 py-1 text-[12px] text-muted-foreground/70">
-                                {t("editor.noPagesYet")}
-                              </p>
+                              <p className="px-2 py-1 text-[12px] text-muted-foreground/70">{t('editor.noPagesYet')}</p>
                             ) : (
                               <SortablePageTree
                                 pages={langPages}
@@ -939,13 +798,9 @@ function EditorPage() {
                                   setMobileSidebarOpen(false);
                                   setFocusedTreeOpen(false);
                                 }}
-                                onAddChild={(parentId) =>
-                                  addPage(parentId, lang.id)
-                                }
+                                onAddChild={(parentId) => addPage(parentId, lang.id)}
                                 onSettings={(id) => setSettingsForId(id)}
-                                onMove={(items) =>
-                                  reorderPages.mutate({ items })
-                                }
+                                onMove={(items) => reorderPages.mutate({ items })}
                               />
                             )}
                           </div>
@@ -960,18 +815,13 @@ function EditorPage() {
                     onClick={() => setAddLangOpen(true)}
                     className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground text-sm hover:bg-muted hover:text-foreground"
                   >
-                    <Plus className="size-3.5" /> {t("editor.addLanguage")}
+                    <Plus className="size-3.5" /> {t('editor.addLanguage')}
                   </button>
                 </>
               )}
             </div>
           </ScrollArea>
-          <AddLanguageDialog
-            projectId={projectId}
-            open={addLangOpen}
-            onOpenChange={setAddLangOpen}
-            onCreated={() => setAddLangOpen(false)}
-          />
+          <AddLanguageDialog projectId={projectId} open={addLangOpen} onOpenChange={setAddLangOpen} onCreated={() => setAddLangOpen(false)} />
           {langSettings ? (
             <LanguageSettingsDialog
               projectId={projectId}
@@ -982,45 +832,29 @@ function EditorPage() {
           ) : null}
           {settingsForId
             ? (() => {
-                const target = (allPages ?? []).find(
-                  (p) => p.id === settingsForId,
-                );
+                const target = (allPages ?? []).find((p) => p.id === settingsForId);
                 return target ? (
-                  <PageSettingsDialog
-                    projectId={projectId}
-                    page={target}
-                    open
-                    onOpenChange={(o) => !o && setSettingsForId(null)}
-                  />
+                  <PageSettingsDialog projectId={projectId} page={target} open onOpenChange={(o) => !o && setSettingsForId(null)} />
                 ) : null;
               })()
             : null}
         </aside>
 
         {/* Main area: site configuration */}
-        {view === "config" ? (
+        {view === 'config' ? (
           <section className="min-h-0 min-w-0 overflow-y-auto">
             {/* A muted overline so it reads as "Site configuration › <section>"
               rather than competing with each section's own heading. */}
             <div className="border-border border-b px-6 py-3">
-              <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-                {t("editor.config.heading")}
-              </span>
+              <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">{t('editor.config.heading')}</span>
             </div>
             <div className="mx-auto w-full max-w-6xl px-5 pt-7 pb-32 sm:px-8">
               {project ? (
-                <div
-                  className={cn(
-                    "w-full",
-                    configSection === "themes" ? "max-w-6xl" : "max-w-4xl",
-                  )}
-                >
+                <div className={cn('w-full', configSection === 'themes' ? 'max-w-6xl' : 'max-w-4xl')}>
                   <ConfigSection project={project} section={configSection} />
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm">
-                  {t("common.loading")}
-                </p>
+                <p className="text-muted-foreground text-sm">{t('common.loading')}</p>
               )}
             </div>
           </section>
@@ -1028,28 +862,15 @@ function EditorPage() {
           <section className="grid place-items-center px-6 text-center">
             <div className="max-w-sm">
               <FolderPlus className="mx-auto size-7 text-muted-foreground" />
-              <h1 className="mt-3 font-semibold text-xl tracking-tight">
-                {selectedGroup.title}
-              </h1>
-              <p className="mt-1 text-muted-foreground text-sm">
-                {t("editor.groupSelectedHint")}
-              </p>
+              <h1 className="mt-3 font-semibold text-xl tracking-tight">{selectedGroup.title}</h1>
+              <p className="mt-1 text-muted-foreground text-sm">{t('editor.groupSelectedHint')}</p>
               <div className="mt-4 flex justify-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setSettingsForId(selectedGroup.id)}
-                >
-                  <Settings2 className="size-4" />{" "}
-                  {t("editor.pageSettings.title")}
+                <Button variant="outline" onClick={() => setSettingsForId(selectedGroup.id)}>
+                  <Settings2 className="size-4" /> {t('editor.pageSettings.title')}
                 </Button>
                 {selectedGroup.languageId ? (
-                  <Button
-                    disabled={createPage.isPending}
-                    onClick={() =>
-                      addPage(selectedGroup.id, selectedGroup.languageId)
-                    }
-                  >
-                    <Plus className="size-4" /> {t("editor.newPage")}
+                  <Button disabled={createPage.isPending} onClick={() => addPage(selectedGroup.id, selectedGroup.languageId)}>
+                    <Plus className="size-4" /> {t('editor.newPage')}
                   </Button>
                 ) : null}
               </div>
@@ -1074,8 +895,8 @@ function EditorPage() {
                   className="cursor-pointer"
                   onClick={() => setFocusedTreeOpen(true)}
                   aria-expanded={treeOverlay}
-                  aria-label={t("editor.showPages")}
-                  title={t("editor.showPages")}
+                  aria-label={t('editor.showPages')}
+                  title={t('editor.showPages')}
                 >
                   <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
                 </Button>
@@ -1083,69 +904,46 @@ function EditorPage() {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  className={cn(
-                    "cursor-pointer",
-                    !sidebarCollapsed && "lg:hidden",
-                  )}
+                  className={cn('cursor-pointer', !sidebarCollapsed && 'lg:hidden')}
                   onClick={() => {
                     setSidebarCollapsed(false);
                     setMobileSidebarOpen(true);
                   }}
-                  aria-label={t("editor.showSidebar")}
-                  title={t("editor.showSidebar")}
+                  aria-label={t('editor.showSidebar')}
+                  title={t('editor.showSidebar')}
                 >
                   <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
                 </Button>
               ) : null}
               <SegmentedControl density="compact" className="ms-auto">
-                <SegButton
-                  active={effectiveMode === "visual"}
-                  onClick={() => setEditorMode("visual")}
-                  icon={<Pencil className="size-3.5" />}
-                >
-                  {t("editor.mode.visual")}
+                <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3.5" />}>
+                  {t('editor.mode.visual')}
                 </SegButton>
-                <SegButton
-                  active={effectiveMode === "wysiwyg"}
-                  onClick={() => setEditorMode("wysiwyg")}
-                  icon={<TypeIcon className="size-3.5" />}
-                >
-                  {t("editor.mode.wysiwyg")}
+                <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3.5" />}>
+                  {t('editor.mode.wysiwyg')}
                 </SegButton>
-                <SegButton
-                  active={effectiveMode === "markdown"}
-                  onClick={() => setEditorMode("markdown")}
-                  icon={<Code2 className="size-3.5" />}
-                >
-                  {t("editor.mode.markdown")}
+                <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3.5" />}>
+                  {t('editor.mode.markdown')}
                 </SegButton>
               </SegmentedControl>
               <Button
                 size="sm"
-                variant={commentMode ? "secondary" : "ghost"}
+                variant={commentMode ? 'secondary' : 'ghost'}
                 aria-pressed={commentMode}
-                className={cn(
-                  "cursor-pointer",
-                  commentMode &&
-                    "bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/35 dark:text-amber-300",
-                )}
+                className={cn('cursor-pointer', commentMode && 'bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/35 dark:text-amber-300')}
                 onClick={toggleCommentMode}
-                title={t("editor.comments.mode")}
+                title={t('editor.comments.mode')}
               >
                 <MessageSquare className="size-4" />
-                <span className="hidden md:inline">
-                  {commentMode
-                    ? t("editor.comments.commenting")
-                    : t("editor.comments.mode")}
-                </span>
+                <span className="hidden md:inline">{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
               </Button>
               <Button
                 size="icon-sm"
                 variant="ghost"
                 className="cursor-pointer"
                 onClick={() => activeId && setSettingsForId(activeId)}
-                aria-label={t("editor.pageSettings.title")}
-                title={t("editor.pageSettings.title")}
+                aria-label={t('editor.pageSettings.title')}
+                title={t('editor.pageSettings.title')}
               >
                 <Settings2 className="size-4" />
               </Button>
@@ -1153,13 +951,13 @@ function EditorPage() {
                 size="icon-sm"
                 variant="ghost"
                 className="cursor-pointer"
-                aria-label={t("editor.deletePage")}
-                title={t("editor.deletePage")}
+                aria-label={t('editor.deletePage')}
+                title={t('editor.deletePage')}
                 onClick={async () => {
                   const ok = await confirm({
-                    title: t("editor.deletePage"),
-                    description: t("editor.deletePageConfirm"),
-                    confirmLabel: t("editor.deletePage"),
+                    title: t('editor.deletePage'),
+                    description: t('editor.deletePageConfirm'),
+                    confirmLabel: t('editor.deletePage'),
                     destructive: true,
                   });
                   if (ok) {
@@ -1173,15 +971,13 @@ function EditorPage() {
               </Button>
               {!markdownFocused ? (
                 <Button
-                  aria-label={
-                    railOpen ? t("editor.hideRail") : t("editor.showRail")
-                  }
+                  aria-label={railOpen ? t('editor.hideRail') : t('editor.showRail')}
                   aria-pressed={railOpen}
                   className="hidden cursor-pointer xl:inline-flex"
                   onClick={() => setRailOpen((v) => !v)}
                   size="icon-sm"
-                  title={railOpen ? t("editor.hideRail") : t("editor.showRail")}
-                  variant={railOpen ? "secondary" : "ghost"}
+                  title={railOpen ? t('editor.hideRail') : t('editor.showRail')}
+                  variant={railOpen ? 'secondary' : 'ghost'}
                 >
                   <PanelRight className="size-4" />
                 </Button>
@@ -1190,38 +986,34 @@ function EditorPage() {
 
             <div
               className={cn(
-                "min-h-0 flex-1",
-                effectiveMode === "markdown"
-                  ? "flex flex-col overflow-hidden"
-                  : effectiveMode === "wysiwyg"
-                    ? "flex flex-col overflow-hidden"
-                    : "overflow-y-auto px-4 py-6 sm:px-7 sm:py-8",
+                'min-h-0 flex-1',
+                effectiveMode === 'markdown'
+                  ? 'flex flex-col overflow-hidden'
+                  : effectiveMode === 'wysiwyg'
+                    ? 'flex flex-col overflow-hidden'
+                    : 'overflow-y-auto px-4 py-6 sm:px-7 sm:py-8',
               )}
             >
-              {unsupportedTags.length > 0 && effectiveMode !== "markdown" ? (
+              {unsupportedTags.length > 0 && effectiveMode !== 'markdown' ? (
                 <div
                   className={cn(
-                    "flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-700 leading-snug dark:text-amber-300",
-                    effectiveMode === "wysiwyg"
-                      ? "mx-4 mt-4 sm:mx-7"
-                      : "mx-auto mb-5 max-w-[720px]",
+                    'flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-700 leading-snug dark:text-amber-300',
+                    effectiveMode === 'wysiwyg' ? 'mx-4 mt-4 sm:mx-7' : 'mx-auto mb-5 max-w-[720px]',
                   )}
                   role="status"
                 >
                   <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                   <p>
-                    {t("editor.unsupportedMdx.banner", {
-                      tags: unsupportedTags.join(", "),
+                    {t('editor.unsupportedMdx.banner', {
+                      tags: unsupportedTags.join(', '),
                     })}
                   </p>
                 </div>
               ) : null}
               {/* Visual mode keeps its reading measure. Rich Text and Markdown
                 render their toolbar and title inside their full-height canvas. */}
-              {effectiveMode === "visual" ? (
-                <div className="mx-auto max-w-[720px]">{pageTitleInput}</div>
-              ) : null}
-              {effectiveMode === "visual" || effectiveMode === "wysiwyg" ? (
+              {effectiveMode === 'visual' ? <div className="mx-auto max-w-[720px]">{pageTitleInput}</div> : null}
+              {effectiveMode === 'visual' || effectiveMode === 'wysiwyg' ? (
                 // .ProseMirror self-centers at the 720px measure (tiptap.css), leaving a
                 // gutter for the block handle — so it is NOT wrapped in a narrow box.
                 // Keyed by page id: every page gets its own TipTap instance, so a
@@ -1230,9 +1022,7 @@ function EditorPage() {
                   key={page.id}
                   value={content}
                   onChange={setContent}
-                  className={
-                    effectiveMode === "wysiwyg" ? "min-h-0 flex-1" : undefined
-                  }
+                  className={effectiveMode === 'wysiwyg' ? 'min-h-0 flex-1' : undefined}
                   dir={activeLangDir}
                   lang={activeLanguage?.code}
                   style={typographyVars(project?.config?.typography)}
@@ -1243,21 +1033,19 @@ function EditorPage() {
                   onAddComment={(anchor) => {
                     setPendingAnchor(anchor);
                     setRailOpen(true);
-                    setRailTab("comments");
+                    setRailTab('comments');
                   }}
-                  titleSlot={
-                    effectiveMode === "wysiwyg" ? pageTitleInput : undefined
-                  }
-                  variant={effectiveMode === "wysiwyg" ? "wysiwyg" : "visual"}
+                  titleSlot={effectiveMode === 'wysiwyg' ? pageTitleInput : undefined}
+                  variant={effectiveMode === 'wysiwyg' ? 'wysiwyg' : 'visual'}
                 />
               ) : (
                 <MarkdownSourceEditor
                   key={page.id}
                   dir={activeLangDir}
-                  label={t("editor.markdownPlaceholder")}
+                  label={t('editor.markdownPlaceholder')}
                   value={content}
                   onChange={setContent}
-                  placeholder={t("editor.markdownPlaceholder")}
+                  placeholder={t('editor.markdownPlaceholder')}
                   titleSlot={pageTitleInput}
                 />
               )}
@@ -1267,17 +1055,11 @@ function EditorPage() {
           <section className="grid place-items-center text-center">
             <div>
               <FileText className="mx-auto size-7 text-muted-foreground" />
-              <p className="mt-3 font-medium">{t("editor.noPageSelected")}</p>
-              <p className="mt-1 text-muted-foreground text-sm">
-                {t("editor.noPageSelectedHint")}
-              </p>
+              <p className="mt-3 font-medium">{t('editor.noPageSelected')}</p>
+              <p className="mt-1 text-muted-foreground text-sm">{t('editor.noPageSelectedHint')}</p>
               {defaultLanguageId ? (
-                <Button
-                  className="mt-4 cursor-pointer"
-                  disabled={createPage.isPending}
-                  onClick={() => addPage(null, defaultLanguageId)}
-                >
-                  <Plus className="size-4" /> {t("editor.newPage")}
+                <Button className="mt-4 cursor-pointer" disabled={createPage.isPending} onClick={() => addPage(null, defaultLanguageId)}>
+                  <Plus className="size-4" /> {t('editor.newPage')}
                 </Button>
               ) : null}
             </div>
@@ -1287,21 +1069,13 @@ function EditorPage() {
         {/* Right rail: Figma-style tabbed panel — Comments / AI */}
         {showRail && activeId ? (
           <aside className="hidden min-h-0 flex-col overflow-hidden border-border border-s bg-sidebar/40 xl:flex">
-            <Tabs
-              value={railTab}
-              onValueChange={(value) =>
-                setRailTab(value === "ai" ? "ai" : "comments")
-              }
-              className="flex min-h-0 flex-1 flex-col"
-            >
+            <Tabs value={railTab} onValueChange={(value) => setRailTab(value === 'ai' ? 'ai' : 'comments')} className="flex min-h-0 flex-1 flex-col">
               <TabsList className="m-2 self-start">
-                <TabsTrigger value="comments">
-                  {t("editor.comments")}
-                </TabsTrigger>
-                <TabsTrigger value="ai">{t("editor.ai")}</TabsTrigger>
+                <TabsTrigger value="comments">{t('editor.comments')}</TabsTrigger>
+                <TabsTrigger value="ai">{t('editor.ai')}</TabsTrigger>
               </TabsList>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">
-                {railTab === "comments" ? (
+                {railTab === 'comments' ? (
                   <CommentsPanel
                     pageId={activeId}
                     projectId={projectId}
@@ -1312,11 +1086,7 @@ function EditorPage() {
                     commentMode={commentMode}
                   />
                 ) : (
-                  <AiAssist
-                    content={content}
-                    onContentChange={setContent}
-                    projectId={projectId}
-                  />
+                  <AiAssist content={content} onContentChange={setContent} projectId={projectId} />
                 )}
               </div>
             </Tabs>
@@ -1346,7 +1116,7 @@ function SegButton({
   return (
     <SegmentedControlItem
       active={active}
-      aria-label={typeof children === "string" ? children : title}
+      aria-label={typeof children === 'string' ? children : title}
       type="button"
       onClick={onClick}
       disabled={disabled}
@@ -1374,15 +1144,13 @@ function SidebarResizer({ onResize }: { onResize: (width: number) => void }) {
         if (!dragging.current) {
           return;
         }
-        const aside = (event.currentTarget as HTMLElement).closest("aside");
+        const aside = (event.currentTarget as HTMLElement).closest('aside');
         if (!aside) {
           return;
         }
         const rect = aside.getBoundingClientRect();
-        const rtl = getComputedStyle(aside).direction === "rtl";
-        const width = rtl
-          ? rect.right - event.clientX
-          : event.clientX - rect.left;
+        const rtl = getComputedStyle(aside).direction === 'rtl';
+        const width = rtl ? rect.right - event.clientX : event.clientX - rect.left;
         onResize(Math.min(520, Math.max(200, Math.round(width))));
       }}
       onPointerUp={(event) => {

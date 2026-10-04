@@ -98,12 +98,12 @@ export const Callout = Node.create({
     return {
       setCallout:
         (attributes) =>
-          ({ commands }) =>
-            commands.wrapIn(this.name, attributes),
+        ({ commands }) =>
+          commands.wrapIn(this.name, attributes),
       toggleCallout:
         (attributes) =>
-          ({ commands }) =>
-            commands.toggleWrap(this.name, attributes),
+        ({ commands }) =>
+          commands.toggleWrap(this.name, attributes),
     };
   },
 

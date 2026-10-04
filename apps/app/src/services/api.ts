@@ -16,9 +16,7 @@ function createApiProxy(segments: string[] = []): any {
           let path = segments.join('/');
           if (args?.param) {
             for (const [key, val] of Object.entries(args.param)) {
-              path = path
-                .replace(`:${key}`, encodeURIComponent(String(val)))
-                .replace(`$${key}`, encodeURIComponent(String(val)));
+              path = path.replace(`:${key}`, encodeURIComponent(String(val))).replace(`$${key}`, encodeURIComponent(String(val)));
             }
           }
 

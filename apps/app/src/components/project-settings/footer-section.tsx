@@ -1,16 +1,12 @@
-import { Input } from "@cms/design-system/components/ui/input";
-import { useT } from "@cms/i18n/react";
-import type { ProjectConfig } from "@cms/validators";
-import { useForm } from "@tanstack/react-form";
-import { PanelBottom } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import type { Language, Project } from "@/hooks/api";
-import {
-  useLanguages,
-  useUpdateLanguage,
-  useUpdateProjectConfig,
-} from "@/hooks/api";
+import { Input } from '@cms/design-system/components/ui/input';
+import { useT } from '@cms/i18n/react';
+import type { ProjectConfig } from '@cms/validators';
+import { useForm } from '@tanstack/react-form';
+import { PanelBottom } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import type { Language, Project } from '@/hooks/api';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@/hooks/api';
 import {
   DirtyStateReporter,
   FIELD_INPUT,
@@ -23,9 +19,9 @@ import {
   sortLanguagesDefaultFirst,
   ToggleRow,
   useScopeDirtyGuard,
-} from "./shared";
+} from './shared';
 
-type FooterConfig = NonNullable<ProjectConfig["footer"]>;
+type FooterConfig = NonNullable<ProjectConfig['footer']>;
 
 /** Footer with a per-language scope: "Default" edits `project.config.footer`
  *  exactly as before; a language scope localizes the copyright line only —
@@ -34,69 +30,45 @@ export function FooterSection({ project }: { project: Project }) {
   const t = useT();
   const { data: languages } = useLanguages(project.id);
   const orderedLanguages = sortLanguagesDefaultFirst(languages ?? []);
-  const defaultLanguage = orderedLanguages.find(
-    (language) => language.isDefault,
-  );
-  const extraLanguages = orderedLanguages.filter(
-    (language) => !language.isDefault,
-  );
-  const [scope, setScope] = useState<string>("default");
-  const activeLanguage = extraLanguages.find(
-    (language) => language.id === scope,
-  );
+  const defaultLanguage = orderedLanguages.find((language) => language.isDefault);
+  const extraLanguages = orderedLanguages.filter((language) => !language.isDefault);
+  const [scope, setScope] = useState<string>('default');
+  const activeLanguage = extraLanguages.find((language) => language.id === scope);
   const { guard, setDirty } = useScopeDirtyGuard();
 
   return (
     <div>
-      <SectionHeader
-        icon={<PanelBottom className="size-4" />}
-        title={t("settings.footer.title")}
-      />
+      <SectionHeader icon={<PanelBottom className="size-4" />} title={t('settings.footer.title')} />
       <LanguageScopePicker
         defaultLanguage={defaultLanguage}
         guard={guard}
-        hint={t("settings.footer.scope.hint")}
+        hint={t('settings.footer.scope.hint')}
         languages={extraLanguages}
         onChange={setScope}
         value={scope}
       />
       {/* Keyed per scope so switching re-seeds the form from that scope's config. */}
       {activeLanguage ? (
-        <LanguageFooterForm
-          key={activeLanguage.id}
-          language={activeLanguage}
-          onDirtyChange={setDirty}
-          project={project}
-        />
+        <LanguageFooterForm key={activeLanguage.id} language={activeLanguage} onDirtyChange={setDirty} project={project} />
       ) : (
-        <ProjectFooterForm
-          key="default"
-          onDirtyChange={setDirty}
-          project={project}
-        />
+        <ProjectFooterForm key="default" onDirtyChange={setDirty} project={project} />
       )}
     </div>
   );
 }
 
 /** Default scope: the project-level footer in `project.config.footer` (unchanged). */
-function ProjectFooterForm({
-  project,
-  onDirtyChange,
-}: {
-  project: Project;
-  onDirtyChange?: (dirty: boolean) => void;
-}) {
+function ProjectFooterForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
   const t = useT();
   const update = useUpdateProjectConfig(project.id);
   const footer = project.config?.footer ?? {};
 
   const form = useForm({
     defaultValues: {
-      copyright: footer.copyright ?? "",
-      github: footer.github ?? "",
-      x: footer.x ?? "",
-      linkedin: footer.linkedin ?? "",
+      copyright: footer.copyright ?? '',
+      github: footer.github ?? '',
+      x: footer.x ?? '',
+      linkedin: footer.linkedin ?? '',
       madeWithBadge: footer.madeWithBadge !== false,
     },
     onSubmit: async ({ value }) => {
@@ -120,15 +92,12 @@ function ProjectFooterForm({
     >
       <form.Field name="copyright">
         {(field) => (
-          <Field
-            hint={t("settings.footer.copyright.hint")}
-            label={t("settings.footer.copyright.label")}
-          >
+          <Field hint={t('settings.footer.copyright.hint')} label={t('settings.footer.copyright.label')}>
             <Input
               className={FIELD_INPUT}
               dir="auto"
               onChange={(e) => field.handleChange(e.target.value)}
-              placeholder={t("settings.footer.copyright.placeholder")}
+              placeholder={t('settings.footer.copyright.placeholder')}
               value={field.state.value}
             />
           </Field>
@@ -137,10 +106,7 @@ function ProjectFooterForm({
 
       <form.Field name="github">
         {(field) => (
-          <Field
-            hint={t("settings.footer.github.hint")}
-            label={t("settings.footer.github.label")}
-          >
+          <Field hint={t('settings.footer.github.hint')} label={t('settings.footer.github.label')}>
             <Input
               className={FIELD_MONO}
               dir="ltr"
@@ -154,10 +120,7 @@ function ProjectFooterForm({
 
       <form.Field name="x">
         {(field) => (
-          <Field
-            hint={t("settings.footer.x.hint")}
-            label={t("settings.footer.x.label")}
-          >
+          <Field hint={t('settings.footer.x.hint')} label={t('settings.footer.x.label')}>
             <Input
               className={FIELD_MONO}
               dir="ltr"
@@ -171,10 +134,7 @@ function ProjectFooterForm({
 
       <form.Field name="linkedin">
         {(field) => (
-          <Field
-            hint={t("settings.footer.linkedin.hint")}
-            label={t("settings.footer.linkedin.label")}
-          >
+          <Field hint={t('settings.footer.linkedin.hint')} label={t('settings.footer.linkedin.label')}>
             <Input
               className={FIELD_MONO}
               dir="ltr"
@@ -189,8 +149,8 @@ function ProjectFooterForm({
       <form.Field name="madeWithBadge">
         {(field) => (
           <ToggleRow
-            title={t("settings.footer.badge.title")}
-            hint={t("settings.footer.badge.hint")}
+            title={t('settings.footer.badge.title')}
+            hint={t('settings.footer.badge.hint')}
             checked={field.state.value}
             onCheckedChange={(checked) => field.handleChange(checked)}
           />
@@ -198,17 +158,11 @@ function ProjectFooterForm({
       </form.Field>
 
       <form.Subscribe selector={(state) => state.isDirty}>
-        {(isDirty) => (
-          <DirtyStateReporter dirty={isDirty} onDirtyChange={onDirtyChange} />
-        )}
+        {(isDirty) => <DirtyStateReporter dirty={isDirty} onDirtyChange={onDirtyChange} />}
       </form.Subscribe>
 
-      <form.Subscribe
-        selector={(state) => [state.isSubmitting, state.isDirty] as const}
-      >
-        {([isSubmitting, isDirty]) => (
-          <SaveBar disabled={!isDirty} isSubmitting={isSubmitting} />
-        )}
+      <form.Subscribe selector={(state) => [state.isSubmitting, state.isDirty] as const}>
+        {([isSubmitting, isDirty]) => <SaveBar disabled={!isDirty} isSubmitting={isSubmitting} />}
       </form.Subscribe>
     </form>
   );
@@ -232,7 +186,7 @@ function LanguageFooterForm({
   const projectFooter = project.config?.footer ?? {};
 
   const form = useForm({
-    defaultValues: { copyright: language.config?.footer?.copyright ?? "" },
+    defaultValues: { copyright: language.config?.footer?.copyright ?? '' },
     onSubmit: async ({ value }) => {
       const copyright = value.copyright.trim();
       try {
@@ -240,11 +194,9 @@ function LanguageFooterForm({
           id: language.id,
           body: { config: { footer: copyright ? { copyright } : null } },
         });
-        toast.success(t("common.saved"));
+        toast.success(t('common.saved'));
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : t("settings.saveError"),
-        );
+        toast.error(error instanceof Error ? error.message : t('settings.saveError'));
       }
     },
   });
@@ -258,18 +210,12 @@ function LanguageFooterForm({
     >
       <form.Field name="copyright">
         {(field) => (
-          <Field
-            hint={t("settings.footer.copyright.hint")}
-            label={t("settings.footer.copyright.label")}
-          >
+          <Field hint={t('settings.footer.copyright.hint')} label={t('settings.footer.copyright.label')}>
             <Input
               className={FIELD_INPUT}
-              dir={language.direction === "RTL" ? "rtl" : "ltr"}
+              dir={language.direction === 'RTL' ? 'rtl' : 'ltr'}
               onChange={(e) => field.handleChange(e.target.value)}
-              placeholder={
-                projectFooter.copyright ||
-                t("settings.footer.copyright.placeholder")
-              }
+              placeholder={projectFooter.copyright || t('settings.footer.copyright.placeholder')}
               value={field.state.value}
             />
           </Field>
@@ -278,61 +224,28 @@ function LanguageFooterForm({
 
       {/* Global-only fields: visible but disabled so the language scope still
           reads as the complete footer form. */}
-      <Field
-        hint={t("settings.chrome.scope.globalField")}
-        label={t("settings.footer.github.label")}
-      >
-        <Input
-          className={FIELD_MONO}
-          dir="ltr"
-          disabled
-          placeholder="https://github.com/acme"
-          value={projectFooter.github ?? ""}
-        />
+      <Field hint={t('settings.chrome.scope.globalField')} label={t('settings.footer.github.label')}>
+        <Input className={FIELD_MONO} dir="ltr" disabled placeholder="https://github.com/acme" value={projectFooter.github ?? ''} />
       </Field>
-      <Field
-        hint={t("settings.chrome.scope.globalField")}
-        label={t("settings.footer.x.label")}
-      >
-        <Input
-          className={FIELD_MONO}
-          dir="ltr"
-          disabled
-          placeholder="https://x.com/acme"
-          value={projectFooter.x ?? ""}
-        />
+      <Field hint={t('settings.chrome.scope.globalField')} label={t('settings.footer.x.label')}>
+        <Input className={FIELD_MONO} dir="ltr" disabled placeholder="https://x.com/acme" value={projectFooter.x ?? ''} />
       </Field>
-      <Field
-        hint={t("settings.chrome.scope.globalField")}
-        label={t("settings.footer.linkedin.label")}
-      >
-        <Input
-          className={FIELD_MONO}
-          dir="ltr"
-          disabled
-          placeholder="https://linkedin.com/company/acme"
-          value={projectFooter.linkedin ?? ""}
-        />
+      <Field hint={t('settings.chrome.scope.globalField')} label={t('settings.footer.linkedin.label')}>
+        <Input className={FIELD_MONO} dir="ltr" disabled placeholder="https://linkedin.com/company/acme" value={projectFooter.linkedin ?? ''} />
       </Field>
       <ToggleRow
         checked={projectFooter.madeWithBadge !== false}
         disabled
-        hint={t("settings.chrome.scope.globalField")}
-        title={t("settings.footer.badge.title")}
+        hint={t('settings.chrome.scope.globalField')}
+        title={t('settings.footer.badge.title')}
       />
 
       <form.Subscribe selector={(state) => state.isDirty}>
-        {(isDirty) => (
-          <DirtyStateReporter dirty={isDirty} onDirtyChange={onDirtyChange} />
-        )}
+        {(isDirty) => <DirtyStateReporter dirty={isDirty} onDirtyChange={onDirtyChange} />}
       </form.Subscribe>
 
-      <form.Subscribe
-        selector={(state) => [state.isSubmitting, state.isDirty] as const}
-      >
-        {([isSubmitting, isDirty]) => (
-          <SaveBar disabled={!isDirty} isSubmitting={isSubmitting} />
-        )}
+      <form.Subscribe selector={(state) => [state.isSubmitting, state.isDirty] as const}>
+        {([isSubmitting, isDirty]) => <SaveBar disabled={!isDirty} isSubmitting={isSubmitting} />}
       </form.Subscribe>
     </form>
   );

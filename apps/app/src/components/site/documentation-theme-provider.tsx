@@ -1,21 +1,9 @@
-import { ScrollArea } from "@cms/design-system/components/ui/scroll-area";
-import { cn } from "@cms/design-system/lib/utils";
-import {
-  type ResolvedTheme,
-  THEME_SCHEMA_VERSION,
-  type ThemeLayout,
-} from "@cms/shared/themes";
-import {
-  type CSSProperties,
-  createContext,
-  type ReactNode,
-  useContext,
-} from "react";
+import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
+import { cn } from '@cms/design-system/lib/utils';
+import { type ResolvedTheme, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
+import { type CSSProperties, createContext, type ReactNode, useContext } from 'react';
 
-export type DocumentationThemeContextName =
-  | "reader"
-  | "project-preview"
-  | "studio-preview";
+export type DocumentationThemeContextName = 'reader' | 'project-preview' | 'studio-preview';
 
 interface ReaderSlots {
   banner?: ReactNode;
@@ -44,8 +32,8 @@ interface PageSlots {
 }
 
 export interface DocumentationThemeTemplate {
-  id: "harbor" | "manuscript" | "signal";
-  shell: ThemeLayout["shell"];
+  id: 'harbor' | 'manuscript' | 'signal';
+  shell: ThemeLayout['shell'];
   ReaderLayout: (slots: ReaderSlots) => ReactNode;
   ProjectPreviewLayout: (slots: ProjectPreviewSlots) => ReactNode;
   StudioPreviewLayout: (slots: StudioPreviewSlots) => ReactNode;
@@ -65,8 +53,8 @@ const readerFrame = (slots: ReaderSlots, body: ReactNode) => (
 /** Harbor — the classic three-column reference: persistent library sidebar,
  * reading column, page outline. Everything sits directly on the canvas. */
 const HarborTemplate: DocumentationThemeTemplate = {
-  id: "harbor",
-  shell: "reference",
+  id: 'harbor',
+  shell: 'reference',
   ReaderLayout: (slots) =>
     readerFrame(
       slots,
@@ -80,10 +68,7 @@ const HarborTemplate: DocumentationThemeTemplate = {
           data-theme-region="sidebar"
         >
           <ScrollArea className="h-full">
-            <div
-              className="pt-6 pb-16 pe-4"
-              data-theme-region="sidebar-content"
-            >
+            <div className="pt-6 pb-16 pe-4" data-theme-region="sidebar-content">
               {slots.navigation}
             </div>
           </ScrollArea>
@@ -99,10 +84,7 @@ const HarborTemplate: DocumentationThemeTemplate = {
         data-documentation-layout="harbor-reference-preview"
         data-theme-region="preview-shell"
       >
-        <aside
-          className="hidden min-h-0 flex-col border-border border-e bg-card/40 md:flex"
-          data-theme-region="sidebar"
-        >
+        <aside className="hidden min-h-0 flex-col border-border border-e bg-card/40 md:flex" data-theme-region="sidebar">
           {navigation}
         </aside>
         {content}
@@ -117,10 +99,7 @@ const HarborTemplate: DocumentationThemeTemplate = {
         data-documentation-layout="harbor-reference-studio"
         data-theme-region="preview-shell"
       >
-        <div
-          className="border-border border-e bg-card/45 p-2 text-xs"
-          data-theme-region="sidebar"
-        >
+        <div className="border-border border-e bg-card/45 p-2 text-xs" data-theme-region="sidebar">
           {navigation}
         </div>
         {content}
@@ -145,8 +124,8 @@ const HarborTemplate: DocumentationThemeTemplate = {
  * sheet of "paper" carrying a focused reading measure with the outline in the
  * margin. */
 const ManuscriptTemplate: DocumentationThemeTemplate = {
-  id: "manuscript",
-  shell: "editorial",
+  id: 'manuscript',
+  shell: 'editorial',
   ReaderLayout: (slots) => (
     <>
       {slots.banner}
@@ -155,18 +134,9 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
         data-documentation-layout="manuscript-editorial"
       >
         {slots.header}
-        <div
-          className="mx-auto flex w-full max-w-[82rem] flex-1 flex-col px-4 pb-10 sm:px-6"
-          data-theme-region="content-shell"
-        >
-          <aside
-            className="documentation-manuscript-reader-navigation hidden lg:block"
-            data-theme-region="sidebar"
-          >
-            <div
-              className="documentation-manuscript-navigation py-6"
-              data-theme-region="sidebar-content"
-            >
+        <div className="mx-auto flex w-full max-w-[82rem] flex-1 flex-col px-4 pb-10 sm:px-6" data-theme-region="content-shell">
+          <aside className="documentation-manuscript-reader-navigation hidden lg:block" data-theme-region="sidebar">
+            <div className="documentation-manuscript-navigation py-6" data-theme-region="sidebar-content">
               {slots.navigation}
             </div>
           </aside>
@@ -200,17 +170,10 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
     </>
   ),
   StudioPreviewLayout: ({ header, navigation, content }) => (
-    <div
-      className="bg-(--theme-muted)/60 p-3"
-      data-documentation-layout="manuscript-editorial-studio"
-      data-theme-region="preview-shell"
-    >
+    <div className="bg-(--theme-muted)/60 p-3" data-documentation-layout="manuscript-editorial-studio" data-theme-region="preview-shell">
       <div className="mx-auto max-w-[44rem] border border-border bg-(--theme-surface) shadow-lg">
         {header}
-        <div
-          className="documentation-manuscript-studio-navigation border-border border-y px-3 py-2 text-xs"
-          data-theme-region="sidebar"
-        >
+        <div className="documentation-manuscript-studio-navigation border-border border-y px-3 py-2 text-xs" data-theme-region="sidebar">
           {navigation}
         </div>
         <div className="min-h-[20rem]">{content}</div>
@@ -234,15 +197,12 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
 /** Signal — a console: a dark library rail, a wide canvas, and an inline
  * command index above each article. Sharp corners, compact density. */
 const SignalTemplate: DocumentationThemeTemplate = {
-  id: "signal",
-  shell: "console",
+  id: 'signal',
+  shell: 'console',
   ReaderLayout: (slots) => (
     <>
       {slots.banner}
-      <section
-        className="documentation-signal-reader flex flex-1 flex-col p-0 lg:p-3"
-        data-documentation-layout="signal-console"
-      >
+      <section className="documentation-signal-reader flex flex-1 flex-col p-0 lg:p-3" data-documentation-layout="signal-console">
         {slots.header}
         <div
           className="mx-auto grid w-full max-w-[100rem] flex-1 grid-cols-1 bg-(--theme-canvas) lg:grid-cols-[15rem_minmax(0,1fr)] lg:overflow-hidden lg:border lg:border-(--theme-border) lg:border-t-0"
@@ -253,10 +213,7 @@ const SignalTemplate: DocumentationThemeTemplate = {
             data-theme-region="sidebar"
           >
             <ScrollArea className="sticky top-[4.25rem] h-[calc(100dvh-5.75rem)]">
-              <div
-                className="px-3 pt-4 pb-16"
-                data-theme-region="sidebar-content"
-              >
+              <div className="px-3 pt-4 pb-16" data-theme-region="sidebar-content">
                 {slots.navigation}
               </div>
             </ScrollArea>
@@ -282,18 +239,12 @@ const SignalTemplate: DocumentationThemeTemplate = {
         >
           {navigation}
         </aside>
-        <div className="min-h-0 overflow-y-auto border border-border bg-(--theme-canvas)">
-          {content}
-        </div>
+        <div className="min-h-0 overflow-y-auto border border-border bg-(--theme-canvas)">{content}</div>
       </div>
     </>
   ),
   StudioPreviewLayout: ({ header, navigation, content }) => (
-    <div
-      className="bg-(--theme-code) p-2"
-      data-documentation-layout="signal-console-studio"
-      data-theme-region="preview-shell"
-    >
+    <div className="bg-(--theme-code) p-2" data-documentation-layout="signal-console-studio" data-theme-region="preview-shell">
       {header}
       <div className="grid min-h-[22rem] grid-cols-[6.5rem_minmax(0,1fr)] border border-border border-t-0 bg-(--theme-canvas)">
         <div
@@ -329,10 +280,9 @@ export const DOCUMENTATION_THEME_TEMPLATES = {
   reference: HarborTemplate,
   editorial: ManuscriptTemplate,
   console: SignalTemplate,
-} as const satisfies Record<ThemeLayout["shell"], DocumentationThemeTemplate>;
+} as const satisfies Record<ThemeLayout['shell'], DocumentationThemeTemplate>;
 
-const DocumentationTemplateContext =
-  createContext<ThemeLayout["shell"]>("reference");
+const DocumentationTemplateContext = createContext<ThemeLayout['shell']>('reference');
 
 export function DocumentationThemeProvider({
   theme,
@@ -346,8 +296,8 @@ export function DocumentationThemeProvider({
 }: {
   theme: ResolvedTheme;
   context: DocumentationThemeContextName;
-  direction: "ltr" | "rtl";
-  appearance?: "light" | "dark";
+  direction: 'ltr' | 'rtl';
+  appearance?: 'light' | 'dark';
   className?: string;
   style?: CSSProperties;
   css?: string;
@@ -357,11 +307,7 @@ export function DocumentationThemeProvider({
   return (
     <DocumentationTemplateContext.Provider value={theme.layout.shell}>
       <div
-        className={cn(
-          "cms-site-chrome",
-          className,
-          appearance === "dark" && "dark",
-        )}
+        className={cn('cms-site-chrome', className, appearance === 'dark' && 'dark')}
         data-documentation-template={template.id}
         data-theme-callouts={theme.components.callouts}
         data-theme-context={context}
@@ -391,8 +337,7 @@ export function DocumentationThemeProvider({
   );
 }
 
-const useDocumentationThemeTemplate = (): DocumentationThemeTemplate =>
-  DOCUMENTATION_THEME_TEMPLATES[useContext(DocumentationTemplateContext)];
+const useDocumentationThemeTemplate = (): DocumentationThemeTemplate => DOCUMENTATION_THEME_TEMPLATES[useContext(DocumentationTemplateContext)];
 
 export function DocumentationReaderLayout(slots: ReaderSlots) {
   return useDocumentationThemeTemplate().ReaderLayout(slots);

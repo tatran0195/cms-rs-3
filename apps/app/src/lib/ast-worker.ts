@@ -5,7 +5,7 @@
 
 export interface AstWorkerParseRequest {
   id: string;
-  type: "parse-frontmatter" | "extract-headings" | "sanitize-markdown";
+  type: 'parse-frontmatter' | 'extract-headings' | 'sanitize-markdown';
   payload: string;
 }
 
@@ -28,15 +28,12 @@ export function parseFrontmatterSync(source: string): {
   const [, rawYaml, content] = match;
   const frontmatter: Record<string, string> = {};
 
-  for (const line of (rawYaml || "").split(/\r?\n/)) {
-    const colonIndex = line.indexOf(":");
+  for (const line of (rawYaml || '').split(/\r?\n/)) {
+    const colonIndex = line.indexOf(':');
     if (colonIndex > 0) {
       const key = line.slice(0, colonIndex).trim();
       let value = line.slice(colonIndex + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1);
       }
       if (key) {
@@ -45,7 +42,7 @@ export function parseFrontmatterSync(source: string): {
     }
   }
 
-  return { frontmatter, content: content || "" };
+  return { frontmatter, content: content || '' };
 }
 
 export function extractHeadingsSync(markdown: string): Array<{
@@ -63,8 +60,8 @@ export function extractHeadingsSync(markdown: string): Array<{
       const text = match[2].trim();
       const id = text
         .toLowerCase()
-        .replace(/[^\w\s-]/g, "")
-        .replace(/\s+/g, "-");
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-');
       headings.push({ level, text, id });
     }
   }
@@ -73,14 +70,14 @@ export function extractHeadingsSync(markdown: string): Array<{
 }
 
 // In worker runtime: listen to messages
-if (typeof self !== "undefined" && typeof window === "undefined") {
+if (typeof self !== 'undefined' && typeof window === 'undefined') {
   self.onmessage = (e: MessageEvent<AstWorkerParseRequest>) => {
     const { id, type, payload } = e.data;
     try {
-      if (type === "parse-frontmatter") {
+      if (type === 'parse-frontmatter') {
         const result = parseFrontmatterSync(payload);
         self.postMessage({ id, type, result });
-      } else if (type === "extract-headings") {
+      } else if (type === 'extract-headings') {
         const result = extractHeadingsSync(payload);
         self.postMessage({ id, type, result });
       } else {

@@ -1,7 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "PowerShell(cargo check *)"
-    ]
+    "allow": ["PowerShell(cargo check *)"]
   }
 }

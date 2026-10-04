@@ -1,12 +1,7 @@
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@cms/design-system/components/ui/card";
-import { Skeleton } from "@cms/design-system/components/ui/skeleton";
-import type { ReactNode } from "react";
-import { useFormatters } from "@/lib/format";
+import { Card, CardDescription, CardHeader, CardTitle } from '@cms/design-system/components/ui/card';
+import { Skeleton } from '@cms/design-system/components/ui/skeleton';
+import type { ReactNode } from 'react';
+import { useFormatters } from '@/lib/format';
 
 /**
  * Compact KPI tile: label, big value, optional leading icon. Same Card anatomy
@@ -14,17 +9,7 @@ import { useFormatters } from "@/lib/format";
  * identical; unlike SectionCard it accepts `null` and shows "—" when a figure
  * is unknown (e.g. analytics unavailable).
  */
-export function StatCard({
-  label,
-  value,
-  icon,
-  loading,
-}: {
-  label: string;
-  value: number | null;
-  icon?: ReactNode;
-  loading?: boolean;
-}) {
+export function StatCard({ label, value, icon, loading }: { label: string; value: number | null; icon?: ReactNode; loading?: boolean }) {
   const { number } = useFormatters();
   return (
     <Card className="@container/card">
@@ -37,7 +22,7 @@ export function StatCard({
           <Skeleton className="mt-1 h-8 w-20" />
         ) : (
           <CardTitle className="font-semibold text-2xl tabular-nums tracking-tight @[200px]/card:text-3xl">
-            {value === null ? "—" : number(value)}
+            {value === null ? '—' : number(value)}
           </CardTitle>
         )}
       </CardHeader>

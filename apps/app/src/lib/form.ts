@@ -13,12 +13,12 @@ type Translator = (key: MessageKey, vars?: Record<string, string | number>) => s
 
 export const required =
   (label = 'This field', t?: Translator) =>
-    (value: string) => {
-      if (value.trim().length > 0) {
-        return;
-      }
-      return t ? t('validation.required', { label }) : `${label} is required`;
-    };
+  (value: string) => {
+    if (value.trim().length > 0) {
+      return;
+    }
+    return t ? t('validation.required', { label }) : `${label} is required`;
+  };
 
 export const email = (value: string, t?: Translator) => {
   if (value.trim().length === 0) {

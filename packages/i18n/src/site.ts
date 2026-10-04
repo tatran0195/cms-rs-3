@@ -85,6 +85,16 @@ import { site_toggletheme } from './paraglide/messages/site_toggletheme.js';
 import { site_updated } from './paraglide/messages/site_updated.js';
 import { site_viewdetails } from './paraglide/messages/site_viewdetails.js';
 import { site_viewmarkdown } from './paraglide/messages/site_viewmarkdown.js';
+import { site_popularquestions } from './paraglide/messages/site_popularquestions.js';
+import { site_populartopics } from './paraglide/messages/site_populartopics.js';
+import { site_clickinstantanswer } from './paraglide/messages/site_clickinstantanswer.js';
+import { site_backtosearch } from './paraglide/messages/site_backtosearch.js';
+import { site_retry } from './paraglide/messages/site_retry.js';
+import { site_synthesizing } from './paraglide/messages/site_synthesizing.js';
+import { site_connectionerror } from './paraglide/messages/site_connectionerror.js';
+import { site_readytoanswer } from './paraglide/messages/site_readytoanswer.js';
+import { site_readytoanswerhint } from './paraglide/messages/site_readytoanswerhint.js';
+import { site_hybridsearch } from './paraglide/messages/site_hybridsearch.js';
 
 const siteMessages = {
   docs: site_docs,
@@ -171,6 +181,16 @@ const siteMessages = {
   changeVersion: site_changeversion,
   defaultVersion: site_defaultversion,
   tags: site_tags,
+  popularQuestions: site_popularquestions,
+  popularTopics: site_populartopics,
+  clickInstantAnswer: site_clickinstantanswer,
+  backToSearch: site_backtosearch,
+  retry: site_retry,
+  synthesizing: site_synthesizing,
+  connectionError: site_connectionerror,
+  readyToAnswer: site_readytoanswer,
+  readyToAnswerHint: site_readytoanswerhint,
+  hybridSearch: site_hybridsearch,
 } satisfies Record<string, MessageFn>;
 
 type SiteContractKey = Extract<MessageKey, `site.${string}`>;

@@ -1,31 +1,28 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { cn } from "@cms/design-system/lib/utils";
-import type { MessageKey } from "@cms/i18n";
-import { useT } from "@cms/i18n/react";
-import { type Editor, Extension } from "@tiptap/core";
-import CharacterCount from "@tiptap/extension-character-count";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import {
-  DragHandle,
-  type DragHandleProps,
-} from "@tiptap/extension-drag-handle-react";
-import Highlight from "@tiptap/extension-highlight";
-import Image from "@tiptap/extension-image";
-import Placeholder from "@tiptap/extension-placeholder";
-import Subscript from "@tiptap/extension-subscript";
-import Superscript from "@tiptap/extension-superscript";
-import { Table } from "@tiptap/extension-table";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
-import TableRow from "@tiptap/extension-table-row";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
-import Typography from "@tiptap/extension-typography";
-import type { Node as PMNode } from "@tiptap/pm/model";
-import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
-import StarterKit from "@tiptap/starter-kit";
-import { common, createLowlight } from "lowlight";
+import { Button } from '@cms/design-system/components/ui/button';
+import { cn } from '@cms/design-system/lib/utils';
+import type { MessageKey } from '@cms/i18n';
+import { useT } from '@cms/i18n/react';
+import { type Editor, Extension } from '@tiptap/core';
+import CharacterCount from '@tiptap/extension-character-count';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { DragHandle, type DragHandleProps } from '@tiptap/extension-drag-handle-react';
+import Highlight from '@tiptap/extension-highlight';
+import Image from '@tiptap/extension-image';
+import Placeholder from '@tiptap/extension-placeholder';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import { Table } from '@tiptap/extension-table';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TableRow from '@tiptap/extension-table-row';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
+import Typography from '@tiptap/extension-typography';
+import type { Node as PMNode } from '@tiptap/pm/model';
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import StarterKit from '@tiptap/starter-kit';
+import { common, createLowlight } from 'lowlight';
 import {
   Bold,
   Code,
@@ -50,34 +47,18 @@ import {
   Table as TableIcon,
   Underline as UnderlineIcon,
   Undo2,
-} from "lucide-react";
-import {
-  type ComponentType,
-  type CSSProperties,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Markdown, type MarkdownNodeSpec } from "tiptap-markdown";
-import { CodeBlockMenu } from "./code-block-menu";
-import { EditorBubbleMenu, LinkEditorPanel } from "./editor-bubble-menu";
-import { Callout } from "./extensions/callout";
-import {
-  CommentDecorations,
-  type CommentMarker,
-} from "./extensions/comment-decorations";
-import { mdxNodes } from "./extensions/mdx-nodes";
-import {
-  decodeMdxSource,
-  encodeMdxSource,
-  opaqueMdxNodes,
-} from "./extensions/mdx-roundtrip";
-import { SlashCommand } from "./extensions/slash-command";
-import { TableBubbleMenu } from "./table-menu";
-import "./tiptap.css";
+} from 'lucide-react';
+import { type ComponentType, type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Markdown, type MarkdownNodeSpec } from 'tiptap-markdown';
+import { CodeBlockMenu } from './code-block-menu';
+import { EditorBubbleMenu, LinkEditorPanel } from './editor-bubble-menu';
+import { Callout } from './extensions/callout';
+import { CommentDecorations, type CommentMarker } from './extensions/comment-decorations';
+import { mdxNodes } from './extensions/mdx-nodes';
+import { decodeMdxSource, encodeMdxSource, opaqueMdxNodes } from './extensions/mdx-roundtrip';
+import { SlashCommand } from './extensions/slash-command';
+import { TableBubbleMenu } from './table-menu';
+import './tiptap.css';
 
 // Register a small set of common languages for code-block highlighting.
 const lowlight = createLowlight(common);
@@ -94,17 +75,16 @@ const fenceParsers = new WeakSet<object>();
 const replaceFenceLanguage = (opening: string, language: string): string => {
   const match = /^(\s*(?:`{3,}|~{3,}))(\s*)(\S*)?(.*)$/.exec(opening);
   if (!match) return opening;
-  const prefix = match[1] ?? "```";
-  const rest = match[4] ?? "";
-  if (!language)
-    return `${prefix}${rest.trimStart() ? ` ${rest.trimStart()}` : ""}`;
-  return `${prefix}${match[2] ?? ""}${language}${rest}`;
+  const prefix = match[1] ?? '```';
+  const rest = match[4] ?? '';
+  if (!language) return `${prefix}${rest.trimStart() ? ` ${rest.trimStart()}` : ''}`;
+  return `${prefix}${match[2] ?? ''}${language}${rest}`;
 };
 
 /** Typed accessor for the tiptap-markdown storage (not part of the core Storage type). */
 export function getMarkdown(editor: Editor): string {
   const storage = editor.storage as { markdown?: { getMarkdown(): string } };
-  return storage.markdown?.getMarkdown() ?? "";
+  return storage.markdown?.getMarkdown() ?? '';
 }
 
 /**
@@ -114,7 +94,7 @@ export function getMarkdown(editor: Editor): string {
  * document behind.
  */
 export function seedMarkdown(editor: Editor, markdown: string): void {
-  if (markdown.trim() === "") {
+  if (markdown.trim() === '') {
     editor.commands.clearContent(false);
     return;
   }
@@ -139,101 +119,68 @@ const CodeBlock = CodeBlockLowlight.extend({
     return {
       ...this.parent?.(),
       sourceFenceOpen: {
-        default: "",
-        parseHTML: (element) =>
-          decodeMdxSource(
-            element.firstElementChild?.getAttribute("data-mdx-fence-open"),
-          ),
+        default: '',
+        parseHTML: (element) => decodeMdxSource(element.firstElementChild?.getAttribute('data-mdx-fence-open')),
         rendered: false,
       },
       sourceFenceClose: {
-        default: "",
-        parseHTML: (element) =>
-          decodeMdxSource(
-            element.firstElementChild?.getAttribute("data-mdx-fence-close"),
-          ),
+        default: '',
+        parseHTML: (element) => decodeMdxSource(element.firstElementChild?.getAttribute('data-mdx-fence-close')),
         rendered: false,
       },
       sourceFenceLanguage: {
-        default: "",
-        parseHTML: (element) =>
-          decodeMdxSource(
-            element.firstElementChild?.getAttribute("data-mdx-fence-language"),
-          ),
+        default: '',
+        parseHTML: (element) => decodeMdxSource(element.firstElementChild?.getAttribute('data-mdx-fence-language')),
         rendered: false,
       },
     };
   },
   renderHTML({ node, HTMLAttributes }) {
     const language = node.attrs.language || null;
-    return [
-      "pre",
-      { ...HTMLAttributes, "data-language": language ?? "code" },
-      ["code", { class: language ? `language-${language}` : undefined }, 0],
-    ];
+    return ['pre', { ...HTMLAttributes, 'data-language': language ?? 'code' }, ['code', { class: language ? `language-${language}` : undefined }, 0]];
   },
   addStorage() {
     return {
       markdown: {
         serialize(state: MarkdownSerializeState, node: PMNode) {
-          const sourceOpen = String(node.attrs.sourceFenceOpen ?? "");
+          const sourceOpen = String(node.attrs.sourceFenceOpen ?? '');
           if (sourceOpen) {
-            const language = String(node.attrs.language ?? "");
-            const originalLanguage = String(
-              node.attrs.sourceFenceLanguage ?? "",
-            );
-            state.write(
-              language === originalLanguage
-                ? sourceOpen
-                : replaceFenceLanguage(sourceOpen, language),
-            );
-            state.write("\n");
+            const language = String(node.attrs.language ?? '');
+            const originalLanguage = String(node.attrs.sourceFenceLanguage ?? '');
+            state.write(language === originalLanguage ? sourceOpen : replaceFenceLanguage(sourceOpen, language));
+            state.write('\n');
             state.text(node.textContent, false);
             state.ensureNewLine();
-            state.write(
-              String(node.attrs.sourceFenceClose ?? "") ||
-                (sourceOpen.trimStart().startsWith("~") ? "~~~" : "```"),
-            );
+            state.write(String(node.attrs.sourceFenceClose ?? '') || (sourceOpen.trimStart().startsWith('~') ? '~~~' : '```'));
             state.closeBlock(node);
             return;
           }
-          state.write(`\`\`\`${node.attrs.language || ""}\n`);
+          state.write(`\`\`\`${node.attrs.language || ''}\n`);
           state.text(node.textContent, false);
           state.ensureNewLine();
-          state.write("```");
+          state.write('```');
           state.closeBlock(node);
         },
         parse: {
           setup(markdownit) {
-            markdownit.set({ langPrefix: "language-" });
+            markdownit.set({ langPrefix: 'language-' });
             if (fenceParsers.has(markdownit)) return;
-            markdownit.core.ruler.after(
-              "block",
-              "cms_fence_source",
-              (state) => {
-                const lines = state.src.split("\n");
-                for (const token of state.tokens) {
-                  if (token.type !== "fence" || !token.map) continue;
-                  const open = lines[token.map[0]] ?? "";
-                  const close =
-                    lines[Math.max(token.map[0], token.map[1] - 1)] ?? "";
-                  const language = token.info.trim().split(/\s+/, 1)[0] ?? "";
-                  token.attrSet("data-mdx-fence-open", encodeMdxSource(open));
-                  token.attrSet("data-mdx-fence-close", encodeMdxSource(close));
-                  token.attrSet(
-                    "data-mdx-fence-language",
-                    encodeMdxSource(language),
-                  );
-                }
-              },
-            );
+            markdownit.core.ruler.after('block', 'cms_fence_source', (state) => {
+              const lines = state.src.split('\n');
+              for (const token of state.tokens) {
+                if (token.type !== 'fence' || !token.map) continue;
+                const open = lines[token.map[0]] ?? '';
+                const close = lines[Math.max(token.map[0], token.map[1] - 1)] ?? '';
+                const language = token.info.trim().split(/\s+/, 1)[0] ?? '';
+                token.attrSet('data-mdx-fence-open', encodeMdxSource(open));
+                token.attrSet('data-mdx-fence-close', encodeMdxSource(close));
+                token.attrSet('data-mdx-fence-language', encodeMdxSource(language));
+              }
+            });
             fenceParsers.add(markdownit);
           },
           updateDOM(element: HTMLElement) {
-            element.innerHTML = element.innerHTML.replace(
-              /\n<\/code><\/pre>/g,
-              "</code></pre>",
-            );
+            element.innerHTML = element.innerHTML.replace(/\n<\/code><\/pre>/g, '</code></pre>');
           },
         },
       } satisfies MarkdownNodeSpec,
@@ -251,33 +198,23 @@ interface BuildExtensionsOptions {
   /** Page text direction. prosemirror-tables' column-resize math is LTR-only
    *  (drag deltas are inverted under `direction: rtl`), so resizing is
    *  disabled for RTL documents. */
-  dir?: "ltr" | "rtl";
+  dir?: 'ltr' | 'rtl';
 }
 
 /** Let every prose block choose LTR/RTL from its own content. This keeps an
  * English installation section LTR inside an Arabic page while Arabic blocks
  * remain RTL, without persisting presentation-only attributes to Markdown. */
 const AutomaticBlockDirection = Extension.create({
-  name: "automaticBlockDirection",
+  name: 'automaticBlockDirection',
   addGlobalAttributes() {
     return [
       {
-        types: [
-          "paragraph",
-          "heading",
-          "blockquote",
-          "bulletList",
-          "orderedList",
-          "taskList",
-          "taskItem",
-          "tableCell",
-          "tableHeader",
-        ],
+        types: ['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'taskList', 'taskItem', 'tableCell', 'tableHeader'],
         attributes: {
           dir: {
             default: null,
             parseHTML: () => null,
-            renderHTML: () => ({ dir: "auto" }),
+            renderHTML: () => ({ dir: 'auto' }),
           },
         },
       },
@@ -294,12 +231,7 @@ const AutomaticBlockDirection = Extension.create({
  * and tiptap-markdown drops the attr on serialize, so offering it in the UI
  * would silently lose the author's formatting on save.
  */
-export function buildEditorExtensions({
-  onUpload,
-  getComments,
-  getActiveId,
-  dir = "ltr",
-}: BuildExtensionsOptions = {}) {
+export function buildEditorExtensions({ onUpload, getComments, getActiveId, dir = 'ltr' }: BuildExtensionsOptions = {}) {
   return [
     StarterKit.configure({
       // CodeBlockLowlight replaces StarterKit's plain code block.
@@ -307,7 +239,7 @@ export function buildEditorExtensions({
       link: {
         openOnClick: false,
         autolink: true,
-        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
       },
     }),
     AutomaticBlockDirection,
@@ -319,10 +251,7 @@ export function buildEditorExtensions({
       transformPastedText: true,
     }),
     Placeholder.configure({
-      placeholder: ({ node }) =>
-        node.type.name === "heading"
-          ? "Heading"
-          : "Write something, or press '/' for commands",
+      placeholder: ({ node }) => (node.type.name === 'heading' ? 'Heading' : "Write something, or press '/' for commands"),
     }),
     CodeBlock.configure({ lowlight }),
     Highlight.configure({ multicolor: false }),
@@ -334,7 +263,7 @@ export function buildEditorExtensions({
     TaskItem.configure({ nested: true }),
     // Column resizing is LTR-only in prosemirror-tables — in RTL the drag
     // handles operate direction-inverted, so it is disabled there.
-    Table.configure({ resizable: dir !== "rtl" }),
+    Table.configure({ resizable: dir !== 'rtl' }),
     TableRow,
     TableHeader,
     TableCell,
@@ -355,7 +284,7 @@ export function buildEditorExtensions({
 /** Notion-style block handle: a grip to drag-reorder blocks and a + to insert a
  *  new block. Floats in the start-side gutter (left in LTR, right in RTL) of
  *  whichever block the cursor hovers. */
-function BlockHandle({ editor, dir }: { editor: Editor; dir: "ltr" | "rtl" }) {
+function BlockHandle({ editor, dir }: { editor: Editor; dir: 'ltr' | 'rtl' }) {
   const t = useT();
   const posRef = useRef<number | null>(null);
   // DragHandle registers a ProseMirror plugin and tears it down whenever these
@@ -364,13 +293,11 @@ function BlockHandle({ editor, dir }: { editor: Editor; dir: "ltr" | "rtl" }) {
   const computePositionConfig = useMemo(
     () =>
       ({
-        placement: dir === "rtl" ? "right" : "left",
-      }) satisfies DragHandleProps["computePositionConfig"],
+        placement: dir === 'rtl' ? 'right' : 'left',
+      }) satisfies DragHandleProps['computePositionConfig'],
     [dir],
   );
-  const handleNodeChange = useCallback<
-    NonNullable<DragHandleProps["onNodeChange"]>
-  >(({ pos }) => {
+  const handleNodeChange = useCallback<NonNullable<DragHandleProps['onNodeChange']>>(({ pos }) => {
     posRef.current = pos;
   }, []);
   const insertBelow = () => {
@@ -385,22 +312,18 @@ function BlockHandle({ editor, dir }: { editor: Editor; dir: "ltr" | "rtl" }) {
       .chain()
       .focus()
       .insertContentAt(end, {
-        type: "paragraph",
-        content: [{ type: "text", text: "/" }],
+        type: 'paragraph',
+        content: [{ type: 'text', text: '/' }],
       })
       .run();
   };
   return (
-    <DragHandle
-      editor={editor}
-      computePositionConfig={computePositionConfig}
-      onNodeChange={handleNodeChange}
-    >
+    <DragHandle editor={editor} computePositionConfig={computePositionConfig} onNodeChange={handleNodeChange}>
       <div className="flex items-center gap-0.5 px-1 text-muted-foreground">
         <button
           type="button"
-          title={t("editor.insertBlock")}
-          aria-label={t("editor.insertBlock")}
+          title={t('editor.insertBlock')}
+          aria-label={t('editor.insertBlock')}
           onMouseDown={(event) => event.preventDefault()}
           onClick={insertBelow}
           className="grid size-6 cursor-pointer place-items-center rounded hover:bg-muted hover:text-foreground"
@@ -408,7 +331,7 @@ function BlockHandle({ editor, dir }: { editor: Editor; dir: "ltr" | "rtl" }) {
           <Plus className="size-4" />
         </button>
         <span
-          title={t("editor.dragToMove")}
+          title={t('editor.dragToMove')}
           className="grid size-6 cursor-grab place-items-center rounded hover:bg-muted hover:text-foreground active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
@@ -429,23 +352,19 @@ function CommentSelectionMenu({
 }) {
   const t = useT();
   return (
-    <BubbleMenu
-      editor={editor}
-      shouldShow={({ editor: current }) => !current.state.selection.empty}
-      options={{ placement: "top" }}
-    >
+    <BubbleMenu editor={editor} shouldShow={({ editor: current }) => !current.state.selection.empty} options={{ placement: 'top' }}>
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => {
           const { from, to } = editor.state.selection;
-          const quote = editor.state.doc.textBetween(from, to, " ").trim();
+          const quote = editor.state.doc.textBetween(from, to, ' ').trim();
           if (quote) onAddComment({ quote, from, to });
         }}
         className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 font-medium text-sm shadow-lg hover:bg-muted"
       >
         <MessageSquarePlus className="size-4" />
-        {t("editor.comment")}
+        {t('editor.comment')}
       </button>
     </BubbleMenu>
   );
@@ -480,151 +399,147 @@ function DocumentToolbar({ editor }: { editor: Editor }) {
     }
     const dismiss = (event: PointerEvent) => {
       const target = event.target;
-      if (
-        target instanceof Node &&
-        containerRef.current &&
-        !containerRef.current.contains(target)
-      ) {
+      if (target instanceof Node && containerRef.current && !containerRef.current.contains(target)) {
         setLinkOpen(false);
       }
     };
-    document.addEventListener("pointerdown", dismiss, true);
-    return () => document.removeEventListener("pointerdown", dismiss, true);
+    document.addEventListener('pointerdown', dismiss, true);
+    return () => document.removeEventListener('pointerdown', dismiss, true);
   }, [linkOpen]);
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
       canUndo: current.can().undo(),
       canRedo: current.can().redo(),
-      heading1: current.isActive("heading", { level: 1 }),
-      heading2: current.isActive("heading", { level: 2 }),
-      heading3: current.isActive("heading", { level: 3 }),
-      bold: current.isActive("bold"),
-      italic: current.isActive("italic"),
-      underline: current.isActive("underline"),
-      strike: current.isActive("strike"),
-      code: current.isActive("code"),
-      highlight: current.isActive("highlight"),
-      subscript: current.isActive("subscript"),
-      superscript: current.isActive("superscript"),
-      bulletList: current.isActive("bulletList"),
-      orderedList: current.isActive("orderedList"),
-      taskList: current.isActive("taskList"),
-      blockquote: current.isActive("blockquote"),
-      link: current.isActive("link"),
-      href: (current.getAttributes("link").href as string | undefined) ?? "",
-      codeBlock: current.isActive("codeBlock"),
+      heading1: current.isActive('heading', { level: 1 }),
+      heading2: current.isActive('heading', { level: 2 }),
+      heading3: current.isActive('heading', { level: 3 }),
+      bold: current.isActive('bold'),
+      italic: current.isActive('italic'),
+      underline: current.isActive('underline'),
+      strike: current.isActive('strike'),
+      code: current.isActive('code'),
+      highlight: current.isActive('highlight'),
+      subscript: current.isActive('subscript'),
+      superscript: current.isActive('superscript'),
+      bulletList: current.isActive('bulletList'),
+      orderedList: current.isActive('orderedList'),
+      taskList: current.isActive('taskList'),
+      blockquote: current.isActive('blockquote'),
+      link: current.isActive('link'),
+      href: (current.getAttributes('link').href as string | undefined) ?? '',
+      codeBlock: current.isActive('codeBlock'),
       canInsertTable: current.can().insertTable(),
     }),
   });
   const actions: ToolbarAction[] = [
     {
-      labelKey: "editor.toolbar.undo",
+      labelKey: 'editor.toolbar.undo',
       icon: Undo2,
       run: () => editor.chain().focus().undo().run(),
       disabled: !state.canUndo,
     },
     {
-      labelKey: "editor.toolbar.redo",
+      labelKey: 'editor.toolbar.redo',
       icon: Redo2,
       run: () => editor.chain().focus().redo().run(),
       disabled: !state.canRedo,
     },
     {
-      labelKey: "editor.slash.h1.title",
+      labelKey: 'editor.slash.h1.title',
       icon: Heading1,
       active: state.heading1,
       run: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
       separatorBefore: true,
     },
     {
-      labelKey: "editor.slash.h2.title",
+      labelKey: 'editor.slash.h2.title',
       icon: Heading2,
       active: state.heading2,
       run: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
     },
     {
-      labelKey: "editor.slash.h3.title",
+      labelKey: 'editor.slash.h3.title',
       icon: Heading3,
       active: state.heading3,
       run: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
     },
     {
-      labelKey: "editor.format.bold",
+      labelKey: 'editor.format.bold',
       icon: Bold,
       active: state.bold,
       run: () => editor.chain().focus().toggleBold().run(),
       separatorBefore: true,
     },
     {
-      labelKey: "editor.format.italic",
+      labelKey: 'editor.format.italic',
       icon: Italic,
       active: state.italic,
       run: () => editor.chain().focus().toggleItalic().run(),
     },
     {
-      labelKey: "editor.format.underline",
+      labelKey: 'editor.format.underline',
       icon: UnderlineIcon,
       active: state.underline,
       run: () => editor.chain().focus().toggleUnderline().run(),
     },
     {
-      labelKey: "editor.format.strikethrough",
+      labelKey: 'editor.format.strikethrough',
       icon: Strikethrough,
       active: state.strike,
       run: () => editor.chain().focus().toggleStrike().run(),
     },
     {
-      labelKey: "editor.format.code",
+      labelKey: 'editor.format.code',
       icon: Code,
       active: state.code,
       run: () => editor.chain().focus().toggleCode().run(),
     },
     {
-      labelKey: "editor.format.highlight",
+      labelKey: 'editor.format.highlight',
       icon: Highlighter,
       active: state.highlight,
       run: () => editor.chain().focus().toggleHighlight().run(),
     },
     {
-      labelKey: "editor.format.subscript",
+      labelKey: 'editor.format.subscript',
       icon: SubscriptIcon,
       active: state.subscript,
       run: () => editor.chain().focus().toggleSubscript().run(),
     },
     {
-      labelKey: "editor.format.superscript",
+      labelKey: 'editor.format.superscript',
       icon: SuperscriptIcon,
       active: state.superscript,
       run: () => editor.chain().focus().toggleSuperscript().run(),
     },
     {
-      labelKey: "editor.slash.bulletList.title",
+      labelKey: 'editor.slash.bulletList.title',
       icon: List,
       active: state.bulletList,
       run: () => editor.chain().focus().toggleBulletList().run(),
       separatorBefore: true,
     },
     {
-      labelKey: "editor.slash.numberedList.title",
+      labelKey: 'editor.slash.numberedList.title',
       icon: ListOrdered,
       active: state.orderedList,
       run: () => editor.chain().focus().toggleOrderedList().run(),
     },
     {
-      labelKey: "editor.slash.todo.title",
+      labelKey: 'editor.slash.todo.title',
       icon: ListTodo,
       active: state.taskList,
       run: () => editor.chain().focus().toggleTaskList().run(),
     },
     {
-      labelKey: "editor.slash.quote.title",
+      labelKey: 'editor.slash.quote.title',
       icon: Quote,
       active: state.blockquote,
       run: () => editor.chain().focus().toggleBlockquote().run(),
     },
     {
-      labelKey: "editor.format.link",
+      labelKey: 'editor.format.link',
       icon: LinkIcon,
       active: state.link,
       run: () => setLinkOpen((open) => !open),
@@ -632,83 +547,51 @@ function DocumentToolbar({ editor }: { editor: Editor }) {
       separatorBefore: true,
     },
     {
-      labelKey: "editor.slash.table.title",
+      labelKey: 'editor.slash.table.title',
       icon: TableIcon,
       disabled: !state.canInsertTable,
-      run: () =>
-        editor
-          .chain()
-          .focus()
-          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-          .run(),
+      run: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
       separatorBefore: true,
     },
     {
-      labelKey: "editor.slash.codeBlock.title",
+      labelKey: 'editor.slash.codeBlock.title',
       icon: SquareCode,
       active: state.codeBlock,
       run: () => editor.chain().focus().toggleCodeBlock().run(),
     },
   ];
   return (
-    <div
-      ref={containerRef}
-      className="relative z-20 shrink-0 border-border border-b bg-background/95 px-2 py-1.5 backdrop-blur"
-    >
-      <div
-        aria-label={t("editor.mode.wysiwyg")}
-        className="flex min-h-10 items-center gap-0.5 overflow-x-auto [scrollbar-width:thin]"
-        role="toolbar"
-      >
-        {actions.map(
-          ({
-            labelKey,
-            icon: Icon,
-            active = false,
-            run,
-            disabled,
-            separatorBefore,
-            expanded,
-          }) => {
-            const label = t(labelKey);
-            return (
-              <span
-                key={labelKey}
-                className="flex shrink-0 items-center gap-0.5"
+    <div ref={containerRef} className="relative z-20 shrink-0 border-border border-b bg-background/95 px-2 py-1.5 backdrop-blur">
+      <div aria-label={t('editor.mode.wysiwyg')} className="flex min-h-10 items-center gap-0.5 overflow-x-auto [scrollbar-width:thin]" role="toolbar">
+        {actions.map(({ labelKey, icon: Icon, active = false, run, disabled, separatorBefore, expanded }) => {
+          const label = t(labelKey);
+          return (
+            <span key={labelKey} className="flex shrink-0 items-center gap-0.5">
+              {separatorBefore ? <span className="ms-1 me-0.5 h-5 w-px bg-border" /> : null}
+              <Button
+                aria-expanded={expanded}
+                aria-label={label}
+                aria-pressed={active}
+                className="shrink-0"
+                disabled={disabled}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={run}
+                size="icon-sm"
+                title={label}
+                type="button"
+                variant={active ? 'secondary' : 'ghost'}
               >
-                {separatorBefore ? (
-                  <span className="ms-1 me-0.5 h-5 w-px bg-border" />
-                ) : null}
-                <Button
-                  aria-expanded={expanded}
-                  aria-label={label}
-                  aria-pressed={active}
-                  className="shrink-0"
-                  disabled={disabled}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={run}
-                  size="icon-sm"
-                  title={label}
-                  type="button"
-                  variant={active ? "secondary" : "ghost"}
-                >
-                  <Icon className="size-4" />
-                </Button>
-              </span>
-            );
-          },
-        )}
+                <Icon className="size-4" />
+              </Button>
+            </span>
+          );
+        })}
       </div>
       {/* Link popover — anchored under the toolbar (the row scrolls horizontally,
           so an in-row popover would be clipped by overflow-x). */}
       {linkOpen ? (
         <div className="absolute start-1 top-full mt-1 rounded-lg border border-border bg-card p-1 shadow-lg">
-          <LinkEditorPanel
-            editor={editor}
-            initialUrl={state.href}
-            onDone={() => setLinkOpen(false)}
-            autoFocus
-          />
+          <LinkEditorPanel editor={editor} initialUrl={state.href} onDone={() => setLinkOpen(false)} autoFocus />
         </div>
       ) : null}
     </div>
@@ -716,13 +599,7 @@ function DocumentToolbar({ editor }: { editor: Editor }) {
 }
 
 /** Word + character count, pinned to the corner of the editor viewport. */
-function EditorFooter({
-  editor,
-  documentMode = false,
-}: {
-  editor: Editor;
-  documentMode?: boolean;
-}) {
+function EditorFooter({ editor, documentMode = false }: { editor: Editor; documentMode?: boolean }) {
   const t = useT();
   const counts = useEditorState({
     editor,
@@ -731,14 +608,12 @@ function EditorFooter({
   return (
     <div
       className={cn(
-        "pointer-events-none z-10 flex justify-end",
-        documentMode
-          ? "shrink-0 border-border border-t bg-background/95 px-3 py-1.5"
-          : "sticky bottom-3",
+        'pointer-events-none z-10 flex justify-end',
+        documentMode ? 'shrink-0 border-border border-t bg-background/95 px-3 py-1.5' : 'sticky bottom-3',
       )}
     >
       <span className="rounded-full border border-border bg-background/85 px-2.5 py-1 text-[11px] text-muted-foreground tabular-nums shadow-sm backdrop-blur">
-        {t("editor.wordCount", {
+        {t('editor.wordCount', {
           words: counts.words,
           characters: counts.characters,
         })}
@@ -754,7 +629,7 @@ interface TiptapEditorProps {
   onChange: (markdown: string) => void;
   /** Upload a pasted/dropped/picked image, returning its hosted URL (or null). */
   onUpload?: (file: File) => Promise<string | null>;
-  dir?: "ltr" | "rtl";
+  dir?: 'ltr' | 'rtl';
   /** BCP 47 language tag used to select the correct script font. */
   lang?: string;
   editable?: boolean;
@@ -771,7 +646,7 @@ interface TiptapEditorProps {
   /** Called when a block is clicked in comment mode, with the anchor to attach. */
   onAddComment?: (anchor: { quote: string; from: number; to: number }) => void;
   /** Notion-like block controls or a persistent document toolbar. */
-  variant?: "visual" | "wysiwyg";
+  variant?: 'visual' | 'wysiwyg';
   /** Page title rendered inside the document sheet in rich-text mode. */
   titleSlot?: ReactNode;
 }
@@ -789,7 +664,7 @@ export function TiptapEditor({
   value,
   onChange,
   onUpload,
-  dir = "ltr",
+  dir = 'ltr',
   lang,
   editable = true,
   className,
@@ -798,7 +673,7 @@ export function TiptapEditor({
   activeCommentId,
   commentMode = false,
   onAddComment,
-  variant = "visual",
+  variant = 'visual',
   titleSlot,
 }: TiptapEditorProps) {
   const lastEmitted = useRef<string>(value);
@@ -821,21 +696,13 @@ export function TiptapEditor({
     activeCommentRef.current = activeCommentId ?? null;
     commentModeRef.current = commentMode;
     onAddCommentRef.current = onAddComment;
-  }, [
-    activeCommentId,
-    commentMode,
-    comments,
-    onAddComment,
-    onChange,
-    onUpload,
-    value,
-  ]);
+  }, [activeCommentId, commentMode, comments, onAddComment, onChange, onUpload, value]);
 
   // Upload an image file and insert it at the current selection.
   const insertUploadedImage = (file: File) => {
     const upload = onUploadRef.current;
     const ed = editorRef.current;
-    if (!upload || !ed || !file.type.startsWith("image/")) {
+    if (!upload || !ed || !file.type.startsWith('image/')) {
       return;
     }
     upload(file)
@@ -851,8 +718,7 @@ export function TiptapEditor({
     {
       editable,
       extensions: buildEditorExtensions({
-        onUpload: (file: File) =>
-          onUploadRef.current?.(file) ?? Promise.resolve(null),
+        onUpload: (file: File) => onUploadRef.current?.(file) ?? Promise.resolve(null),
         getComments: () => commentsRef.current,
         getActiveId: () => activeCommentRef.current,
         dir,
@@ -878,7 +744,7 @@ export function TiptapEditor({
       },
       editorProps: {
         attributes: {
-          class: "focus:outline-none",
+          class: 'focus:outline-none',
           dir,
         },
         handleTextInput: () => commentModeRef.current,
@@ -886,30 +752,14 @@ export function TiptapEditor({
           if (!commentModeRef.current) return false;
           // Preserve selection/navigation shortcuts while preventing review mode
           // from mutating the document.
-          if (
-            (event.metaKey || event.ctrlKey) &&
-            ["a", "c"].includes(event.key.toLowerCase())
-          )
-            return false;
-          if (event.shiftKey && event.key.startsWith("Arrow")) return false;
-          return ![
-            "ArrowLeft",
-            "ArrowRight",
-            "ArrowUp",
-            "ArrowDown",
-            "Home",
-            "End",
-            "PageUp",
-            "PageDown",
-            "Shift",
-          ].includes(event.key);
+          if ((event.metaKey || event.ctrlKey) && ['a', 'c'].includes(event.key.toLowerCase())) return false;
+          if (event.shiftKey && event.key.startsWith('Arrow')) return false;
+          return !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', 'Shift'].includes(event.key);
         },
         // Paste or drop an image file → upload and insert the hosted URL.
         handlePaste: (_view, event) => {
           if (commentModeRef.current) return true;
-          const files = Array.from(event.clipboardData?.files ?? []).filter(
-            (f) => f.type.startsWith("image/"),
-          );
+          const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
           if (files.length === 0 || !onUploadRef.current) {
             return false;
           }
@@ -921,9 +771,7 @@ export function TiptapEditor({
         },
         handleDrop: (_view, event) => {
           if (commentModeRef.current) return true;
-          const files = Array.from(
-            (event as DragEvent).dataTransfer?.files ?? [],
-          ).filter((f) => f.type.startsWith("image/"));
+          const files = Array.from((event as DragEvent).dataTransfer?.files ?? []).filter((f) => f.type.startsWith('image/'));
           if (files.length === 0 || !onUploadRef.current) {
             return false;
           }
@@ -985,44 +833,29 @@ export function TiptapEditor({
 
   return (
     <div
-      className={cn(
-        "pl-editor",
-        variant === "wysiwyg" && "pl-editor-document",
-        commentMode && "is-comment-mode",
-        className,
-      )}
+      className={cn('pl-editor', variant === 'wysiwyg' && 'pl-editor-document', commentMode && 'is-comment-mode', className)}
       data-editor-variant={variant}
       dir={dir}
       lang={lang}
       style={style}
     >
-      {editor && variant === "wysiwyg" && !commentMode ? (
-        <DocumentToolbar editor={editor} />
-      ) : null}
+      {editor && variant === 'wysiwyg' && !commentMode ? <DocumentToolbar editor={editor} /> : null}
       {editor && !commentMode ? <EditorBubbleMenu editor={editor} /> : null}
       {editor && !commentMode ? <TableBubbleMenu editor={editor} /> : null}
       {editor && !commentMode ? <CodeBlockMenu editor={editor} /> : null}
-      {editor && commentMode && onAddComment ? (
-        <CommentSelectionMenu editor={editor} onAddComment={onAddComment} />
-      ) : null}
-      {editor && !commentMode && variant === "visual" ? (
-        <BlockHandle editor={editor} dir={dir ?? "ltr"} />
-      ) : null}
-      {variant === "wysiwyg" ? (
+      {editor && commentMode && onAddComment ? <CommentSelectionMenu editor={editor} onAddComment={onAddComment} /> : null}
+      {editor && !commentMode && variant === 'visual' ? <BlockHandle editor={editor} dir={dir ?? 'ltr'} /> : null}
+      {variant === 'wysiwyg' ? (
         <div className="pl-document-scroll">
           <div className="pl-document-page">
-            {titleSlot ? (
-              <div className="pl-document-title">{titleSlot}</div>
-            ) : null}
+            {titleSlot ? <div className="pl-document-title">{titleSlot}</div> : null}
             <EditorContent editor={editor} />
           </div>
         </div>
       ) : (
         <EditorContent editor={editor} />
       )}
-      {editor && editable && !commentMode ? (
-        <EditorFooter documentMode={variant === "wysiwyg"} editor={editor} />
-      ) : null}
+      {editor && editable && !commentMode ? <EditorFooter documentMode={variant === 'wysiwyg'} editor={editor} /> : null}
     </div>
   );
 }

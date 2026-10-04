@@ -106,13 +106,13 @@ export const projectThemeCss = (config?: ProjectConfig | null): string => {
   const legacyDarkAccent = `color-mix(in oklab,${legacyAccent} 72%,white)`;
   const colorRules = config?.theme
     ? [
-      `:root,.cms-site-chrome{${tokenDeclarations(light)};--radius:${radiusValue(theme.layout.radius)}}`,
-      `:root.dark,:root.dark .cms-site-chrome,.cms-site-chrome.dark{${tokenDeclarations(dark)}}`,
-    ]
+        `:root,.cms-site-chrome{${tokenDeclarations(light)};--radius:${radiusValue(theme.layout.radius)}}`,
+        `:root.dark,:root.dark .cms-site-chrome,.cms-site-chrome.dark{${tokenDeclarations(dark)}}`,
+      ]
     : [
-      `:root,.cms-site-chrome{${legacyTokenDeclarations(legacyAccent)};--primary:${legacyAccent};--ring:${legacyAccent};--radius:${radiusValue(theme.layout.radius)}}`,
-      `:root.dark,:root.dark .cms-site-chrome,.cms-site-chrome.dark{--theme-accent:${legacyDarkAccent};--theme-focus:${legacyDarkAccent};--theme-info:${legacyDarkAccent};--primary:${legacyDarkAccent};--ring:${legacyDarkAccent}}`,
-    ];
+        `:root,.cms-site-chrome{${legacyTokenDeclarations(legacyAccent)};--primary:${legacyAccent};--ring:${legacyAccent};--radius:${radiusValue(theme.layout.radius)}}`,
+        `:root.dark,:root.dark .cms-site-chrome,.cms-site-chrome.dark{--theme-accent:${legacyDarkAccent};--theme-focus:${legacyDarkAccent};--theme-info:${legacyDarkAccent};--primary:${legacyDarkAccent};--ring:${legacyDarkAccent}}`,
+      ];
   return [
     ...colorRules,
     headingFont

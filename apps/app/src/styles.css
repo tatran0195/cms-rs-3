@@ -128,7 +128,7 @@
   /* Manuscript: a tall, quiet masthead on the muted band; the chapter deck
    * below it does the wayfinding. */
   .cms-site-chrome[data-documentation-template="manuscript"]
-    [data-theme-region="header-shell"] {
+  [data-theme-region="header-shell"] {
     position: static;
     border-bottom: 1px solid var(--theme-border);
     background: var(--theme-canvas);
@@ -151,7 +151,7 @@
 
   /* Signal: a flat, sticky toolbar that fuses with the console frame. */
   .cms-site-chrome[data-documentation-template="signal"]
-    [data-theme-region="header-shell"] {
+  [data-theme-region="header-shell"] {
     position: sticky;
     top: 0;
     margin: 0;
@@ -666,12 +666,12 @@
 
   /* Accordions, frames, file trees, and the API panels share one surface. */
   .cms-site-chrome
-    :is(
-      [data-theme-component="accordion-group"],
-      [data-theme-component="frame"],
-      [data-theme-component="file-tree"],
-      [data-theme-component="api-example"]
-    ) {
+  :is(
+    [data-theme-component="accordion-group"],
+    [data-theme-component="frame"],
+    [data-theme-component="file-tree"],
+    [data-theme-component="api-example"]
+  ) {
     background: var(--theme-surface);
     border-color: var(--theme-border);
   }
@@ -739,7 +739,7 @@
     box-shadow:
       inset 0 2px 0 var(--theme-code-accent),
       0 12px 30px -14px
-        color-mix(in oklab, var(--theme-foreground) 35%, transparent);
+      color-mix(in oklab, var(--theme-foreground) 35%, transparent);
   }
 
   @media (min-width: 64rem) {

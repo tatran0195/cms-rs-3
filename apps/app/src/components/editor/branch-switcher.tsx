@@ -1,5 +1,5 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { useConfirm } from "@cms/design-system/components/ui/confirm";
+import { Button } from '@cms/design-system/components/ui/button';
+import { useConfirm } from '@cms/design-system/components/ui/confirm';
 import {
   Dialog,
   DialogClose,
@@ -8,22 +8,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@cms/design-system/components/ui/dialog";
+} from '@cms/design-system/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@cms/design-system/components/ui/dropdown-menu";
-import { Input } from "@cms/design-system/components/ui/input";
-import { Label } from "@cms/design-system/components/ui/label";
-import { useT } from "@cms/i18n/react";
-import { Check, GitBranch, GitMerge, Plus } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import type { Branch } from "@/hooks/api";
-import { useCreateBranch, useMergeBranch } from "@/hooks/api";
+} from '@cms/design-system/components/ui/dropdown-menu';
+import { Input } from '@cms/design-system/components/ui/input';
+import { Label } from '@cms/design-system/components/ui/label';
+import { useT } from '@cms/i18n/react';
+import { Check, GitBranch, GitMerge, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import type { Branch } from '@/hooks/api';
+import { useCreateBranch, useMergeBranch } from '@/hooks/api';
 
 /** Docs version switcher for the editor. Internally versions are backed by the
  *  existing Branch model, but authors see v1/v2-style docs versions. */
@@ -41,13 +41,10 @@ export function BranchSwitcher({
   const t = useT();
   const confirm = useConfirm();
   const [createOpen, setCreateOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const create = useCreateBranch(projectId);
   const merge = useMergeBranch(projectId);
-  const active =
-    branches.find((b) => b.id === activeBranchId) ??
-    branches.find((b) => b.isDefault) ??
-    branches[0];
+  const active = branches.find((b) => b.id === activeBranchId) ?? branches.find((b) => b.isDefault) ?? branches[0];
 
   const mergeActive = async () => {
     if (!active || active.isDefault) {
@@ -55,9 +52,9 @@ export function BranchSwitcher({
     }
     const main = branches.find((b) => b.isDefault);
     const ok = await confirm({
-      title: t("editor.branch.merge"),
-      description: t("editor.branch.mergeConfirm", { name: active.name }),
-      confirmLabel: t("editor.branch.merge"),
+      title: t('editor.branch.merge'),
+      description: t('editor.branch.mergeConfirm', { name: active.name }),
+      confirmLabel: t('editor.branch.merge'),
       destructive: true,
     });
     if (!ok) {
@@ -65,15 +62,12 @@ export function BranchSwitcher({
     }
     merge.mutate(active.id, {
       onSuccess: () => {
-        toast.success(t("editor.branch.merged", { name: active.name }));
+        toast.success(t('editor.branch.merged', { name: active.name }));
         if (main) {
           onSwitch(main.id);
         }
       },
-      onError: (e) =>
-        toast.error(
-          e instanceof Error ? e.message : t("editor.branch.mergeError"),
-        ),
+      onError: (e) => toast.error(e instanceof Error ? e.message : t('editor.branch.mergeError')),
     });
   };
 
@@ -86,15 +80,12 @@ export function BranchSwitcher({
       { name: trimmed, fromBranchId: active?.id },
       {
         onSuccess: (branch) => {
-          toast.success(t("editor.branch.created", { name: branch.name }));
+          toast.success(t('editor.branch.created', { name: branch.name }));
           setCreateOpen(false);
-          setName("");
+          setName('');
           onSwitch(branch.id);
         },
-        onError: (e) =>
-          toast.error(
-            e instanceof Error ? e.message : t("editor.branch.createError"),
-          ),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t('editor.branch.createError')),
       },
     );
   };
@@ -106,11 +97,8 @@ export function BranchSwitcher({
           render={
             <Button size="sm" variant="outline" className="h-7 gap-1.5 px-2.5">
               <GitBranch className="size-3.5" />
-              <span
-                className="max-w-[54px] truncate font-medium text-[12.5px] sm:max-w-[140px]"
-                dir="ltr"
-              >
-                {active?.name ?? "main"}
+              <span className="max-w-[54px] truncate font-medium text-[12.5px] sm:max-w-[140px]" dir="ltr">
+                {active?.name ?? 'main'}
               </span>
             </Button>
           }
@@ -122,24 +110,18 @@ export function BranchSwitcher({
               <span className="flex-1 truncate" dir="ltr">
                 {b.name}
               </span>
-              {b.isDefault ? (
-                <span className="text-[10px] text-muted-foreground">
-                  {t("editor.branch.default")}
-                </span>
-              ) : null}
-              {b.id === active?.id ? (
-                <Check className="size-3.5 text-primary" />
-              ) : null}
+              {b.isDefault ? <span className="text-[10px] text-muted-foreground">{t('editor.branch.default')}</span> : null}
+              {b.id === active?.id ? <Check className="size-3.5 text-primary" /> : null}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           {active && !active.isDefault ? (
             <DropdownMenuItem onClick={mergeActive}>
-              <GitMerge className="size-3.5" /> {t("editor.branch.merge")}
+              <GitMerge className="size-3.5" /> {t('editor.branch.merge')}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-            <Plus className="size-3.5" /> {t("editor.branch.new")}
+            <Plus className="size-3.5" /> {t('editor.branch.new')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -147,13 +129,11 @@ export function BranchSwitcher({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("editor.branch.new")}</DialogTitle>
-            <DialogDescription>
-              {t("editor.branch.dialogDesc", { name: active?.name ?? "main" })}
-            </DialogDescription>
+            <DialogTitle>{t('editor.branch.new')}</DialogTitle>
+            <DialogDescription>{t('editor.branch.dialogDesc', { name: active?.name ?? 'main' })}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="branch-name">{t("editor.branch.nameLabel")}</Label>
+            <Label htmlFor="branch-name">{t('editor.branch.nameLabel')}</Label>
             <Input
               id="branch-name"
               autoFocus
@@ -162,20 +142,16 @@ export function BranchSwitcher({
               onChange={(e) => setName(e.target.value)}
               placeholder="v2"
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === 'Enter') {
                   submit();
                 }
               }}
             />
           </div>
           <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>
-              {t("common.cancel")}
-            </DialogClose>
+            <DialogClose render={<Button type="button" variant="outline" />}>{t('common.cancel')}</DialogClose>
             <Button type="button" onClick={submit} disabled={create.isPending}>
-              {create.isPending
-                ? t("editor.branch.creating")
-                : t("editor.branch.create")}
+              {create.isPending ? t('editor.branch.creating') : t('editor.branch.create')}
             </Button>
           </DialogFooter>
         </DialogContent>

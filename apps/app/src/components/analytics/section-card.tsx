@@ -1,19 +1,12 @@
-import { Badge } from "@cms/design-system/components/ui/badge";
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@cms/design-system/components/ui/card";
-import { Skeleton } from "@cms/design-system/components/ui/skeleton";
-import { cn } from "@cms/design-system/lib/utils";
-import { Minus, TrendingDown, TrendingUp } from "lucide-react";
-import type { ReactNode } from "react";
-import { useFormatters } from "@/lib/format";
+import { Badge } from '@cms/design-system/components/ui/badge';
+import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@cms/design-system/components/ui/card';
+import { Skeleton } from '@cms/design-system/components/ui/skeleton';
+import { cn } from '@cms/design-system/lib/utils';
+import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useFormatters } from '@/lib/format';
 
-export type Trend = { pct: number; direction: "up" | "down" | "flat" } | null;
+export type Trend = { pct: number; direction: 'up' | 'down' | 'flat' } | null;
 
 /**
  * A dashboard-01-style KPI card: a label, a large number, an optional trend
@@ -40,12 +33,7 @@ export function SectionCard({
   const { number, percent } = useFormatters();
   // Icon + colour by direction: up = green-ish (default), down = destructive,
   // flat = neutral Minus — so a downtrend is visually distinct, not just an arrow.
-  const TrendIcon =
-    trend?.direction === "down"
-      ? TrendingDown
-      : trend?.direction === "flat"
-        ? Minus
-        : TrendingUp;
+  const TrendIcon = trend?.direction === 'down' ? TrendingDown : trend?.direction === 'flat' ? Minus : TrendingUp;
 
   return (
     <Card className="@container/card">
@@ -57,19 +45,13 @@ export function SectionCard({
         {loading ? (
           <Skeleton className="mt-1 h-8 w-20" />
         ) : (
-          <CardTitle className="font-semibold text-2xl tabular-nums tracking-tight @[200px]/card:text-3xl">
-            {number(value)}
-          </CardTitle>
+          <CardTitle className="font-semibold text-2xl tabular-nums tracking-tight @[200px]/card:text-3xl">{number(value)}</CardTitle>
         )}
         {trend ? (
           <CardAction>
             <Badge
-              variant={trend.direction === "down" ? "destructive" : "outline"}
-              className={cn(
-                "gap-1",
-                trend.direction === "up" &&
-                  "text-emerald-600 dark:text-emerald-400",
-              )}
+              variant={trend.direction === 'down' ? 'destructive' : 'outline'}
+              className={cn('gap-1', trend.direction === 'up' && 'text-emerald-600 dark:text-emerald-400')}
             >
               <TrendIcon className="size-3.5" />
               {percent(trend.pct)}
@@ -82,9 +64,7 @@ export function SectionCard({
           {footer ? (
             <div className="flex items-center gap-1.5 font-medium">
               {footer}
-              {trend ? (
-                <TrendIcon className="size-4 text-muted-foreground" />
-              ) : null}
+              {trend ? <TrendIcon className="size-4 text-muted-foreground" /> : null}
             </div>
           ) : null}
           {hint ? <div className="text-muted-foreground">{hint}</div> : null}

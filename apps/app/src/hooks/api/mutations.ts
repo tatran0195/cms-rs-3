@@ -230,21 +230,18 @@ export const useReorderPages = (projectId: string) => {
 
       // Optimistically update pages cache
       const orderMap = new Map(newOrder.items.map((it) => [it.id, it]));
-      qc.setQueriesData<PageNode[]>(
-        { queryKey: queryKeys.pages.allForProject(projectId) },
-        (old) => {
-          if (!old) return old;
-          return old.map((page) => {
-            const update = orderMap.get(page.id);
-            if (!update) return page;
-            return {
-              ...page,
-              parentId: update.parentId,
-              position: update.position,
-            };
-          });
-        },
-      );
+      qc.setQueriesData<PageNode[]>({ queryKey: queryKeys.pages.allForProject(projectId) }, (old) => {
+        if (!old) return old;
+        return old.map((page) => {
+          const update = orderMap.get(page.id);
+          if (!update) return page;
+          return {
+            ...page,
+            parentId: update.parentId,
+            position: update.position,
+          };
+        });
+      });
 
       return { previousPages };
     },
@@ -633,9 +630,9 @@ export const useUpdateWorkspaceSettings = (projectId?: string) => {
     mutationFn: async (body: UpdateWorkspaceSettingsBody) =>
       projectId
         ? mutateData<WorkspaceSettings>(
-          await api.app.projects[':projectId'].settings.$patch({ param: { projectId }, json: body }),
-          'Could not update settings.',
-        )
+            await api.app.projects[':projectId'].settings.$patch({ param: { projectId }, json: body }),
+            'Could not update settings.',
+          )
         : mutateData<WorkspaceSettings>(await api.app.workspace.$patch({ json: body }), 'Could not update workspace settings.'),
     onSuccess: () => qc.invalidateQueries({ queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings() }),
   });

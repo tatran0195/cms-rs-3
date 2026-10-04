@@ -1,16 +1,12 @@
-import { Input } from "@cms/design-system/components/ui/input";
-import { useT } from "@cms/i18n/react";
-import type { LanguageConfig } from "@cms/validators";
-import { useForm } from "@tanstack/react-form";
-import { Megaphone } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import type { Language, Project } from "@/hooks/api";
-import {
-  useLanguages,
-  useUpdateLanguage,
-  useUpdateProjectConfig,
-} from "@/hooks/api";
+import { Input } from '@cms/design-system/components/ui/input';
+import { useT } from '@cms/i18n/react';
+import type { LanguageConfig } from '@cms/validators';
+import { useForm } from '@tanstack/react-form';
+import { Megaphone } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import type { Language, Project } from '@/hooks/api';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@/hooks/api';
 import {
   DirtyStateReporter,
   FIELD_INPUT,
@@ -22,7 +18,7 @@ import {
   sortLanguagesDefaultFirst,
   ToggleRow,
   useScopeDirtyGuard,
-} from "./shared";
+} from './shared';
 
 /** The editable banner values shared by the project scope and a language scope. */
 interface BannerValues {
@@ -40,62 +36,36 @@ export function BannerSection({ project }: { project: Project }) {
   const t = useT();
   const { data: languages } = useLanguages(project.id);
   const orderedLanguages = sortLanguagesDefaultFirst(languages ?? []);
-  const defaultLanguage = orderedLanguages.find(
-    (language) => language.isDefault,
-  );
-  const extraLanguages = orderedLanguages.filter(
-    (language) => !language.isDefault,
-  );
-  const [scope, setScope] = useState<string>("default");
-  const activeLanguage = extraLanguages.find(
-    (language) => language.id === scope,
-  );
+  const defaultLanguage = orderedLanguages.find((language) => language.isDefault);
+  const extraLanguages = orderedLanguages.filter((language) => !language.isDefault);
+  const [scope, setScope] = useState<string>('default');
+  const activeLanguage = extraLanguages.find((language) => language.id === scope);
   const { guard, setDirty } = useScopeDirtyGuard();
 
   return (
     <div>
-      <SectionHeader
-        icon={<Megaphone className="size-4" />}
-        title={t("settings.banner.title")}
-      />
-      <p className="mb-4 text-[13.5px] text-muted-foreground leading-relaxed">
-        {t("settings.banner.description")}
-      </p>
+      <SectionHeader icon={<Megaphone className="size-4" />} title={t('settings.banner.title')} />
+      <p className="mb-4 text-[13.5px] text-muted-foreground leading-relaxed">{t('settings.banner.description')}</p>
       <LanguageScopePicker
         defaultLanguage={defaultLanguage}
         guard={guard}
-        hint={t("settings.banner.scope.hint")}
+        hint={t('settings.banner.scope.hint')}
         languages={extraLanguages}
         onChange={setScope}
         value={scope}
       />
       {/* Keyed per scope so switching re-seeds the form from that scope's config. */}
       {activeLanguage ? (
-        <LanguageBannerForm
-          key={activeLanguage.id}
-          language={activeLanguage}
-          onDirtyChange={setDirty}
-          project={project}
-        />
+        <LanguageBannerForm key={activeLanguage.id} language={activeLanguage} onDirtyChange={setDirty} project={project} />
       ) : (
-        <ProjectBannerForm
-          key="default"
-          onDirtyChange={setDirty}
-          project={project}
-        />
+        <ProjectBannerForm key="default" onDirtyChange={setDirty} project={project} />
       )}
     </div>
   );
 }
 
 /** Default scope: the project-level banner in `project.config.banner` (unchanged). */
-function ProjectBannerForm({
-  project,
-  onDirtyChange,
-}: {
-  project: Project;
-  onDirtyChange?: (dirty: boolean) => void;
-}) {
+function ProjectBannerForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
   const update = useUpdateProjectConfig(project.id);
   const banner = project.config?.banner ?? {};
   return (
@@ -104,9 +74,9 @@ function ProjectBannerForm({
       initial={{
         enabled: banner.enabled ?? false,
         dismissible: banner.dismissible ?? true,
-        message: banner.message ?? "",
-        linkLabel: banner.linkLabel ?? "",
-        linkUrl: banner.linkUrl ?? "",
+        message: banner.message ?? '',
+        linkLabel: banner.linkLabel ?? '',
+        linkUrl: banner.linkUrl ?? '',
       }}
       onSave={(value) =>
         saveConfigSection(update, {
@@ -140,19 +110,18 @@ function LanguageBannerForm({
   const t = useT();
   const update = useUpdateLanguage(project.id);
   const projectBanner = project.config?.banner ?? {};
-  const override: NonNullable<LanguageConfig["banner"]> =
-    language.config?.banner ?? {};
+  const override: NonNullable<LanguageConfig['banner']> = language.config?.banner ?? {};
 
   return (
     <BannerScopeForm
-      direction={language.direction === "RTL" ? "rtl" : "ltr"}
+      direction={language.direction === 'RTL' ? 'rtl' : 'ltr'}
       onDirtyChange={onDirtyChange}
       initial={{
         enabled: override.enabled ?? projectBanner.enabled ?? false,
         dismissible: override.dismissible ?? projectBanner.dismissible ?? true,
-        message: override.message ?? "",
-        linkLabel: override.linkLabel ?? "",
-        linkUrl: override.linkUrl ?? "",
+        message: override.message ?? '',
+        linkLabel: override.linkLabel ?? '',
+        linkUrl: override.linkUrl ?? '',
       }}
       placeholders={{
         message: projectBanner.message || undefined,
@@ -160,7 +129,7 @@ function LanguageBannerForm({
         linkUrl: projectBanner.linkUrl || undefined,
       }}
       onSave={async (value) => {
-        const banner: NonNullable<LanguageConfig["banner"]> = {};
+        const banner: NonNullable<LanguageConfig['banner']> = {};
         if (value.message.trim()) {
           banner.message = value.message.trim();
         }
@@ -185,11 +154,9 @@ function LanguageBannerForm({
               },
             },
           });
-          toast.success(t("common.saved"));
+          toast.success(t('common.saved'));
         } catch (error) {
-          toast.error(
-            error instanceof Error ? error.message : t("settings.saveError"),
-          );
+          toast.error(error instanceof Error ? error.message : t('settings.saveError'));
         }
       }}
     />
@@ -207,7 +174,7 @@ function BannerScopeForm({
 }: {
   initial: BannerValues;
   /** Writing direction of the scoped language; text fields fall back to dir="auto" in the project scope. */
-  direction?: "ltr" | "rtl";
+  direction?: 'ltr' | 'rtl';
   onSave: (value: BannerValues) => Promise<void>;
   placeholders?: { message?: string; linkLabel?: string; linkUrl?: string };
   onDirtyChange?: (dirty: boolean) => void;
@@ -216,8 +183,7 @@ function BannerScopeForm({
   const [enabled, setEnabled] = useState<boolean>(initial.enabled);
   const [dismissible, setDismissible] = useState<boolean>(initial.dismissible);
   // The two toggles live outside the form, so their dirtiness is tracked by value.
-  const togglesDirty =
-    enabled !== initial.enabled || dismissible !== initial.dismissible;
+  const togglesDirty = enabled !== initial.enabled || dismissible !== initial.dismissible;
 
   const form = useForm({
     defaultValues: {
@@ -237,29 +203,18 @@ function BannerScopeForm({
         form.handleSubmit();
       }}
     >
-      <ToggleRow
-        checked={enabled}
-        hint={t("settings.banner.enable.hint")}
-        onCheckedChange={setEnabled}
-        title={t("settings.banner.enable.title")}
-      />
+      <ToggleRow checked={enabled} hint={t('settings.banner.enable.hint')} onCheckedChange={setEnabled} title={t('settings.banner.enable.title')} />
 
       {enabled ? (
         <div className="mt-5">
           <form.Field name="message">
             {(field) => (
-              <Field
-                hint={t("settings.banner.message.hint")}
-                label={t("settings.banner.message.label")}
-              >
+              <Field hint={t('settings.banner.message.hint')} label={t('settings.banner.message.label')}>
                 <Input
                   className={FIELD_INPUT}
-                  dir={direction ?? "auto"}
+                  dir={direction ?? 'auto'}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder={
-                    placeholders?.message ??
-                    t("settings.banner.message.placeholder")
-                  }
+                  placeholder={placeholders?.message ?? t('settings.banner.message.placeholder')}
                   value={field.state.value}
                 />
               </Field>
@@ -268,18 +223,12 @@ function BannerScopeForm({
 
           <form.Field name="linkLabel">
             {(field) => (
-              <Field
-                hint={t("settings.banner.linkLabel.hint")}
-                label={t("settings.banner.linkLabel.label")}
-              >
+              <Field hint={t('settings.banner.linkLabel.hint')} label={t('settings.banner.linkLabel.label')}>
                 <Input
                   className={FIELD_INPUT}
-                  dir={direction ?? "auto"}
+                  dir={direction ?? 'auto'}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder={
-                    placeholders?.linkLabel ??
-                    t("settings.banner.linkLabel.placeholder")
-                  }
+                  placeholder={placeholders?.linkLabel ?? t('settings.banner.linkLabel.placeholder')}
                   value={field.state.value}
                 />
               </Field>
@@ -288,19 +237,13 @@ function BannerScopeForm({
 
           <form.Field name="linkUrl">
             {(field) => (
-              <Field
-                hint={t("settings.banner.linkUrl.hint")}
-                label={t("settings.banner.linkUrl.label")}
-              >
+              <Field hint={t('settings.banner.linkUrl.hint')} label={t('settings.banner.linkUrl.label')}>
                 <Input
                   className={FIELD_INPUT}
                   dir="ltr"
                   type="url"
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder={
-                    placeholders?.linkUrl ??
-                    t("settings.banner.linkUrl.placeholder")
-                  }
+                  placeholder={placeholders?.linkUrl ?? t('settings.banner.linkUrl.placeholder')}
                   value={field.state.value}
                 />
               </Field>
@@ -312,31 +255,19 @@ function BannerScopeForm({
       {enabled ? (
         <ToggleRow
           checked={dismissible}
-          hint={t("settings.banner.dismissible.hint")}
+          hint={t('settings.banner.dismissible.hint')}
           onCheckedChange={setDismissible}
-          title={t("settings.banner.dismissible.title")}
+          title={t('settings.banner.dismissible.title')}
         />
       ) : null}
 
       <form.Subscribe selector={(state) => state.isDirty}>
-        {(isDirty) => (
-          <DirtyStateReporter
-            dirty={isDirty || togglesDirty}
-            onDirtyChange={onDirtyChange}
-          />
-        )}
+        {(isDirty) => <DirtyStateReporter dirty={isDirty || togglesDirty} onDirtyChange={onDirtyChange} />}
       </form.Subscribe>
 
       <div className="mt-4">
-        <form.Subscribe
-          selector={(state) => [state.isSubmitting, state.isDirty] as const}
-        >
-          {([isSubmitting, isDirty]) => (
-            <SaveBar
-              disabled={!isDirty && !togglesDirty}
-              isSubmitting={isSubmitting}
-            />
-          )}
+        <form.Subscribe selector={(state) => [state.isSubmitting, state.isDirty] as const}>
+          {([isSubmitting, isDirty]) => <SaveBar disabled={!isDirty && !togglesDirty} isSubmitting={isSubmitting} />}
         </form.Subscribe>
       </div>
     </form>

@@ -14,7 +14,7 @@ export const searchSiteFn = async ({
   };
 }): Promise<SiteSearchHit[]> => {
   const result = await getData<{ hits: SiteSearchHit[] }>(
-    await (api as any).public.sites[':id'].search.$get({
+    await api.public.sites[':id'].search.$get({
       param: { id: data.projectId },
       query: {
         q: data.query,
@@ -39,10 +39,12 @@ export const answerSiteFn = async ({
   };
 }): Promise<SearchAnswer> =>
   getData<SearchAnswer>(
-    await (api as any).public.sites[':id'].answer.$post({
+    await api.public.sites[':id'].answer.$post({
       param: { id: data.projectId },
       json: {
+        question: data.query,
         q: data.query,
+        query: data.query,
         ...(data.language ? { lang: data.language } : {}),
         ...(data.version ? { version: data.version } : {}),
       },

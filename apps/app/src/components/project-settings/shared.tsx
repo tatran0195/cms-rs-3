@@ -1,34 +1,19 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { useConfirm } from "@cms/design-system/components/ui/confirm";
-import { Input } from "@cms/design-system/components/ui/input";
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from "@cms/design-system/components/ui/segmented-control";
-import { Slider } from "@cms/design-system/components/ui/slider";
-import { Switch } from "@cms/design-system/components/ui/switch";
-import { Textarea } from "@cms/design-system/components/ui/textarea";
-import { cn } from "@cms/design-system/lib/utils";
-import type { MessageKey } from "@cms/i18n";
-import { translateFn, useT } from "@cms/i18n/react";
-import type { ProjectConfigUpdate } from "@cms/validators";
-import {
-  cloneElement,
-  isValidElement,
-  type ReactElement,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
-import { toast } from "sonner";
+import { Button } from '@cms/design-system/components/ui/button';
+import { useConfirm } from '@cms/design-system/components/ui/confirm';
+import { Input } from '@cms/design-system/components/ui/input';
+import { SegmentedControl, SegmentedControlItem } from '@cms/design-system/components/ui/segmented-control';
+import { Slider } from '@cms/design-system/components/ui/slider';
+import { Switch } from '@cms/design-system/components/ui/switch';
+import { Textarea } from '@cms/design-system/components/ui/textarea';
+import { cn } from '@cms/design-system/lib/utils';
+import type { MessageKey } from '@cms/i18n';
+import { translateFn, useT } from '@cms/i18n/react';
+import type { ProjectConfigUpdate } from '@cms/validators';
+import { cloneElement, isValidElement, type ReactElement, type ReactNode, useCallback, useEffect, useId, useRef } from 'react';
+import { toast } from 'sonner';
 
 type ConfigMutation = {
-  mutate: (
-    vars: { config: ProjectConfigUpdate },
-    opts?: { onSuccess?: () => void; onError?: (error: unknown) => void },
-  ) => void;
+  mutate: (vars: { config: ProjectConfigUpdate }, opts?: { onSuccess?: () => void; onError?: (error: unknown) => void }) => void;
 };
 
 const localizedFn = (key: MessageKey): string => translateFn(key);
@@ -38,24 +23,17 @@ const localizedFn = (key: MessageKey): string => translateFn(key);
  * Form `onSubmit` can `await` it. The server deep-merges section-level config,
  * so callers pass just the one section they own (e.g. `{ footer: {...} }`).
  */
-export function saveConfigSection(
-  update: ConfigMutation,
-  config: ProjectConfigUpdate,
-) {
+export function saveConfigSection(update: ConfigMutation, config: ProjectConfigUpdate) {
   return new Promise<void>((resolve) => {
     update.mutate(
       { config },
       {
         onSuccess: () => {
-          toast.success(localizedFn("common.saved"));
+          toast.success(localizedFn('common.saved'));
           resolve();
         },
         onError: (error) => {
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : localizedFn("settings.saveError"),
-          );
+          toast.error(error instanceof Error ? error.message : localizedFn('settings.saveError'));
           resolve();
         },
       },
@@ -71,26 +49,14 @@ export function saveConfigSection(
 
 /** The header at the top of every section pane: a muted glyph + the title, with
  *  an optional one-line description under it. */
-export function SectionHeader({
-  icon,
-  title,
-  description,
-}: {
-  icon: ReactNode;
-  title: string;
-  description?: string;
-}) {
+export function SectionHeader({ icon, title, description }: { icon: ReactNode; title: string; description?: string }) {
   return (
     <div className="mb-6 border-border border-b pb-3">
       <div className="flex items-center gap-2.5">
         <span className="text-base text-muted-foreground">{icon}</span>
         <h2 className="font-semibold text-lg tracking-tight">{title}</h2>
       </div>
-      {description ? (
-        <p className="mt-1.5 text-[13px] text-muted-foreground leading-snug">
-          {description}
-        </p>
-      ) : null}
+      {description ? <p className="mt-1.5 text-[13px] text-muted-foreground leading-snug">{description}</p> : null}
     </div>
   );
 }
@@ -110,32 +76,17 @@ export function Field({
   className?: string;
 }) {
   const generatedId = useId();
-  const isDirectControl =
-    isValidElement(children) &&
-    (children.type === Input ||
-      children.type === Textarea ||
-      children.type === Slider);
-  const childId = isDirectControl
-    ? (children as ReactElement<{ id?: string }>).props.id
-    : undefined;
-  const controlId =
-    htmlFor ?? childId ?? (isDirectControl ? generatedId : undefined);
-  const labelledChildren = isDirectControl
-    ? cloneElement(children as ReactElement<{ id?: string }>, { id: controlId })
-    : children;
+  const isDirectControl = isValidElement(children) && (children.type === Input || children.type === Textarea || children.type === Slider);
+  const childId = isDirectControl ? (children as ReactElement<{ id?: string }>).props.id : undefined;
+  const controlId = htmlFor ?? childId ?? (isDirectControl ? generatedId : undefined);
+  const labelledChildren = isDirectControl ? cloneElement(children as ReactElement<{ id?: string }>, { id: controlId }) : children;
 
   return (
-    <div className={cn("mb-6", className)}>
+    <div className={cn('mb-6', className)}>
       <label className="block font-semibold text-[13px]" htmlFor={controlId}>
         {label}
       </label>
-      {hint ? (
-        <p className="mt-1 mb-2.5 text-[12.5px] text-muted-foreground leading-snug">
-          {hint}
-        </p>
-      ) : (
-        <div className="mb-2.5" />
-      )}
+      {hint ? <p className="mt-1 mb-2.5 text-[12.5px] text-muted-foreground leading-snug">{hint}</p> : <div className="mb-2.5" />}
       {labelledChildren}
     </div>
   );
@@ -146,16 +97,8 @@ export function Field({
  * heads a control group rather than labelling a single input. Rendered as a
  * non-`<label>` element so it isn't expected to associate with one control.
  */
-export function GroupLabel({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("font-semibold text-[13px]", className)}>{children}</div>
-  );
+export function GroupLabel({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('font-semibold text-[13px]', className)}>{children}</div>;
 }
 
 /** A pill segmented control matching the chip-background design tokens. */
@@ -173,7 +116,7 @@ export function Segmented<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <SegmentedControl className={cn("w-full", className)}>
+    <SegmentedControl className={cn('w-full', className)}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -212,20 +155,13 @@ export function ToggleRow({
   const titleId = useId();
   return (
     <div className="flex items-center gap-4 border-border border-t py-3.5">
-      <div className={cn("flex-1 leading-snug", disabled && "opacity-60")}>
+      <div className={cn('flex-1 leading-snug', disabled && 'opacity-60')}>
         <div id={titleId} className="font-medium text-[13.5px]">
           {title}
         </div>
-        {hint ? (
-          <div className="mt-0.5 text-[12px] text-muted-foreground">{hint}</div>
-        ) : null}
+        {hint ? <div className="mt-0.5 text-[12px] text-muted-foreground">{hint}</div> : null}
       </div>
-      <Switch
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-        aria-labelledby={titleId}
-      />
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} aria-labelledby={titleId} />
     </div>
   );
 }
@@ -234,39 +170,24 @@ export function ToggleRow({
  * Canonical ordering for every language list in the settings surfaces:
  * the default language first, then the configured position.
  */
-export function sortLanguagesDefaultFirst<
-  T extends { isDefault: boolean; position: number },
->(languages: T[]): T[] {
-  return [...languages].sort(
-    (a, b) =>
-      (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.position - b.position,
-  );
+export function sortLanguagesDefaultFirst<T extends { isDefault: boolean; position: number }>(languages: T[]): T[] {
+  return [...languages].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.position - b.position);
 }
 
 /** A language's display label; disabled languages carry the muted "hidden"
  *  suffix so pickers always signal that the scope isn't live on the site. The
  *  label is the language's own name, so it renders in that language's
  *  direction when known (keeps "Português (Brasil)" intact in an RTL UI). */
-export function LanguageOptionLabel({
-  language,
-}: {
-  language: { label: string; enabled?: boolean; direction?: "LTR" | "RTL" };
-}) {
+export function LanguageOptionLabel({ language }: { language: { label: string; enabled?: boolean; direction?: 'LTR' | 'RTL' } }) {
   const t = useT();
-  const dir = language.direction
-    ? language.direction === "RTL"
-      ? "rtl"
-      : "ltr"
-    : undefined;
+  const dir = language.direction ? (language.direction === 'RTL' ? 'rtl' : 'ltr') : undefined;
   if (language.enabled !== false) {
     return <span dir={dir}>{language.label}</span>;
   }
   return (
     <span className="inline-flex items-baseline gap-1.5">
       <span dir={dir}>{language.label}</span>
-      <span className="font-normal text-[10px] text-muted-foreground/80 uppercase tracking-wide">
-        {t("settings.languages.hiddenBadge")}
-      </span>
+      <span className="font-normal text-[10px] text-muted-foreground/80 uppercase tracking-wide">{t('settings.languages.hiddenBadge')}</span>
     </span>
   );
 }
@@ -293,7 +214,7 @@ export function LanguageScopePicker({
   languages: Array<{ id: string; label: string; enabled?: boolean }>;
   /** The site's default language — its label annotates the Default segment so
    *  it's clear which language the global scope actually is. */
-  defaultLanguage?: { label: string; direction?: "LTR" | "RTL" } | null;
+  defaultLanguage?: { label: string; direction?: 'LTR' | 'RTL' } | null;
   value: string;
   onChange: (value: string) => void;
   hint: string;
@@ -314,35 +235,25 @@ export function LanguageScopePicker({
   };
   return (
     <div className="mb-6">
-      <GroupLabel>{t("settings.chrome.scope.label")}</GroupLabel>
-      <p className="mt-1 mb-2.5 text-[12.5px] text-muted-foreground leading-snug">
-        {hint}
-      </p>
+      <GroupLabel>{t('settings.chrome.scope.label')}</GroupLabel>
+      <p className="mt-1 mb-2.5 text-[12.5px] text-muted-foreground leading-snug">{hint}</p>
       <Segmented
         onChange={(next) => void handleChange(next)}
         options={[
           {
-            value: "default",
+            value: 'default',
             label: defaultLanguage ? (
               <span className="inline-flex items-baseline gap-1.5">
-                {t("settings.chrome.scope.default")}
+                {t('settings.chrome.scope.default')}
                 <span className="font-normal text-[12px] text-muted-foreground">
-                  ·{" "}
-                  <span
-                    dir={
-                      defaultLanguage.direction
-                        ? defaultLanguage.direction === "RTL"
-                          ? "rtl"
-                          : "ltr"
-                        : undefined
-                    }
-                  >
+                  ·{' '}
+                  <span dir={defaultLanguage.direction ? (defaultLanguage.direction === 'RTL' ? 'rtl' : 'ltr') : undefined}>
                     {defaultLanguage.label}
                   </span>
                 </span>
               </span>
             ) : (
-              t("settings.chrome.scope.default")
+              t('settings.chrome.scope.default')
             ),
           },
           ...languages.map((language) => ({
@@ -350,11 +261,7 @@ export function LanguageScopePicker({
             label: <LanguageOptionLabel language={language} />,
           })),
         ]}
-        value={
-          languages.some((language) => language.id === value)
-            ? value
-            : "default"
-        }
+        value={languages.some((language) => language.id === value) ? value : 'default'}
       />
     </div>
   );
@@ -366,13 +273,7 @@ export function LanguageScopePicker({
  * flag re-renders; the flag resets to clean when the scope form unmounts
  * (keyed remount on scope switch).
  */
-export function DirtyStateReporter({
-  dirty,
-  onDirtyChange,
-}: {
-  dirty: boolean;
-  onDirtyChange?: (dirty: boolean) => void;
-}) {
+export function DirtyStateReporter({ dirty, onDirtyChange }: { dirty: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   useEffect(() => {
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
@@ -402,9 +303,9 @@ export function useScopeDirtyGuard(): {
       return true;
     }
     return confirm({
-      title: t("settings.chrome.scope.discardTitle"),
-      description: t("settings.chrome.scope.discardDescription"),
-      confirmLabel: t("settings.chrome.scope.discardConfirm"),
+      title: t('settings.chrome.scope.discardTitle'),
+      description: t('settings.chrome.scope.discardDescription'),
+      confirmLabel: t('settings.chrome.scope.discardConfirm'),
       destructive: true,
     });
   }, [confirm, t]);
@@ -412,18 +313,12 @@ export function useScopeDirtyGuard(): {
 }
 
 /** The right-aligned Save button row used at the bottom of each form section. */
-export function SaveBar({
-  isSubmitting,
-  disabled = false,
-}: {
-  isSubmitting: boolean;
-  disabled?: boolean;
-}) {
+export function SaveBar({ isSubmitting, disabled = false }: { isSubmitting: boolean; disabled?: boolean }) {
   const t = useT();
   return (
     <div className="mt-2 flex justify-end">
       <Button disabled={isSubmitting || disabled} type="submit">
-        {isSubmitting ? t("common.saving") : t("common.save")}
+        {isSubmitting ? t('common.saving') : t('common.save')}
       </Button>
     </div>
   );
@@ -432,14 +327,12 @@ export function SaveBar({
 /** Shared input styling tokens. These layer on top of the base `Input`/`Textarea`
  *  spec (shared standard density, rounded-md, focus ring) — callers inherit that, so the
  *  tokens only carry the font and, for textareas, the taller min-height. */
-export const FIELD_INPUT = "text-sm";
-export const FIELD_MONO = "font-mono text-sm";
-export const FIELD_TEXTAREA = "min-h-[84px] text-sm";
+export const FIELD_INPUT = 'text-sm';
+export const FIELD_MONO = 'font-mono text-sm';
+export const FIELD_TEXTAREA = 'min-h-[84px] text-sm';
 
 /** Dense list-row inputs (variable/redirect/navbar rows): shorter and tighter.
  *  They always sit inside a bordered list container, so they carry a solid
  *  background and read as wells instead of border-on-border frames. */
-export const FIELD_COMPACT =
-  "[--control-size-default:var(--control-size-compact)] rounded-md bg-background text-[13px]";
-export const FIELD_COMPACT_MONO =
-  "[--control-size-default:var(--control-size-compact)] rounded-md bg-background font-mono text-[13px]";
+export const FIELD_COMPACT = '[--control-size-default:var(--control-size-compact)] rounded-md bg-background text-[13px]';
+export const FIELD_COMPACT_MONO = '[--control-size-default:var(--control-size-compact)] rounded-md bg-background font-mono text-[13px]';

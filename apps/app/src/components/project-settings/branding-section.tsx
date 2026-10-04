@@ -1,22 +1,15 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { Input } from "@cms/design-system/components/ui/input";
-import { useT } from "@cms/i18n/react";
-import { useForm } from "@tanstack/react-form";
-import { Badge, Upload } from "lucide-react";
-import { useRef, useState } from "react";
-import { toast } from "sonner";
-import type { Project } from "@/hooks/api";
-import { useUpdateProjectConfig, useUploadAsset } from "@/hooks/api";
-import {
-  FIELD_INPUT,
-  FIELD_MONO,
-  Field,
-  SaveBar,
-  SectionHeader,
-  saveConfigSection,
-} from "./shared";
+import { Button } from '@cms/design-system/components/ui/button';
+import { Input } from '@cms/design-system/components/ui/input';
+import { useT } from '@cms/i18n/react';
+import { useForm } from '@tanstack/react-form';
+import { Badge, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
+import type { Project } from '@/hooks/api';
+import { useUpdateProjectConfig, useUploadAsset } from '@/hooks/api';
+import { FIELD_INPUT, FIELD_MONO, Field, SaveBar, SectionHeader, saveConfigSection } from './shared';
 
-type BrandingField = "logoLight" | "logoDark" | "favicon" | "logoHref";
+type BrandingField = 'logoLight' | 'logoDark' | 'favicon' | 'logoHref';
 
 /** A path/URL input with an Upload button that fills the field via useUploadAsset. */
 function UploadField({
@@ -54,19 +47,13 @@ function UploadField({
           if (file) {
             onUploaded(file);
           }
-          e.target.value = "";
+          e.target.value = '';
         }}
         ref={inputRef}
         type="file"
       />
-      <Button
-        className="cursor-pointer"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
-        type="button"
-        variant="outline"
-      >
-        <Upload className="size-4" /> {t("settings.branding.upload")}
+      <Button className="cursor-pointer" disabled={uploading} onClick={() => inputRef.current?.click()} type="button" variant="outline">
+        <Upload className="size-4" /> {t('settings.branding.upload')}
       </Button>
     </div>
   );
@@ -76,17 +63,15 @@ export function BrandingSection({ project }: { project: Project }) {
   const t = useT();
   const update = useUpdateProjectConfig(project.id);
   const upload = useUploadAsset(project.id);
-  const [uploadingField, setUploadingField] = useState<BrandingField | null>(
-    null,
-  );
+  const [uploadingField, setUploadingField] = useState<BrandingField | null>(null);
   const branding = project.config?.branding ?? {};
 
   const form = useForm({
     defaultValues: {
-      logoLight: branding.logoLight ?? "",
-      logoDark: branding.logoDark ?? "",
-      favicon: branding.favicon ?? "",
-      logoHref: branding.logoHref ?? "",
+      logoLight: branding.logoLight ?? '',
+      logoDark: branding.logoDark ?? '',
+      favicon: branding.favicon ?? '',
+      logoHref: branding.logoHref ?? '',
     },
     onSubmit: async ({ value }) => {
       await saveConfigSection(update, {
@@ -106,15 +91,11 @@ export function BrandingSection({ project }: { project: Project }) {
       onSuccess: (asset) => {
         form.setFieldValue(field, asset.url);
         setUploadingField(null);
-        toast.success(t("settings.branding.uploaded"));
+        toast.success(t('settings.branding.uploaded'));
       },
       onError: (error) => {
         setUploadingField(null);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : t("settings.branding.uploadError"),
-        );
+        toast.error(error instanceof Error ? error.message : t('settings.branding.uploadError'));
       },
     });
   };
@@ -126,24 +107,17 @@ export function BrandingSection({ project }: { project: Project }) {
         form.handleSubmit();
       }}
     >
-      <SectionHeader
-        icon={<Badge className="size-4" />}
-        title={t("settings.branding.title")}
-      />
+      <SectionHeader icon={<Badge className="size-4" />} title={t('settings.branding.title')} />
 
       <form.Field name="logoLight">
         {(field) => (
-          <Field
-            htmlFor="branding-logo-light"
-            hint={t("settings.branding.logoLight.hint")}
-            label={t("settings.branding.logoLight.label")}
-          >
+          <Field htmlFor="branding-logo-light" hint={t('settings.branding.logoLight.hint')} label={t('settings.branding.logoLight.label')}>
             <UploadField
               id="branding-logo-light"
               onChange={field.handleChange}
-              onUploaded={(file) => handleUpload("logoLight", file)}
+              onUploaded={(file) => handleUpload('logoLight', file)}
               placeholder="/logo/light.svg"
-              uploading={uploadingField === "logoLight"}
+              uploading={uploadingField === 'logoLight'}
               value={field.state.value}
             />
           </Field>
@@ -152,17 +126,13 @@ export function BrandingSection({ project }: { project: Project }) {
 
       <form.Field name="logoDark">
         {(field) => (
-          <Field
-            htmlFor="branding-logo-dark"
-            hint={t("settings.branding.logoDark.hint")}
-            label={t("settings.branding.logoDark.label")}
-          >
+          <Field htmlFor="branding-logo-dark" hint={t('settings.branding.logoDark.hint')} label={t('settings.branding.logoDark.label')}>
             <UploadField
               id="branding-logo-dark"
               onChange={field.handleChange}
-              onUploaded={(file) => handleUpload("logoDark", file)}
+              onUploaded={(file) => handleUpload('logoDark', file)}
               placeholder="/logo/dark.svg"
-              uploading={uploadingField === "logoDark"}
+              uploading={uploadingField === 'logoDark'}
               value={field.state.value}
             />
           </Field>
@@ -171,17 +141,13 @@ export function BrandingSection({ project }: { project: Project }) {
 
       <form.Field name="favicon">
         {(field) => (
-          <Field
-            htmlFor="branding-favicon"
-            hint={t("settings.branding.favicon.hint")}
-            label={t("settings.branding.favicon.label")}
-          >
+          <Field htmlFor="branding-favicon" hint={t('settings.branding.favicon.hint')} label={t('settings.branding.favicon.label')}>
             <UploadField
               id="branding-favicon"
               onChange={field.handleChange}
-              onUploaded={(file) => handleUpload("favicon", file)}
+              onUploaded={(file) => handleUpload('favicon', file)}
               placeholder="/favicon.svg"
-              uploading={uploadingField === "favicon"}
+              uploading={uploadingField === 'favicon'}
               value={field.state.value}
             />
           </Field>
@@ -190,10 +156,7 @@ export function BrandingSection({ project }: { project: Project }) {
 
       <form.Field name="logoHref">
         {(field) => (
-          <Field
-            hint={t("settings.branding.logoHref.hint")}
-            label={t("settings.branding.logoHref.label")}
-          >
+          <Field hint={t('settings.branding.logoHref.hint')} label={t('settings.branding.logoHref.label')}>
             <Input
               className={FIELD_INPUT}
               dir="ltr"
@@ -205,12 +168,8 @@ export function BrandingSection({ project }: { project: Project }) {
         )}
       </form.Field>
 
-      <form.Subscribe
-        selector={(state) => [state.isSubmitting, state.isDirty] as const}
-      >
-        {([isSubmitting, isDirty]) => (
-          <SaveBar disabled={!isDirty} isSubmitting={isSubmitting} />
-        )}
+      <form.Subscribe selector={(state) => [state.isSubmitting, state.isDirty] as const}>
+        {([isSubmitting, isDirty]) => <SaveBar disabled={!isDirty} isSubmitting={isSubmitting} />}
       </form.Subscribe>
     </form>
   );

@@ -53,14 +53,14 @@ export function articleHead(entry: BlogEntry, translation?: BlogEntry) {
       { rel: 'canonical', href: canonicalHref(path) },
       ...(translation
         ? [
-          { rel: 'alternate', hrefLang: language, href: canonicalHref(path) },
-          { rel: 'alternate', hrefLang: translation.language ?? 'en', href: canonicalHref(`/blog/${translation.slug}`) },
-          {
-            rel: 'alternate',
-            hrefLang: 'x-default',
-            href: canonicalHref(`/blog/${language === 'en' ? entry.slug : translation.slug}`),
-          },
-        ]
+            { rel: 'alternate', hrefLang: language, href: canonicalHref(path) },
+            { rel: 'alternate', hrefLang: translation.language ?? 'en', href: canonicalHref(`/blog/${translation.slug}`) },
+            {
+              rel: 'alternate',
+              hrefLang: 'x-default',
+              href: canonicalHref(`/blog/${language === 'en' ? entry.slug : translation.slug}`),
+            },
+          ]
         : []),
     ],
     scripts,

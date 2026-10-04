@@ -1157,17 +1157,36 @@ pub async fn get_project_search_settings_handler(
     Path(project_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::project::ProjectService;
-    ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+    let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
     ensure_project_settings(&state, &project_id).await?;
 
+    let search_config = proj
+        .project
+        .config
+        .as_ref()
+        .and_then(|c| c.get("search"))
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    let max_results = search_config.get("maxResults").and_then(|v| v.as_i64()).unwrap_or(10);
+    let filters_enabled = search_config.get("filtersEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let version_filter_enabled = search_config.get("versionFilterEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let ai_answers = search_config.get("aiAnswers").and_then(|v| v.as_bool()).unwrap_or(true);
+    let hotkey = search_config.get("hotkey").and_then(|v| v.as_str()).unwrap_or("cmdk");
+    let placeholder = search_config.get("placeholder").and_then(|v| v.as_str());
+    let suggested_questions = search_config.get("suggestedQuestions").cloned().unwrap_or(serde_json::Value::Null);
+    let popular_searches = search_config.get("popularSearches").cloned().unwrap_or(serde_json::Value::Null);
+
     let configuration = serde_json::json!({
-        "maxResults": 10,
-        "filtersEnabled": true,
-        "versionFilterEnabled": true,
-        "aiAnswers": false,
-        "hotkey": "cmdk",
-        "placeholder": null,
+        "maxResults": max_results,
+        "filtersEnabled": filters_enabled,
+        "versionFilterEnabled": version_filter_enabled,
+        "aiAnswers": ai_answers,
+        "hotkey": hotkey,
+        "placeholder": placeholder,
+        "suggestedQuestions": suggested_questions,
+        "popularSearches": popular_searches,
     });
 
     Ok(Json(serde_json::json!({
@@ -1189,14 +1208,14 @@ pub async fn update_project_search_settings_handler(
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::project::ProjectService;
-    ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+    let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
     let settings = ensure_project_settings(&state, &project_id).await?;
 
     let ai_answers = body
         .get("aiAnswers")
         .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+        .unwrap_or(true);
     let enabled = body
         .get("enabled")
         .and_then(|v| v.as_bool())
@@ -1213,17 +1232,54 @@ pub async fn update_project_search_settings_handler(
     )
     .await?;
 
-    let _ = ai_answers;
+    // Deep merge search settings into Project.config
+    let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+    let mut search_obj = config.get("search").cloned().unwrap_or_else(|| serde_json::json!({}));
+    if let serde_json::Value::Object(ref mut map) = search_obj {
+        if let Some(v) = body.get("placeholder") { map.insert("placeholder".to_string(), v.clone()); }
+        if let Some(v) = body.get("maxResults") { map.insert("maxResults".to_string(), v.clone()); }
+        if let Some(v) = body.get("filtersEnabled") { map.insert("filtersEnabled".to_string(), v.clone()); }
+        if let Some(v) = body.get("versionFilterEnabled") { map.insert("versionFilterEnabled".to_string(), v.clone()); }
+        if let Some(v) = body.get("aiAnswers") { map.insert("aiAnswers".to_string(), v.clone()); }
+        if let Some(v) = body.get("hotkey") { map.insert("hotkey".to_string(), v.clone()); }
+        if let Some(v) = body.get("suggestedQuestions") { map.insert("suggestedQuestions".to_string(), v.clone()); }
+        if let Some(v) = body.get("popularSearches") { map.insert("popularSearches".to_string(), v.clone()); }
+    }
+    if let serde_json::Value::Object(ref mut cfg_map) = config {
+        cfg_map.insert("search".to_string(), search_obj.clone());
+    }
+
+    cms_db::project::ProjectQueries::update(
+        &state.biz_context.pool,
+        &project_id,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(&config),
+    )
+    .await?;
+
+    let max_results = search_obj.get("maxResults").and_then(|v| v.as_i64()).unwrap_or(10);
+    let filters_enabled = search_obj.get("filtersEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let version_filter_enabled = search_obj.get("versionFilterEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
+    let hotkey = search_obj.get("hotkey").and_then(|v| v.as_str()).unwrap_or("cmdk");
+    let placeholder = search_obj.get("placeholder").and_then(|v| v.as_str());
+    let suggested_questions = search_obj.get("suggestedQuestions").cloned().unwrap_or(serde_json::Value::Null);
+    let popular_searches = search_obj.get("popularSearches").cloned().unwrap_or(serde_json::Value::Null);
 
     Ok(Json(serde_json::json!({
         "data": {
             "configuration": {
-                "maxResults": 10,
-                "filtersEnabled": true,
-                "versionFilterEnabled": true,
+                "maxResults": max_results,
+                "filtersEnabled": filters_enabled,
+                "versionFilterEnabled": version_filter_enabled,
                 "aiAnswers": ai_answers,
-                "hotkey": "cmdk",
-                "placeholder": null,
+                "hotkey": hotkey,
+                "placeholder": placeholder,
+                "suggestedQuestions": suggested_questions,
+                "popularSearches": popular_searches,
             },
             "constraints": {
                 "maxResults": { "default": 10, "min": 1, "max": 50 }

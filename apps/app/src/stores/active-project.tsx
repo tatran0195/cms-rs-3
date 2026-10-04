@@ -1,15 +1,8 @@
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import type { Project } from "@/hooks/api";
-import { useProjects } from "@/hooks/api";
+import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import type { Project } from '@/hooks/api';
+import { useProjects } from '@/hooks/api';
 
-const STORAGE_KEY = "cms.activeProjectId";
+const STORAGE_KEY = 'cms.activeProjectId';
 
 interface ProjectContextValue {
   activeProject: Project | null;
@@ -23,7 +16,7 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 const readStored = (): string | null => {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return null;
   }
   try {
@@ -35,9 +28,7 @@ const readStored = (): string | null => {
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { data: projects, isPending, isError } = useProjects();
-  const [selectedId, setSelectedId] = useState<string | null>(() =>
-    readStored(),
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(() => readStored());
   const list = useMemo(() => projects ?? [], [projects]);
 
   useEffect(() => {
@@ -65,10 +56,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const activeProject = useMemo(
-    () => list.find((p) => p.id === selectedId) ?? null,
-    [list, selectedId],
-  );
+  const activeProject = useMemo(() => list.find((p) => p.id === selectedId) ?? null, [list, selectedId]);
 
   const value = useMemo<ProjectContextValue>(
     () => ({

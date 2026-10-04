@@ -1,16 +1,11 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@cms/design-system/components/ui/dropdown-menu";
-import { siteT } from "@cms/i18n/site";
-import { Check, ChevronDown, Languages } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@cms/design-system/components/ui/dropdown-menu';
+import { siteT } from '@cms/i18n/site';
+import { Check, ChevronDown, Languages } from 'lucide-react';
 
 export interface SiteLanguage {
   code: string;
   label: string;
-  direction: "LTR" | "RTL";
+  direction: 'LTR' | 'RTL';
   isDefault: boolean;
 }
 
@@ -44,14 +39,10 @@ export function LanguageSwitcher({
             // The min width keeps the header from shifting when the label changes
             // script ("English" ↔ "العربية"); the chevron stays pinned at the end.
             className="flex h-8 min-w-[7.5rem] cursor-pointer items-center gap-1.5 rounded-full border border-border/70 px-3 font-medium text-muted-foreground text-xs transition-colors hover:bg-muted/60 hover:text-foreground"
-            aria-label={t("changeLanguage")}
+            aria-label={t('changeLanguage')}
           >
             <Languages className="size-3.5 shrink-0" />
-            <span
-              className="max-w-[7rem] truncate"
-              dir={active?.direction === "RTL" ? "rtl" : "ltr"}
-              lang={active?.code}
-            >
+            <span className="max-w-[7rem] truncate" dir={active?.direction === 'RTL' ? 'rtl' : 'ltr'} lang={active?.code}>
               {active?.label ?? activeCode}
             </span>
             <ChevronDown className="ms-auto size-3.5 shrink-0 opacity-60" />
@@ -60,15 +51,8 @@ export function LanguageSwitcher({
       />
       <DropdownMenuContent align="end" className="w-44">
         {languages.map((language) => (
-          <DropdownMenuItem
-            key={language.code}
-            onClick={() => onChange(language.code)}
-          >
-            <span
-              className="flex-1"
-              dir={language.direction === "RTL" ? "rtl" : "ltr"}
-              lang={language.code}
-            >
+          <DropdownMenuItem key={language.code} onClick={() => onChange(language.code)}>
+            <span className="flex-1" dir={language.direction === 'RTL' ? 'rtl' : 'ltr'} lang={language.code}>
               {language.label}
             </span>
             {language.code === activeCode ? <Check className="size-4" /> : null}

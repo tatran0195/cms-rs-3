@@ -1,13 +1,8 @@
-import { siteT } from "@cms/i18n/site";
+import { siteT } from '@cms/i18n/site';
 
-export const OPEN_MARKETING_PRIVACY_CHOICES =
-  "cms:open-marketing-privacy-choices";
+export const OPEN_MARKETING_PRIVACY_CHOICES = 'cms:open-marketing-privacy-choices';
 
-export function PrivacyChoices({
-  language = "en",
-}: {
-  language?: "en" | "ar";
-}) {
+export function PrivacyChoices({ language = 'en' }: { language?: 'en' | 'ar' }) {
   return (
     <button
       type="button"
@@ -20,7 +15,7 @@ export function PrivacyChoices({
         )
       }
     >
-      {siteT(language)("analyticsConsentManage")}
+      {siteT(language)('analyticsConsentManage')}
     </button>
   );
 }

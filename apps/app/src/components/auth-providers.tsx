@@ -1,8 +1,8 @@
-import { useT } from "@cms/i18n/react";
-import { useRouterState } from "@tanstack/react-router";
-import { type ReactNode, useEffect } from "react";
-import { LocalizedProductProviders } from "@/components/localized-product-providers";
-import { authDocumentTitle } from "@/lib/auth-document-title";
+import { useT } from '@cms/i18n/react';
+import { useRouterState } from '@tanstack/react-router';
+import { type ReactNode, useEffect } from 'react';
+import { LocalizedProductProviders } from '@/components/localized-product-providers';
+import { authDocumentTitle } from '@/lib/auth-document-title';
 
 function AuthDocumentTitle() {
   const pathname = useRouterState({

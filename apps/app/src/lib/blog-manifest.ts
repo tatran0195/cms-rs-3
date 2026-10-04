@@ -421,8 +421,7 @@ export const BLOG_MANIFEST = [
     slug: 'cms-august-2026-source-release-ar',
     title: 'إصدار مصدر cms في أغسطس 2026: ست قدرات ومسار ترحيل واحد',
     metaTitle: 'إصدار مصدر cms: البحث والسمات والاستخدام والإضافات والتكاملات وMCP',
-    description:
-      'إعلان تقني عن القدرات المدمجة في فرع cms الرئيسي: البحث الهجين والاستخدام والإضافات والتكاملات والسمات المحمولة وMCP للقراءة فقط.',
+    description: 'إعلان تقني عن القدرات المدمجة في فرع cms الرئيسي: البحث الهجين والاستخدام والإضافات والتكاملات والسمات المحمولة وMCP للقراءة فقط.',
     language: 'ar',
     datePublished: '2026-08-24',
     dateModified: '2026-08-24',
@@ -486,8 +485,7 @@ export const BLOG_MANIFEST = [
     slug: 'documentation-templates-harbor-manuscript-signal',
     title: 'Introducing Harbor, Manuscript, and Signal: three layouts for three kinds of documentation',
     metaTitle: 'New cms documentation templates: Harbor, Manuscript, and Signal',
-    description:
-      'cms now includes three structural documentation templates for product guides, editorial knowledge, and code-first API references.',
+    description: 'cms now includes three structural documentation templates for product guides, editorial knowledge, and code-first API references.',
     datePublished: '2026-08-23',
     dateModified: '2026-08-23',
     tags: ['announcement', 'templates', 'theming'],
@@ -516,17 +514,12 @@ export const BLOG_MANIFEST = [
     slug: 'arabic-technical-documentation-rtl-checklist',
     title: 'كيف تنشر وثائق منتج بالعربية من دون أن تكسر RTL والبحث',
     metaTitle: 'وثائق المنتج بالعربية: قائمة فحص RTL والبحث | cms',
-    description:
-      'قائمة فحص عملية لنشر وثائق منتج بالعربية: اتجاه الصفحة، الشيفرة داخل النص، البحث، الخطوط، شجرة الصفحات، ووسوم hreflang قبل النشر.',
+    description: 'قائمة فحص عملية لنشر وثائق منتج بالعربية: اتجاه الصفحة، الشيفرة داخل النص، البحث، الخطوط، شجرة الصفحات، ووسوم hreflang قبل النشر.',
     language: 'ar',
     datePublished: '2026-08-15',
     dateModified: '2026-09-03',
     tags: ['العربية', 'RTL', 'وثائق المنتج'],
-    related: [
-      'arabic-documentation-rtl',
-      'docs-should-live-in-plain-markdown-ar',
-      'self-host-documentation-site-docker-compose-ar',
-    ],
+    related: ['arabic-documentation-rtl', 'docs-should-live-in-plain-markdown-ar', 'self-host-documentation-site-docker-compose-ar'],
     translationOf: 'arabic-documentation-rtl',
     readingMinutes: 8,
     faqs: [
@@ -630,11 +623,7 @@ export const BLOG_MANIFEST = [
     datePublished: '2026-07-13',
     dateModified: '2026-09-03',
     tags: ['markdown', 'content-ownership'],
-    related: [
-      'open-source-documentation-tools',
-      'introducing-cms-open-source-mintlify-alternative',
-      'self-host-documentation-site-docker-compose',
-    ],
+    related: ['open-source-documentation-tools', 'introducing-cms-open-source-mintlify-alternative', 'self-host-documentation-site-docker-compose'],
     translationOf: 'docs-should-live-in-plain-markdown-ar',
     readingMinutes: 7,
     faqs: [
@@ -673,8 +662,7 @@ export const BLOG_MANIFEST = [
     faqs: [
       {
         question: 'Is cms available as a hosted product?',
-        answer:
-          'Yes. cms Cloud is available in beta, and the public AGPL-3.0 release can be installed with a pinned GHCR image and Docker Compose.',
+        answer: 'Yes. cms Cloud is available in beta, and the public AGPL-3.0 release can be installed with a pinned GHCR image and Docker Compose.',
       },
       {
         question: 'Does cms lock content into a proprietary format?',

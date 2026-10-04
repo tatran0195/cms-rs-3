@@ -1,12 +1,12 @@
-import { Switch } from "@cms/design-system/components/ui/switch";
-import type { MessageKey } from "@cms/i18n";
-import { useT } from "@cms/i18n/react";
-import { Bell } from "lucide-react";
-import { useId } from "react";
-import { toast } from "sonner";
-import { useUpdateWorkspaceSettings, useWorkspaceSettings } from "@/hooks/api";
-import { useSession } from "@/services/auth-client";
-import { SettingsSection } from "./section";
+import { Switch } from '@cms/design-system/components/ui/switch';
+import type { MessageKey } from '@cms/i18n';
+import { useT } from '@cms/i18n/react';
+import { Bell } from 'lucide-react';
+import { useId } from 'react';
+import { toast } from 'sonner';
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/hooks/api';
+import { useSession } from '@/services/auth-client';
+import { SettingsSection } from './section';
 
 interface NotifItem {
   id: string;
@@ -38,76 +38,69 @@ function NotificationPreference({
           {t(item.descriptionKey)}
         </p>
       </div>
-      <Switch
-        aria-describedby={descriptionId}
-        aria-labelledby={labelId}
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-      />
+      <Switch aria-describedby={descriptionId} aria-labelledby={labelId} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
     </div>
   );
 }
 
 const GROUPS: Array<{ titleKey: MessageKey; items: NotifItem[] }> = [
   {
-    titleKey: "settings.notifications.group.workspace",
+    titleKey: 'settings.notifications.group.workspace',
     items: [
       {
-        id: "workspace_weekly",
-        labelKey: "settings.notifications.workspaceWeekly.label",
-        descriptionKey: "settings.notifications.workspaceWeekly.description",
+        id: 'workspace_weekly',
+        labelKey: 'settings.notifications.workspaceWeekly.label',
+        descriptionKey: 'settings.notifications.workspaceWeekly.description',
       },
       {
-        id: "workspace_plan",
-        labelKey: "settings.notifications.workspacePlan.label",
-        descriptionKey: "settings.notifications.workspacePlan.description",
+        id: 'workspace_plan',
+        labelKey: 'settings.notifications.workspacePlan.label',
+        descriptionKey: 'settings.notifications.workspacePlan.description',
       },
     ],
   },
   {
-    titleKey: "settings.notifications.group.projects",
+    titleKey: 'settings.notifications.group.projects',
     items: [
       {
-        id: "project_new",
-        labelKey: "settings.notifications.projectNew.label",
-        descriptionKey: "settings.notifications.projectNew.description",
+        id: 'project_new',
+        labelKey: 'settings.notifications.projectNew.label',
+        descriptionKey: 'settings.notifications.projectNew.description',
       },
       {
-        id: "project_deploy",
-        labelKey: "settings.notifications.projectDeploy.label",
-        descriptionKey: "settings.notifications.projectDeploy.description",
+        id: 'project_deploy',
+        labelKey: 'settings.notifications.projectDeploy.label',
+        descriptionKey: 'settings.notifications.projectDeploy.description',
       },
       {
-        id: "project_deploy_failed",
-        labelKey: "settings.notifications.projectDeployFailed.label",
-        descriptionKey:
-          "settings.notifications.projectDeployFailed.description",
+        id: 'project_deploy_failed',
+        labelKey: 'settings.notifications.projectDeployFailed.label',
+        descriptionKey: 'settings.notifications.projectDeployFailed.description',
       },
     ],
   },
   {
-    titleKey: "settings.notifications.group.members",
+    titleKey: 'settings.notifications.group.members',
     items: [
       {
-        id: "member_invited",
-        labelKey: "settings.notifications.memberInvited.label",
-        descriptionKey: "settings.notifications.memberInvited.description",
+        id: 'member_invited',
+        labelKey: 'settings.notifications.memberInvited.label',
+        descriptionKey: 'settings.notifications.memberInvited.description',
       },
       {
-        id: "member_joined",
-        labelKey: "settings.notifications.memberJoined.label",
-        descriptionKey: "settings.notifications.memberJoined.description",
+        id: 'member_joined',
+        labelKey: 'settings.notifications.memberJoined.label',
+        descriptionKey: 'settings.notifications.memberJoined.description',
       },
     ],
   },
   {
-    titleKey: "settings.notifications.group.security",
+    titleKey: 'settings.notifications.group.security',
     items: [
       {
-        id: "security_login",
-        labelKey: "settings.notifications.securityLogin.label",
-        descriptionKey: "settings.notifications.securityLogin.description",
+        id: 'security_login',
+        labelKey: 'settings.notifications.securityLogin.label',
+        descriptionKey: 'settings.notifications.securityLogin.description',
       },
     ],
   },
@@ -127,12 +120,7 @@ export function NotificationsTab({ projectId }: { projectId?: string }) {
     update.mutate(
       { notifications: next },
       {
-        onError: (error) =>
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : t("settings.notifications.toast.updateError"),
-          ),
+        onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.notifications.toast.updateError')),
       },
     );
   };
@@ -140,18 +128,15 @@ export function NotificationsTab({ projectId }: { projectId?: string }) {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-muted-foreground text-sm">
-        {t("settings.notifications.introBefore")}{" "}
-        <span
-          className="font-medium text-foreground"
-          dir={session?.user?.email ? "ltr" : undefined}
-        >
-          {session?.user?.email ?? t("settings.notifications.youFallback")}
+        {t('settings.notifications.introBefore')}{' '}
+        <span className="font-medium text-foreground" dir={session?.user?.email ? 'ltr' : undefined}>
+          {session?.user?.email ?? t('settings.notifications.youFallback')}
         </span>
-        {t("settings.notifications.introAfter")}
+        {t('settings.notifications.introAfter')}
       </p>
       <p className="-mt-3 flex items-center gap-1.5 text-muted-foreground text-sm">
         <Bell aria-hidden className="size-3.5" />
-        {t("notifications.settingsHint")}
+        {t('notifications.settingsHint')}
       </p>
       {GROUPS.map((group) => (
         <SettingsSection key={group.titleKey} title={t(group.titleKey)}>

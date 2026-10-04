@@ -1,30 +1,16 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { cn } from "@cms/design-system/lib/utils";
-import type { MessageKey } from "@cms/i18n";
-import { useT } from "@cms/i18n/react";
-import type { Editor } from "@tiptap/core";
-import { CellSelection } from "@tiptap/pm/tables";
-import { useEditorState } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
-import {
-  ArrowDownToLine,
-  ArrowLeftToLine,
-  ArrowRightToLine,
-  ArrowUpToLine,
-  Columns3,
-  PanelTop,
-  Rows3,
-  Trash2,
-  X,
-} from "lucide-react";
-import type { ComponentType, ReactNode } from "react";
+import { Button } from '@cms/design-system/components/ui/button';
+import { cn } from '@cms/design-system/lib/utils';
+import type { MessageKey } from '@cms/i18n';
+import { useT } from '@cms/i18n/react';
+import type { Editor } from '@tiptap/core';
+import { CellSelection } from '@tiptap/pm/tables';
+import { useEditorState } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import { ArrowDownToLine, ArrowLeftToLine, ArrowRightToLine, ArrowUpToLine, Columns3, PanelTop, Rows3, Trash2, X } from 'lucide-react';
+import type { ComponentType, ReactNode } from 'react';
 
 /** A Rows3/Columns3 glyph with a small × badge — reads as "delete row/column". */
-function DeleteGlyph({
-  icon: Icon,
-}: {
-  icon: ComponentType<{ className?: string }>;
-}) {
+function DeleteGlyph({ icon: Icon }: { icon: ComponentType<{ className?: string }> }) {
   return (
     <span className="relative inline-flex">
       <Icon className="size-4" />
@@ -53,7 +39,7 @@ export function TableBubbleMenu({ editor }: { editor: Editor }) {
   const state = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      inTable: current.isActive("table"),
+      inTable: current.isActive('table'),
       canAddRowBefore: current.can().addRowBefore(),
       canAddRowAfter: current.can().addRowAfter(),
       canAddColBefore: current.can().addColumnBefore(),
@@ -67,51 +53,51 @@ export function TableBubbleMenu({ editor }: { editor: Editor }) {
 
   const actions: TableAction[] = [
     {
-      labelKey: "editor.table.addRowAbove",
+      labelKey: 'editor.table.addRowAbove',
       content: <ArrowUpToLine className="size-4" />,
       run: () => editor.chain().focus().addRowBefore().run(),
       enabled: state.canAddRowBefore,
     },
     {
-      labelKey: "editor.table.addRowBelow",
+      labelKey: 'editor.table.addRowBelow',
       content: <ArrowDownToLine className="size-4" />,
       run: () => editor.chain().focus().addRowAfter().run(),
       enabled: state.canAddRowAfter,
     },
     {
-      labelKey: "editor.table.deleteRow",
+      labelKey: 'editor.table.deleteRow',
       content: <DeleteGlyph icon={Rows3} />,
       run: () => editor.chain().focus().deleteRow().run(),
       enabled: state.canDeleteRow,
     },
     {
-      labelKey: "editor.table.addColBefore",
+      labelKey: 'editor.table.addColBefore',
       content: <ArrowLeftToLine className="size-4 rtl:-scale-x-100" />,
       run: () => editor.chain().focus().addColumnBefore().run(),
       enabled: state.canAddColBefore,
       separatorBefore: true,
     },
     {
-      labelKey: "editor.table.addColAfter",
+      labelKey: 'editor.table.addColAfter',
       content: <ArrowRightToLine className="size-4 rtl:-scale-x-100" />,
       run: () => editor.chain().focus().addColumnAfter().run(),
       enabled: state.canAddColAfter,
     },
     {
-      labelKey: "editor.table.deleteCol",
+      labelKey: 'editor.table.deleteCol',
       content: <DeleteGlyph icon={Columns3} />,
       run: () => editor.chain().focus().deleteColumn().run(),
       enabled: state.canDeleteCol,
     },
     {
-      labelKey: "editor.table.toggleHeader",
+      labelKey: 'editor.table.toggleHeader',
       content: <PanelTop className="size-4" />,
       run: () => editor.chain().focus().toggleHeaderRow().run(),
       enabled: state.canToggleHeader,
       separatorBefore: true,
     },
     {
-      labelKey: "editor.table.delete",
+      labelKey: 'editor.table.delete',
       content: <Trash2 className="size-4" />,
       run: () => editor.chain().focus().deleteTable().run(),
       enabled: state.canDeleteTable,
@@ -124,12 +110,12 @@ export function TableBubbleMenu({ editor }: { editor: Editor }) {
     <BubbleMenu
       editor={editor}
       pluginKey="cms-table-menu"
-      options={{ placement: "bottom" }}
+      options={{ placement: 'bottom' }}
       // Only while inside a table, and only when the text bubble is NOT showing:
       // caret (empty selection) or a cell selection. A non-empty text selection
       // inside a cell keeps the formatting bubble usable on its own.
       shouldShow={({ editor: current }) => {
-        if (!current.isEditable || !current.isActive("table")) {
+        if (!current.isEditable || !current.isActive('table')) {
           return false;
         }
         const { selection } = current.state;
@@ -141,16 +127,10 @@ export function TableBubbleMenu({ editor }: { editor: Editor }) {
         const label = t(action.labelKey);
         return (
           <span key={action.labelKey} className="flex items-center gap-0.5">
-            {action.separatorBefore ? (
-              <span className="mx-0.5 h-5 w-px bg-border" />
-            ) : null}
+            {action.separatorBefore ? <span className="mx-0.5 h-5 w-px bg-border" /> : null}
             <Button
               aria-label={label}
-              className={cn(
-                "size-7 text-foreground/80",
-                action.destructive &&
-                  "hover:bg-destructive/10 hover:text-destructive",
-              )}
+              className={cn('size-7 text-foreground/80', action.destructive && 'hover:bg-destructive/10 hover:text-destructive')}
               disabled={!action.enabled}
               onClick={action.run}
               onMouseDown={(event) => event.preventDefault()}

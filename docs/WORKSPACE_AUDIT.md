@@ -353,7 +353,7 @@ Tests: Comprehensive unit tests
 
 ### **Dependency Direction**
 
-```
+```text
 API Layer (cms-api)
     ↓
 Middleware Layer (cms-middleware)
@@ -367,7 +367,7 @@ Configuration Layer (cms-config)
 
 ### **Trait Usage**
 
-```
+```text
 JobQueue trait
     ↑
 MemoryJobQueue, RedisJobQueue (implementations)
@@ -379,7 +379,7 @@ Used by: cms-worker, cms-api
 
 ### **Separation of Concerns**
 
-```
+```text
 API Rate Limiting (cms-middleware)
     ≠
 Sites Security Headers (cms-sites)

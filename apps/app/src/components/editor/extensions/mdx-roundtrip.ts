@@ -410,10 +410,10 @@ function prepareMdxForEditor(source: string): string {
     const wrapper = definition.inline ? 'span' : 'div';
     const marker = definition.calloutVariant
       ? ` data-callout="" data-variant="${escapeHtmlAttribute(
-        definition.canonical === 'Callout'
-          ? String(attributeValue(parseAttributes(token.raw, token.name), 'type') ?? definition.calloutVariant)
-          : definition.calloutVariant,
-      )}"`
+          definition.canonical === 'Callout'
+            ? String(attributeValue(parseAttributes(token.raw, token.name), 'type') ?? definition.calloutVariant)
+            : definition.calloutVariant,
+        )}"`
       : ` data-mdx="${definition.canonical}"`;
     const open = `<${wrapper}${marker}${metadataAttributes(token, close, definition)}>`;
     replacements.push({ start: token.start, end: token.end, value: token.selfClosing ? `${open}</${wrapper}>` : open });

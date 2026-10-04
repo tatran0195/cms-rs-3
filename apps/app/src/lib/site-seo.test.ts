@@ -296,9 +296,7 @@ describe('canonicalSiteBase priority', () => {
     expect(
       canonicalSiteBase('p1', { primaryDomain: 'docs.acme.com', slug: 'acme', baseDomain: 'cms.site', requestOrigin: 'https://x.example' }),
     ).toBe('https://docs.acme.com');
-    expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: 'cms.site', requestOrigin: 'https://x.example' })).toBe(
-      'https://acme.cms.site',
-    );
+    expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: 'cms.site', requestOrigin: 'https://x.example' })).toBe('https://acme.cms.site');
     expect(canonicalSiteBase('p1', { slug: 'acme', baseDomain: null, requestOrigin: 'https://x.example' })).toBe('https://x.example');
     expect(canonicalSiteBase('p1', { baseDomain: null })).toBe('http://localhost:4310/sites/p1');
   });

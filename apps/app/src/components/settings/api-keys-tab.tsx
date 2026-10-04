@@ -1,34 +1,16 @@
-import { Badge } from "@cms/design-system/components/ui/badge";
-import { Button } from "@cms/design-system/components/ui/button";
-import { Input } from "@cms/design-system/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@cms/design-system/components/ui/select";
-import { useLocale } from "@cms/i18n/react";
-import { MCP_SCOPES } from "@cms/shared/mcp";
-import {
-  Check,
-  Copy,
-  KeyRound,
-  RefreshCw,
-  ShieldCheck,
-  Trash2,
-} from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { z } from "zod";
-import {
-  useApiKeys,
-  useCreateApiKey,
-  useRevokeApiKey,
-  useRotateApiKey,
-} from "@/hooks/api";
-import type { ApiKey } from "@/hooks/api/types";
-import { localeTag, useFormatters } from "@/lib/format";
+import { Badge } from '@cms/design-system/components/ui/badge';
+import { Button } from '@cms/design-system/components/ui/button';
+import { Input } from '@cms/design-system/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
+import { useLocale } from '@cms/i18n/react';
+import { MCP_SCOPES } from '@cms/shared/mcp';
+import { Check, Copy, KeyRound, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { z } from 'zod';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@/hooks/api';
+import type { ApiKey } from '@/hooks/api/types';
+import { localeTag, useFormatters } from '@/lib/format';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,39 +20,29 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "./api-key-alert-dialog";
-import { SettingsSection } from "./section";
+} from './api-key-alert-dialog';
+import { SettingsSection } from './section';
 
 type IssuableMcpScope = (typeof MCP_SCOPES)[number];
 type ExpiryDays = 30 | 90 | 180 | 365;
 
-const DEFAULT_SCOPES = [
-  "mcp:connect",
-  "projects:read",
-  "pages:read",
-] satisfies IssuableMcpScope[];
-const EXPIRY_OPTIONS = [
-  30, 90, 180, 365,
-] as const satisfies readonly ExpiryDays[];
-const expiryOptionSchema = z.enum(["30", "90", "180", "365"]);
+const DEFAULT_SCOPES = ['mcp:connect', 'projects:read', 'pages:read'] satisfies IssuableMcpScope[];
+const EXPIRY_OPTIONS = [30, 90, 180, 365] as const satisfies readonly ExpiryDays[];
+const expiryOptionSchema = z.enum(['30', '90', '180', '365']);
 const expiryDaysByValue = {
-  "30": 30,
-  "90": 90,
-  "180": 180,
-  "365": 365,
+  '30': 30,
+  '90': 90,
+  '180': 180,
+  '365': 365,
 } as const;
 const issuableScopes = new Set<string>(MCP_SCOPES);
-const isIssuableScope = (scope: string): scope is IssuableMcpScope =>
-  issuableScopes.has(scope);
-const isRetainedScope = (
-  scope: string,
-): scope is Exclude<IssuableMcpScope, "mcp:connect"> =>
-  scope !== "mcp:connect" && isIssuableScope(scope);
+const isIssuableScope = (scope: string): scope is IssuableMcpScope => issuableScopes.has(scope);
+const isRetainedScope = (scope: string): scope is Exclude<IssuableMcpScope, 'mcp:connect'> => scope !== 'mcp:connect' && isIssuableScope(scope);
 
 const formattedDate = (value: string, locale: string) =>
   new Intl.DateTimeFormat(localeTag(locale), {
-    dateStyle: "medium",
-    timeStyle: "short",
+    dateStyle: 'medium',
+    timeStyle: 'short',
   }).format(new Date(value));
 
 export function ApiKeysTab({ projectId }: { projectId: string }) {
@@ -80,7 +52,7 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
   const create = useCreateApiKey(projectId);
   const rotate = useRotateApiKey(projectId);
   const revoke = useRevokeApiKey(projectId);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [scopes, setScopes] = useState<IssuableMcpScope[]>(DEFAULT_SCOPES);
   const [expiryDays, setExpiryDays] = useState<ExpiryDays>(90);
   const [secret, setSecret] = useState<string | null>(null);
@@ -88,16 +60,12 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
   // One array feeds both the trigger label (`items`) and the rendered options so they can't drift.
   const expiryOptions = EXPIRY_OPTIONS.map((days) => ({
     value: String(days),
-    label: t("settings.apiKeys.expiryDays", { days: number(days) }),
+    label: t('settings.apiKeys.expiryDays', { days: number(days) }),
   }));
 
   const toggleScope = (scope: IssuableMcpScope) => {
-    if (scope === "mcp:connect") return;
-    setScopes((current) =>
-      current.includes(scope)
-        ? current.filter((item) => item !== scope)
-        : [...current, scope],
-    );
+    if (scope === 'mcp:connect') return;
+    setScopes((current) => (current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope]));
   };
 
   const submit = () => {
@@ -106,16 +74,11 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       { name: name.trim(), scopes, expiresInDays: expiryDays },
       {
         onSuccess: (created) => {
-          setName("");
+          setName('');
           setSecret(created.secret);
-          toast.success(t("settings.apiKeys.created.toast"));
+          toast.success(t('settings.apiKeys.created.toast'));
         },
-        onError: (error) =>
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : t("settings.apiKeys.createError"),
-          ),
+        onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.apiKeys.createError')),
       },
     );
   };
@@ -126,21 +89,16 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       {
         id: key.id,
         body: {
-          scopes: ["mcp:connect", ...retainedScopes],
+          scopes: ['mcp:connect', ...retainedScopes],
           expiresInDays: expiryDays,
         },
       },
       {
         onSuccess: (created) => {
           setSecret(created.secret);
-          toast.success(t("settings.apiKeys.rotatedToast"));
+          toast.success(t('settings.apiKeys.rotatedToast'));
         },
-        onError: (error) =>
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : t("settings.apiKeys.rotateError"),
-          ),
+        onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.apiKeys.rotateError')),
       },
     );
   };
@@ -150,31 +108,23 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
     revoke.mutate(revokeCandidate.id, {
       onSuccess: () => {
         setRevokeCandidate(null);
-        toast.success(t("settings.apiKeys.revokedToast"));
+        toast.success(t('settings.apiKeys.revokedToast'));
       },
-      onError: (error) =>
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : t("settings.apiKeys.revokeError"),
-        ),
+      onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.apiKeys.revokeError')),
     });
   };
 
   const copySecret = () => {
     if (!secret) return;
     navigator.clipboard.writeText(secret).then(
-      () => toast.success(t("settings.apiKeys.copied")),
-      () => toast.error(t("settings.apiKeys.createError")),
+      () => toast.success(t('settings.apiKeys.copied')),
+      () => toast.error(t('settings.apiKeys.createError')),
     );
   };
 
   return (
     <div className="flex flex-col gap-6">
-      <SettingsSection
-        description={t("settings.apiKeys.description")}
-        title={t("settings.apiKeys.title")}
-      >
+      <SettingsSection description={t('settings.apiKeys.description')} title={t('settings.apiKeys.title')}>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-muted-foreground text-sm">
           <ShieldCheck aria-hidden className="size-4 shrink-0 text-primary" />
           <code className="min-w-0 truncate text-foreground">/api/mcp</code>
@@ -183,26 +133,22 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
-              aria-label={t("settings.apiKeys.namePlaceholder")}
+              aria-label={t('settings.apiKeys.namePlaceholder')}
               className="flex-1"
               maxLength={80}
               onChange={(event) => setName(event.target.value)}
-              placeholder={t("settings.apiKeys.namePlaceholder")}
+              placeholder={t('settings.apiKeys.namePlaceholder')}
               value={name}
             />
             <Select
               items={expiryOptions}
               onValueChange={(value) => {
                 const parsed = expiryOptionSchema.safeParse(value);
-                if (parsed.success)
-                  setExpiryDays(expiryDaysByValue[parsed.data]);
+                if (parsed.success) setExpiryDays(expiryDaysByValue[parsed.data]);
               }}
               value={String(expiryDays)}
             >
-              <SelectTrigger
-                aria-label={t("settings.apiKeys.expiry")}
-                className="w-full sm:w-40"
-              >
+              <SelectTrigger aria-label={t('settings.apiKeys.expiry')} className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -213,31 +159,25 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              disabled={!name.trim() || create.isPending}
-              onClick={submit}
-              type="button"
-            >
+            <Button disabled={!name.trim() || create.isPending} onClick={submit} type="button">
               <KeyRound aria-hidden />
-              {t("settings.apiKeys.create")}
+              {t('settings.apiKeys.create')}
             </Button>
           </div>
           <fieldset className="flex flex-wrap gap-1.5">
-            <legend className="sr-only">
-              {t("settings.apiKeys.description")}
-            </legend>
+            <legend className="sr-only">{t('settings.apiKeys.description')}</legend>
             {MCP_SCOPES.map((scope) => {
               const selected = scopes.includes(scope);
               return (
                 <Button
                   aria-pressed={selected}
                   className="h-8 font-mono text-xs"
-                  disabled={scope === "mcp:connect"}
+                  disabled={scope === 'mcp:connect'}
                   key={scope}
                   onClick={() => toggleScope(scope)}
                   size="sm"
                   type="button"
-                  variant={selected ? "secondary" : "outline"}
+                  variant={selected ? 'secondary' : 'outline'}
                 >
                   {selected ? <Check aria-hidden /> : null}
                   {scope}
@@ -249,24 +189,12 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       </SettingsSection>
 
       {secret ? (
-        <SettingsSection
-          description={t("settings.apiKeys.created.description")}
-          title={t("settings.apiKeys.created.title")}
-        >
+        <SettingsSection description={t('settings.apiKeys.created.description')} title={t('settings.apiKeys.created.title')}>
           <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2">
-            <code
-              className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap px-1 text-sm"
-              dir="ltr"
-            >
+            <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap px-1 text-sm" dir="ltr">
               {secret}
             </code>
-            <Button
-              aria-label={t("settings.apiKeys.copy")}
-              onClick={copySecret}
-              size="icon"
-              type="button"
-              variant="outline"
-            >
+            <Button aria-label={t('settings.apiKeys.copy')} onClick={copySecret} size="icon" type="button" variant="outline">
               <Copy aria-hidden />
             </Button>
           </div>
@@ -276,71 +204,36 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       <SettingsSection>
         {isLoading ? null : isError || error ? (
           <p className="py-3 text-center text-destructive text-sm" role="alert">
-            {t("settings.apiKeys.loadError")}
+            {t('settings.apiKeys.loadError')}
           </p>
         ) : keys.length === 0 ? (
-          <p className="py-3 text-center text-muted-foreground text-sm">
-            {t("settings.apiKeys.empty")}
-          </p>
+          <p className="py-3 text-center text-muted-foreground text-sm">{t('settings.apiKeys.empty')}</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {keys.map((key) => (
-              <div
-                className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center"
-                key={key.id}
-              >
+              <div className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center" key={key.id}>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-sm">{key.name}</span>
-                    {key.state === "revoked" ? (
-                      <Badge variant="destructive">
-                        {t("settings.apiKeys.revoked")}
-                      </Badge>
-                    ) : null}
-                    {key.state === "expired" ? (
-                      <Badge variant="destructive">
-                        {t("settings.apiKeys.expired")}
-                      </Badge>
-                    ) : null}
-                    {key.state === "rotation_required" && key.legacy ? (
-                      <Badge variant="secondary">
-                        {t("settings.apiKeys.legacy")}
-                      </Badge>
-                    ) : null}
-                    {key.state === "rotation_required" ? (
-                      <Badge variant="outline">
-                        {t("settings.apiKeys.rotationRequired")}
-                      </Badge>
-                    ) : null}
+                    {key.state === 'revoked' ? <Badge variant="destructive">{t('settings.apiKeys.revoked')}</Badge> : null}
+                    {key.state === 'expired' ? <Badge variant="destructive">{t('settings.apiKeys.expired')}</Badge> : null}
+                    {key.state === 'rotation_required' && key.legacy ? <Badge variant="secondary">{t('settings.apiKeys.legacy')}</Badge> : null}
+                    {key.state === 'rotation_required' ? <Badge variant="outline">{t('settings.apiKeys.rotationRequired')}</Badge> : null}
                   </div>
-                  <p className="mt-1 text-muted-foreground text-xs">
-                    {t("settings.apiKeys.lastFour", { lastFour: key.lastFour })}
-                  </p>
+                  <p className="mt-1 text-muted-foreground text-xs">{t('settings.apiKeys.lastFour', { lastFour: key.lastFour })}</p>
                   <dl className="mt-2 grid gap-1 text-muted-foreground text-xs sm:grid-cols-2">
                     <div className="flex gap-1.5">
-                      <dt>{t("settings.apiKeys.expires")}</dt>
-                      <dd className="text-foreground">
-                        {key.expiresAt
-                          ? formattedDate(key.expiresAt, locale)
-                          : t("settings.apiKeys.noExpiry")}
-                      </dd>
+                      <dt>{t('settings.apiKeys.expires')}</dt>
+                      <dd className="text-foreground">{key.expiresAt ? formattedDate(key.expiresAt, locale) : t('settings.apiKeys.noExpiry')}</dd>
                     </div>
                     <div className="flex gap-1.5">
-                      <dt>{t("settings.apiKeys.lastUsed")}</dt>
-                      <dd className="text-foreground">
-                        {key.lastUsedAt
-                          ? formattedDate(key.lastUsedAt, locale)
-                          : t("settings.apiKeys.neverUsed")}
-                      </dd>
+                      <dt>{t('settings.apiKeys.lastUsed')}</dt>
+                      <dd className="text-foreground">{key.lastUsedAt ? formattedDate(key.lastUsedAt, locale) : t('settings.apiKeys.neverUsed')}</dd>
                     </div>
                   </dl>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {key.scopes.map((scope) => (
-                      <Badge
-                        className="font-mono"
-                        key={scope}
-                        variant="outline"
-                      >
+                      <Badge className="font-mono" key={scope} variant="outline">
                         {scope}
                       </Badge>
                     ))}
@@ -355,7 +248,7 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
                     variant="outline"
                   >
                     <RefreshCw aria-hidden />
-                    {t("settings.apiKeys.rotate")}
+                    {t('settings.apiKeys.rotate')}
                   </Button>
                   <Button
                     className="h-9"
@@ -365,7 +258,7 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
                     variant="destructive"
                   >
                     <Trash2 aria-hidden />
-                    {t("settings.apiKeys.revoke")}
+                    {t('settings.apiKeys.revoke')}
                   </Button>
                 </div>
               </div>
@@ -374,31 +267,21 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
         )}
       </SettingsSection>
 
-      <AlertDialog
-        onOpenChange={(open) => (open ? undefined : setRevokeCandidate(null))}
-        open={Boolean(revokeCandidate)}
-      >
+      <AlertDialog onOpenChange={(open) => (open ? undefined : setRevokeCandidate(null))} open={Boolean(revokeCandidate)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("settings.apiKeys.revokeConfirm.title")}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.apiKeys.revokeConfirm.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("settings.apiKeys.revokeConfirm.description", {
-                name: revokeCandidate?.name ?? "",
+              {t('settings.apiKeys.revokeConfirm.description', {
+                name: revokeCandidate?.name ?? '',
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={revoke.isPending}>
-              {t("settings.apiKeys.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={revoke.isPending}
-              onClick={confirmRevoke}
-            >
+            <AlertDialogCancel disabled={revoke.isPending}>{t('settings.apiKeys.cancel')}</AlertDialogCancel>
+            <AlertDialogAction disabled={revoke.isPending} onClick={confirmRevoke}>
               <Trash2 aria-hidden />
-              {t("settings.apiKeys.revoke")}
+              {t('settings.apiKeys.revoke')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1079,6 +1079,8 @@ pub async fn answer_public_site_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let question = body
         .get("question")
+        .or_else(|| body.get("q"))
+        .or_else(|| body.get("query"))
         .and_then(serde_json::Value::as_str)
         .map(str::trim)
         .filter(|question| !question.is_empty())
@@ -1178,6 +1180,7 @@ pub async fn answer_public_site_handler(
         "data": {
             "answer": answer,
             "sources": sources,
+            "citations": sources,
             "confidence": confidence,
             "mode": "extractive",
             "version": site.version_number,

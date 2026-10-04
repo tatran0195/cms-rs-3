@@ -115,7 +115,9 @@ describe('slash command scaffolds', () => {
         { type: 'mdxStep', attrs: { title: scaffold('editor.slash.default.secondStep', 'ja') }, content: [{ type: 'paragraph' }] },
       ],
     });
-    expect(insertedBy('editor.slash.card.title', 'ja')).toMatchObject({ attrs: { title: scaffold('editor.slash.default.cardTitle', 'ja'), href: '' } });
+    expect(insertedBy('editor.slash.card.title', 'ja')).toMatchObject({
+      attrs: { title: scaffold('editor.slash.default.cardTitle', 'ja'), href: '' },
+    });
     expect(insertedBy('editor.slash.card.title', 'en')).toMatchObject({ attrs: { title: 'Card title', href: '' } });
     expect(insertedBy('editor.slash.tabs.title', 'ja')).toMatchObject({
       content: [
@@ -141,11 +143,7 @@ describe('slash command scaffolds', () => {
   it('numbers repeated cards and columns in the page language', () => {
     expect(insertedBy('editor.slash.cardGrid3.title', 'ja')).toMatchObject({
       attrs: { cols: '3' },
-      content: [
-        { attrs: { title: 'カード 1' } },
-        { attrs: { title: 'カード 2' } },
-        { attrs: { title: 'カード 3' } },
-      ],
+      content: [{ attrs: { title: 'カード 1' } }, { attrs: { title: 'カード 2' } }, { attrs: { title: 'カード 3' } }],
     });
     expect(insertedBy('editor.slash.cardGroup.title', 'en')).toMatchObject({
       content: [{ attrs: { title: 'Card 1' } }, { attrs: { title: 'Card 2' } }],

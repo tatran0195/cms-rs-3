@@ -1,15 +1,9 @@
-import { ScrollArea } from "@cms/design-system/components/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@cms/design-system/components/ui/sheet";
-import { ExternalLink, Menu } from "lucide-react";
-import { useEffect, useState } from "react";
-import { SiteNav } from "@/components/site/site-nav";
-import type { NavNode } from "@/hooks/api";
+import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@cms/design-system/components/ui/sheet';
+import { ExternalLink, Menu } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { SiteNav } from '@/components/site/site-nav';
+import type { NavNode } from '@/hooks/api';
 
 export interface MobileNavLink {
   label: string;
@@ -58,7 +52,7 @@ export function MobileNav({
         <Menu className="size-5" />
       </SheetTrigger>
       {/* Open from the reading-start edge: left in LTR, right in RTL (Arabic). */}
-      <SheetContent side={isRtl ? "right" : "left"} className="w-80 p-0">
+      <SheetContent side={isRtl ? 'right' : 'left'} className="w-80 p-0">
         <SheetHeader className="sr-only">
           <SheetTitle>{label}</SheetTitle>
         </SheetHeader>
@@ -70,31 +64,21 @@ export function MobileNav({
                   <li key={`${link.label}-${link.href}`}>
                     <a
                       href={link.href}
-                      target={link.external ? "_blank" : undefined}
-                      rel={link.external ? "noreferrer" : undefined}
-                      aria-current={link.active ? "page" : undefined}
+                      target={link.external ? '_blank' : undefined}
+                      rel={link.external ? 'noreferrer' : undefined}
+                      aria-current={link.active ? 'page' : undefined}
                       className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-medium text-sm transition-colors ${
-                        link.active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        link.active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                     >
                       {link.label}
-                      {link.external ? (
-                        <ExternalLink className="size-3" />
-                      ) : null}
+                      {link.external ? <ExternalLink className="size-3" /> : null}
                     </a>
                   </li>
                 ))}
               </ul>
             ) : null}
-            <SiteNav
-              nodes={nodes}
-              projectId={projectId}
-              currentPath={currentPath}
-              lang={lang}
-              version={version}
-            />
+            <SiteNav nodes={nodes} projectId={projectId} currentPath={currentPath} lang={lang} version={version} />
           </div>
         </ScrollArea>
       </SheetContent>

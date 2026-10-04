@@ -217,17 +217,17 @@ export interface NavNode {
 export const withOpenApiNav = (nav: NavNode[], openapi: SiteSnapshot['openapi']): NavNode[] =>
   openapi
     ? [
-      ...nav,
-      {
-        id: `openapi:${openapi.contentHash}`,
-        kind: 'PAGE' as const,
-        title: openapi.title,
-        path: openapi.path,
-        icon: 'braces',
-        tag: null,
-        children: [],
-      },
-    ]
+        ...nav,
+        {
+          id: `openapi:${openapi.contentHash}`,
+          kind: 'PAGE' as const,
+          title: openapi.title,
+          path: openapi.path,
+          icon: 'braces',
+          tag: null,
+          children: [],
+        },
+      ]
     : nav;
 
 export interface ResolvedPageCategory {
@@ -258,74 +258,74 @@ export const resolvePageCategory = (page: SnapshotPage, siblingPageCount: number
   const ar = page.languageCode.toLowerCase().startsWith('ar');
   const rules: Array<{ title: string; icon: string; order: number; keywords: string[] }> = ar
     ? [
-      { title: 'ابدأ هنا', icon: 'rocket', order: 0, keywords: ['ابدأ', 'مقدمة', 'الخطوات الأولى', 'إعداد', 'تجربة المنصة', 'لوحة التحكم'] },
-      {
-        title: 'التقارير والعمليات',
-        icon: 'chart-no-axes-column',
-        order: 6,
-        keywords: ['تقرير', 'تقارير', 'إحصائ', 'عمليات', 'تتبع', 'مراجعة الحجوزات'],
-      },
-      {
-        title: 'المحاسبة والفوترة',
-        icon: 'receipt-text',
-        order: 5,
-        keywords: ['محاسب', 'فاتور', 'دفع', 'دفعات', 'سداد', 'مالي', 'بنك', 'زكاة', 'ضريب', 'zatca', 'رصيد'],
-      },
-      { title: 'الفنادق والغرف', icon: 'hotel', order: 1, keywords: ['فندق', 'فنادق', 'غرفة', 'غرف', 'تسكين', 'الوصول', 'المغادرة', 'إتاحة'] },
-      {
-        title: 'العقود والأسعار',
-        icon: 'badge-dollar-sign',
-        order: 3,
-        keywords: ['عقد', 'عقود', 'سعر', 'أسعار', 'عرض', 'عروض', 'برومو', 'خدمة', 'خصم'],
-      },
-      { title: 'الحجوزات', icon: 'calendar-check', order: 2, keywords: ['حجز', 'حجوزات', 'ضيف', 'نقل', 'مواصلات'] },
-      { title: 'العملاء والوكالات', icon: 'users-round', order: 4, keywords: ['عميل', 'عملاء', 'وكالة', 'وكالات', 'وكيل', 'مورد', 'شركة'] },
-      {
-        title: 'المستخدمون والصلاحيات',
-        icon: 'shield-check',
-        order: 7,
-        keywords: ['مستخدم', 'مستخدمين', 'صلاحية', 'صلاحيات', 'دور', 'أدوار', 'مجموعة'],
-      },
-      { title: 'التواصل', icon: 'messages-square', order: 8, keywords: ['رسالة', 'رسائل', 'بريد', 'واتساب', 'إشعار', 'موقع إلكتروني'] },
-      { title: 'التكاملات', icon: 'blocks', order: 9, keywords: ['تكامل', 'ربط', 'channel manager', 'pms', 'stc', 'hyperpay'] },
-    ]
+        { title: 'ابدأ هنا', icon: 'rocket', order: 0, keywords: ['ابدأ', 'مقدمة', 'الخطوات الأولى', 'إعداد', 'تجربة المنصة', 'لوحة التحكم'] },
+        {
+          title: 'التقارير والعمليات',
+          icon: 'chart-no-axes-column',
+          order: 6,
+          keywords: ['تقرير', 'تقارير', 'إحصائ', 'عمليات', 'تتبع', 'مراجعة الحجوزات'],
+        },
+        {
+          title: 'المحاسبة والفوترة',
+          icon: 'receipt-text',
+          order: 5,
+          keywords: ['محاسب', 'فاتور', 'دفع', 'دفعات', 'سداد', 'مالي', 'بنك', 'زكاة', 'ضريب', 'zatca', 'رصيد'],
+        },
+        { title: 'الفنادق والغرف', icon: 'hotel', order: 1, keywords: ['فندق', 'فنادق', 'غرفة', 'غرف', 'تسكين', 'الوصول', 'المغادرة', 'إتاحة'] },
+        {
+          title: 'العقود والأسعار',
+          icon: 'badge-dollar-sign',
+          order: 3,
+          keywords: ['عقد', 'عقود', 'سعر', 'أسعار', 'عرض', 'عروض', 'برومو', 'خدمة', 'خصم'],
+        },
+        { title: 'الحجوزات', icon: 'calendar-check', order: 2, keywords: ['حجز', 'حجوزات', 'ضيف', 'نقل', 'مواصلات'] },
+        { title: 'العملاء والوكالات', icon: 'users-round', order: 4, keywords: ['عميل', 'عملاء', 'وكالة', 'وكالات', 'وكيل', 'مورد', 'شركة'] },
+        {
+          title: 'المستخدمون والصلاحيات',
+          icon: 'shield-check',
+          order: 7,
+          keywords: ['مستخدم', 'مستخدمين', 'صلاحية', 'صلاحيات', 'دور', 'أدوار', 'مجموعة'],
+        },
+        { title: 'التواصل', icon: 'messages-square', order: 8, keywords: ['رسالة', 'رسائل', 'بريد', 'واتساب', 'إشعار', 'موقع إلكتروني'] },
+        { title: 'التكاملات', icon: 'blocks', order: 9, keywords: ['تكامل', 'ربط', 'channel manager', 'pms', 'stc', 'hyperpay'] },
+      ]
     : [
-      {
-        title: 'Getting started',
-        icon: 'rocket',
-        order: 0,
-        keywords: ['getting started', 'get started', 'first step', 'introduction', 'setup your', 'setup-your', 'dashboard', 'trial platform'],
-      },
-      {
-        title: 'Reports & operations',
-        icon: 'chart-no-axes-column',
-        order: 6,
-        keywords: ['report', 'statistics', 'operation', 'tracking', 'audit'],
-      },
-      {
-        title: 'Accounting & invoicing',
-        icon: 'receipt-text',
-        order: 5,
-        keywords: ['account', 'invoice', 'payment', 'receipt', 'financial', 'bank', 'tax', 'zatca', 'balance'],
-      },
-      {
-        title: 'Hotels & rooms',
-        icon: 'hotel',
-        order: 1,
-        keywords: ['hotel', 'room', 'check-in', 'check in', 'check-out', 'check out', 'arrival', 'departure', 'accommodation', 'availability'],
-      },
-      {
-        title: 'Contracts & pricing',
-        icon: 'badge-dollar-sign',
-        order: 3,
-        keywords: ['contract', 'price', 'pricing', 'promo', 'offer', 'service', 'discount'],
-      },
-      { title: 'Reservations', icon: 'calendar-check', order: 2, keywords: ['reservation', 'booking', 'guest', 'transportation'] },
-      { title: 'Customers & agencies', icon: 'users-round', order: 4, keywords: ['client', 'customer', 'agency', 'agent', 'provider', 'company'] },
-      { title: 'Users & access', icon: 'shield-check', order: 7, keywords: ['user', 'role', 'permission', 'access', 'group'] },
-      { title: 'Communications', icon: 'messages-square', order: 8, keywords: ['sms', 'e-mail', 'email', 'whatsapp', 'notification', 'website'] },
-      { title: 'Integrations', icon: 'blocks', order: 9, keywords: ['integration', 'channel manager', 'pms', 'stc', 'hyperpay'] },
-    ];
+        {
+          title: 'Getting started',
+          icon: 'rocket',
+          order: 0,
+          keywords: ['getting started', 'get started', 'first step', 'introduction', 'setup your', 'setup-your', 'dashboard', 'trial platform'],
+        },
+        {
+          title: 'Reports & operations',
+          icon: 'chart-no-axes-column',
+          order: 6,
+          keywords: ['report', 'statistics', 'operation', 'tracking', 'audit'],
+        },
+        {
+          title: 'Accounting & invoicing',
+          icon: 'receipt-text',
+          order: 5,
+          keywords: ['account', 'invoice', 'payment', 'receipt', 'financial', 'bank', 'tax', 'zatca', 'balance'],
+        },
+        {
+          title: 'Hotels & rooms',
+          icon: 'hotel',
+          order: 1,
+          keywords: ['hotel', 'room', 'check-in', 'check in', 'check-out', 'check out', 'arrival', 'departure', 'accommodation', 'availability'],
+        },
+        {
+          title: 'Contracts & pricing',
+          icon: 'badge-dollar-sign',
+          order: 3,
+          keywords: ['contract', 'price', 'pricing', 'promo', 'offer', 'service', 'discount'],
+        },
+        { title: 'Reservations', icon: 'calendar-check', order: 2, keywords: ['reservation', 'booking', 'guest', 'transportation'] },
+        { title: 'Customers & agencies', icon: 'users-round', order: 4, keywords: ['client', 'customer', 'agency', 'agent', 'provider', 'company'] },
+        { title: 'Users & access', icon: 'shield-check', order: 7, keywords: ['user', 'role', 'permission', 'access', 'group'] },
+        { title: 'Communications', icon: 'messages-square', order: 8, keywords: ['sms', 'e-mail', 'email', 'whatsapp', 'notification', 'website'] },
+        { title: 'Integrations', icon: 'blocks', order: 9, keywords: ['integration', 'channel manager', 'pms', 'stc', 'hyperpay'] },
+      ];
   const match = rules.find((rule) => rule.keywords.some((keyword) => haystack.includes(keyword)));
   return match
     ? { title: match.title, icon: match.icon, order: match.order }
@@ -628,19 +628,19 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
   const variables = variablesFromConfig(project.config);
   const addonConfig = project.addons
     ? projectConfigWithAddons(
-      project.config,
-      project.addons.flatMap((addon) =>
-        isAddonId(addon.key)
-          ? [
-            {
-              key: addon.key,
-              enabled: addon.enabled,
-              config: parseAddonConfigRecord(addon.config),
-            },
-          ]
-          : [],
-      ),
-    )
+        project.config,
+        project.addons.flatMap((addon) =>
+          isAddonId(addon.key)
+            ? [
+                {
+                  key: addon.key,
+                  enabled: addon.enabled,
+                  config: parseAddonConfigRecord(addon.config),
+                },
+              ]
+            : [],
+        ),
+      )
     : ((project.config as Record<string, unknown> | null) ?? null);
   return {
     project: {
@@ -680,13 +680,13 @@ export const buildSnapshot = (project: ProjectRow, pages: PageRow[], generatedAt
     }),
     openapi: project.openApiDocument
       ? {
-        title: project.openApiDocument.title,
-        path: project.openApiDocument.path,
-        contentHash: project.openApiDocument.contentHash,
-        updatedAt:
-          project.openApiDocument.updatedAt instanceof Date ? project.openApiDocument.updatedAt.toISOString() : project.openApiDocument.updatedAt,
-        document: project.openApiDocument.document as Record<string, unknown>,
-      }
+          title: project.openApiDocument.title,
+          path: project.openApiDocument.path,
+          contentHash: project.openApiDocument.contentHash,
+          updatedAt:
+            project.openApiDocument.updatedAt instanceof Date ? project.openApiDocument.updatedAt.toISOString() : project.openApiDocument.updatedAt,
+          document: project.openApiDocument.document as Record<string, unknown>,
+        }
       : null,
     generatedAt,
   };

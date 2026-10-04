@@ -96,6 +96,25 @@ const kvPair = z.object({ key: z.string().max(80), value: z.string().max(500) })
 
 export const SEARCH_MAX_RESULTS = { default: 12, min: 1, max: 50 } as const;
 
+export const searchSuggestedQuestionSchema = z
+  .object({
+    question: z.string().trim().min(2).max(120),
+    category: z.string().trim().max(40).optional(),
+    icon: z.string().trim().max(40).optional(),
+  })
+  .strict();
+export type SearchSuggestedQuestion = z.infer<typeof searchSuggestedQuestionSchema>;
+
+export const searchPopularTopicItemSchema = z
+  .object({
+    label: z.string().trim().min(1).max(40),
+    icon: z.string().trim().max(40).optional(),
+  })
+  .strict();
+export const searchPopularTopicSchema = z.union([z.string().trim().min(1).max(40), searchPopularTopicItemSchema]);
+export type SearchPopularTopicItem = z.infer<typeof searchPopularTopicItemSchema>;
+export type SearchPopularTopic = z.infer<typeof searchPopularTopicSchema>;
+
 /** Resolved, provider-neutral controls used by both the dashboard and MCP.
  * `placeholder` deliberately has no default here: the published UI falls back
  * to its active-language Paraglide copy when the project has not authored one. */
@@ -104,9 +123,11 @@ export const searchConfigurationSchema = z
     maxResults: z.number().int().min(SEARCH_MAX_RESULTS.min).max(SEARCH_MAX_RESULTS.max).default(SEARCH_MAX_RESULTS.default),
     filtersEnabled: z.boolean().default(true),
     versionFilterEnabled: z.boolean().default(true),
-    aiAnswers: z.boolean().default(false),
+    aiAnswers: z.boolean().default(true),
     hotkey: z.enum(['cmdk', 'slash']).default('cmdk'),
     placeholder: z.string().trim().max(80).optional(),
+    suggestedQuestions: z.array(searchSuggestedQuestionSchema).max(8).optional(),
+    popularSearches: z.array(searchPopularTopicSchema).max(12).optional(),
   })
   .strict();
 export type SearchConfiguration = z.infer<typeof searchConfigurationSchema>;
@@ -116,7 +137,11 @@ export type SearchConfiguration = z.infer<typeof searchConfigurationSchema>;
 export const updateProjectSearchConfigurationBody = searchConfigurationSchema
   .omit({ placeholder: true })
   .partial()
-  .extend({ placeholder: z.string().trim().max(80).nullable().optional() })
+  .extend({
+    placeholder: z.string().trim().max(80).nullable().optional(),
+    suggestedQuestions: z.array(searchSuggestedQuestionSchema).nullable().optional(),
+    popularSearches: z.array(searchPopularTopicSchema).nullable().optional(),
+  })
   .strict();
 export type UpdateProjectSearchConfigurationBody = z.infer<typeof updateProjectSearchConfigurationBody>;
 
@@ -130,7 +155,11 @@ export type SearchIndexDiagnosticsQuery = z.infer<typeof searchIndexDiagnosticsQ
 
 export const searchConfigurationResultSchema = z
   .object({
-    configuration: searchConfigurationSchema.extend({ placeholder: z.string().nullable() }),
+    configuration: searchConfigurationSchema.extend({
+      placeholder: z.string().nullable(),
+      suggestedQuestions: z.array(searchSuggestedQuestionSchema).nullable().optional(),
+      popularSearches: z.array(searchPopularTopicSchema).nullable().optional(),
+    }),
     constraints: z.object({ maxResults: z.object({ default: z.number(), min: z.number(), max: z.number() }).strict() }).strict(),
   })
   .strict();
@@ -311,6 +340,8 @@ export const projectConfigSchema = z
         filtersEnabled: z.boolean().optional(),
         versionFilterEnabled: z.boolean().optional(),
         aiAnswers: z.boolean().optional(),
+        suggestedQuestions: z.array(searchSuggestedQuestionSchema).max(8).optional(),
+        popularSearches: z.array(searchPopularTopicSchema).max(12).optional(),
       })
       .strict()
       .optional(),
@@ -483,6 +514,7 @@ export const createProjectBody = z
     name: z.string().min(1).max(120),
     description: z.string().max(500).optional(),
     icon: z.string().max(64).optional(),
+    isPublic: z.boolean().optional(),
   })
   .strict();
 export type CreateProjectBody = z.infer<typeof createProjectBody>;
@@ -498,6 +530,7 @@ export const updateProjectBody = z
       .optional(),
     description: z.string().max(500).nullable().optional(),
     icon: z.string().max(64).nullable().optional(),
+    isPublic: z.boolean().optional(),
     config: projectConfigUpdateSchema.optional(),
   })
   .strict();

@@ -1,8 +1,8 @@
-import { CmsMark } from "@cms/design-system/brand";
-import { useT } from "@cms/i18n/react";
-import { Cloud, Globe2, Languages, ShieldCheck } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
-import { InterfaceLanguageButton } from "@/components/interface-language-dialog";
+import { CmsMark } from '@cms/design-system/brand';
+import { useT } from '@cms/i18n/react';
+import { Cloud, Globe2, Languages, ShieldCheck } from 'lucide-react';
+import type { ComponentType, ReactNode, SVGProps } from 'react';
+import { InterfaceLanguageButton } from '@/components/interface-language-dialog';
 
 /**
  * Auth chrome — a premium split: a dark, brand-led panel (value props +
@@ -12,20 +12,14 @@ import { InterfaceLanguageButton } from "@/components/interface-language-dialog"
  */
 const BRAND_POINTS: {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
-  key: "auth.brand.domains" | "auth.brand.hosting" | "auth.brand.multilingual";
+  key: 'auth.brand.domains' | 'auth.brand.hosting' | 'auth.brand.multilingual';
 }[] = [
-  { icon: Cloud, key: "auth.brand.hosting" },
-  { icon: Globe2, key: "auth.brand.domains" },
-  { icon: Languages, key: "auth.brand.multilingual" },
+  { icon: Cloud, key: 'auth.brand.hosting' },
+  { icon: Globe2, key: 'auth.brand.domains' },
+  { icon: Languages, key: 'auth.brand.multilingual' },
 ];
 
-export function AuthLayout({
-  children,
-  subtitle,
-}: {
-  children: ReactNode;
-  subtitle?: string;
-}) {
+export function AuthLayout({ children, subtitle }: { children: ReactNode; subtitle?: string }) {
   const t = useT();
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
@@ -33,8 +27,7 @@ export function AuthLayout({
       <div
         className="relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex"
         style={{
-          background:
-            "linear-gradient(155deg, #1c1c1e 0%, #151517 55%, #101012 100%)",
+          background: 'linear-gradient(155deg, #1c1c1e 0%, #151517 55%, #101012 100%)',
         }}
       >
         {/* Terracotta glow and a faint dot grid using the shared design-system tokens. */}
@@ -42,17 +35,15 @@ export function AuthLayout({
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
-            background:
-              "radial-gradient(60% 45% at 82% 8%, rgba(249,115,22,0.18), transparent 60%)",
+            background: 'radial-gradient(60% 45% at 82% 8%, rgba(249,115,22,0.18), transparent 60%)',
           }}
         />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.14]"
           style={{
-            backgroundImage:
-              "radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
+            backgroundImage: 'radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
           }}
         />
         <div className="relative flex items-center gap-2.5">
@@ -60,18 +51,11 @@ export function AuthLayout({
           <span className="font-semibold text-lg tracking-tight">TechnoStar</span>
         </div>
         <div className="relative">
-          <h2 className="font-semibold text-[2rem] leading-[1.15] tracking-tight">
-            {t("auth.brand.heading")}
-          </h2>
-          <p className="mt-3 max-w-md text-sm text-white/65 leading-relaxed">
-            {t("auth.brand.description")}
-          </p>
+          <h2 className="font-semibold text-[2rem] leading-[1.15] tracking-tight">{t('auth.brand.heading')}</h2>
+          <p className="mt-3 max-w-md text-sm text-white/65 leading-relaxed">{t('auth.brand.description')}</p>
           <ul className="mt-8 space-y-3.5">
             {BRAND_POINTS.map((point) => (
-              <li
-                key={point.key}
-                className="flex items-center gap-3 text-sm text-white/90"
-              >
+              <li key={point.key} className="flex items-center gap-3 text-sm text-white/90">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-white/10 ring-1 ring-white/10">
                   <point.icon className="size-3.5 text-[#F97316]" />
                 </span>
@@ -82,9 +66,9 @@ export function AuthLayout({
         </div>
         <div className="relative flex items-center gap-2 text-white/55 text-xs">
           <span className="size-1.5 rounded-full bg-emerald-400" />
-          {t("auth.brand.status")}
+          {t('auth.brand.status')}
           <span className="ms-auto inline-flex items-center gap-1 font-mono text-white/40">
-            <ShieldCheck className="size-3" /> {t("auth.brand.openSource")}
+            <ShieldCheck className="size-3" /> {t('auth.brand.openSource')}
           </span>
         </div>
       </div>
@@ -96,16 +80,10 @@ export function AuthLayout({
           <div className="mb-8 flex flex-col items-center gap-3 text-center lg:hidden">
             <div className="inline-flex items-center gap-2">
               <CmsMark className="size-7" />
-              <span className="font-semibold text-2xl tracking-tight">
-                TechnoStar
-              </span>
+              <span className="font-semibold text-2xl tracking-tight">TechnoStar</span>
             </div>
           </div>
-          {subtitle ? (
-            <h1 className="mb-6 text-center font-semibold text-2xl tracking-tight lg:text-start">
-              {subtitle}
-            </h1>
-          ) : null}
+          {subtitle ? <h1 className="mb-6 text-center font-semibold text-2xl tracking-tight lg:text-start">{subtitle}</h1> : null}
           {children}
         </div>
       </div>

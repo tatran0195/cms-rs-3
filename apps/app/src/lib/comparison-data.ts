@@ -305,9 +305,7 @@ export const cmsVsMintlify: Comparison = {
     },
     {
       feature: 'AI assistant & agent',
-      cms: partial(
-        'Grounded answers and read-only MCP are in source main; provider setup is optional and the v0.1.2 artifact does not include them',
-      ),
+      cms: partial('Grounded answers and read-only MCP are in source main; provider setup is optional and the v0.1.2 artifact does not include them'),
       competitor: yes('Pro plan, metered by credits'),
     },
     { feature: 'SSO / SCIM / organization audit logs', cms: planned(), competitor: yes('Enterprise plan') },

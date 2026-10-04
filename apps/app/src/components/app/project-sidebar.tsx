@@ -1,4 +1,4 @@
-import { useDirection } from "@cms/design-system/components/ui/direction";
+import { useDirection } from '@cms/design-system/components/ui/direction';
 import {
   Sidebar,
   SidebarContent,
@@ -8,19 +8,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@cms/design-system/components/ui/sidebar";
-import type { MessageKey } from "@cms/i18n";
-import { useLocale } from "@cms/i18n/react";
-import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  BarChart3,
-  LayoutDashboard,
-  type LucideIcon,
-  PenLine,
-  Settings as SettingsIcon,
-} from "lucide-react";
-import { SidebarAccountFooter } from "@/components/app/sidebar-account-footer";
-import { SiteSwitcher } from "@/components/app/site-switcher";
+} from '@cms/design-system/components/ui/sidebar';
+import type { MessageKey } from '@cms/i18n';
+import { useLocale } from '@cms/i18n/react';
+import { Link, useRouterState } from '@tanstack/react-router';
+import { BarChart3, LayoutDashboard, type LucideIcon, PenLine, Settings as SettingsIcon } from 'lucide-react';
+import { SidebarAccountFooter } from '@/components/app/sidebar-account-footer';
+import { SiteSwitcher } from '@/components/app/site-switcher';
 
 type NavItem = {
   labelKey: MessageKey;
@@ -39,33 +33,33 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
   const base = `/app/projects/${projectId}`;
   const nav: NavItem[] = [
     {
-      labelKey: "project.overview",
-      to: "/app/projects/$projectId",
+      labelKey: 'project.overview',
+      to: '/app/projects/$projectId',
       icon: LayoutDashboard,
       isActive: pathname === base,
     },
     {
-      labelKey: "project.editor",
-      to: "/app/projects/$projectId/editor",
+      labelKey: 'project.editor',
+      to: '/app/projects/$projectId/editor',
       icon: PenLine,
       isActive: pathname.startsWith(`${base}/editor`),
     },
     {
-      labelKey: "project.analytics",
-      to: "/app/projects/$projectId/analytics",
+      labelKey: 'project.analytics',
+      to: '/app/projects/$projectId/analytics',
       icon: BarChart3,
       isActive: pathname.startsWith(`${base}/analytics`),
     },
     {
-      labelKey: "project.settings",
-      to: "/app/projects/$projectId/settings",
+      labelKey: 'project.settings',
+      to: '/app/projects/$projectId/settings',
       icon: SettingsIcon,
       isActive: pathname.startsWith(`${base}/settings`),
     },
   ];
 
   return (
-    <Sidebar side={direction === "rtl" ? "right" : "left"} variant="inset">
+    <Sidebar side={direction === 'rtl' ? 'right' : 'left'} variant="inset">
       <SidebarHeader>
         <SiteSwitcher projectId={projectId} />
       </SidebarHeader>

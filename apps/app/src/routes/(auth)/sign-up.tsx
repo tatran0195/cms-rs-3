@@ -1,37 +1,30 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { Input } from "@cms/design-system/components/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@cms/design-system/components/ui/input-otp";
-import { Label } from "@cms/design-system/components/ui/label";
-import { useOtpResendCountdown } from "@cms/design-system/hooks/use-otp-resend-countdown";
-import { useT } from "@cms/i18n/react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { z } from "zod";
-import { GoogleIcon } from "@/components/icons/brand";
-import { useGetPublicMeta } from "@/hooks/api/public";
-import { AuthLayout } from "@/layouts/auth";
-import { readPendingInvitation } from "@/lib/invitations";
-import { authClient, signIn } from "@/services/auth-client";
+import { Button } from '@cms/design-system/components/ui/button';
+import { Input } from '@cms/design-system/components/ui/input';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@cms/design-system/components/ui/input-otp';
+import { Label } from '@cms/design-system/components/ui/label';
+import { useOtpResendCountdown } from '@cms/design-system/hooks/use-otp-resend-countdown';
+import { useT } from '@cms/i18n/react';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { z } from 'zod';
+import { GoogleIcon } from '@/components/icons/brand';
+import { useGetPublicMeta } from '@/hooks/api/public';
+import { AuthLayout } from '@/layouts/auth';
+import { readPendingInvitation } from '@/lib/invitations';
+import { authClient, signIn } from '@/services/auth-client';
 
-export const Route = createFileRoute("/(auth)/sign-up")({
+export const Route = createFileRoute('/(auth)/sign-up')({
   validateSearch: (search) =>
     z
       .object({
         invite: z.string().optional().catch(undefined),
         email: z.string().optional().catch(undefined),
-        intent: z.literal("first-publish").optional().catch(undefined),
+        intent: z.literal('first-publish').optional().catch(undefined),
       })
       .parse(search),
   head: () => ({
-    meta: [
-      { title: "Sign up — cms" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: 'Sign up — cms' }, { name: 'robots', content: 'noindex, nofollow' }],
   }),
   component: SignUpPage,
 });
@@ -41,9 +34,9 @@ function SignUpPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const lockedEmail = Boolean(search.email);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState(search.email ?? "");
-  const [otp, setOtp] = useState("");
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState(search.email ?? '');
+  const [otp, setOtp] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,22 +49,18 @@ function SignUpPage() {
 
   const normalizedEmail = email.trim().toLowerCase();
   const invitationId = search.invite ?? readPendingInvitation() ?? undefined;
-  const firstPublish = search.intent === "first-publish";
-  const afterAuthPath = invitationId
-    ? `/accept-invite/${invitationId}`
-    : firstPublish
-      ? "/app?firstPublish=true"
-      : "/app";
+  const firstPublish = search.intent === 'first-publish';
+  const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : firstPublish ? '/app?firstPublish=true' : '/app';
 
   const finishSignUp = async () => {
     if (invitationId) {
       await navigate({
-        to: "/accept-invite/$invitationId",
+        to: '/accept-invite/$invitationId',
         params: { invitationId },
       });
     } else {
       await navigate({
-        to: "/app",
+        to: '/app',
         search: firstPublish ? { firstPublish: true } : {},
       });
     }
@@ -83,16 +72,16 @@ function SignUpPage() {
     try {
       const result = await authClient.emailOtp.sendVerificationOtp({
         email: normalizedEmail,
-        type: "sign-in",
+        type: 'sign-in',
       });
       if (result.error) {
-        setError(result.error.message ?? t("auth.otp.sendError"));
+        setError(result.error.message ?? t('auth.otp.sendError'));
         return;
       }
       setCodeSent(true);
       startCountdown();
     } catch {
-      setError(t("auth.otp.sendError"));
+      setError(t('auth.otp.sendError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -108,12 +97,12 @@ function SignUpPage() {
         name: name.trim(),
       });
       if (result.error) {
-        setError(result.error.message ?? t("auth.otp.invalid"));
+        setError(result.error.message ?? t('auth.otp.invalid'));
         return;
       }
       await finishSignUp();
     } catch {
-      setError(t("auth.otp.invalid"));
+      setError(t('auth.otp.invalid'));
     } finally {
       setIsSubmitting(false);
     }
@@ -123,11 +112,11 @@ function SignUpPage() {
     setError(null);
     setIsGoogleSubmitting(true);
     const result = await signIn.social({
-      provider: "google",
+      provider: 'google',
       callbackURL: afterAuthPath,
     });
     if (result.error) {
-      setError(result.error.message ?? t("auth.signUp.error"));
+      setError(result.error.message ?? t('auth.signUp.error'));
       setIsGoogleSubmitting(false);
     }
   };
@@ -140,14 +129,14 @@ function SignUpPage() {
 
   if (signupDisabled) {
     return (
-      <AuthLayout subtitle={t("auth.signUp.subtitle")}>
+      <AuthLayout subtitle={t('auth.signUp.subtitle')}>
         <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-center text-muted-foreground text-sm">
-          {t("auth.legal.signupDisabled")}
+          {t('auth.legal.signupDisabled')}
         </p>
         <p className="mt-5 text-center text-muted-foreground text-sm">
-          {t("auth.signUp.haveAccount")}{" "}
+          {t('auth.signUp.haveAccount')}{' '}
           <Link className="text-primary hover:underline" to="/sign-in">
-            {t("auth.signIn.submit")}
+            {t('auth.signIn.submit')}
           </Link>
         </p>
       </AuthLayout>
@@ -155,13 +144,7 @@ function SignUpPage() {
   }
 
   return (
-    <AuthLayout
-      subtitle={
-        codeSent
-          ? t("auth.otp.checkEmail", { email: normalizedEmail })
-          : t("auth.signUp.subtitle")
-      }
-    >
+    <AuthLayout subtitle={codeSent ? t('auth.otp.checkEmail', { email: normalizedEmail }) : t('auth.signUp.subtitle')}>
       {!codeSent && googleEnabled ? (
         <>
           <Button
@@ -172,13 +155,11 @@ function SignUpPage() {
             variant="outline"
           >
             <GoogleIcon className="size-4" />
-            {isGoogleSubmitting
-              ? t("auth.google.submitting")
-              : t("auth.google.signUp")}
+            {isGoogleSubmitting ? t('auth.google.submitting') : t('auth.google.signUp')}
           </Button>
           <div className="mb-4 flex items-center gap-3 text-muted-foreground text-xs">
             <span className="h-px flex-1 bg-border" />
-            <span>{t("auth.divider.or")}</span>
+            <span>{t('auth.divider.or')}</span>
             <span className="h-px flex-1 bg-border" />
           </div>
         </>
@@ -187,7 +168,7 @@ function SignUpPage() {
         {!codeSent ? (
           <>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">{t("auth.field.name")}</Label>
+              <Label htmlFor="name">{t('auth.field.name')}</Label>
               <Input
                 autoComplete="name"
                 autoFocus
@@ -199,7 +180,7 @@ function SignUpPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">{t("auth.field.email")}</Label>
+              <Label htmlFor="email">{t('auth.field.email')}</Label>
               <Input
                 autoComplete="email"
                 id="email"
@@ -210,16 +191,9 @@ function SignUpPage() {
                 type="email"
                 value={email}
               />
-              {lockedEmail ? (
-                <p className="text-muted-foreground text-xs">
-                  {t("auth.invite.invitedAs", { email: search.email ?? "" })}
-                </p>
-              ) : null}
+              {lockedEmail ? <p className="text-muted-foreground text-xs">{t('auth.invite.invitedAs', { email: search.email ?? '' })}</p> : null}
             </div>
-            <label
-              className="flex items-start gap-2.5 text-muted-foreground text-sm"
-              htmlFor="agree-terms"
-            >
+            <label className="flex items-start gap-2.5 text-muted-foreground text-sm" htmlFor="agree-terms">
               <input
                 checked={agreedToTerms}
                 className="mt-0.5 size-4 shrink-0 accent-primary"
@@ -229,31 +203,21 @@ function SignUpPage() {
                 type="checkbox"
               />
               <span>
-                {t("auth.legal.agreePrefix")}
-                <a
-                  className="text-primary hover:underline"
-                  href="/terms"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {t("auth.legal.terms")}
+                {t('auth.legal.agreePrefix')}
+                <a className="text-primary hover:underline" href="/terms" rel="noreferrer" target="_blank">
+                  {t('auth.legal.terms')}
                 </a>
-                {t("auth.legal.and")}
-                <a
-                  className="text-primary hover:underline"
-                  href="/privacy"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {t("auth.legal.privacy")}
+                {t('auth.legal.and')}
+                <a className="text-primary hover:underline" href="/privacy" rel="noreferrer" target="_blank">
+                  {t('auth.legal.privacy')}
                 </a>
-                {t("auth.legal.agreeSuffix")}
+                {t('auth.legal.agreeSuffix')}
               </span>
             </label>
           </>
         ) : (
           <div className="flex flex-col items-center gap-2" dir="ltr">
-            <Label htmlFor="otp">{t("auth.otp.label")}</Label>
+            <Label htmlFor="otp">{t('auth.otp.label')}</Label>
             <InputOTP
               aria-invalid={Boolean(error)}
               autoComplete="one-time-code"
@@ -276,40 +240,29 @@ function SignUpPage() {
                 <InputOTPSlot index={5} />
               </InputOTPGroup>
             </InputOTP>
-            <p className="text-center text-muted-foreground text-xs">
-              {t("auth.otp.hint")}
-            </p>
+            <p className="text-center text-muted-foreground text-xs">{t('auth.otp.hint')}</p>
           </div>
         )}
-        {error ? (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
+        {error ? <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive text-sm">{error}</p> : null}
         <Button
           className="mt-1 w-full"
-          disabled={
-            isSubmitting ||
-            (codeSent
-              ? otp.length !== 6
-              : !agreedToTerms || !name.trim() || !normalizedEmail)
-          }
+          disabled={isSubmitting || (codeSent ? otp.length !== 6 : !agreedToTerms || !name.trim() || !normalizedEmail)}
           type="submit"
         >
           {isSubmitting
             ? codeSent
-              ? t("auth.otp.verifying")
-              : t("auth.otp.sending")
+              ? t('auth.otp.verifying')
+              : t('auth.otp.sending')
             : codeSent
-              ? t("auth.otp.verifyCreate")
-              : t("auth.otp.sendCreate")}
+              ? t('auth.otp.verifyCreate')
+              : t('auth.otp.sendCreate')}
         </Button>
         {codeSent ? (
           <div className="flex items-center justify-between">
             <Button
               onClick={() => {
                 setCodeSent(false);
-                setOtp("");
+                setOtp('');
                 setError(null);
                 resetCountdown();
               }}
@@ -317,28 +270,19 @@ function SignUpPage() {
               type="button"
               variant="ghost"
             >
-              <ArrowLeft className="size-4 rtl:-scale-x-100" />{" "}
-              {t("auth.otp.changeDetails")}
+              <ArrowLeft className="size-4 rtl:-scale-x-100" /> {t('auth.otp.changeDetails')}
             </Button>
-            <Button
-              disabled={isSubmitting || resendIn > 0}
-              onClick={requestCode}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              {resendIn > 0
-                ? t("auth.otp.resendIn", { seconds: resendIn })
-                : t("auth.otp.resend")}
+            <Button disabled={isSubmitting || resendIn > 0} onClick={requestCode} size="sm" type="button" variant="ghost">
+              {resendIn > 0 ? t('auth.otp.resendIn', { seconds: resendIn }) : t('auth.otp.resend')}
             </Button>
           </div>
         ) : null}
       </form>
       {!codeSent ? (
         <p className="mt-5 text-center text-muted-foreground text-sm">
-          {t("auth.signUp.haveAccount")}{" "}
+          {t('auth.signUp.haveAccount')}{' '}
           <Link className="text-primary hover:underline" to="/sign-in">
-            {t("auth.signIn.submit")}
+            {t('auth.signIn.submit')}
           </Link>
         </p>
       ) : null}

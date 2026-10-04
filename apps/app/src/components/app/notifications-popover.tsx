@@ -1,30 +1,16 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@cms/design-system/components/ui/popover";
-import { useT } from "@cms/i18n/react";
-import { useNavigate } from "@tanstack/react-router";
-import { Bell } from "lucide-react";
-import { useState } from "react";
-import {
-  useMarkNotificationsRead,
-  useNotifications,
-  useUnreadNotificationCount,
-} from "@/hooks/api";
-import type { NotificationItem } from "@/hooks/api/types";
-import { useFormatters } from "@/lib/format";
+import { Button } from '@cms/design-system/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@cms/design-system/components/ui/popover';
+import { useT } from '@cms/i18n/react';
+import { useNavigate } from '@tanstack/react-router';
+import { Bell } from 'lucide-react';
+import { useState } from 'react';
+import { useMarkNotificationsRead, useNotifications, useUnreadNotificationCount } from '@/hooks/api';
+import type { NotificationItem } from '@/hooks/api/types';
+import { useFormatters } from '@/lib/format';
 
 /** One inbox row: unread dot, title/body, relative time. Clicking marks it read
  *  and follows its dashboard link (when it has one). */
-function NotificationRow({
-  item,
-  onOpen,
-}: {
-  item: NotificationItem;
-  onOpen: (item: NotificationItem) => void;
-}) {
+function NotificationRow({ item, onOpen }: { item: NotificationItem; onOpen: (item: NotificationItem) => void }) {
   const { relativeTime } = useFormatters();
   const unread = item.readAt === null;
   return (
@@ -33,28 +19,17 @@ function NotificationRow({
       onClick={() => onOpen(item)}
       type="button"
     >
-      <span
-        aria-hidden
-        className={`mt-1.5 size-2 shrink-0 rounded-full ${unread ? "bg-primary" : "bg-transparent"}`}
-      />
+      <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${unread ? 'bg-primary' : 'bg-transparent'}`} />
       <span className="min-w-0 flex-1 leading-snug">
-        <span
-          className={`block truncate text-sm ${unread ? "font-semibold" : "font-medium"}`}
-          dir="auto"
-        >
+        <span className={`block truncate text-sm ${unread ? 'font-semibold' : 'font-medium'}`} dir="auto">
           {item.title}
         </span>
         {item.body ? (
-          <span
-            className="mt-0.5 line-clamp-2 block text-muted-foreground text-xs"
-            dir="auto"
-          >
+          <span className="mt-0.5 line-clamp-2 block text-muted-foreground text-xs" dir="auto">
             {item.body}
           </span>
         ) : null}
-        <span className="mt-1 block text-[11px] text-muted-foreground/80">
-          {relativeTime(item.createdAt)}
-        </span>
+        <span className="mt-1 block text-[11px] text-muted-foreground/80">{relativeTime(item.createdAt)}</span>
       </span>
     </button>
   );
@@ -90,16 +65,11 @@ export function NotificationsPopover() {
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger
         render={
-          <Button
-            aria-label={t("notifications.bellLabel")}
-            className="relative size-8"
-            size="icon"
-            variant="ghost"
-          >
+          <Button aria-label={t('notifications.bellLabel')} className="relative size-8" size="icon" variant="ghost">
             <Bell className="size-4" />
             {unreadCount > 0 ? (
               <span className="-top-0.5 -end-0.5 absolute flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-semibold text-[10px] text-primary-foreground leading-none">
-                {unreadCount > 9 ? "9+" : unreadCount}
+                {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             ) : null}
           </Button>
@@ -107,9 +77,7 @@ export function NotificationsPopover() {
       />
       <PopoverContent align="end" className="w-90 gap-0 p-0">
         <div className="flex items-center justify-between border-border border-b px-4 py-2.5">
-          <span className="font-semibold text-sm">
-            {t("notifications.title")}
-          </span>
+          <span className="font-semibold text-sm">{t('notifications.title')}</span>
           <Button
             className="h-7 px-2 text-xs"
             disabled={unreadCount === 0 || markRead.isPending}
@@ -117,28 +85,19 @@ export function NotificationsPopover() {
             size="sm"
             variant="ghost"
           >
-            {t("notifications.markAllRead")}
+            {t('notifications.markAllRead')}
           </Button>
         </div>
         <div className="max-h-96 overflow-y-auto p-1.5">
           {isLoading ? (
-            <p className="px-3 py-6 text-center text-muted-foreground text-sm">
-              {t("common.loading")}
-            </p>
+            <p className="px-3 py-6 text-center text-muted-foreground text-sm">{t('common.loading')}</p>
           ) : items.length === 0 ? (
             <div className="px-3 py-8 text-center">
-              <Bell
-                aria-hidden
-                className="mx-auto size-5 text-muted-foreground/50"
-              />
-              <p className="mt-2 text-muted-foreground text-sm">
-                {t("notifications.empty")}
-              </p>
+              <Bell aria-hidden className="mx-auto size-5 text-muted-foreground/50" />
+              <p className="mt-2 text-muted-foreground text-sm">{t('notifications.empty')}</p>
             </div>
           ) : (
-            items.map((item) => (
-              <NotificationRow item={item} key={item.id} onOpen={openItem} />
-            ))
+            items.map((item) => <NotificationRow item={item} key={item.id} onOpen={openItem} />)
           )}
         </div>
       </PopoverContent>

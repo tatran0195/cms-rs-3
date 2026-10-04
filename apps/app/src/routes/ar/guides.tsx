@@ -1,37 +1,31 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { GuidesHub } from "@/components/marketing/guides";
-import {
-  breadcrumbLd,
-  canonicalHref,
-  getGithubStarsFn,
-  pageMeta,
-} from "@/lib/marketing-seo";
+import { createFileRoute } from '@tanstack/react-router';
+import { GuidesHub } from '@/components/marketing/guides';
+import { breadcrumbLd, canonicalHref, getGithubStarsFn, pageMeta } from '@/lib/marketing-seo';
 
-export const Route = createFileRoute("/ar/guides")({
+export const Route = createFileRoute('/ar/guides')({
   loader: () => getGithubStarsFn(),
   head: () => ({
     meta: pageMeta({
-      title: "أكاديمية أدلة التوثيق | cms",
-      description:
-        "أدلة محايدة ومكتملة لاختيار أنظمة التوثيق وترحيلها وتشغيلها وتأمينها ونشرها، مع توضيح لغة كل دليل.",
-      path: "/ar/guides",
-      locale: "ar_AR",
-      imagePath: "/brand/raster/social/cms-og-card-ar.png",
+      title: 'أكاديمية أدلة التوثيق | cms',
+      description: 'أدلة محايدة ومكتملة لاختيار أنظمة التوثيق وترحيلها وتشغيلها وتأمينها ونشرها، مع توضيح لغة كل دليل.',
+      path: '/ar/guides',
+      locale: 'ar_AR',
+      imagePath: '/brand/raster/social/cms-og-card-ar.png',
     }),
     links: [
-      { rel: "canonical", href: canonicalHref("/ar/guides") },
-      { rel: "alternate", hrefLang: "en", href: canonicalHref("/guides") },
-      { rel: "alternate", hrefLang: "ar", href: canonicalHref("/ar/guides") },
+      { rel: 'canonical', href: canonicalHref('/ar/guides') },
+      { rel: 'alternate', hrefLang: 'en', href: canonicalHref('/guides') },
+      { rel: 'alternate', hrefLang: 'ar', href: canonicalHref('/ar/guides') },
       {
-        rel: "alternate",
-        hrefLang: "x-default",
-        href: canonicalHref("/guides"),
+        rel: 'alternate',
+        hrefLang: 'x-default',
+        href: canonicalHref('/guides'),
       },
     ],
     scripts: [
       breadcrumbLd([
-        { name: "الرئيسية", path: "/ar" },
-        { name: "الأدلة", path: "/ar/guides" },
+        { name: 'الرئيسية', path: '/ar' },
+        { name: 'الأدلة', path: '/ar/guides' },
       ]),
     ],
   }),

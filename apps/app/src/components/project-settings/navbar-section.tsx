@@ -1,18 +1,14 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { Input } from "@cms/design-system/components/ui/input";
-import { cn } from "@cms/design-system/lib/utils";
-import { useT } from "@cms/i18n/react";
-import type { LanguageConfig } from "@cms/validators";
-import { useForm } from "@tanstack/react-form";
-import { PanelTop, Plus, X } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import type { Language, Project } from "@/hooks/api";
-import {
-  useLanguages,
-  useUpdateLanguage,
-  useUpdateProjectConfig,
-} from "@/hooks/api";
+import { Button } from '@cms/design-system/components/ui/button';
+import { Input } from '@cms/design-system/components/ui/input';
+import { cn } from '@cms/design-system/lib/utils';
+import { useT } from '@cms/i18n/react';
+import type { LanguageConfig } from '@cms/validators';
+import { useForm } from '@tanstack/react-form';
+import { PanelTop, Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import type { Language, Project } from '@/hooks/api';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@/hooks/api';
 import {
   DirtyStateReporter,
   FIELD_COMPACT,
@@ -27,7 +23,7 @@ import {
   sortLanguagesDefaultFirst,
   ToggleRow,
   useScopeDirtyGuard,
-} from "./shared";
+} from './shared';
 
 interface NavRow {
   label: string;
@@ -56,54 +52,34 @@ export function NavbarSection({ project }: { project: Project }) {
   const t = useT();
   const { data: languages } = useLanguages(project.id);
   const orderedLanguages = sortLanguagesDefaultFirst(languages ?? []);
-  const defaultLanguage = orderedLanguages.find(
-    (language) => language.isDefault,
-  );
-  const extraLanguages = orderedLanguages.filter(
-    (language) => !language.isDefault,
-  );
-  const [scope, setScope] = useState<string>("default");
-  const activeLanguage = extraLanguages.find(
-    (language) => language.id === scope,
-  );
+  const defaultLanguage = orderedLanguages.find((language) => language.isDefault);
+  const extraLanguages = orderedLanguages.filter((language) => !language.isDefault);
+  const [scope, setScope] = useState<string>('default');
+  const activeLanguage = extraLanguages.find((language) => language.id === scope);
   const { guard, setDirty } = useScopeDirtyGuard();
 
   return (
     <div>
-      <SectionHeader
-        icon={<PanelTop className="size-4" />}
-        title={t("settings.navbar.title")}
-      />
+      <SectionHeader icon={<PanelTop className="size-4" />} title={t('settings.navbar.title')} />
       <LanguageScopePicker
         defaultLanguage={defaultLanguage}
         guard={guard}
-        hint={t("settings.navbar.scope.hint")}
+        hint={t('settings.navbar.scope.hint')}
         languages={extraLanguages}
         onChange={setScope}
         value={scope}
       />
       {/* Keyed per scope so switching re-seeds the form from that scope's config. */}
       {activeLanguage ? (
-        <LanguageNavbarForm
-          key={activeLanguage.id}
-          language={activeLanguage}
-          onDirtyChange={setDirty}
-          project={project}
-        />
+        <LanguageNavbarForm key={activeLanguage.id} language={activeLanguage} onDirtyChange={setDirty} project={project} />
       ) : (
-        <ProjectNavbarForm
-          key="default"
-          onDirtyChange={setDirty}
-          project={project}
-        />
+        <ProjectNavbarForm key="default" onDirtyChange={setDirty} project={project} />
       )}
     </div>
   );
 }
 
-const cleanRows = (
-  rows: NavRow[],
-): Array<{ label: string; href: string; external?: boolean }> =>
+const cleanRows = (rows: NavRow[]): Array<{ label: string; href: string; external?: boolean }> =>
   rows
     .filter((row) => row.label.trim() || row.href.trim())
     .map((row) => ({
@@ -112,9 +88,7 @@ const cleanRows = (
       external: row.external,
     }));
 
-const cleanAnchorRows = (
-  rows: AnchorRow[],
-): Array<{ label: string; href: string; icon?: string; external?: boolean }> =>
+const cleanAnchorRows = (rows: AnchorRow[]): Array<{ label: string; href: string; icon?: string; external?: boolean }> =>
   rows
     .filter((row) => row.label.trim() || row.href.trim())
     .map((row) => ({
@@ -125,49 +99,36 @@ const cleanAnchorRows = (
     }));
 
 /** Default scope: the project-level navbar in `project.config.navbar` (unchanged). */
-function ProjectNavbarForm({
-  project,
-  onDirtyChange,
-}: {
-  project: Project;
-  onDirtyChange?: (dirty: boolean) => void;
-}) {
+function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
   const t = useT();
   const update = useUpdateProjectConfig(project.id);
   const navbar = project.config?.navbar ?? {};
-  const [showSearch, setShowSearch] = useState<boolean>(
-    navbar.showSearch ?? true,
-  );
-  const [showChangelog, setShowChangelog] = useState<boolean>(
-    navbar.changelog ?? false,
-  );
+  const [showSearch, setShowSearch] = useState<boolean>(navbar.showSearch ?? true);
+  const [showChangelog, setShowChangelog] = useState<boolean>(navbar.changelog ?? false);
 
   return (
     <NavbarScopeForm
-      extraDirty={
-        showSearch !== (navbar.showSearch ?? true) ||
-        showChangelog !== (navbar.changelog ?? false)
-      }
+      extraDirty={showSearch !== (navbar.showSearch ?? true) || showChangelog !== (navbar.changelog ?? false)}
       onDirtyChange={onDirtyChange}
       extraToggles={
         <>
           <ToggleRow
             checked={showSearch}
-            hint={t("settings.navbar.showSearch.hint")}
+            hint={t('settings.navbar.showSearch.hint')}
             onCheckedChange={setShowSearch}
-            title={t("settings.navbar.showSearch.title")}
+            title={t('settings.navbar.showSearch.title')}
           />
           <ToggleRow
             checked={showChangelog}
-            hint={t("settings.navbar.changelog.hint")}
+            hint={t('settings.navbar.changelog.hint')}
             onCheckedChange={setShowChangelog}
-            title={t("settings.navbar.changelog.title")}
+            title={t('settings.navbar.changelog.title')}
           />
         </>
       }
       initial={{
-        ctaLabel: navbar.ctaLabel ?? "",
-        ctaUrl: navbar.ctaUrl ?? "",
+        ctaLabel: navbar.ctaLabel ?? '',
+        ctaUrl: navbar.ctaUrl ?? '',
         links: (navbar.links ?? []).map((link) => ({
           label: link.label,
           href: link.href,
@@ -181,7 +142,7 @@ function ProjectNavbarForm({
         anchors: (navbar.anchors ?? []).map((anchor) => ({
           label: anchor.label,
           href: anchor.href,
-          icon: anchor.icon ?? "",
+          icon: anchor.icon ?? '',
           external: anchor.external,
         })),
       }}
@@ -219,22 +180,21 @@ function LanguageNavbarForm({
 }) {
   const t = useT();
   const update = useUpdateLanguage(project.id);
-  const override: NonNullable<LanguageConfig["navbar"]> =
-    language.config?.navbar ?? {};
+  const override: NonNullable<LanguageConfig['navbar']> = language.config?.navbar ?? {};
 
   return (
     <NavbarScopeForm
       ctaLabelPlaceholder={project.config?.navbar?.ctaLabel || undefined}
-      direction={language.direction === "RTL" ? "rtl" : "ltr"}
+      direction={language.direction === 'RTL' ? 'rtl' : 'ltr'}
       globalPreview={{
-        ctaUrl: project.config?.navbar?.ctaUrl ?? "",
+        ctaUrl: project.config?.navbar?.ctaUrl ?? '',
         showSearch: project.config?.navbar?.showSearch ?? true,
         changelog: project.config?.navbar?.changelog ?? false,
       }}
       onDirtyChange={onDirtyChange}
       initial={{
-        ctaLabel: override.ctaLabel ?? "",
-        ctaUrl: "",
+        ctaLabel: override.ctaLabel ?? '',
+        ctaUrl: '',
         links: (override.links ?? []).map((link) => ({
           label: link.label,
           href: link.href,
@@ -248,12 +208,12 @@ function LanguageNavbarForm({
         anchors: (override.anchors ?? []).map((anchor) => ({
           label: anchor.label,
           href: anchor.href,
-          icon: anchor.icon ?? "",
+          icon: anchor.icon ?? '',
           external: anchor.external,
         })),
       }}
       onSave={async (value) => {
-        const navbar: NonNullable<LanguageConfig["navbar"]> = {};
+        const navbar: NonNullable<LanguageConfig['navbar']> = {};
         if (value.ctaLabel.trim()) {
           navbar.ctaLabel = value.ctaLabel.trim();
         }
@@ -278,11 +238,9 @@ function LanguageNavbarForm({
               },
             },
           });
-          toast.success(t("common.saved"));
+          toast.success(t('common.saved'));
         } catch (error) {
-          toast.error(
-            error instanceof Error ? error.message : t("settings.saveError"),
-          );
+          toast.error(error instanceof Error ? error.message : t('settings.saveError'));
         }
       }}
     />
@@ -306,7 +264,7 @@ function NavbarScopeForm({
 }: {
   initial: NavbarValues;
   /** Writing direction of the scoped language; text fields fall back to dir="auto" in the project scope. */
-  direction?: "ltr" | "rtl";
+  direction?: 'ltr' | 'rtl';
   onSave: (value: NavbarValues) => Promise<void>;
   showGlobalFields?: boolean;
   extraToggles?: React.ReactNode;
@@ -335,17 +293,12 @@ function NavbarScopeForm({
     >
       <form.Field name="ctaLabel">
         {(field) => (
-          <Field
-            hint={t("settings.navbar.ctaLabel.hint")}
-            label={t("settings.navbar.ctaLabel.label")}
-          >
+          <Field hint={t('settings.navbar.ctaLabel.hint')} label={t('settings.navbar.ctaLabel.label')}>
             <Input
               className={FIELD_INPUT}
-              dir={direction ?? "auto"}
+              dir={direction ?? 'auto'}
               onChange={(e) => field.handleChange(e.target.value)}
-              placeholder={
-                ctaLabelPlaceholder ?? t("settings.navbar.ctaLabel.placeholder")
-              }
+              placeholder={ctaLabelPlaceholder ?? t('settings.navbar.ctaLabel.placeholder')}
               value={field.state.value}
             />
           </Field>
@@ -355,10 +308,7 @@ function NavbarScopeForm({
       {showGlobalFields ? (
         <form.Field name="ctaUrl">
           {(field) => (
-            <Field
-              hint={t("settings.navbar.ctaUrl.hint")}
-              label={t("settings.navbar.ctaUrl.label")}
-            >
+            <Field hint={t('settings.navbar.ctaUrl.hint')} label={t('settings.navbar.ctaUrl.label')}>
               <Input
                 className={FIELD_INPUT}
                 dir="ltr"
@@ -370,23 +320,12 @@ function NavbarScopeForm({
           )}
         </form.Field>
       ) : globalPreview ? (
-        <Field
-          hint={t("settings.chrome.scope.globalField")}
-          label={t("settings.navbar.ctaUrl.label")}
-        >
-          <Input
-            className={FIELD_INPUT}
-            dir="ltr"
-            disabled
-            placeholder="https://example.com/demo"
-            value={globalPreview.ctaUrl}
-          />
+        <Field hint={t('settings.chrome.scope.globalField')} label={t('settings.navbar.ctaUrl.label')}>
+          <Input className={FIELD_INPUT} dir="ltr" disabled placeholder="https://example.com/demo" value={globalPreview.ctaUrl} />
         </Field>
       ) : null}
 
-      <GroupLabel className="mb-2.5">
-        {t("settings.navbar.links.label")}
-      </GroupLabel>
+      <GroupLabel className="mb-2.5">{t('settings.navbar.links.label')}</GroupLabel>
       <form.Field mode="array" name="links">
         {(field) => (
           <>
@@ -394,19 +333,14 @@ function NavbarScopeForm({
               <div className="mb-3 overflow-hidden rounded-xl border border-border">
                 {field.state.value.map((_, index) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
-                  <div
-                    className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0"
-                    key={index}
-                  >
+                  <div className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0" key={index}>
                     <form.Field name={`links[${index}].label`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT, "flex-1")}
-                          dir={direction ?? "auto"}
+                          className={cn(FIELD_COMPACT, 'flex-1')}
+                          dir={direction ?? 'auto'}
                           onChange={(e) => sub.handleChange(e.target.value)}
-                          placeholder={t(
-                            "settings.navbar.links.labelPlaceholder",
-                          )}
+                          placeholder={t('settings.navbar.links.labelPlaceholder')}
                           value={sub.state.value}
                         />
                       )}
@@ -414,7 +348,7 @@ function NavbarScopeForm({
                     <form.Field name={`links[${index}].href`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT_MONO, "flex-1")}
+                          className={cn(FIELD_COMPACT_MONO, 'flex-1')}
                           dir="ltr"
                           onChange={(e) => sub.handleChange(e.target.value)}
                           placeholder="/docs"
@@ -423,7 +357,7 @@ function NavbarScopeForm({
                       )}
                     </form.Field>
                     <Button
-                      aria-label={t("settings.navbar.links.remove")}
+                      aria-label={t('settings.navbar.links.remove')}
                       className="text-muted-foreground"
                       onClick={() => field.removeValue(index)}
                       size="icon-xs"
@@ -438,24 +372,18 @@ function NavbarScopeForm({
             ) : null}
             <Button
               className="mb-1.5 border-dashed text-muted-foreground"
-              onClick={() =>
-                field.pushValue({ label: "", href: "", external: undefined })
-              }
+              onClick={() => field.pushValue({ label: '', href: '', external: undefined })}
               type="button"
               variant="outline"
             >
-              <Plus className="size-3.5" /> {t("settings.navbar.links.add")}
+              <Plus className="size-3.5" /> {t('settings.navbar.links.add')}
             </Button>
           </>
         )}
       </form.Field>
 
-      <GroupLabel className="mt-6 mb-1">
-        {t("settings.navbar.tabs.label")}
-      </GroupLabel>
-      <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">
-        {t("settings.navbar.tabs.hint")}
-      </p>
+      <GroupLabel className="mt-6 mb-1">{t('settings.navbar.tabs.label')}</GroupLabel>
+      <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">{t('settings.navbar.tabs.hint')}</p>
       <form.Field mode="array" name="tabs">
         {(field) => (
           <>
@@ -463,19 +391,14 @@ function NavbarScopeForm({
               <div className="mb-3 overflow-hidden rounded-xl border border-border">
                 {field.state.value.map((_, index) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
-                  <div
-                    className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0"
-                    key={index}
-                  >
+                  <div className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0" key={index}>
                     <form.Field name={`tabs[${index}].label`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT, "flex-1")}
-                          dir={direction ?? "auto"}
+                          className={cn(FIELD_COMPACT, 'flex-1')}
+                          dir={direction ?? 'auto'}
                           onChange={(e) => sub.handleChange(e.target.value)}
-                          placeholder={t(
-                            "settings.navbar.tabs.labelPlaceholder",
-                          )}
+                          placeholder={t('settings.navbar.tabs.labelPlaceholder')}
                           value={sub.state.value}
                         />
                       )}
@@ -483,7 +406,7 @@ function NavbarScopeForm({
                     <form.Field name={`tabs[${index}].href`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT_MONO, "flex-1")}
+                          className={cn(FIELD_COMPACT_MONO, 'flex-1')}
                           dir="ltr"
                           onChange={(e) => sub.handleChange(e.target.value)}
                           placeholder="/guides"
@@ -492,7 +415,7 @@ function NavbarScopeForm({
                       )}
                     </form.Field>
                     <Button
-                      aria-label={t("settings.navbar.tabs.remove")}
+                      aria-label={t('settings.navbar.tabs.remove')}
                       className="text-muted-foreground"
                       onClick={() => field.removeValue(index)}
                       size="icon-xs"
@@ -507,24 +430,18 @@ function NavbarScopeForm({
             ) : null}
             <Button
               className="mb-1.5 border-dashed text-muted-foreground"
-              onClick={() =>
-                field.pushValue({ label: "", href: "", external: undefined })
-              }
+              onClick={() => field.pushValue({ label: '', href: '', external: undefined })}
               type="button"
               variant="outline"
             >
-              <Plus className="size-3.5" /> {t("settings.navbar.tabs.add")}
+              <Plus className="size-3.5" /> {t('settings.navbar.tabs.add')}
             </Button>
           </>
         )}
       </form.Field>
 
-      <GroupLabel className="mt-6 mb-1">
-        {t("settings.navbar.anchors.label")}
-      </GroupLabel>
-      <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">
-        {t("settings.navbar.anchors.hint")}
-      </p>
+      <GroupLabel className="mt-6 mb-1">{t('settings.navbar.anchors.label')}</GroupLabel>
+      <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">{t('settings.navbar.anchors.hint')}</p>
       <form.Field mode="array" name="anchors">
         {(field) => (
           <>
@@ -532,19 +449,14 @@ function NavbarScopeForm({
               <div className="mb-3 overflow-hidden rounded-xl border border-border">
                 {field.state.value.map((_, index) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
-                  <div
-                    className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0"
-                    key={index}
-                  >
+                  <div className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0" key={index}>
                     <form.Field name={`anchors[${index}].label`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT, "flex-1")}
-                          dir={direction ?? "auto"}
+                          className={cn(FIELD_COMPACT, 'flex-1')}
+                          dir={direction ?? 'auto'}
                           onChange={(e) => sub.handleChange(e.target.value)}
-                          placeholder={t(
-                            "settings.navbar.anchors.labelPlaceholder",
-                          )}
+                          placeholder={t('settings.navbar.anchors.labelPlaceholder')}
                           value={sub.state.value}
                         />
                       )}
@@ -552,7 +464,7 @@ function NavbarScopeForm({
                     <form.Field name={`anchors[${index}].href`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT_MONO, "flex-1")}
+                          className={cn(FIELD_COMPACT_MONO, 'flex-1')}
                           dir="ltr"
                           onChange={(e) => sub.handleChange(e.target.value)}
                           placeholder="https://community.example.com"
@@ -563,18 +475,16 @@ function NavbarScopeForm({
                     <form.Field name={`anchors[${index}].icon`}>
                       {(sub) => (
                         <Input
-                          className={cn(FIELD_COMPACT, "w-[104px] shrink-0")}
+                          className={cn(FIELD_COMPACT, 'w-[104px] shrink-0')}
                           dir="ltr"
                           onChange={(e) => sub.handleChange(e.target.value)}
-                          placeholder={t(
-                            "settings.navbar.anchors.iconPlaceholder",
-                          )}
+                          placeholder={t('settings.navbar.anchors.iconPlaceholder')}
                           value={sub.state.value}
                         />
                       )}
                     </form.Field>
                     <Button
-                      aria-label={t("settings.navbar.anchors.remove")}
+                      aria-label={t('settings.navbar.anchors.remove')}
                       className="text-muted-foreground"
                       onClick={() => field.removeValue(index)}
                       size="icon-xs"
@@ -591,16 +501,16 @@ function NavbarScopeForm({
               className="mb-1.5 border-dashed text-muted-foreground"
               onClick={() =>
                 field.pushValue({
-                  label: "",
-                  href: "",
-                  icon: "",
+                  label: '',
+                  href: '',
+                  icon: '',
                   external: undefined,
                 })
               }
               type="button"
               variant="outline"
             >
-              <Plus className="size-3.5" /> {t("settings.navbar.anchors.add")}
+              <Plus className="size-3.5" /> {t('settings.navbar.anchors.add')}
             </Button>
           </>
         )}
@@ -612,37 +522,25 @@ function NavbarScopeForm({
           <ToggleRow
             checked={globalPreview.showSearch}
             disabled
-            hint={t("settings.chrome.scope.globalField")}
-            title={t("settings.navbar.showSearch.title")}
+            hint={t('settings.chrome.scope.globalField')}
+            title={t('settings.navbar.showSearch.title')}
           />
           <ToggleRow
             checked={globalPreview.changelog}
             disabled
-            hint={t("settings.chrome.scope.globalField")}
-            title={t("settings.navbar.changelog.title")}
+            hint={t('settings.chrome.scope.globalField')}
+            title={t('settings.navbar.changelog.title')}
           />
         </>
       ) : null}
 
       <form.Subscribe selector={(state) => state.isDirty}>
-        {(isDirty) => (
-          <DirtyStateReporter
-            dirty={isDirty || extraDirty}
-            onDirtyChange={onDirtyChange}
-          />
-        )}
+        {(isDirty) => <DirtyStateReporter dirty={isDirty || extraDirty} onDirtyChange={onDirtyChange} />}
       </form.Subscribe>
 
       <div className="mt-4">
-        <form.Subscribe
-          selector={(state) => [state.isSubmitting, state.isDirty] as const}
-        >
-          {([isSubmitting, isDirty]) => (
-            <SaveBar
-              disabled={!isDirty && !extraDirty}
-              isSubmitting={isSubmitting}
-            />
-          )}
+        <form.Subscribe selector={(state) => [state.isSubmitting, state.isDirty] as const}>
+          {([isSubmitting, isDirty]) => <SaveBar disabled={!isDirty && !extraDirty} isSubmitting={isSubmitting} />}
         </form.Subscribe>
       </div>
     </form>

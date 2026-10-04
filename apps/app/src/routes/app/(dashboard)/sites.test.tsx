@@ -1,45 +1,43 @@
 // @vitest-environment jsdom
 
-import type { Locale, MessageKey, MessageVariables } from "@cms/i18n";
-import { act, type ComponentType } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Locale, MessageKey, MessageVariables } from '@cms/i18n';
+import { act, type ComponentType } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const i18n = vi.hoisted(() => ({ locale: "en" as string }));
+const i18n = vi.hoisted(() => ({ locale: 'en' as string }));
 const mocks = vi.hoisted(() => ({ navigate: vi.fn(), useProjects: vi.fn() }));
 
 // Real catalogs, controlled locale: the page count must come out translated
 // in the active locale, not as a raw number.
-vi.mock("@cms/i18n/react", async () => {
-  const { translateFn } =
-    await vi.importActual<typeof import("@cms/i18n")>("@cms/i18n");
+vi.mock('@cms/i18n/react', async () => {
+  const { translateFn } = await vi.importActual<typeof import('@cms/i18n')>('@cms/i18n');
   const useLocale = () => ({
     locale: i18n.locale as Locale,
     setLocale: vi.fn(),
-    t: (key: MessageKey, variables?: MessageVariables) =>
-      translateFn(key, variables, i18n.locale as Locale),
+    t: (key: MessageKey, variables?: MessageVariables) => translateFn(key, variables, i18n.locale as Locale),
   });
   return { useLocale, useT: () => useLocale().t };
 });
-vi.mock("@tanstack/react-router", () => ({
+vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
     useSearch: () => ({}),
   }),
   useNavigate: () => mocks.navigate,
 }));
-vi.mock("@/hooks/api", () => ({ useProjects: mocks.useProjects }));
-vi.mock("@/components/app/new-project-dialog", () => ({
+vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
+vi.mock('@/components/app/new-project-dialog', () => ({
   NewProjectDialog: () => null,
 }));
 
-import { Route } from "./sites";
+import { Route } from './sites';
 
-vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 
 const SitesPage = Route.options.component as unknown as ComponentType;
 
-describe("SitesPage", () => {
+describe('SitesPage', () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -48,19 +46,19 @@ describe("SitesPage", () => {
   };
 
   beforeEach(() => {
-    i18n.locale = "en";
+    i18n.locale = 'en';
     mocks.useProjects.mockReturnValue({
       isPending: false,
       data: [
         {
-          id: "project-1",
-          name: "Docs",
-          slug: "docs",
+          id: 'project-1',
+          name: 'Docs',
+          slug: 'docs',
           _count: { pages: 58, deployments: 3 },
         },
       ],
     });
-    container = document.createElement("div");
+    container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
   });
@@ -71,25 +69,23 @@ describe("SitesPage", () => {
     vi.clearAllMocks();
   });
 
-  it("shows the site page count through the translated count message", async () => {
+  it('shows the site page count through the translated count message', async () => {
     await render();
 
-    expect(container.textContent).toContain("58 pages");
+    expect(container.textContent).toContain('58 pages');
   });
 
-  it("gives the site filter an explicit accessible name", async () => {
+  it('gives the site filter an explicit accessible name', async () => {
     await render();
 
-    const search = container.querySelector<HTMLInputElement>(
-      'input[type="search"]',
-    );
-    expect(search?.getAttribute("aria-label")).toBe("Search…");
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]');
+    expect(search?.getAttribute('aria-label')).toBe('Search…');
   });
 
-  it("formats the page count through the translated count message in Japanese", async () => {
-    i18n.locale = "ja";
+  it('formats the page count through the translated count message in Japanese', async () => {
+    i18n.locale = 'ja';
     await render();
 
-    expect(container.textContent).toContain("58 ページ");
+    expect(container.textContent).toContain('58 ページ');
   });
 });

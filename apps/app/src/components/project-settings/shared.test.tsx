@@ -1,12 +1,12 @@
-import { Input } from "@cms/design-system/components/ui/input";
-import { Slider } from "@cms/design-system/components/ui/slider";
-import { Textarea } from "@cms/design-system/components/ui/textarea";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import { Field } from "./shared";
+import { Input } from '@cms/design-system/components/ui/input';
+import { Slider } from '@cms/design-system/components/ui/slider';
+import { Textarea } from '@cms/design-system/components/ui/textarea';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+import { Field } from './shared';
 
-describe("Field", () => {
-  it("associates its visible label with a direct input control", () => {
+describe('Field', () => {
+  it('associates its visible label with a direct input control', () => {
     const markup = renderToStaticMarkup(
       <Field hint="Where readers land" label="Destination">
         <Input defaultValue="https://example.com" />
@@ -18,7 +18,7 @@ describe("Field", () => {
     expect(markup).toMatch(new RegExp(`<input[^>]*id="${htmlFor}"`));
   });
 
-  it("associates its visible label with a direct textarea control", () => {
+  it('associates its visible label with a direct textarea control', () => {
     const markup = renderToStaticMarkup(
       <Field label="Description">
         <Textarea defaultValue="A useful description" />
@@ -30,7 +30,7 @@ describe("Field", () => {
     expect(markup).toMatch(new RegExp(`<textarea[^>]*id="${htmlFor}"`));
   });
 
-  it("associates its visible label with a direct slider control", () => {
+  it('associates its visible label with a direct slider control', () => {
     const markup = renderToStaticMarkup(
       <Field label="Reading size">
         <Slider defaultValue={16} max={20} min={12} />
@@ -39,8 +39,6 @@ describe("Field", () => {
 
     const htmlFor = markup.match(/<label[^>]*for="([^"]+)"/)?.[1];
     expect(htmlFor).toBeTruthy();
-    expect(markup).toMatch(
-      new RegExp(`<input[^>]*type="range"[^>]*id="${htmlFor}"`),
-    );
+    expect(markup).toMatch(new RegExp(`<input[^>]*type="range"[^>]*id="${htmlFor}"`));
   });
 });

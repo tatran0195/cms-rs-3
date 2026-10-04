@@ -1,14 +1,14 @@
-import { cn } from "@cms/design-system/lib/utils";
-import { ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
-import { PageIcon } from "@/components/site/page-icon";
-import type { NavNode } from "@/hooks/api";
-import { siteHref } from "@/lib/site-paths";
+import { cn } from '@cms/design-system/lib/utils';
+import { ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { PageIcon } from '@/components/site/page-icon';
+import type { NavNode } from '@/hooks/api';
+import { siteHref } from '@/lib/site-paths';
 
 /** First navigable page in document order — used to highlight the home page's entry. */
 export function firstLeafPath(nodes: NavNode[]): string | undefined {
   for (const node of nodes) {
-    if (node.kind === "GROUP") {
+    if (node.kind === 'GROUP') {
       const child = firstLeafPath(node.children);
       if (child) {
         return child;
@@ -21,25 +21,13 @@ export function firstLeafPath(nodes: NavNode[]): string | undefined {
 }
 
 const containsPath = (node: NavNode, path: string): boolean =>
-  node.kind === "PAGE"
-    ? node.path === path
-    : node.children.some((child) => containsPath(child, path));
+  node.kind === 'PAGE' ? node.path === path : node.children.some((child) => containsPath(child, path));
 
 /** API references are deployment resources, not branch-backed pages, so their
  *  link must stay stable while browsing a non-default docs version. */
-export const isVersionIndependentNavNode = (
-  node: Pick<NavNode, "id">,
-): boolean => node.id.startsWith("openapi:");
+export const isVersionIndependentNavNode = (node: Pick<NavNode, 'id'>): boolean => node.id.startsWith('openapi:');
 
-function NavLink({
-  node,
-  projectId,
-  currentPath,
-  lang,
-  version,
-  depth,
-  rail,
-}: NavItemProps & { node: NavNode; rail?: boolean }) {
+function NavLink({ node, projectId, currentPath, lang, version, depth, rail }: NavItemProps & { node: NavNode; rail?: boolean }) {
   const active = currentPath === node.path;
   return (
     <li>
@@ -48,25 +36,15 @@ function NavLink({
           lang,
           version: isVersionIndependentNavNode(node) ? undefined : version,
         })}
-        aria-current={active ? "page" : undefined}
+        aria-current={active ? 'page' : undefined}
         className={cn(
-          "relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors",
-          active
-            ? "bg-primary/10 font-medium text-primary"
-            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+          'relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
+          active ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
           // Entries in a railed list recolor their segment of the rail when active.
-          rail &&
-            active &&
-            "before:absolute before:-start-[13px] before:inset-y-1 before:w-[1.5px] before:rounded-full before:bg-primary",
+          rail && active && 'before:absolute before:-start-[13px] before:inset-y-1 before:w-[1.5px] before:rounded-full before:bg-primary',
         )}
       >
-        <PageIcon
-          name={node.icon}
-          className={cn(
-            "size-4 shrink-0",
-            active ? "text-primary" : "text-muted-foreground/80",
-          )}
-        />
+        <PageIcon name={node.icon} className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground/80')} />
         <span className="truncate">{node.title}</span>
         {node.tag ? (
           <span className="ms-auto shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 font-medium text-[10px] text-primary uppercase tracking-wide">
@@ -75,15 +53,7 @@ function NavLink({
         ) : null}
       </a>
       {node.children.length > 0 ? (
-        <NavItems
-          nodes={node.children}
-          projectId={projectId}
-          currentPath={currentPath}
-          depth={depth + 1}
-          lang={lang}
-          version={version}
-          rail
-        />
+        <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} version={version} rail />
       ) : null}
     </li>
   );
@@ -92,14 +62,7 @@ function NavLink({
 /** Top-level groups render as Mintlify-style section headers (sentence case,
  *  semibold, generous spacing). They stay collapsible — the chevron only shows
  *  on hover so the resting state reads as a plain heading. */
-function NavSection({
-  node,
-  projectId,
-  currentPath,
-  lang,
-  version,
-  depth,
-}: NavItemProps & { node: NavNode }) {
+function NavSection({ node, projectId, currentPath, lang, version, depth }: NavItemProps & { node: NavNode }) {
   const [open, setOpen] = useState(true);
   return (
     <li className="mt-7 first:mt-1">
@@ -114,21 +77,14 @@ function NavSection({
             touch devices, and the collapsed state always show it. */}
         <ChevronRight
           className={cn(
-            "size-3.5 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100 rtl:-scale-x-100",
-            open ? "rotate-90" : "opacity-100",
+            'size-3.5 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100 rtl:-scale-x-100',
+            open ? 'rotate-90' : 'opacity-100',
           )}
         />
       </button>
       {open && node.children.length > 0 ? (
         <div className="mt-1">
-          <NavItems
-            nodes={node.children}
-            projectId={projectId}
-            currentPath={currentPath}
-            depth={depth + 1}
-            lang={lang}
-            version={version}
-          />
+          <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} version={version} />
         </div>
       ) : null}
     </li>
@@ -136,20 +92,11 @@ function NavSection({
 }
 
 /** Nested groups render as collapsible rows styled like items. */
-function NavSubGroup({
-  node,
-  projectId,
-  currentPath,
-  lang,
-  version,
-  depth,
-}: NavItemProps & { node: NavNode }) {
+function NavSubGroup({ node, projectId, currentPath, lang, version, depth }: NavItemProps & { node: NavNode }) {
   // Imported taxonomies can contain hundreds of pages. Keep only the active
   // virtual category expanded so the sidebar is scannable on first load; hand-
   // authored nested groups preserve their existing expanded behaviour.
-  const [open, setOpen] = useState(
-    () => !node.id.startsWith("category:") || containsPath(node, currentPath),
-  );
+  const [open, setOpen] = useState(() => !node.id.startsWith('category:') || containsPath(node, currentPath));
   useEffect(() => {
     if (containsPath(node, currentPath)) {
       setOpen(true);
@@ -163,30 +110,12 @@ function NavSubGroup({
         aria-expanded={open}
         className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-start font-medium text-muted-foreground text-sm transition-colors hover:bg-muted/60 hover:text-foreground"
       >
-        <ChevronRight
-          className={cn(
-            "size-3.5 shrink-0 transition-transform rtl:-scale-x-100",
-            open && "rotate-90",
-          )}
-        />
-        {node.icon ? (
-          <PageIcon
-            name={node.icon}
-            className="size-3.5 shrink-0 text-muted-foreground/80"
-          />
-        ) : null}
+        <ChevronRight className={cn('size-3.5 shrink-0 transition-transform rtl:-scale-x-100', open && 'rotate-90')} />
+        {node.icon ? <PageIcon name={node.icon} className="size-3.5 shrink-0 text-muted-foreground/80" /> : null}
         <span className="truncate">{node.title}</span>
       </button>
       {open && node.children.length > 0 ? (
-        <NavItems
-          nodes={node.children}
-          projectId={projectId}
-          currentPath={currentPath}
-          depth={depth + 1}
-          lang={lang}
-          version={version}
-          rail
-        />
+        <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} version={version} rail />
       ) : null}
     </li>
   );
@@ -201,25 +130,12 @@ interface NavItemProps {
   version?: string;
 }
 
-function NavItems({
-  nodes,
-  rail,
-  ...rest
-}: NavItemProps & { nodes: NavNode[]; rail?: boolean }) {
+function NavItems({ nodes, rail, ...rest }: NavItemProps & { nodes: NavNode[]; rail?: boolean }) {
   return (
-    <ul
-      className={cn(
-        "space-y-px",
-        rail && "ms-3 border-border/70 border-s ps-3",
-      )}
-    >
+    <ul className={cn('space-y-px', rail && 'ms-3 border-border/70 border-s ps-3')}>
       {nodes.map((node) => {
-        if (node.kind === "GROUP") {
-          return rest.depth === 0 ? (
-            <NavSection key={node.id} node={node} {...rest} />
-          ) : (
-            <NavSubGroup key={node.id} node={node} {...rest} />
-          );
+        if (node.kind === 'GROUP') {
+          return rest.depth === 0 ? <NavSection key={node.id} node={node} {...rest} /> : <NavSubGroup key={node.id} node={node} {...rest} />;
         }
         return <NavLink key={node.id} node={node} rail={rail} {...rest} />;
       })}
@@ -242,14 +158,7 @@ export function SiteNav({
 }) {
   return (
     <nav>
-      <NavItems
-        nodes={nodes}
-        projectId={projectId}
-        currentPath={currentPath}
-        depth={0}
-        lang={lang}
-        version={version}
-      />
+      <NavItems nodes={nodes} projectId={projectId} currentPath={currentPath} depth={0} lang={lang} version={version} />
     </nav>
   );
 }

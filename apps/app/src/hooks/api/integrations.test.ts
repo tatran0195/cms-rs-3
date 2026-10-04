@@ -64,9 +64,9 @@ describe('integration mutation conflict recovery', () => {
       mutate = () =>
         action === 'update'
           ? update.mutateAsync({
-            providerId: 'slack',
-            body: { providerId: 'slack', label: 'Alerts', expectedRevision: 1, idempotencyKey: 'update-key' },
-          })
+              providerId: 'slack',
+              body: { providerId: 'slack', label: 'Alerts', expectedRevision: 1, idempotencyKey: 'update-key' },
+            })
           : activate.mutateAsync({ providerId: 'slack', body: { expectedRevision: 1, idempotencyKey: 'activate-key' } });
       return null;
     }

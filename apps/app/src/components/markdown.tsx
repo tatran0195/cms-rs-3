@@ -1,26 +1,14 @@
-import { cn } from "@cms/design-system/lib/utils";
-import { siteT } from "@cms/i18n/site";
-import { Check, Copy } from "lucide-react";
-import {
-  type ComponentProps,
-  type FunctionComponent,
-  lazy,
-  type ReactNode,
-  Suspense,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import ReactMarkdown, {
-  type Components,
-  type Options as ReactMarkdownOptions,
-} from "react-markdown";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
-import rehypeHighlight from "rehype-highlight";
-import rehypeSanitize from "rehype-sanitize";
-import rehypeSlug from "rehype-slug";
-import remarkGfm from "remark-gfm";
-import { z } from "zod";
+import { cn } from '@cms/design-system/lib/utils';
+import { siteT } from '@cms/i18n/site';
+import { Check, Copy } from 'lucide-react';
+import { type ComponentProps, type FunctionComponent, lazy, type ReactNode, Suspense, useMemo, useRef, useState } from 'react';
+import ReactMarkdown, { type Components, type Options as ReactMarkdownOptions } from 'react-markdown';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeSanitize from 'rehype-sanitize';
+import rehypeSlug from 'rehype-slug';
+import remarkGfm from 'remark-gfm';
+import { z } from 'zod';
 import {
   Accordion,
   AccordionGroup,
@@ -52,7 +40,7 @@ import {
   Tabs,
   Tooltip,
   Update,
-} from "@/components/site/mdx-components";
+} from '@/components/site/mdx-components';
 import {
   normalizeMdxBlocks,
   rehypeAuthoredComponentProps,
@@ -60,9 +48,9 @@ import {
   remarkCallouts,
   remarkCodeMeta,
   sanitizeSchema,
-} from "@/components/site/mdx-config";
-import { MermaidBlock } from "@/components/site/mermaid-block";
-import { siteHref, siteLanguageParam } from "@/lib/site-paths";
+} from '@/components/site/mdx-config';
+import { MermaidBlock } from '@/components/site/mermaid-block';
+import { siteHref, siteLanguageParam } from '@/lib/site-paths';
 
 /** Link context for a published site: lets the renderer rewrite authored
  *  root-relative doc links (`/guide`) to the site's base path so they don't
@@ -80,33 +68,23 @@ export interface MarkdownProps {
   site?: SiteLinkContext;
 }
 
-const RichMarkdown = lazy(() => import("./markdown-rich"));
+const RichMarkdown = lazy(() => import('./markdown-rich'));
 
 /** Raw HTML/MDX and math need parse5/KaTeX; ordinary Markdown does not. Keep
  * detection conservative—false positives only load the richer renderer, while
  * false negatives could change output. */
-export const needsRichMarkdown = (content: string): boolean =>
-  /<\/?[A-Za-z][^>]*>/.test(content) ||
-  /(^|[^\\])\$\$?[\s\S]*?\$\$?/m.test(content);
+export const needsRichMarkdown = (content: string): boolean => /<\/?[A-Za-z][^>]*>/.test(content) || /(^|[^\\])\$\$?[\s\S]*?\$\$?/m.test(content);
 
 /** Rewrite a root-relative internal doc link to the site base. External URLs,
  *  in-page anchors, mailto/tel, and protocol-relative links are left untouched. */
-function resolveDocHref(
-  href: string | undefined,
-  site: SiteLinkContext | undefined,
-): string | undefined {
+function resolveDocHref(href: string | undefined, site: SiteLinkContext | undefined): string | undefined {
   if (!href || !site) {
     return href;
   }
-  if (
-    href.startsWith("#") ||
-    href.startsWith("mailto:") ||
-    href.startsWith("tel:") ||
-    /^([a-z][\w+.-]*:)?\/\//i.test(href)
-  ) {
+  if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || /^([a-z][\w+.-]*:)?\/\//i.test(href)) {
     return href;
   }
-  if (href.startsWith("/")) {
+  if (href.startsWith('/')) {
     return siteHref(site.projectId, href, {
       lang: siteLanguageParam(site.lang, site.defaultLanguage),
       version: site.version,
@@ -118,37 +96,31 @@ function resolveDocHref(
 /** A code block with a one-click copy button (Mintlify-style). When the fence
  *  carries a `title="…"` (lifted onto the child `<code>` by remarkCodeMeta), a
  *  filename header bar is drawn; otherwise the language shows as a floating badge. */
-function Pre({
-  locale,
-  ...props
-}: ComponentProps<"pre"> & { locale?: string }) {
+function Pre({ locale, ...props }: ComponentProps<'pre'> & { locale?: string }) {
   const ref = useRef<HTMLPreElement>(null);
   const [copied, setCopied] = useState(false);
   const t = siteT(locale);
   // Language + optional title come from the fence meta. mdast→hast may attach
   // them to this <pre> or to the child <code>, so check both.
-  const ownProps = props as ComponentProps<"pre"> & {
-    "data-title"?: string;
-    "data-lang"?: string;
+  const ownProps = props as ComponentProps<'pre'> & {
+    'data-title'?: string;
+    'data-lang'?: string;
   };
   const child = props.children as
     | {
         props?: {
           className?: string;
-          "data-title"?: string;
-          "data-lang"?: string;
+          'data-title'?: string;
+          'data-lang'?: string;
         };
       }
     | null
     | undefined;
-  const cls = child?.props?.className ?? "";
-  const lang =
-    /language-([\w+#-]+)/.exec(cls)?.[1] ??
-    ownProps["data-lang"] ??
-    child?.props?.["data-lang"];
-  const title = ownProps["data-title"] ?? child?.props?.["data-title"];
+  const cls = child?.props?.className ?? '';
+  const lang = /language-([\w+#-]+)/.exec(cls)?.[1] ?? ownProps['data-lang'] ?? child?.props?.['data-lang'];
+  const title = ownProps['data-title'] ?? child?.props?.['data-title'];
   const copy = () => {
-    const text = ref.current?.innerText ?? "";
+    const text = ref.current?.innerText ?? '';
     navigator.clipboard
       ?.writeText(text)
       .then(() => {
@@ -161,21 +133,15 @@ function Pre({
     <button
       type="button"
       onClick={copy}
-      aria-label={copied ? t("copied") : t("copyCode")}
+      aria-label={copied ? t('copied') : t('copyCode')}
       className={cn(
         // [direction:ltr] keeps `end-2` physical-right even inside an RTL page,
         // matching the force-LTR code content (else it collides with the badge).
-        "grid size-7 cursor-pointer place-items-center rounded-md text-white/50 transition-colors [direction:ltr] hover:bg-white/10 hover:text-white/90",
-        title
-          ? ""
-          : "absolute end-2 top-2 z-10 opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
+        'grid size-7 cursor-pointer place-items-center rounded-md text-white/50 transition-colors [direction:ltr] hover:bg-white/10 hover:text-white/90',
+        title ? '' : 'absolute end-2 top-2 z-10 opacity-0 focus-visible:opacity-100 group-hover:opacity-100',
       )}
     >
-      {copied ? (
-        <Check className="size-3.5 text-emerald-400" />
-      ) : (
-        <Copy className="size-3.5" />
-      )}
+      {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
     </button>
   );
   return (
@@ -189,15 +155,9 @@ function Pre({
     >
       {title ? (
         <div className="flex items-center justify-between gap-3 border-white/[0.08] border-b bg-white/[0.04] px-4 py-2 [direction:ltr]">
-          <span className="truncate font-mono text-[12px] text-white/60">
-            {title}
-          </span>
+          <span className="truncate font-mono text-[12px] text-white/60">{title}</span>
           <div className="flex shrink-0 items-center gap-2">
-            {lang ? (
-              <span className="font-mono text-[10px] text-white/50 uppercase">
-                {lang}
-              </span>
-            ) : null}
+            {lang ? <span className="font-mono text-[10px] text-white/50 uppercase">{lang}</span> : null}
             {copyButton}
           </div>
         </div>
@@ -211,14 +171,7 @@ function Pre({
           {copyButton}
         </>
       )}
-      <pre
-        ref={ref}
-        className={cn(
-          "overflow-x-auto p-4 text-[13px] leading-relaxed [direction:ltr]",
-          !title && lang && "pt-9",
-        )}
-        {...props}
-      />
+      <pre ref={ref} className={cn('overflow-x-auto p-4 text-[13px] leading-relaxed [direction:ltr]', !title && lang && 'pt-9')} {...props} />
     </div>
   );
 }
@@ -232,31 +185,17 @@ function Pre({
 // --content-scroll-mt (set on the chrome wrapper); the 6rem fallback keeps
 // editor preview and changelog offsets sane.
 const htmlComponents: Components = {
-  h1: (props) => (
-    <h1 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />
-  ),
-  h2: (props) => (
-    <h2 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />
-  ),
-  h3: (props) => (
-    <h3 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />
-  ),
-  h4: (props) => (
-    <h4 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />
-  ),
+  h1: (props) => <h1 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
+  h2: (props) => <h2 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
+  h3: (props) => <h3 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
+  h4: (props) => <h4 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
   table: (props) => (
     <div className="typeset-scroll">
       <table {...props} />
     </div>
   ),
   pre: Pre,
-  img: (props) => (
-    <img
-      className="rounded-xl border border-border"
-      alt={props.alt ?? ""}
-      {...props}
-    />
-  ),
+  img: (props) => <img className="rounded-xl border border-border" alt={props.alt ?? ''} {...props} />,
 };
 
 /** Anchor renderer, built per site-context. Heading self-links (added by
@@ -265,26 +204,14 @@ const htmlComponents: Components = {
  *  hyperlinks. Everything else gets normal link styling and internal doc links
  *  are rewritten to the site base. */
 function anchorRenderer(site: SiteLinkContext | undefined) {
-  return function Anchor({ className, href, ...props }: ComponentProps<"a">) {
-    const isHeadingAnchor = className?.split(/\s+/).includes("heading-anchor");
+  return function Anchor({ className, href, ...props }: ComponentProps<'a'>) {
+    const isHeadingAnchor = className?.split(/\s+/).includes('heading-anchor');
     if (isHeadingAnchor) {
-      return (
-        <a
-          className={cn(
-            "font-[inherit] text-inherit no-underline hover:no-underline",
-            className,
-          )}
-          href={href}
-          {...props}
-        />
-      );
+      return <a className={cn('font-[inherit] text-inherit no-underline hover:no-underline', className)} href={href} {...props} />;
     }
     return (
       <a
-        className={cn(
-          "font-medium text-primary underline underline-offset-4 hover:opacity-80",
-          className,
-        )}
+        className={cn('font-medium text-primary underline underline-offset-4 hover:opacity-80', className)}
         href={resolveDocHref(href, site)}
         {...props}
       />
@@ -314,7 +241,7 @@ interface MdxProps {
   body?: unknown;
   name?: unknown;
   dataDisplayName?: unknown;
-  "data-display-name"?: unknown;
+  'data-display-name'?: unknown;
   required?: unknown;
   default?: unknown;
   deprecated?: unknown;
@@ -323,65 +250,57 @@ interface MdxProps {
 }
 
 type DocumentationTag =
-  | "callout"
-  | "note"
-  | "info"
-  | "tip"
-  | "check"
-  | "warning"
-  | "danger"
-  | "card"
-  | "cardgroup"
-  | "tabs"
-  | "tab"
-  | "accordion"
-  | "accordiongroup"
-  | "steps"
-  | "step"
-  | "mdxframe"
-  | "tooltip"
-  | "icon"
-  | "update"
-  | "codegroup"
-  | "expandable"
-  | "paramfield"
-  | "responsefield"
-  | "columns"
-  | "column"
-  | "banner"
-  | "badge"
-  | "button"
-  | "filetree"
-  | "folder"
-  | "file"
-  | "apiexample"
-  | "requestexample"
-  | "responseexample"
-  | "relatedcontent"
-  | "relatedcard"
-  | "mermaid";
-type ButtonMdxProps = ComponentProps<"button"> & {
+  | 'callout'
+  | 'note'
+  | 'info'
+  | 'tip'
+  | 'check'
+  | 'warning'
+  | 'danger'
+  | 'card'
+  | 'cardgroup'
+  | 'tabs'
+  | 'tab'
+  | 'accordion'
+  | 'accordiongroup'
+  | 'steps'
+  | 'step'
+  | 'mdxframe'
+  | 'tooltip'
+  | 'icon'
+  | 'update'
+  | 'codegroup'
+  | 'expandable'
+  | 'paramfield'
+  | 'responsefield'
+  | 'columns'
+  | 'column'
+  | 'banner'
+  | 'badge'
+  | 'button'
+  | 'filetree'
+  | 'folder'
+  | 'file'
+  | 'apiexample'
+  | 'requestexample'
+  | 'responseexample'
+  | 'relatedcontent'
+  | 'relatedcard'
+  | 'mermaid';
+type ButtonMdxProps = ComponentProps<'button'> & {
   href?: unknown;
   variant?: unknown;
 };
-type DocumentationComponents = Omit<
-  Record<DocumentationTag, FunctionComponent<MdxProps>>,
-  "button"
-> & {
+type DocumentationComponents = Omit<Record<DocumentationTag, FunctionComponent<MdxProps>>, 'button'> & {
   button: FunctionComponent<ButtonMdxProps>;
 };
 
 const optionalStringSchema = z.string().optional().catch(undefined);
 const str = (value: unknown) => optionalStringSchema.parse(value);
-const authoredName = (props: MdxProps): string | undefined =>
-  str(props["data-display-name"]) ??
-  str(props.dataDisplayName) ??
-  str(props.name);
+const authoredName = (props: MdxProps): string | undefined => str(props['data-display-name']) ?? str(props.dataDisplayName) ?? str(props.name);
 
 const mdxComponents: DocumentationComponents = {
-  callout: ({ type, children }) => (
-    <Callout type={str(type)}>{children}</Callout>
-  ),
+  callout: ({ type, children }) => <Callout type={str(type)}>{children}</Callout>,
   note: ({ children }) => <Callout type="note">{children}</Callout>,
   info: ({ children }) => <Callout type="info">{children}</Callout>,
   tip: ({ children }) => <Callout type="tip">{children}</Callout>,
@@ -393,9 +312,7 @@ const mdxComponents: DocumentationComponents = {
       {children}
     </Card>
   ),
-  cardgroup: ({ cols, children }) => (
-    <CardGroup cols={str(cols)}>{children}</CardGroup>
-  ),
+  cardgroup: ({ cols, children }) => <CardGroup cols={str(cols)}>{children}</CardGroup>,
   tabs: ({ children }) => <Tabs>{children}</Tabs>,
   tab: ({ title, children }) => <Tab title={str(title)}>{children}</Tab>,
   accordion: ({ title, defaultopen, children }) => (
@@ -406,18 +323,9 @@ const mdxComponents: DocumentationComponents = {
   accordiongroup: ({ children }) => <AccordionGroup>{children}</AccordionGroup>,
   steps: ({ children }) => <Steps>{children}</Steps>,
   step: ({ title, children }) => <Step title={str(title)}>{children}</Step>,
-  mdxframe: ({ caption, children }) => (
-    <Frame caption={str(caption)}>{children}</Frame>
-  ),
+  mdxframe: ({ caption, children }) => <Frame caption={str(caption)}>{children}</Frame>,
   tooltip: ({ tip, children }) => <Tooltip tip={str(tip)}>{children}</Tooltip>,
-  icon: (props) => (
-    <Icon
-      icon={str(props.icon)}
-      name={authoredName(props)}
-      color={str(props.color)}
-      size={str(props.size)}
-    />
-  ),
+  icon: (props) => <Icon icon={str(props.icon)} name={authoredName(props)} color={str(props.color)} size={str(props.size)} />,
   update: ({ label, description, children }) => (
     <Update label={str(label)} description={str(description)}>
       {children}
@@ -471,27 +379,16 @@ const mdxComponents: DocumentationComponents = {
     </Folder>
   ),
   file: (props) => <File name={authoredName(props)} icon={str(props.icon)} />,
-  apiexample: ({ title, children }) => (
-    <ApiExample title={str(title)}>{children}</ApiExample>
-  ),
-  requestexample: ({ title, children }) => (
-    <RequestExample title={str(title)}>{children}</RequestExample>
-  ),
+  apiexample: ({ title, children }) => <ApiExample title={str(title)}>{children}</ApiExample>,
+  requestexample: ({ title, children }) => <RequestExample title={str(title)}>{children}</RequestExample>,
   responseexample: ({ title, status, children }) => (
     <ResponseExample title={str(title)} status={str(status)}>
       {children}
     </ResponseExample>
   ),
-  relatedcontent: ({ title, children }) => (
-    <RelatedContent title={str(title)}>{children}</RelatedContent>
-  ),
+  relatedcontent: ({ title, children }) => <RelatedContent title={str(title)}>{children}</RelatedContent>,
   relatedcard: ({ title, description, href, icon, children }) => (
-    <RelatedCard
-      title={str(title)}
-      description={str(description)}
-      href={str(href)}
-      icon={str(icon)}
-    >
+    <RelatedCard title={str(title)} description={str(description)} href={str(href)} icon={str(icon)}>
       {children}
     </RelatedCard>
   ),
@@ -504,22 +401,12 @@ const mdxComponents: DocumentationComponents = {
 export function Markdown({ content, className, site }: MarkdownProps) {
   if (needsRichMarkdown(content)) {
     return (
-      <Suspense
-        fallback={
-          <MarkdownRenderer
-            content={content}
-            className={className}
-            site={site}
-          />
-        }
-      >
+      <Suspense fallback={<MarkdownRenderer content={content} className={className} site={site} />}>
         <RichMarkdown content={content} className={className} site={site} />
       </Suspense>
     );
   }
-  return (
-    <MarkdownRenderer content={content} className={className} site={site} />
-  );
+  return <MarkdownRenderer content={content} className={className} site={site} />;
 }
 
 export function MarkdownRenderer({
@@ -529,33 +416,21 @@ export function MarkdownRenderer({
   extraRemarkPlugins = [],
   extraRehypePlugins = [],
 }: MarkdownProps & {
-  extraRemarkPlugins?: NonNullable<ReactMarkdownOptions["remarkPlugins"]>;
-  extraRehypePlugins?: NonNullable<ReactMarkdownOptions["rehypePlugins"]>;
+  extraRemarkPlugins?: NonNullable<ReactMarkdownOptions['remarkPlugins']>;
+  extraRehypePlugins?: NonNullable<ReactMarkdownOptions['rehypePlugins']>;
 }) {
   const components = useMemo(() => {
     const localizedMdxComponents: DocumentationComponents = {
       ...mdxComponents,
-      tabs: ({ children }: MdxProps) => (
-        <Tabs language={site?.lang}>{children}</Tabs>
-      ),
+      tabs: ({ children }: MdxProps) => <Tabs language={site?.lang}>{children}</Tabs>,
       accordion: ({ title, defaultopen, children }: MdxProps) => (
-        <Accordion
-          title={str(title)}
-          defaultOpen={str(defaultopen)}
-          language={site?.lang}
-        >
+        <Accordion title={str(title)} defaultOpen={str(defaultopen)} language={site?.lang}>
           {children}
         </Accordion>
       ),
-      codegroup: ({ children }: MdxProps) => (
-        <CodeGroup language={site?.lang}>{children}</CodeGroup>
-      ),
+      codegroup: ({ children }: MdxProps) => <CodeGroup language={site?.lang}>{children}</CodeGroup>,
       expandable: ({ title, defaultopen, children }: MdxProps) => (
-        <Expandable
-          title={str(title)}
-          defaultOpen={str(defaultopen)}
-          language={site?.lang}
-        >
+        <Expandable title={str(title)} defaultOpen={str(defaultopen)} language={site?.lang}>
           {children}
         </Expandable>
       ),
@@ -589,53 +464,34 @@ export function MarkdownRenderer({
       ),
       // Card links are internal doc targets too — rewrite them to the site base.
       card: ({ title, href, icon, children }: MdxProps) => (
-        <Card
-          title={str(title)}
-          href={resolveDocHref(str(href), site)}
-          icon={str(icon)}
-        >
+        <Card title={str(title)} href={resolveDocHref(str(href), site)} icon={str(icon)}>
           {children}
         </Card>
       ),
       button: ({ href, variant, children }: ButtonMdxProps) => (
-        <MdxButton
-          href={resolveDocHref(str(href), site)}
-          variant={str(variant)}
-        >
+        <MdxButton href={resolveDocHref(str(href), site)} variant={str(variant)}>
           {children}
         </MdxButton>
       ),
       relatedcard: ({ title, description, href, icon, children }: MdxProps) => (
-        <RelatedCard
-          title={str(title)}
-          description={str(description)}
-          href={resolveDocHref(str(href), site)}
-          icon={str(icon)}
-        >
+        <RelatedCard title={str(title)} description={str(description)} href={resolveDocHref(str(href), site)} icon={str(icon)}>
           {children}
         </RelatedCard>
       ),
     };
     const mergedComponents: Components = {
       ...htmlComponents,
-      pre: (props: ComponentProps<"pre">) => (
-        <Pre {...props} locale={site?.lang} />
-      ),
+      pre: (props: ComponentProps<'pre'>) => <Pre {...props} locale={site?.lang} />,
       a: anchorRenderer(site),
       ...localizedMdxComponents,
     };
     return mergedComponents;
   }, [site]);
   return (
-    <div className={cn("typeset", className)}>
+    <div className={cn('typeset', className)}>
       <ReactMarkdown
         components={components}
-        remarkPlugins={[
-          remarkGfm,
-          ...extraRemarkPlugins,
-          remarkCallouts,
-          remarkCodeMeta,
-        ]}
+        remarkPlugins={[remarkGfm, ...extraRemarkPlugins, remarkCallouts, remarkCodeMeta]}
         rehypePlugins={[
           ...extraRehypePlugins,
           rehypeAuthoredComponentProps,
@@ -647,8 +503,8 @@ export function MarkdownRenderer({
           [
             rehypeAutolinkHeadings,
             {
-              behavior: "wrap",
-              properties: { className: "heading-anchor", tabIndex: -1 },
+              behavior: 'wrap',
+              properties: { className: 'heading-anchor', tabIndex: -1 },
             },
           ],
           rehypeHighlight,

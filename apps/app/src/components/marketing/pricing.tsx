@@ -1,104 +1,88 @@
-import { useT } from "@cms/i18n/react";
-import {
-  ArrowRight,
-  Check,
-  Cloud,
-  HandCoins,
-  Scale,
-  Server,
-  ShieldCheck,
-} from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
-import {
-  Eyebrow,
-  invertedOutlineButton,
-  MarketingShell,
-  outlineButton,
-  primaryButton,
-} from "@/components/cloud-marketing";
-import { marketingFaqs } from "@/lib/marketing-faqs";
+import { useT } from '@cms/i18n/react';
+import { ArrowRight, Check, Cloud, HandCoins, Scale, Server, ShieldCheck } from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
+import { Eyebrow, invertedOutlineButton, MarketingShell, outlineButton, primaryButton } from '@/components/cloud-marketing';
+import { marketingFaqs } from '@/lib/marketing-faqs';
 
 /** A comparison cell: `true` renders a check, a string renders as explanatory text. */
 type Cell = true | string;
 
-const buildFeatureGroups = (
-  searchCapability: string,
-): { title: string; rows: { label: string; cloud: Cell; self: Cell }[] }[] => [
+const buildFeatureGroups = (searchCapability: string): { title: string; rows: { label: string; cloud: Cell; self: Cell }[] }[] => [
   {
-    title: "Authoring",
+    title: 'Authoring',
     rows: [
       {
-        label: "Notion-style editor over plain Markdown",
+        label: 'Notion-style editor over plain Markdown',
         cloud: true,
         self: true,
       },
       {
-        label: "MDX components (callouts, tabs, code groups)",
+        label: 'MDX components (callouts, tabs, code groups)',
         cloud: true,
         self: true,
       },
-      { label: "Anchored review comments on blocks", cloud: true, self: true },
+      { label: 'Anchored review comments on blocks', cloud: true, self: true },
       {
-        label: "Unlimited sites, pages, and members",
-        cloud: "Fair use during beta",
+        label: 'Unlimited sites, pages, and members',
+        cloud: 'Fair use during beta',
         self: true,
       },
     ],
   },
   {
-    title: "Publishing",
+    title: 'Publishing',
     rows: [
-      { label: "Versioned, immutable publishes", cloud: true, self: true },
-      { label: "Custom domains with guided DNS", cloud: true, self: true },
-      { label: "Wildcard project subdomains", cloud: true, self: true },
+      { label: 'Versioned, immutable publishes', cloud: true, self: true },
+      { label: 'Custom domains with guided DNS', cloud: true, self: true },
+      { label: 'Wildcard project subdomains', cloud: true, self: true },
     ],
   },
   {
-    title: "Search, SEO & analytics",
+    title: 'Search, SEO & analytics',
     rows: [
       { label: searchCapability, cloud: true, self: true },
       {
-        label: "SSR, canonicals, JSON-LD, sitemaps, hreflang",
+        label: 'SSR, canonicals, JSON-LD, sitemaps, hreflang',
         cloud: true,
         self: true,
       },
       {
-        label: "Product analytics; Cloudflare also processes hosted traffic",
+        label: 'Product analytics; Cloudflare also processes hosted traffic',
         cloud: true,
         self: true,
       },
     ],
   },
   {
-    title: "Languages",
+    title: 'Languages',
     rows: [
-      { label: "English + Arabic, full RTL", cloud: true, self: true },
-      { label: "Per-language page trees", cloud: true, self: true },
+      { label: 'English + Arabic, full RTL', cloud: true, self: true },
+      { label: 'Per-language page trees', cloud: true, self: true },
     ],
   },
   {
-    title: "Infrastructure",
+    title: 'Infrastructure',
     rows: [
-      { label: "Hosting", cloud: "Managed for you", self: "Your servers" },
+      { label: 'Hosting', cloud: 'Managed for you', self: 'Your servers' },
       {
-        label: "Database & storage",
-        cloud: "Managed Postgres + storage",
-        self: "Your Postgres, any S3-compatible store",
+        label: 'Database & storage',
+        cloud: 'Managed Postgres + storage',
+        self: 'Your Postgres, any S3-compatible store',
       },
       {
-        label: "Upgrades",
-        cloud: "Automatic",
-        self: "Pull the new image; migrations run themselves",
+        label: 'Upgrades',
+        cloud: 'Automatic',
+        self: 'Pull the new image; migrations run themselves',
       },
       {
-        label: "Data ownership",
-        cloud: "Exportable Markdown, always",
-        self: "Everything stays on your infra",
+        label: 'Data ownership',
+        cloud: 'Exportable Markdown, always',
+        self: 'Everything stays on your infra',
       },
       {
-        label: "Support",
-        cloud: "support@cms.com",
-        self: "Community support and your own operations",
+        label: 'Support',
+        cloud: 'support@cms.com',
+        self: 'Community support and your own operations',
       },
     ],
   },
@@ -111,39 +95,31 @@ const betaPromises: {
 }[] = [
   {
     icon: HandCoins,
-    title: "No credit card, no billing code",
-    body: "There is nothing to cancel and no trial clock. Sign up, write, publish — the beta is simply free.",
+    title: 'No credit card, no billing code',
+    body: 'There is nothing to cancel and no trial clock. Sign up, write, publish — the beta is simply free.',
   },
   {
     icon: Scale,
-    title: "Fair use, not hard limits",
-    body: "No page caps or seat counts. If a workspace is unusually heavy on resources, we reach out before anything changes.",
+    title: 'Fair use, not hard limits',
+    body: 'No page caps or seat counts. If a workspace is unusually heavy on resources, we reach out before anything changes.',
   },
   {
     icon: ShieldCheck,
-    title: "Generous notice before paid plans",
-    body: "When paid cloud plans arrive, beta workspaces get advance notice and preferential treatment. The AGPL-3.0 self-hosted release remains separate.",
+    title: 'Generous notice before paid plans',
+    body: 'When paid cloud plans arrive, beta workspaces get advance notice and preferential treatment. The AGPL-3.0 self-hosted release remains separate.',
   },
 ];
 
 function CellValue({ value }: { value: Cell }) {
   if (value === true) {
-    return (
-      <Check aria-label="Included" className="mx-auto size-4 text-primary" />
-    );
+    return <Check aria-label="Included" className="mx-auto size-4 text-primary" />;
   }
-  return (
-    <span className="block text-center text-muted-foreground text-xs leading-snug">
-      {value}
-    </span>
-  );
+  return <span className="block text-center text-muted-foreground text-xs leading-snug">{value}</span>;
 }
 
 export function PricingPage({ stars = 0 }: { stars?: number }) {
   const t = useT();
-  const featureGroups = buildFeatureGroups(
-    t("marketing.release.searchCapability"),
-  );
+  const featureGroups = buildFeatureGroups(t('marketing.release.searchCapability'));
   return (
     <MarketingShell stars={stars}>
       {/* Header */}
@@ -152,13 +128,10 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
           <div className="flex justify-center">
             <Eyebrow>Pricing</Eyebrow>
           </div>
-          <h1 className="mt-4 text-balance font-semibold text-4xl tracking-tight sm:text-5xl">
-            Free while in beta. Self-host when you prefer.
-          </h1>
+          <h1 className="mt-4 text-balance font-semibold text-4xl tracking-tight sm:text-5xl">Free while in beta. Self-host when you prefer.</h1>
           <p className="mx-auto mt-4 max-w-2xl text-balance text-lg text-muted-foreground leading-relaxed">
-            cms Cloud is available now with no credit card. The public
-            AGPL-3.0 release includes a pinned container and guided Docker
-            Compose installer for teams that operate their own infrastructure.
+            cms Cloud is available now with no credit card. The public AGPL-3.0 release includes a pinned container and guided Docker Compose
+            installer for teams that operate their own infrastructure.
           </p>
         </div>
       </section>
@@ -170,21 +143,17 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
             <h2 className="flex items-center gap-2 font-semibold text-lg">
               <Cloud className="size-5 text-primary" /> Cloud
             </h2>
-            <span className="rounded-full bg-primary px-2.5 py-0.5 font-medium text-primary-foreground text-xs">
-              Fastest start
-            </span>
+            <span className="rounded-full bg-primary px-2.5 py-0.5 font-medium text-primary-foreground text-xs">Fastest start</span>
           </div>
           <p className="mt-4 font-semibold text-4xl tracking-tight">$0</p>
-          <p className="mt-1 text-muted-foreground text-sm">
-            free during beta — no credit card
-          </p>
+          <p className="mt-1 text-muted-foreground text-sm">free during beta — no credit card</p>
           <ul className="mt-6 space-y-3 text-sm">
             {[
-              "Hosted dashboard and docs sites",
-              "Managed database, queues, and storage",
-              "Automatic deploys and upgrades",
-              "Custom domains and analytics",
-              "Priority treatment when paid plans arrive",
+              'Hosted dashboard and docs sites',
+              'Managed database, queues, and storage',
+              'Automatic deploys and upgrades',
+              'Custom domains and analytics',
+              'Priority treatment when paid plans arrive',
             ].map((item) => (
               <li key={item} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -195,25 +164,21 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
           <a className={`${primaryButton} mt-7`} href="/sign-up">
             Create free account <ArrowRight className="size-4" />
           </a>
-          <p className="mt-3 text-center text-muted-foreground text-xs">
-            Live in about 60 seconds.
-          </p>
+          <p className="mt-3 text-center text-muted-foreground text-xs">Live in about 60 seconds.</p>
         </div>
         <div className="flex flex-col rounded-xl border border-border bg-card p-8">
           <h2 className="flex items-center gap-2 font-semibold text-lg">
             <Server className="size-5 text-primary" /> Self-hosted
           </h2>
           <p className="mt-4 font-semibold text-4xl tracking-tight">$0</p>
-          <p className="mt-1 text-muted-foreground text-sm">
-            AGPL-3.0 source and public container release
-          </p>
+          <p className="mt-1 text-muted-foreground text-sm">AGPL-3.0 source and public container release</p>
           <ul className="mt-6 space-y-3 text-sm">
             {[
-              "Guided Docker Compose installer",
-              "PostgreSQL and S3-compatible storage",
-              "Docker Compose and Coolify configurations",
-              "Pinned GHCR release and public source",
-              "You manage DNS, TLS, backups, and upgrades",
+              'Guided Docker Compose installer',
+              'PostgreSQL and S3-compatible storage',
+              'Docker Compose and Coolify configurations',
+              'Pinned GHCR release and public source',
+              'You manage DNS, TLS, backups, and upgrades',
             ].map((item) => (
               <li key={item} className="flex items-start gap-2.5">
                 <Check className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -232,12 +197,9 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
         <div className="mx-auto max-w-4xl px-6 py-20">
           <div className="flex flex-col items-center text-center">
             <Eyebrow>What's included</Eyebrow>
-            <h2 className="mt-4 font-semibold text-3xl tracking-tight">
-              Every feature, both plans
-            </h2>
+            <h2 className="mt-4 font-semibold text-3xl tracking-tight">Every feature, both plans</h2>
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-              The same product features are available in Cloud and the
-              self-hosted stack; operational responsibility differs.
+              The same product features are available in Cloud and the self-hosted stack; operational responsibility differs.
             </p>
           </div>
           <div className="mt-12 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
@@ -271,23 +233,16 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
       <section className="mx-auto max-w-6xl px-6 py-20">
         <div className="max-w-2xl">
           <Eyebrow>The fine print, up front</Eyebrow>
-          <h2 className="mt-4 font-semibold text-3xl tracking-tight">
-            What “free beta” actually means
-          </h2>
+          <h2 className="mt-4 font-semibold text-3xl tracking-tight">What “free beta” actually means</h2>
         </div>
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-3">
           {betaPromises.map((item) => (
-            <div
-              key={item.title}
-              className="rounded-xl border border-border bg-card p-6"
-            >
+            <div key={item.title} className="rounded-xl border border-border bg-card p-6">
               <span className="grid size-10 place-items-center rounded-lg border border-border bg-background text-primary">
                 <item.icon className="size-5" />
               </span>
               <h3 className="mt-4 font-semibold">{item.title}</h3>
-              <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">
-                {item.body}
-              </p>
+              <p className="mt-1.5 text-muted-foreground text-sm leading-relaxed">{item.body}</p>
             </div>
           ))}
         </div>
@@ -297,9 +252,7 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
       <section className="mx-auto max-w-3xl px-6 pb-20" id="faq">
         <div className="flex flex-col items-center text-center">
           <Eyebrow>FAQ</Eyebrow>
-          <h2 className="mt-4 font-semibold text-3xl tracking-tight sm:text-4xl">
-            Frequently asked
-          </h2>
+          <h2 className="mt-4 font-semibold text-3xl tracking-tight sm:text-4xl">Frequently asked</h2>
         </div>
         <div className="mt-12 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {marketingFaqs.map((item) => (
@@ -310,9 +263,7 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
                   +
                 </span>
               </summary>
-              <p className="pb-4 text-muted-foreground text-sm leading-relaxed">
-                {item.a}
-              </p>
+              <p className="pb-4 text-muted-foreground text-sm leading-relaxed">{item.a}</p>
             </details>
           ))}
         </div>
@@ -324,19 +275,15 @@ export function PricingPage({ stars = 0 }: { stars?: number }) {
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.12]"
             style={{
-              backgroundImage:
-                "radial-gradient(var(--background) 1px, transparent 1px)",
-              backgroundSize: "22px 22px",
+              backgroundImage: 'radial-gradient(var(--background) 1px, transparent 1px)',
+              backgroundSize: '22px 22px',
             }}
             aria-hidden="true"
           />
           <div className="relative">
-            <h2 className="font-semibold text-3xl tracking-tight">
-              Start with the free Cloud beta.
-            </h2>
+            <h2 className="font-semibold text-3xl tracking-tight">Start with the free Cloud beta.</h2>
             <p className="mx-auto mt-3 max-w-xl text-background/75">
-              Evaluate the editor and publishing workflow now, or review the
-              deployment checklist for your own infrastructure.
+              Evaluate the editor and publishing workflow now, or review the deployment checklist for your own infrastructure.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <a className={primaryButton} href="/sign-up">

@@ -134,8 +134,7 @@ export const authClient = {
       authFetch<{ success?: boolean }>('/api/auth/organizations/accept-invitation', { method: 'POST', body: JSON.stringify(args) }),
   },
   admin: {
-    stopImpersonating: async () =>
-      authFetch<{ success?: boolean }>('/api/auth/admin/stop-impersonating', { method: 'POST' }),
+    stopImpersonating: async () => authFetch<{ success?: boolean }>('/api/auth/admin/stop-impersonating', { method: 'POST' }),
   },
 };
 

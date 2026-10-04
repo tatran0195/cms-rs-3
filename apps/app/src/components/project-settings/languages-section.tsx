@@ -1,36 +1,25 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { useConfirm } from "@cms/design-system/components/ui/confirm";
-import { Switch } from "@cms/design-system/components/ui/switch";
-import { cn } from "@cms/design-system/lib/utils";
-import { useT } from "@cms/i18n/react";
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { AddLanguageDialog } from "@/components/editor/add-language-dialog";
-import type { Language, Project } from "@/hooks/api";
-import {
-  useDeleteLanguage,
-  useLanguages,
-  useUpdateLanguage,
-} from "@/hooks/api";
-import { SectionHeader, sortLanguagesDefaultFirst } from "./shared";
+import { Button } from '@cms/design-system/components/ui/button';
+import { useConfirm } from '@cms/design-system/components/ui/confirm';
+import { Switch } from '@cms/design-system/components/ui/switch';
+import { cn } from '@cms/design-system/lib/utils';
+import { useT } from '@cms/i18n/react';
+import { Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
+import type { Language, Project } from '@/hooks/api';
+import { useDeleteLanguage, useLanguages, useUpdateLanguage } from '@/hooks/api';
+import { SectionHeader, sortLanguagesDefaultFirst } from './shared';
 
 /** A small uppercase chip (direction / default / hidden badges). */
-function Chip({
-  children,
-  tone = "muted",
-}: {
-  children: React.ReactNode;
-  tone?: "muted" | "primary" | "warning";
-}) {
+function Chip({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'primary' | 'warning' }) {
   return (
     <span
       className={cn(
-        "rounded px-1.5 py-0.5 font-medium text-[10px] uppercase tracking-wide",
-        tone === "primary" && "bg-primary/10 text-primary",
-        tone === "warning" &&
-          "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-        tone === "muted" && "bg-muted text-muted-foreground",
+        'rounded px-1.5 py-0.5 font-medium text-[10px] uppercase tracking-wide',
+        tone === 'primary' && 'bg-primary/10 text-primary',
+        tone === 'warning' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+        tone === 'muted' && 'bg-muted text-muted-foreground',
       )}
     >
       {children}
@@ -53,27 +42,22 @@ export function LanguagesSection({ project }: { project: Project }) {
   // Default language always first, then by configured position.
   const rows = sortLanguagesDefaultFirst(languages ?? []);
 
-  const save = async (
-    id: string,
-    body: { enabled?: boolean; isDefault?: boolean },
-  ) => {
+  const save = async (id: string, body: { enabled?: boolean; isDefault?: boolean }) => {
     try {
       await update.mutateAsync({ id, body });
-      toast.success(t("common.saved"));
+      toast.success(t('common.saved'));
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : t("settings.saveError"),
-      );
+      toast.error(error instanceof Error ? error.message : t('settings.saveError'));
     }
   };
 
   const onDelete = async (language: Language) => {
     const ok = await confirm({
-      title: t("settings.languages.deleteConfirm.title", {
+      title: t('settings.languages.deleteConfirm.title', {
         label: language.label,
       }),
-      description: t("settings.languages.deleteConfirm.description"),
-      confirmLabel: t("settings.languages.delete"),
+      description: t('settings.languages.deleteConfirm.description'),
+      confirmLabel: t('settings.languages.delete'),
       destructive: true,
     });
     if (!ok) {
@@ -81,23 +65,15 @@ export function LanguagesSection({ project }: { project: Project }) {
     }
     try {
       await remove.mutateAsync(language.id);
-      toast.success(t("settings.languages.deleted"));
+      toast.success(t('settings.languages.deleted'));
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : t("settings.languages.deleteError"),
-      );
+      toast.error(error instanceof Error ? error.message : t('settings.languages.deleteError'));
     }
   };
 
   return (
     <div>
-      <SectionHeader
-        description={t("settings.languages.description")}
-        icon="◫"
-        title={t("settings.languages")}
-      />
+      <SectionHeader description={t('settings.languages.description')} icon="◫" title={t('settings.languages')} />
 
       {rows.length > 0 ? (
         <div className="mb-3 overflow-hidden rounded-xl border border-border">
@@ -105,50 +81,29 @@ export function LanguagesSection({ project }: { project: Project }) {
             const enabled = language.enabled !== false;
             const coverage = language.coverage;
             return (
-              <div
-                className="flex items-center gap-3 border-border border-b p-3.5 last:border-b-0"
-                key={language.id}
-              >
+              <div className="flex items-center gap-3 border-border border-b p-3.5 last:border-b-0" key={language.id}>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className="font-medium text-[13.5px]"
-                      dir={language.direction === "RTL" ? "rtl" : "ltr"}
-                    >
+                    <span className="font-medium text-[13.5px]" dir={language.direction === 'RTL' ? 'rtl' : 'ltr'}>
                       {language.label}
                     </span>
-                    <span
-                      className="font-mono text-[11px] text-muted-foreground"
-                      dir="ltr"
-                    >
+                    <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">
                       {language.code}
                     </span>
-                    <Chip>
-                      {language.direction === "RTL"
-                        ? t("settings.languages.direction.rtl")
-                        : t("settings.languages.direction.ltr")}
-                    </Chip>
-                    {language.isDefault ? (
-                      <Chip tone="primary">
-                        {t("settings.languages.defaultBadge")}
-                      </Chip>
-                    ) : null}
-                    {!enabled ? (
-                      <Chip tone="warning">
-                        {t("settings.languages.hiddenBadge")}
-                      </Chip>
-                    ) : null}
+                    <Chip>{language.direction === 'RTL' ? t('settings.languages.direction.rtl') : t('settings.languages.direction.ltr')}</Chip>
+                    {language.isDefault ? <Chip tone="primary">{t('settings.languages.defaultBadge')}</Chip> : null}
+                    {!enabled ? <Chip tone="warning">{t('settings.languages.hiddenBadge')}</Chip> : null}
                   </div>
                   {coverage ? (
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-muted-foreground">
                       <span>
                         {language.isDefault
-                          ? t("settings.languages.coverage.sourcePages", {
+                          ? t('settings.languages.coverage.sourcePages', {
                               count: coverage.pageCount,
                             })
                           : coverage.sourcePageCount === 0
-                            ? t("settings.languages.coverage.noSourcePages")
-                            : t("settings.languages.coverage.summary", {
+                            ? t('settings.languages.coverage.noSourcePages')
+                            : t('settings.languages.coverage.summary', {
                                 matched: coverage.matchedPages,
                                 total: coverage.sourcePageCount,
                               })}
@@ -156,23 +111,17 @@ export function LanguagesSection({ project }: { project: Project }) {
                       {!language.isDefault && coverage.percentage !== null ? (
                         <>
                           <div
-                            aria-label={t(
-                              "settings.languages.coverage.percent",
-                              { percent: coverage.percentage },
-                            )}
+                            aria-label={t('settings.languages.coverage.percent', { percent: coverage.percentage })}
                             aria-valuemax={100}
                             aria-valuemin={0}
                             aria-valuenow={coverage.percentage}
                             className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"
                             role="progressbar"
                           >
-                            <div
-                              className="h-full rounded-full bg-primary"
-                              style={{ width: `${coverage.percentage}%` }}
-                            />
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${coverage.percentage}%` }} />
                           </div>
                           <span>
-                            {t("settings.languages.coverage.percent", {
+                            {t('settings.languages.coverage.percent', {
                               percent: coverage.percentage,
                             })}
                           </span>
@@ -180,14 +129,14 @@ export function LanguagesSection({ project }: { project: Project }) {
                       ) : null}
                       {coverage.missingPages > 0 ? (
                         <span className="font-medium text-amber-600 dark:text-amber-400">
-                          {t("settings.languages.coverage.missing", {
+                          {t('settings.languages.coverage.missing', {
                             count: coverage.missingPages,
                           })}
                         </span>
                       ) : null}
                       {coverage.extraPages > 0 ? (
                         <span>
-                          {t("settings.languages.coverage.extra", {
+                          {t('settings.languages.coverage.extra', {
                             count: coverage.extraPages,
                           })}
                         </span>
@@ -202,22 +151,20 @@ export function LanguagesSection({ project }: { project: Project }) {
                     type="button"
                     variant="ghost"
                   >
-                    {t("settings.languages.makeDefault")}
+                    {t('settings.languages.makeDefault')}
                   </Button>
                 ) : null}
                 <Switch
-                  aria-label={t("settings.languages.enabledToggle", {
+                  aria-label={t('settings.languages.enabledToggle', {
                     label: language.label,
                   })}
                   checked={enabled}
                   disabled={language.isDefault}
-                  onCheckedChange={(checked) =>
-                    void save(language.id, { enabled: checked })
-                  }
+                  onCheckedChange={(checked) => void save(language.id, { enabled: checked })}
                 />
                 {!language.isDefault ? (
                   <Button
-                    aria-label={t("settings.languages.delete")}
+                    aria-label={t('settings.languages.delete')}
                     className="text-muted-foreground hover:text-destructive"
                     onClick={() => void onDelete(language)}
                     size="icon-xs"
@@ -233,24 +180,12 @@ export function LanguagesSection({ project }: { project: Project }) {
         </div>
       ) : null}
 
-      <Button
-        className="mb-1.5 border-dashed text-muted-foreground"
-        onClick={() => setAddOpen(true)}
-        type="button"
-        variant="outline"
-      >
-        <Plus className="size-3.5" /> {t("settings.languages.add")}
+      <Button className="mb-1.5 border-dashed text-muted-foreground" onClick={() => setAddOpen(true)} type="button" variant="outline">
+        <Plus className="size-3.5" /> {t('settings.languages.add')}
       </Button>
-      <p className="mt-2 text-[12px] text-muted-foreground leading-snug">
-        {t("settings.languages.hint")}
-      </p>
+      <p className="mt-2 text-[12px] text-muted-foreground leading-snug">{t('settings.languages.hint')}</p>
 
-      <AddLanguageDialog
-        onCreated={() => setAddOpen(false)}
-        onOpenChange={setAddOpen}
-        open={addOpen}
-        projectId={project.id}
-      />
+      <AddLanguageDialog onCreated={() => setAddOpen(false)} onOpenChange={setAddOpen} open={addOpen} projectId={project.id} />
     </div>
   );
 }

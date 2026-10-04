@@ -1,12 +1,8 @@
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@cms/design-system/components/ui/tabs";
-import { useT } from "@cms/i18n/react";
-import type { AnalyticsRange } from "@/hooks/api";
+import { Tabs, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
+import { useT } from '@cms/i18n/react';
+import type { AnalyticsRange } from '@/hooks/api';
 
-const ANALYTICS_RANGES: readonly AnalyticsRange[] = ["24h", "7d", "30d", "90d"];
+const ANALYTICS_RANGES: readonly AnalyticsRange[] = ['24h', '7d', '30d', '90d'];
 
 /**
  * The segmented range control shared by both analytics pages and the overview
@@ -27,10 +23,7 @@ export function RangeTabs({
 }) {
   const t = useT();
   return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => onValueChange(next as AnalyticsRange)}
-    >
+    <Tabs value={value} onValueChange={(next) => onValueChange(next as AnalyticsRange)}>
       <TabsList className={className}>
         {ranges.map((range) => (
           <TabsTrigger key={range} value={range}>

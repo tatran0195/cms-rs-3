@@ -420,6 +420,16 @@ impl DeploymentQueries {
         .bind(deployment_id)
         .execute(&mut *tx)
         .await?;
+
+        // Ensure the project itself is accessible once a release is published
+        sqlx::query(
+            r#"UPDATE "Project" SET is_public = true, updated_at = $1
+               WHERE id = $2 AND is_public = false"#,
+        )
+        .bind(now)
+        .bind(project_id)
+        .execute(&mut *tx)
+        .await?;
         if let Some(actor_user_id) = actor_user_id {
             let organization_id = snapshot
                 .get("project")

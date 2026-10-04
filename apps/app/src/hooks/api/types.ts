@@ -38,6 +38,8 @@ export interface Project {
   slug: string;
   description: string | null;
   icon: string | null;
+  isPublic?: boolean;
+  is_public?: boolean;
   config: ProjectConfig | null;
   languages?: Language[];
   createdAt: string;

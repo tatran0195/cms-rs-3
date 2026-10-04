@@ -49,18 +49,8 @@ export function TechnoStarLogo({
   }
   return (
     <>
-      <img
-        alt={alt}
-        className={cn('h-8 w-auto object-contain dark:hidden', className)}
-        src="/brand/technostar-logo.png"
-        {...props}
-      />
-      <img
-        alt={alt}
-        className={cn('hidden h-8 w-auto object-contain dark:block', className)}
-        src="/brand/technostar-logo-dark.png"
-        {...props}
-      />
+      <img alt={alt} className={cn('h-8 w-auto object-contain dark:hidden', className)} src="/brand/technostar-logo.png" {...props} />
+      <img alt={alt} className={cn('hidden h-8 w-auto object-contain dark:block', className)} src="/brand/technostar-logo-dark.png" {...props} />
     </>
   );
 }

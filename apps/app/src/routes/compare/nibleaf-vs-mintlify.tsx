@@ -1,18 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ComparePage } from "@/components/marketing/comparison-page";
-import type { Comparison } from "@/lib/comparison-data";
-import { loadComparisonData } from "@/lib/comparison-loader";
-import {
-  breadcrumbLd,
-  canonicalHref,
-  faqLd,
-  getGithubStarsFn,
-  pageMeta,
-} from "@/lib/marketing-seo";
+import { createFileRoute } from '@tanstack/react-router';
+import { ComparePage } from '@/components/marketing/comparison-page';
+import type { Comparison } from '@/lib/comparison-data';
+import { loadComparisonData } from '@/lib/comparison-loader';
+import { breadcrumbLd, canonicalHref, faqLd, getGithubStarsFn, pageMeta } from '@/lib/marketing-seo';
 
-export const Route = createFileRoute("/compare/nibleaf-vs-mintlify")({
+export const Route = createFileRoute('/compare/nibleaf-vs-mintlify')({
   loader: async () => ({
-    data: (await loadComparisonData("cmsVsMintlify")) as Comparison,
+    data: (await loadComparisonData('cmsVsMintlify')) as Comparison,
     stars: await getGithubStarsFn(),
   }),
   head: ({ loaderData }) => ({
@@ -23,13 +17,11 @@ export const Route = createFileRoute("/compare/nibleaf-vs-mintlify")({
           path: loaderData.data.path,
         })
       : [],
-    links: loaderData
-      ? [{ rel: "canonical", href: canonicalHref(loaderData.data.path) }]
-      : [],
+    links: loaderData ? [{ rel: 'canonical', href: canonicalHref(loaderData.data.path) }] : [],
     scripts: [
       ...(loaderData ? [faqLd(loaderData.data.faqs)] : []),
       breadcrumbLd([
-        { name: "Home", path: "/" },
+        { name: 'Home', path: '/' },
         ...(loaderData
           ? [
               {

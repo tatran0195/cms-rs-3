@@ -1,5 +1,5 @@
-import { CmsMark } from "@cms/design-system/brand";
-import { siteT } from "@cms/i18n/site";
+import { CmsMark } from '@cms/design-system/brand';
+import { siteT } from '@cms/i18n/site';
 
 /**
  * "Made with cms" attribution + a low-key abuse-report contact, shown in the
@@ -22,15 +22,12 @@ export function MadeWithBadge({ lang }: { lang?: string }) {
       >
         <CmsMark className="size-3.5" aria-hidden />
         <span>
-          {t("madeWith")} <span className="font-semibold">cms</span>
+          {t('madeWith')} <span className="font-semibold">cms</span>
         </span>
       </a>
       <span aria-hidden>·</span>
-      <a
-        href="mailto:abuse@cms.com"
-        className="transition-colors hover:text-foreground"
-      >
-        {t("reportAbuse")}
+      <a href="mailto:abuse@cms.com" className="transition-colors hover:text-foreground">
+        {t('reportAbuse')}
       </a>
     </div>
   );

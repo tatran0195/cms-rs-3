@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -10,22 +10,22 @@ const mocks = vi.hoisted(() => ({
   t: vi.fn((key: string) => key),
 }));
 
-vi.mock("@cms/i18n/react", () => ({ useT: () => mocks.t }));
-vi.mock("@tanstack/react-router", () => ({
+vi.mock('@cms/i18n/react', () => ({ useT: () => mocks.t }));
+vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
 }));
-vi.mock("@/hooks/api", () => ({ useProjects: mocks.useProjects }));
+vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
 
-import { CommandPalette } from "./command-palette";
+import { CommandPalette } from './command-palette';
 
-vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 
 const roots: Array<ReturnType<typeof createRoot>> = [];
 
 /** Base UI's dialog popup and cmdk's list rely on browser APIs jsdom does not implement. */
 beforeEach(() => {
   vi.stubGlobal(
-    "ResizeObserver",
+    'ResizeObserver',
     class {
       observe = vi.fn();
       unobserve = vi.fn();
@@ -36,8 +36,8 @@ beforeEach(() => {
   mocks.t.mockImplementation((key: string) => key);
   mocks.useProjects.mockReturnValue({
     data: [
-      { id: "project-1", name: "cms Docs" },
-      { id: "project-2", name: "دليل المنتج" },
+      { id: 'project-1', name: 'cms Docs' },
+      { id: 'project-2', name: 'دليل المنتج' },
     ],
   });
 });
@@ -51,21 +51,19 @@ afterEach(async () => {
 });
 
 async function render(open: boolean, onOpenChange = vi.fn()) {
-  const container = document.createElement("div");
+  const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   roots.push(root);
-  await act(async () =>
-    root.render(<CommandPalette open={open} onOpenChange={onOpenChange} />),
-  );
+  await act(async () => root.render(<CommandPalette open={open} onOpenChange={onOpenChange} />));
   return onOpenChange;
 }
 
 const pressCtrlK = () =>
   act(() => {
     document.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "k",
+      new KeyboardEvent('keydown', {
+        key: 'k',
         ctrlKey: true,
         bubbles: true,
         cancelable: true,
@@ -77,20 +75,14 @@ const pressCtrlK = () =>
  *  (so React's value tracker notices) and fire the `input` event it listens to. */
 const typeInto = (input: HTMLInputElement, value: string) =>
   act(async () => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )?.set?.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-const itemLabels = () =>
-  [...document.querySelectorAll('[data-slot="command-item"]')].map((node) =>
-    node.textContent?.trim(),
-  );
+const itemLabels = () => [...document.querySelectorAll('[data-slot="command-item"]')].map((node) => node.textContent?.trim());
 
-describe("CommandPalette", () => {
-  it("opens inside a cmdk root and lists projects plus the go-to shortcuts", async () => {
+describe('CommandPalette', () => {
+  it('opens inside a cmdk root and lists projects plus the go-to shortcuts', async () => {
     await render(true);
 
     const dialog = document.querySelector('[data-slot="dialog-content"]');
@@ -100,74 +92,64 @@ describe("CommandPalette", () => {
     // Every command part renders inside the cmdk root, otherwise cmdk throws on a missing store.
     const commandRoot = dialog?.querySelector('[data-slot="command"]');
     expect(commandRoot).not.toBeNull();
-    expect(
-      commandRoot?.querySelector('[data-slot="command-input"]'),
-    ).not.toBeNull();
-    expect(
-      commandRoot?.querySelector('[data-slot="command-list"]'),
-    ).not.toBeNull();
+    expect(commandRoot?.querySelector('[data-slot="command-input"]')).not.toBeNull();
+    expect(commandRoot?.querySelector('[data-slot="command-list"]')).not.toBeNull();
 
-    const text = dialog?.textContent ?? "";
-    expect(text).toContain("cms Docs");
-    expect(text).toContain("دليل المنتج");
+    const text = dialog?.textContent ?? '';
+    expect(text).toContain('cms Docs');
+    expect(text).toContain('دليل المنتج');
     for (const key of [
-      "command.group.projects",
-      "command.group.goTo",
-      "command.allProjects",
-      "nav.sites",
-      "command.analytics",
-      "command.accountSettings",
+      'command.group.projects',
+      'command.group.goTo',
+      'command.allProjects',
+      'nav.sites',
+      'command.analytics',
+      'command.accountSettings',
     ]) {
       expect(text).toContain(key);
     }
   });
 
-  it("marks project names as auto-directional so Arabic and Latin titles align correctly", async () => {
+  it('marks project names as auto-directional so Arabic and Latin titles align correctly', async () => {
     await render(true);
 
-    const names = [
-      ...document.querySelectorAll('[data-slot="command-item"] [dir="auto"]'),
-    ].map((node) => node.textContent);
-    expect(names).toEqual(["cms Docs", "دليل المنتج"]);
+    const names = [...document.querySelectorAll('[data-slot="command-item"] [dir="auto"]')].map((node) => node.textContent);
+    expect(names).toEqual(['cms Docs', 'دليل المنتج']);
   });
 
-  it("finds go-to shortcuts by their localized label, not only the English value", async () => {
+  it('finds go-to shortcuts by their localized label, not only the English value', async () => {
     const arabic: Record<string, string> = {
-      "command.allProjects": "كل المشاريع",
-      "nav.sites": "المواقع",
-      "command.analytics": "التحليلات",
-      "command.accountSettings": "إعدادات الحساب",
+      'command.allProjects': 'كل المشاريع',
+      'nav.sites': 'المواقع',
+      'command.analytics': 'التحليلات',
+      'command.accountSettings': 'إعدادات الحساب',
     };
     mocks.t.mockImplementation((key: string) => arabic[key] ?? key);
     await render(true);
-    const input = document.querySelector<HTMLInputElement>(
-      '[data-slot="command-input"]',
-    );
+    const input = document.querySelector<HTMLInputElement>('[data-slot="command-input"]');
     expect(input).not.toBeNull();
 
-    await typeInto(input as HTMLInputElement, "المواقع");
+    await typeInto(input as HTMLInputElement, 'المواقع');
 
-    expect(itemLabels()).toContain("المواقع");
-    expect(itemLabels()).not.toContain("التحليلات");
-    expect(document.body.textContent).not.toContain("command.noResults");
+    expect(itemLabels()).toContain('المواقع');
+    expect(itemLabels()).not.toContain('التحليلات');
+    expect(document.body.textContent).not.toContain('command.noResults');
   });
 
-  it("navigates to the selected project and closes the palette", async () => {
+  it('navigates to the selected project and closes the palette', async () => {
     const onOpenChange = await render(true);
-    const item = [
-      ...document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'),
-    ].find((node) => node.textContent?.includes("cms Docs"));
+    const item = [...document.querySelectorAll<HTMLElement>('[data-slot="command-item"]')].find((node) => node.textContent?.includes('cms Docs'));
 
     await act(async () => item?.click());
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mocks.navigate).toHaveBeenCalledWith({
-      to: "/app/projects/$projectId",
-      params: { projectId: "project-1" },
+      to: '/app/projects/$projectId',
+      params: { projectId: 'project-1' },
     });
   });
 
-  it("toggles with Ctrl/⌘+K from anywhere in the dashboard", async () => {
+  it('toggles with Ctrl/⌘+K from anywhere in the dashboard', async () => {
     const onOpenChange = await render(false);
     expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
 
@@ -179,10 +161,10 @@ describe("CommandPalette", () => {
     expect(closeHandler).toHaveBeenCalledWith(false);
   });
 
-  it("claims the shortcut so the browser does not open its own search", async () => {
+  it('claims the shortcut so the browser does not open its own search', async () => {
     await render(false);
-    const event = new KeyboardEvent("keydown", {
-      key: "k",
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
       metaKey: true,
       bubbles: true,
       cancelable: true,

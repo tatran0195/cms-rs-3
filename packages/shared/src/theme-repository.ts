@@ -282,12 +282,12 @@ export const themeRepositoryDocsConfig = (
   const navigation =
     versions.length > 1
       ? {
-        versions: versions.map((version) => ({
-          version: version.name,
-          'x-cms': { slug: version.slug, default: version.id === defaultVersion?.id },
-          languages: languageNavigation(version),
-        })),
-      }
+          versions: versions.map((version) => ({
+            version: version.name,
+            'x-cms': { slug: version.slug, default: version.id === defaultVersion?.id },
+            languages: languageNavigation(version),
+          })),
+        }
       : { languages: versions[0] ? languageNavigation(versions[0]) : [] };
   return {
     $schema: 'https://mintlify.com/docs.json',
@@ -380,11 +380,7 @@ export const buildThemeRepository = (
 
 export const themeRepositoryOwnershipForPath = (path: string, contentPath = 'content'): ThemeRepositoryOwnership | null => {
   const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '');
-  if (
-    normalized === THEME_REPOSITORY_LEGACY_MANIFEST_PATH ||
-    normalized === THEME_REPOSITORY_DOCS_CONFIG_PATH ||
-    normalized.startsWith('.cms/')
-  ) {
+  if (normalized === THEME_REPOSITORY_LEGACY_MANIFEST_PATH || normalized === THEME_REPOSITORY_DOCS_CONFIG_PATH || normalized.startsWith('.cms/')) {
     return 'PLATFORM';
   }
   if (customerRootFiles.has(normalized)) return 'CUSTOMER';

@@ -1,33 +1,22 @@
-import type { ProjectConfig } from "@cms/validators";
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-} from "react";
-import {
-  type PublicAnalyticsPayload,
-  type SiteAnalyticsConsent,
-  useCreateSiteAnalyticsEvent,
-} from "@/hooks/api/site-events";
+import type { ProjectConfig } from '@cms/validators';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo } from 'react';
+import { type PublicAnalyticsPayload, type SiteAnalyticsConsent, useCreateSiteAnalyticsEvent } from '@/hooks/api/site-events';
 
 export type {
   PublicAnalyticsPayload,
   SiteAnalyticsConsent,
-} from "@/hooks/api/site-events";
+} from '@/hooks/api/site-events';
 
 const randomIdFn = (): string => {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   const words = new Uint32Array(4);
   crypto.getRandomValues(words);
-  return Array.from(words, (value) => value.toString(36)).join(".");
+  return Array.from(words, (value) => value.toString(36)).join('.');
 };
 
 const sessionIdFn = (): string | undefined => {
-  if (typeof window === "undefined") return undefined;
-  const key = "cms.sid";
+  if (typeof window === 'undefined') return undefined;
+  const key = 'cms.sid';
   let id = window.sessionStorage.getItem(key);
   if (!id) {
     id = randomIdFn();
@@ -36,29 +25,18 @@ const sessionIdFn = (): string | undefined => {
   return id;
 };
 
-const consentStateFn = (
-  projectId: string,
-  config?: ProjectConfig | null,
-): SiteAnalyticsConsent => {
-  if (config?.addons?.consentBanner?.enabled === false) return "denied";
-  if (!config?.analytics?.cookieConsent) return "not_required";
-  if (typeof window === "undefined") return "unknown";
-  const value = window.localStorage.getItem(
-    `cms.analytics.consent.${projectId}`,
-  );
-  return value === "accepted"
-    ? "granted"
-    : value === "declined"
-      ? "denied"
-      : "unknown";
+const consentStateFn = (projectId: string, config?: ProjectConfig | null): SiteAnalyticsConsent => {
+  if (config?.addons?.consentBanner?.enabled === false) return 'denied';
+  if (!config?.analytics?.cookieConsent) return 'not_required';
+  if (typeof window === 'undefined') return 'unknown';
+  const value = window.localStorage.getItem(`cms.analytics.consent.${projectId}`);
+  return value === 'accepted' ? 'granted' : value === 'declined' ? 'denied' : 'unknown';
 };
 
 type SiteAnalyticsContextValue = {
   track: (payload: PublicAnalyticsPayload) => void;
 };
-const SiteAnalyticsContext = createContext<SiteAnalyticsContextValue | null>(
-  null,
-);
+const SiteAnalyticsContext = createContext<SiteAnalyticsContextValue | null>(null);
 
 export function SiteAnalyticsProvider({
   children,
@@ -90,7 +68,7 @@ export function SiteAnalyticsProvider({
   useEffect(() => {
     if (path)
       track({
-        name: "page_view",
+        name: 'page_view',
         path,
         referrer: document.referrer || undefined,
         language,
@@ -108,23 +86,19 @@ export function SiteAnalyticsProvider({
       sent = true;
       const root = document.documentElement;
       const scrollable = Math.max(1, root.scrollHeight - window.innerHeight);
-      const scrollDepth = Math.min(
-        100,
-        Math.max(0, Math.round((window.scrollY / scrollable) * 100)),
-      );
+      const scrollDepth = Math.min(100, Math.max(0, Math.round((window.scrollY / scrollable) * 100)));
       track({
-        name: "page_engaged",
+        name: 'page_engaged',
         path,
         language,
         engagementMs,
         scrollDepth,
       });
     };
-    const onVisibility = () =>
-      document.visibilityState === "hidden" && sendEngagement();
-    document.addEventListener("visibilitychange", onVisibility);
+    const onVisibility = () => document.visibilityState === 'hidden' && sendEngagement();
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener('visibilitychange', onVisibility);
       sendEngagement();
     };
   }, [language, path, track]);
@@ -132,10 +106,7 @@ export function SiteAnalyticsProvider({
   useEffect(() => {
     if (!path) return;
     const onClick = (event: MouseEvent) => {
-      const anchor =
-        event.target instanceof Element
-          ? event.target.closest("a[href]")
-          : null;
+      const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
       if (!(anchor instanceof HTMLAnchorElement)) return;
       let target: URL;
       try {
@@ -145,11 +116,7 @@ export function SiteAnalyticsProvider({
       }
       const isOutbound = target.origin !== window.location.origin;
       track({
-        name: isOutbound
-          ? "outbound_link_clicked"
-          : anchor.dataset.analyticsCta !== undefined
-            ? "cta_clicked"
-            : "navigation_clicked",
+        name: isOutbound ? 'outbound_link_clicked' : anchor.dataset.analyticsCta !== undefined ? 'cta_clicked' : 'navigation_clicked',
         path,
         targetPath: isOutbound ? target.hostname : target.pathname,
         placement: anchor.dataset.analyticsPlacement?.slice(0, 120),
@@ -158,18 +125,14 @@ export function SiteAnalyticsProvider({
     };
     const onCopy = () => {
       const selectionNode = window.getSelection()?.anchorNode;
-      const element =
-        selectionNode instanceof Element
-          ? selectionNode
-          : selectionNode?.parentElement;
-      if (element?.closest("pre, code"))
-        track({ name: "code_copied", path, placement: "document", language });
+      const element = selectionNode instanceof Element ? selectionNode : selectionNode?.parentElement;
+      if (element?.closest('pre, code')) track({ name: 'code_copied', path, placement: 'document', language });
     };
-    document.addEventListener("click", onClick);
-    document.addEventListener("copy", onCopy);
+    document.addEventListener('click', onClick);
+    document.addEventListener('copy', onCopy);
     return () => {
-      document.removeEventListener("click", onClick);
-      document.removeEventListener("copy", onCopy);
+      document.removeEventListener('click', onClick);
+      document.removeEventListener('copy', onCopy);
     };
   }, [language, path, track]);
 
@@ -179,9 +142,6 @@ export function SiteAnalyticsProvider({
 
 export function useSiteAnalytics(): SiteAnalyticsContextValue {
   const value = useContext(SiteAnalyticsContext);
-  if (!value)
-    throw new Error(
-      "useSiteAnalytics must be used within SiteAnalyticsProvider",
-    );
+  if (!value) throw new Error('useSiteAnalytics must be used within SiteAnalyticsProvider');
   return value;
 }

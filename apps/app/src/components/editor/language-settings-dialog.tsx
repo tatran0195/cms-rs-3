@@ -1,4 +1,4 @@
-import { Button } from "@cms/design-system/components/ui/button";
+import { Button } from '@cms/design-system/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -7,37 +7,31 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@cms/design-system/components/ui/dialog";
-import { Input } from "@cms/design-system/components/ui/input";
-import { Label } from "@cms/design-system/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@cms/design-system/components/ui/select";
-import { Switch } from "@cms/design-system/components/ui/switch";
-import { Textarea } from "@cms/design-system/components/ui/textarea";
-import { cn } from "@cms/design-system/lib/utils";
-import type { MessageKey } from "@cms/i18n";
-import { useT } from "@cms/i18n/react";
-import { CirclePlus, type LucideIcon, SearchCheck } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import type { Language, LanguageConfig } from "@/hooks/api";
-import { useUpdateLanguage } from "@/hooks/api";
+} from '@cms/design-system/components/ui/dialog';
+import { Input } from '@cms/design-system/components/ui/input';
+import { Label } from '@cms/design-system/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
+import { Switch } from '@cms/design-system/components/ui/switch';
+import { Textarea } from '@cms/design-system/components/ui/textarea';
+import { cn } from '@cms/design-system/lib/utils';
+import type { MessageKey } from '@cms/i18n';
+import { useT } from '@cms/i18n/react';
+import { CirclePlus, type LucideIcon, SearchCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import type { Language, LanguageConfig } from '@/hooks/api';
+import { useUpdateLanguage } from '@/hooks/api';
 
-type Direction = "LTR" | "RTL";
-type LangSettingsSection = "general" | "seo";
+type Direction = 'LTR' | 'RTL';
+type LangSettingsSection = 'general' | 'seo';
 
 const LANG_SETTINGS_SECTIONS = [
   {
-    id: "general",
-    labelKey: "editor.langSettings.tab.general",
+    id: 'general',
+    labelKey: 'editor.langSettings.tab.general',
     icon: CirclePlus,
   },
-  { id: "seo", labelKey: "editor.langSettings.tab.seo", icon: SearchCheck },
+  { id: 'seo', labelKey: 'editor.langSettings.tab.seo', icon: SearchCheck },
 ] as const satisfies ReadonlyArray<{
   id: LangSettingsSection;
   labelKey: MessageKey;
@@ -65,23 +59,15 @@ export function LanguageSettingsDialog({
   const [label, setLabel] = useState(language.label);
   const [direction, setDirection] = useState<Direction>(language.direction);
   const [isDefault, setIsDefault] = useState(language.isDefault);
-  const [metaTitle, setMetaTitle] = useState(
-    language.config?.seo?.metaTitle ?? "",
-  );
-  const [metaDescription, setMetaDescription] = useState(
-    language.config?.seo?.metaDescription ?? "",
-  );
-  const [socialImage, setSocialImage] = useState(
-    language.config?.seo?.socialImage ?? "",
-  );
-  const [allowIndex, setAllowIndex] = useState(
-    language.config?.seo?.allowIndex ?? true,
-  );
-  const [section, setSection] = useState<LangSettingsSection>("general");
+  const [metaTitle, setMetaTitle] = useState(language.config?.seo?.metaTitle ?? '');
+  const [metaDescription, setMetaDescription] = useState(language.config?.seo?.metaDescription ?? '');
+  const [socialImage, setSocialImage] = useState(language.config?.seo?.socialImage ?? '');
+  const [allowIndex, setAllowIndex] = useState(language.config?.seo?.allowIndex ?? true);
+  const [section, setSection] = useState<LangSettingsSection>('general');
   // One array feeds both the trigger label (`items`) and the rendered options so they can't drift.
   const directionOptions = [
-    { value: "LTR", label: t("editor.addLanguage.ltr") },
-    { value: "RTL", label: t("editor.addLanguage.rtl") },
+    { value: 'LTR', label: t('editor.addLanguage.ltr') },
+    { value: 'RTL', label: t('editor.addLanguage.rtl') },
   ] as const satisfies ReadonlyArray<{ value: Direction; label: string }>;
 
   useEffect(() => {
@@ -91,9 +77,9 @@ export function LanguageSettingsDialog({
     setLabel(language.label);
     setDirection(language.direction);
     setIsDefault(language.isDefault);
-    setMetaTitle(language.config?.seo?.metaTitle ?? "");
-    setMetaDescription(language.config?.seo?.metaDescription ?? "");
-    setSocialImage(language.config?.seo?.socialImage ?? "");
+    setMetaTitle(language.config?.seo?.metaTitle ?? '');
+    setMetaDescription(language.config?.seo?.metaDescription ?? '');
+    setSocialImage(language.config?.seo?.socialImage ?? '');
     setAllowIndex(language.config?.seo?.allowIndex ?? true);
   }, [open, language]);
 
@@ -108,9 +94,7 @@ export function LanguageSettingsDialog({
     };
     // Only persist a config when something is actually overridden (allowIndex
     // defaults to true), otherwise clear it so the language stays config-null.
-    const hasOverride =
-      [metaTitle, metaDescription, socialImage].some((v) => v.trim() !== "") ||
-      allowIndex === false;
+    const hasOverride = [metaTitle, metaDescription, socialImage].some((v) => v.trim() !== '') || allowIndex === false;
     update.mutate(
       {
         id: language.id,
@@ -123,13 +107,10 @@ export function LanguageSettingsDialog({
       },
       {
         onSuccess: () => {
-          toast.success(t("editor.langSettings.saved"));
+          toast.success(t('editor.langSettings.saved'));
           onOpenChange(false);
         },
-        onError: (e) =>
-          toast.error(
-            e instanceof Error ? e.message : t("editor.langSettings.saveError"),
-          ),
+        onError: (e) => toast.error(e instanceof Error ? e.message : t('editor.langSettings.saveError')),
       },
     );
   };
@@ -137,19 +118,13 @@ export function LanguageSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogDescription className="sr-only">
-          {t("editor.langSettings.desc")}
-        </DialogDescription>
+        <DialogDescription className="sr-only">{t('editor.langSettings.desc')}</DialogDescription>
         <div className="flex h-[min(520px,80vh)]">
           {/* Left settings sidebar */}
           <aside className="flex w-48 shrink-0 flex-col border-border border-e bg-muted/30 p-2.5">
             <DialogHeader className="px-2 pt-1.5 pb-3">
-              <DialogTitle className="text-start text-base">
-                {t("editor.langSettings.title")}
-              </DialogTitle>
-              <p className="truncate text-muted-foreground text-xs">
-                {language.label}
-              </p>
+              <DialogTitle className="text-start text-base">{t('editor.langSettings.title')}</DialogTitle>
+              <p className="truncate text-muted-foreground text-xs">{language.label}</p>
             </DialogHeader>
             <nav className="flex flex-col gap-0.5">
               {LANG_SETTINGS_SECTIONS.map((item) => {
@@ -160,10 +135,8 @@ export function LanguageSettingsDialog({
                     type="button"
                     onClick={() => setSection(item.id)}
                     className={cn(
-                      "flex h-9 cursor-pointer items-center gap-2 rounded-md px-2.5 text-start font-medium text-[13.5px] transition-colors",
-                      section === item.id
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      'flex h-9 cursor-pointer items-center gap-2 rounded-md px-2.5 text-start font-medium text-[13.5px] transition-colors',
+                      section === item.id ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     )}
                   >
                     <Icon aria-hidden className="size-4 shrink-0" />
@@ -177,28 +150,13 @@ export function LanguageSettingsDialog({
           {/* Content + footer */}
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-              {section === "general" ? (
+              {section === 'general' ? (
                 <div className="flex flex-col gap-4">
-                  <Field
-                    label={t("editor.langSettings.label")}
-                    htmlFor="lang-label"
-                  >
-                    <Input
-                      id="lang-label"
-                      value={label}
-                      onChange={(e) => setLabel(e.target.value)}
-                      placeholder="English"
-                    />
+                  <Field label={t('editor.langSettings.label')} htmlFor="lang-label">
+                    <Input id="lang-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="English" />
                   </Field>
-                  <Field
-                    label={t("editor.langSettings.direction")}
-                    htmlFor="lang-dir"
-                  >
-                    <Select
-                      items={directionOptions}
-                      value={direction}
-                      onValueChange={(v) => setDirection(v ?? "LTR")}
-                    >
+                  <Field label={t('editor.langSettings.direction')} htmlFor="lang-dir">
+                    <Select items={directionOptions} value={direction} onValueChange={(v) => setDirection(v ?? 'LTR')}>
                       <SelectTrigger id="lang-dir" className="w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -213,8 +171,8 @@ export function LanguageSettingsDialog({
                   </Field>
                   {/* Already-default can't be toggled off here — set another language default instead. */}
                   <Toggle
-                    label={t("editor.langSettings.makeDefault")}
-                    hint={t("editor.langSettings.makeDefaultHint")}
+                    label={t('editor.langSettings.makeDefault')}
+                    hint={t('editor.langSettings.makeDefaultHint')}
                     id="lang-default"
                     checked={isDefault}
                     onCheckedChange={setIsDefault}
@@ -223,45 +181,20 @@ export function LanguageSettingsDialog({
                 </div>
               ) : null}
 
-              {section === "seo" ? (
+              {section === 'seo' ? (
                 <div className="flex flex-col gap-4">
-                  <Field
-                    label={t("editor.langSettings.metaTitle")}
-                    hint={t("editor.langSettings.metaTitleHint")}
-                    htmlFor="lang-meta-title"
-                  >
-                    <Input
-                      id="lang-meta-title"
-                      value={metaTitle}
-                      onChange={(e) => setMetaTitle(e.target.value)}
-                      placeholder={language.label}
-                    />
+                  <Field label={t('editor.langSettings.metaTitle')} hint={t('editor.langSettings.metaTitleHint')} htmlFor="lang-meta-title">
+                    <Input id="lang-meta-title" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} placeholder={language.label} />
                   </Field>
-                  <Field
-                    label={t("editor.langSettings.metaDescription")}
-                    htmlFor="lang-meta-desc"
-                  >
-                    <Textarea
-                      id="lang-meta-desc"
-                      value={metaDescription}
-                      onChange={(e) => setMetaDescription(e.target.value)}
-                      rows={2}
-                    />
+                  <Field label={t('editor.langSettings.metaDescription')} htmlFor="lang-meta-desc">
+                    <Textarea id="lang-meta-desc" value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={2} />
                   </Field>
-                  <Field
-                    label={t("editor.langSettings.socialImage")}
-                    htmlFor="lang-social"
-                  >
-                    <Input
-                      id="lang-social"
-                      value={socialImage}
-                      onChange={(e) => setSocialImage(e.target.value)}
-                      placeholder="https://…/cover.png"
-                    />
+                  <Field label={t('editor.langSettings.socialImage')} htmlFor="lang-social">
+                    <Input id="lang-social" value={socialImage} onChange={(e) => setSocialImage(e.target.value)} placeholder="https://…/cover.png" />
                   </Field>
                   <Toggle
-                    label={t("editor.langSettings.allowIndex")}
-                    hint={t("editor.langSettings.allowIndexHint")}
+                    label={t('editor.langSettings.allowIndex')}
+                    hint={t('editor.langSettings.allowIndexHint')}
                     id="lang-index"
                     checked={allowIndex}
                     onCheckedChange={setAllowIndex}
@@ -271,13 +204,9 @@ export function LanguageSettingsDialog({
             </div>
 
             <DialogFooter className="border-border border-t px-6 py-3">
-              <DialogClose render={<Button type="button" variant="outline" />}>
-                {t("common.cancel")}
-              </DialogClose>
+              <DialogClose render={<Button type="button" variant="outline" />}>{t('common.cancel')}</DialogClose>
               <Button type="button" onClick={save} disabled={update.isPending}>
-                {update.isPending
-                  ? t("common.saving")
-                  : t("editor.pageSettings.save")}
+                {update.isPending ? t('common.saving') : t('editor.pageSettings.save')}
               </Button>
             </DialogFooter>
           </div>
@@ -287,17 +216,7 @@ export function LanguageSettingsDialog({
   );
 }
 
-function Field({
-  label,
-  hint,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  htmlFor: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={htmlFor}>{label}</Label>
@@ -328,12 +247,7 @@ function Toggle({
         <Label htmlFor={id}>{label}</Label>
         {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
       </div>
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-      />
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   );
 }

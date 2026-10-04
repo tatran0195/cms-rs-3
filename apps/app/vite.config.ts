@@ -31,7 +31,11 @@ export default defineConfig(({ mode }) => {
             if (/\/packages\/i18n\/src\/paraglide\/messages\/(?:site_|marketing_arabic(?:landing|platforms)_)/.test(normalized)) {
               return 'public-site-i18n';
             }
-            if (/\/packages\/i18n\/src\/paraglide\/messages\/(?:common_loading|error_(?:backhome|badge|title|tryagain|unexpected)|notfound_(?:backhome|badge|body|title))\.js$/.test(normalized)) {
+            if (
+              /\/packages\/i18n\/src\/paraglide\/messages\/(?:common_loading|error_(?:backhome|badge|title|tryagain|unexpected)|notfound_(?:backhome|badge|body|title))\.js$/.test(
+                normalized,
+              )
+            ) {
               return 'standalone-i18n';
             }
           },
@@ -78,7 +82,10 @@ export default defineConfig(({ mode }) => {
         cookieName: 'CMS_LOCALE',
       }),
       bundleAnalysisPlugin(),
-      { enforce: 'pre', ...mdx({ remarkPlugins: [remarkFrontmatter, [remarkMdxFrontmatter, { name: 'frontmatter', parsers: { toml: parseToml } }], remarkGfm] }) },
+      {
+        enforce: 'pre',
+        ...mdx({ remarkPlugins: [remarkFrontmatter, [remarkMdxFrontmatter, { name: 'frontmatter', parsers: { toml: parseToml } }], remarkGfm] }),
+      },
       tailwindcss(),
       TanStackRouterVite({
         routesDirectory: './src/routes',
