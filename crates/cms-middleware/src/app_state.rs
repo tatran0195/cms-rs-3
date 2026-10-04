@@ -40,8 +40,7 @@ impl AppState {
         let storage_box = cms_storage::create_storage(&config.storage).await?;
         let storage: Arc<dyn Storage> = Arc::from(storage_box);
         let job_queue = cms_queue::create_job_queue_with_pool(&config.queue, pool.clone()).await?;
-        let search_engine =
-            cms_search::create_search_engine_with_pool(&config.search, pool.clone()).await?;
+        let search_engine = cms_search::create_search_engine(&config.search)?;
         let authz = Arc::new(cms_authz::ProductionAuthz::new_with_admin_emails(
             pool.clone(),
             config.auth.system_admin_emails.clone(),

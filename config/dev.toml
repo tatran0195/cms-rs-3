@@ -17,7 +17,7 @@ backend = "local"
 local_root = "./uploads"
 
 [search]
-backend = "pgvector"
+backend = "tantivy"
 
 [queue]
 backend = "memory"

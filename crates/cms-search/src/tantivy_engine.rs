@@ -7,6 +7,8 @@
 //! - Japanese full-text search is powered by Lindera with embedded SudachiDict in Decompose mode.
 //! - Multi-process safe: IndexWriter is acquired with retry backoff and released immediately after commit.
 //! - Readers auto-reload on commit (`ReloadPolicy::OnCommitWithDelay`), keeping API and Worker in sync.
+//! - Vector/semantic search via fastembed-rs (ONNX) with per-project vector indexes.
+//! - Hybrid ranking: Reciprocal Rank Fusion (RRF) blends BM25 + cosine similarity.
 
 use std::{
     collections::HashMap,
@@ -16,6 +18,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use cms_config::RagConfig;
 use cms_entity::{
     page::Page,
     search::{ProjectIndexStats, RagAnswer, SearchHit, SearchOptions},
@@ -33,6 +36,11 @@ use tantivy::{
     snippet::SnippetGenerator,
     Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument, Term,
 };
+
+#[cfg(feature = "vector")]
+use crate::embedder::Embedder;
+#[cfg(feature = "vector")]
+use crate::vector_index::{ProjectVectorIndex, VectorMeta};
 
 use crate::{
     markdown,
@@ -234,19 +242,54 @@ impl ProjectIndex {
 }
 
 /// Tantivy search engine managing isolated per-project indexes
+///
+/// When the `vector` feature is enabled, also manages per-project vector indexes
+/// using fastembed-rs for embedding generation and brute-force cosine search.
 pub struct TantivySearchEngine {
     base_dir: PathBuf,
     writer_memory_budget_bytes: usize,
     tokenizer: JapaneseTokenizer,
     projects: Arc<RwLock<HashMap<String, Arc<ProjectIndex>>>>,
+
+    // ── Vector search (feature = "vector") ────────────────────────────
+    #[cfg(feature = "vector")]
+    embedder: Option<Arc<Embedder>>,
+    #[cfg(feature = "vector")]
+    vector_indexes: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<ProjectVectorIndex>>>>>,
+
+    /// RAG configuration (cloned from SearchConfig at construction time)
+    rag_config: RagConfig,
 }
 
 impl TantivySearchEngine {
-    /// Create a new Tantivy search engine with base index directory and optional dictionary path
+    /// Create a new Tantivy search engine with base index directory and optional dictionary path.
+    ///
+    /// When the `vector` feature is enabled, also initializes the embedding model
+    /// specified in the search config. Pass `None` for `embedding_model` and
+    /// `model_cache_dir` to disable vector search.
     pub fn new<P: AsRef<Path>>(
         base_dir: P,
         writer_memory_mb: usize,
         lindera_dict_path: Option<&str>,
+    ) -> Result<Self, AppError> {
+        Self::with_vector_config(
+            base_dir,
+            writer_memory_mb,
+            lindera_dict_path,
+            None,
+            None,
+            RagConfig::default(),
+        )
+    }
+
+    /// Create a Tantivy search engine with full vector + RAG configuration.
+    pub fn with_vector_config<P: AsRef<Path>>(
+        base_dir: P,
+        writer_memory_mb: usize,
+        lindera_dict_path: Option<&str>,
+        embedding_model: Option<&str>,
+        model_cache_dir: Option<&str>,
+        rag_config: RagConfig,
     ) -> Result<Self, AppError> {
         let base_dir = base_dir.as_ref().to_path_buf();
         std::fs::create_dir_all(base_dir.join("projects")).map_err(|e| {
@@ -260,11 +303,41 @@ impl TantivySearchEngine {
         let tokenizer = JapaneseTokenizer::with_dict_path(lindera_dict_path);
         let writer_memory_budget_bytes = writer_memory_mb.max(15) * 1024 * 1024;
 
+        #[cfg(feature = "vector")]
+        let embedder = if let Some(model_name) = embedding_model {
+            let cache_dir = model_cache_dir.unwrap_or("./data/models");
+            match Embedder::new(model_name, Path::new(cache_dir)) {
+                Ok(emb) => {
+                    tracing::info!(
+                        model = model_name,
+                        dim = emb.dimension(),
+                        "Vector search enabled with embedding model"
+                    );
+                    Some(Arc::new(emb))
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        model = model_name,
+                        error = %e,
+                        "Failed to initialize embedding model — vector search disabled"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             base_dir,
             writer_memory_budget_bytes,
             tokenizer,
             projects: Arc::new(RwLock::new(HashMap::new())),
+            #[cfg(feature = "vector")]
+            embedder,
+            #[cfg(feature = "vector")]
+            vector_indexes: Arc::new(RwLock::new(HashMap::new())),
+            rag_config,
         })
     }
 
@@ -307,6 +380,11 @@ impl TantivySearchEngine {
             let mut write = self.projects.write();
             write.remove(project_id);
         }
+        #[cfg(feature = "vector")]
+        {
+            let mut write = self.vector_indexes.write();
+            write.remove(project_id);
+        }
         let project_dir = self.project_index_path(project_id);
         if project_dir.exists() {
             std::fs::remove_dir_all(&project_dir).map_err(|e| {
@@ -343,6 +421,38 @@ impl TantivySearchEngine {
         write.insert(project_id.to_string(), project_idx.clone());
         Ok(project_idx)
     }
+
+    /// Get or create the per-project vector index.
+    #[cfg(feature = "vector")]
+    fn get_or_create_vector_index(
+        &self,
+        project_id: &str,
+        dim: usize,
+        model: &str,
+    ) -> Result<Arc<tokio::sync::Mutex<ProjectVectorIndex>>, AppError> {
+        {
+            let read = self.vector_indexes.read();
+            if let Some(idx) = read.get(project_id) {
+                return Ok(idx.clone());
+            }
+        }
+
+        let mut write = self.vector_indexes.write();
+        if let Some(idx) = write.get(project_id) {
+            return Ok(idx.clone());
+        }
+
+        let vec_idx = ProjectVectorIndex::open_or_create(
+            &self.base_dir,
+            project_id,
+            dim,
+            model,
+        )?;
+
+        let arc = Arc::new(tokio::sync::Mutex::new(vec_idx));
+        write.insert(project_id.to_string(), arc.clone());
+        Ok(arc)
+    }
 }
 
 #[async_trait]
@@ -363,145 +473,33 @@ impl SearchEngine for TantivySearchEngine {
             return Ok(Vec::new());
         }
 
-        let project_idx = self.get_or_create_project_index(project_id)?;
-        let searcher = project_idx.reader.searcher();
-        let fields = project_idx.fields;
+        // ── Phase 1: Tantivy BM25 full-text search ──────────────────────
+        let fts_hits = self.fts_query(project_id, query_str, &opts)?;
 
-        // Build query parser with Japanese tokenizer and relevance boosting
-        let mut query_parser = QueryParser::for_index(
-            &project_idx.index,
-            vec![fields.title, fields.description, fields.body],
-        );
-        query_parser.set_field_boost(fields.title, 2.5);
-        query_parser.set_field_boost(fields.description, 1.5);
-        query_parser.set_field_boost(fields.body, 1.0);
+        // ── Phase 2: Vector similarity search (if enabled) ──────────────
+        #[cfg(feature = "vector")]
+        let vector_hits = self.vector_query(project_id, query_str, &opts).await;
+        #[cfg(not(feature = "vector"))]
+        let vector_hits: Vec<SearchHit> = Vec::new();
 
-        let (parsed_query, _) = query_parser.parse_query_lenient(query_str);
+        // ── Phase 3: Hybrid merge via Reciprocal Rank Fusion ────────────
+        let merged = if vector_hits.is_empty() || opts.fts_weight >= 1.0 {
+            // Pure FTS mode
+            fts_hits
+        } else if fts_hits.is_empty() || opts.fts_weight <= 0.0 {
+            // Pure semantic mode
+            vector_hits
+        } else {
+            // Hybrid RRF merge
+            rrf_merge(&fts_hits, &vector_hits, opts.fts_weight, opts.limit)
+        };
 
-        // Fetch top docs
-        let fetch_limit = (opts.limit * 3).max(10);
-        let top_docs = searcher
-            .search(
-                &*parsed_query,
-                &TopDocs::with_limit(fetch_limit).order_by_score(),
-            )
-            .map_err(|e| {
-                AppError::SearchError(format!(
-                    "Tantivy search error for project '{}': {}",
-                    project_id, e
-                ))
-            })?;
-
-        if top_docs.is_empty() {
-            return Ok(Vec::new());
+        let mut final_hits = merged;
+        if final_hits.len() > opts.limit {
+            final_hits.truncate(opts.limit);
         }
 
-        // Prepare snippet generator for body field
-        let snippet_generator =
-            SnippetGenerator::create(&searcher, &*parsed_query, fields.body).ok();
-
-        let mut hits: Vec<SearchHit> = Vec::new();
-        let mut seen_pages: HashMap<String, usize> = HashMap::new();
-
-        for (score, doc_address) in top_docs {
-            if score < opts.min_score {
-                continue;
-            }
-
-            let doc: TantivyDocument = match searcher.doc(doc_address) {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-
-            let page_id = match doc.get_first(fields.page_id).and_then(|v| v.as_str()) {
-                Some(id) => id.to_string(),
-                None => continue,
-            };
-
-            let title = doc
-                .get_first(fields.title)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let path = doc
-                .get_first(fields.path)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            let description = doc
-                .get_first(fields.description)
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-
-            let body = doc
-                .get_first(fields.body)
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-
-            let chunk_index = doc
-                .get_first(fields.chunk_index)
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0) as i32;
-
-            let updated_at_secs = doc
-                .get_first(fields.updated_at)
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
-
-            // Generate contextual snippet with highlighted matched terms
-            let chunk_text = if let Some(ref generator) = snippet_generator {
-                let snippet = generator.snippet_from_doc(&doc);
-                if !snippet.is_empty() {
-                    snippet.to_html()
-                } else if !body.is_empty() {
-                    body.chars().take(240).collect::<String>()
-                } else {
-                    description.clone().unwrap_or_else(|| title.clone())
-                }
-            } else if !body.is_empty() {
-                body.chars().take(240).collect::<String>()
-            } else {
-                description.clone().unwrap_or_else(|| title.clone())
-            };
-
-            let hit = SearchHit {
-                page_id: page_id.clone(),
-                project_id: project_id.to_string(),
-                title,
-                path,
-                score,
-                chunk_text,
-                chunk_index,
-                metadata: serde_json::json!({
-                    "description": description,
-                    "updated_at": updated_at_secs
-                }),
-            };
-
-            // Deduplicate chunks per page (retain highest-scoring chunk)
-            if let Some(&existing_idx) = seen_pages.get(&page_id) {
-                if score > hits[existing_idx].score {
-                    hits[existing_idx] = hit;
-                }
-            } else {
-                seen_pages.insert(page_id, hits.len());
-                hits.push(hit);
-            }
-        }
-
-        hits.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        if hits.len() > opts.limit {
-            hits.truncate(opts.limit);
-        }
-
-        Ok(hits)
+        Ok(final_hits)
     }
 
     async fn index_page(&self, page: &Page) -> Result<(), AppError> {
@@ -509,57 +507,60 @@ impl SearchEngine for TantivySearchEngine {
         let fields = project_idx.fields;
         let memory_budget = self.writer_memory_budget_bytes;
 
+        // Chunk page content using markdown parser
+        let chunks = markdown::extract_chunks(&page.content);
+        let effective_chunks = if chunks.is_empty() {
+            vec![markdown::DocumentChunk {
+                chunk_index: 0,
+                heading: None,
+                text: page
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| page.title.clone()),
+            }]
+        } else {
+            chunks
+        };
+
+        // ── Tantivy FTS indexing ─────────────────────────────────────────
+        let chunks_for_fts = effective_chunks.clone();
+        let page_clone = page.clone();
         project_idx
-            .with_writer(memory_budget, |writer| {
+            .with_writer(memory_budget, move |writer| {
                 // Delete existing document(s) for this page (atomic upsert)
-                let term = Term::from_field_text(fields.page_id, &page.id);
+                let term = Term::from_field_text(fields.page_id, &page_clone.id);
                 writer.delete_term(term);
 
-                if !page.is_published || !page.is_indexed {
+                if !page_clone.is_published || !page_clone.is_indexed {
                     return Ok(());
                 }
 
-                // Chunk page content using markdown parser
-                let chunks = markdown::extract_chunks(&page.content);
-                let effective_chunks = if chunks.is_empty() {
-                    vec![markdown::DocumentChunk {
-                        chunk_index: 0,
-                        heading: None,
-                        text: page
-                            .description
-                            .clone()
-                            .unwrap_or_else(|| page.title.clone()),
-                    }]
-                } else {
-                    chunks
-                };
-
-                for chunk in effective_chunks {
+                for chunk in chunks_for_fts {
                     let mut doc = TantivyDocument::new();
-                    doc.add_text(fields.id, format!("{}:{}", page.id, chunk.chunk_index));
-                    doc.add_text(fields.page_id, &page.id);
-                    doc.add_text(fields.project_id, &page.project_id);
-                    doc.add_text(fields.branch_id, &page.branch_id);
+                    doc.add_text(fields.id, format!("{}:{}", page_clone.id, chunk.chunk_index));
+                    doc.add_text(fields.page_id, &page_clone.id);
+                    doc.add_text(fields.project_id, &page_clone.project_id);
+                    doc.add_text(fields.branch_id, &page_clone.branch_id);
                     doc.add_text(
                         fields.language_id,
-                        page.language_id.as_deref().unwrap_or(""),
+                        page_clone.language_id.as_deref().unwrap_or(""),
                     );
-                    doc.add_text(fields.title, &page.title);
-                    doc.add_text(fields.path, &page.path);
-                    doc.add_text(fields.slug, &page.slug);
+                    doc.add_text(fields.title, &page_clone.title);
+                    doc.add_text(fields.path, &page_clone.path);
+                    doc.add_text(fields.slug, &page_clone.slug);
                     doc.add_text(
                         fields.description,
-                        page.description.as_deref().unwrap_or(""),
+                        page_clone.description.as_deref().unwrap_or(""),
                     );
                     doc.add_text(fields.body, &chunk.text);
                     doc.add_i64(fields.chunk_index, chunk.chunk_index as i64);
-                    doc.add_u64(fields.is_published, if page.is_published { 1 } else { 0 });
-                    doc.add_i64(fields.updated_at, page.updated_at.timestamp());
+                    doc.add_u64(fields.is_published, if page_clone.is_published { 1 } else { 0 });
+                    doc.add_i64(fields.updated_at, page_clone.updated_at.timestamp());
 
                     writer.add_document(doc).map_err(|e| {
                         AppError::IndexingError(format!(
                             "Failed to add document to index for page '{}': {}",
-                            page.id, e
+                            page_clone.id, e
                         ))
                     })?;
                 }
@@ -567,6 +568,72 @@ impl SearchEngine for TantivySearchEngine {
                 Ok(())
             })
             .await?;
+
+        // ── Vector index update (if embedder is available) ───────────────
+        #[cfg(feature = "vector")]
+        if let Some(ref embedder) = self.embedder {
+            if page.is_published && page.is_indexed {
+                let dim = embedder.dimension();
+                let model = embedder.model_name().to_string();
+                let vec_idx = self.get_or_create_vector_index(&page.project_id, dim, &model)?;
+
+                let mut vec_guard = vec_idx.lock().await;
+                if let Err(e) = vec_guard.reload_if_stale() {
+                    tracing::warn!(error = %e, "Failed to reload vector index from disk");
+                }
+
+                // Remove old vectors for this page
+                vec_guard.remove_page(&page.id);
+
+                // Generate embeddings for each chunk
+                let chunk_texts: Vec<String> = effective_chunks
+                    .iter()
+                    .map(|c| format!("{} {}", page.title, c.text))
+                    .collect();
+
+                match embedder.embed_passages(&chunk_texts).await {
+                    Ok(embeddings) => {
+                        for (chunk, embedding) in effective_chunks.iter().zip(embeddings) {
+                            vec_guard.add(
+                                embedding,
+                                VectorMeta {
+                                    page_id: page.id.clone(),
+                                    project_id: page.project_id.clone(),
+                                    chunk_index: chunk.chunk_index,
+                                    chunk_text: chunk.text.chars().take(500).collect(),
+                                    title: page.title.clone(),
+                                    path: page.path.clone(),
+                                },
+                            );
+                        }
+                        if let Err(e) = vec_guard.save() {
+                            tracing::warn!(
+                                page_id = page.id,
+                                error = %e,
+                                "Failed to persist vector index"
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            page_id = page.id,
+                            error = %e,
+                            "Failed to generate embeddings — FTS-only for this page"
+                        );
+                    }
+                }
+            } else {
+                // Page is unpublished/unindexed — remove from vector index
+                let dim = embedder.dimension();
+                let model = embedder.model_name().to_string();
+                if let Ok(vec_idx) = self.get_or_create_vector_index(&page.project_id, dim, &model) {
+                    let mut vec_guard = vec_idx.lock().await;
+                    let _ = vec_guard.reload_if_stale();
+                    vec_guard.remove_page(&page.id);
+                    let _ = vec_guard.save();
+                }
+            }
+        }
 
         Ok(())
     }
@@ -592,6 +659,19 @@ impl SearchEngine for TantivySearchEngine {
                 Ok(())
             })
             .await?;
+
+        // Also remove from vector index
+        #[cfg(feature = "vector")]
+        if let Some(ref embedder) = self.embedder {
+            let dim = embedder.dimension();
+            let model = embedder.model_name().to_string();
+            if let Ok(vec_idx) = self.get_or_create_vector_index(project_id, dim, &model) {
+                let mut vec_guard = vec_idx.lock().await;
+                let _ = vec_guard.reload_if_stale();
+                vec_guard.remove_page(page_id);
+                let _ = vec_guard.save();
+            }
+        }
 
         Ok(())
     }
@@ -665,59 +745,376 @@ impl SearchEngine for TantivySearchEngine {
             }
         }
 
-        Ok(ProjectIndexStats {
+        #[allow(unused_mut)]
+        let mut stats = ProjectIndexStats {
             chunk_count,
             page_count: seen_pages.len() as u64,
             sample_page_ids,
-        })
+            ..Default::default()
+        };
+
+        #[cfg(feature = "vector")]
+        if let Some(ref embedder) = self.embedder {
+            stats.embedding_model = Some(embedder.model_name().to_string());
+            stats.vector_dim = embedder.dimension() as u64;
+            if let Ok(vec_idx) = self.get_or_create_vector_index(
+                project_id,
+                embedder.dimension(),
+                embedder.model_name(),
+            ) {
+                let mut vec_guard = vec_idx.lock().await;
+                let _ = vec_guard.reload_if_stale();
+                stats.vector_count = vec_guard.len() as u64;
+            }
+        }
+
+        Ok(stats)
     }
 
     async fn rag_answer(&self, project_id: &str, question: &str) -> Result<RagAnswer, AppError> {
+        let max_chunks = self.rag_config.max_context_chunks;
         let hits = self
             .hybrid_query(
                 project_id,
                 question,
                 SearchOptions {
-                    limit: 5,
+                    limit: max_chunks,
                     min_score: 0.0,
-                    fts_weight: 0.5,
+                    fts_weight: 0.3, // bias toward semantic for RAG
                 },
             )
             .await?;
 
-        if hits.is_empty() {
-            return Ok(RagAnswer {
-                answer: format!(
-                    "'{}' に関する関連ドキュメントが見つかりませんでした。",
-                    question
-                ),
-                confidence: 0.0,
-                sources: Vec::new(),
-            });
+        // Use the RAG module for LLM-powered answers when configured
+        #[cfg(feature = "vector")]
+        {
+            return crate::rag::generate_rag_answer(
+                &self.rag_config,
+                project_id,
+                question,
+                &hits,
+            )
+            .await;
         }
 
-        let context = hits
-            .iter()
-            .map(|h| format!("### {} ({})\n{}", h.title, h.path, h.chunk_text))
-            .collect::<Vec<_>>()
-            .join("\n\n");
+        // Fallback when vector feature is disabled
+        #[cfg(not(feature = "vector"))]
+        {
+            if hits.is_empty() {
+                return Ok(RagAnswer {
+                    answer: format!(
+                        "'{}' に関する関連ドキュメントが見つかりませんでした。",
+                        question
+                    ),
+                    confidence: 0.0,
+                    sources: Vec::new(),
+                });
+            }
 
-        let answer = format!(
-            "プロジェクト '{}' のドキュメントに基づく回答:\n\n{}",
-            project_id, context
-        );
+            let context = hits
+                .iter()
+                .map(|h| format!("### {} ({})\n{}", h.title, h.path, h.chunk_text))
+                .collect::<Vec<_>>()
+                .join("\n\n");
 
-        let confidence = hits
-            .first()
-            .map(|h| (h.score / 2.0).clamp(0.1, 1.0))
-            .unwrap_or(0.5);
+            let answer = format!(
+                "プロジェクト '{}' のドキュメントに基づく回答:\n\n{}",
+                project_id, context
+            );
 
-        Ok(RagAnswer {
-            answer,
-            confidence,
-            sources: hits,
-        })
+            let confidence = hits
+                .first()
+                .map(|h| (h.score / 2.0).clamp(0.1, 1.0))
+                .unwrap_or(0.5);
+
+            Ok(RagAnswer {
+                answer,
+                confidence,
+                sources: hits,
+            })
+        }
     }
+}
+
+// ── Helper methods (not part of SearchEngine trait) ─────────────────────
+
+impl TantivySearchEngine {
+    /// Pure FTS query via Tantivy BM25.
+    fn fts_query(
+        &self,
+        project_id: &str,
+        query_str: &str,
+        opts: &SearchOptions,
+    ) -> Result<Vec<SearchHit>, AppError> {
+        let project_idx = self.get_or_create_project_index(project_id)?;
+        let searcher = project_idx.reader.searcher();
+        let fields = project_idx.fields;
+
+        let mut query_parser = QueryParser::for_index(
+            &project_idx.index,
+            vec![fields.title, fields.description, fields.body],
+        );
+        query_parser.set_field_boost(fields.title, 2.5);
+        query_parser.set_field_boost(fields.description, 1.5);
+        query_parser.set_field_boost(fields.body, 1.0);
+
+        let (parsed_query, _) = query_parser.parse_query_lenient(query_str);
+
+        let fetch_limit = (opts.limit * 3).max(10);
+        let top_docs = searcher
+            .search(
+                &*parsed_query,
+                &TopDocs::with_limit(fetch_limit).order_by_score(),
+            )
+            .map_err(|e| {
+                AppError::SearchError(format!(
+                    "Tantivy search error for project '{}': {}",
+                    project_id, e
+                ))
+            })?;
+
+        if top_docs.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let snippet_generator =
+            SnippetGenerator::create(&searcher, &*parsed_query, fields.body).ok();
+
+        let mut hits: Vec<SearchHit> = Vec::new();
+        let mut seen_pages: HashMap<String, usize> = HashMap::new();
+
+        for (score, doc_address) in top_docs {
+            if score < opts.min_score {
+                continue;
+            }
+
+            let doc: TantivyDocument = match searcher.doc(doc_address) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+
+            let page_id = match doc.get_first(fields.page_id).and_then(|v| v.as_str()) {
+                Some(id) => id.to_string(),
+                None => continue,
+            };
+
+            let title = doc
+                .get_first(fields.title)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let path = doc
+                .get_first(fields.path)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let description = doc
+                .get_first(fields.description)
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let body = doc
+                .get_first(fields.body)
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            let chunk_index = doc
+                .get_first(fields.chunk_index)
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0) as i32;
+
+            let updated_at_secs = doc
+                .get_first(fields.updated_at)
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+
+            let chunk_text = if let Some(ref generator) = snippet_generator {
+                let snippet = generator.snippet_from_doc(&doc);
+                if !snippet.is_empty() {
+                    snippet.to_html()
+                } else if !body.is_empty() {
+                    body.chars().take(240).collect::<String>()
+                } else {
+                    description.clone().unwrap_or_else(|| title.clone())
+                }
+            } else if !body.is_empty() {
+                body.chars().take(240).collect::<String>()
+            } else {
+                description.clone().unwrap_or_else(|| title.clone())
+            };
+
+            let hit = SearchHit {
+                page_id: page_id.clone(),
+                project_id: project_id.to_string(),
+                title,
+                path,
+                score,
+                chunk_text,
+                chunk_index,
+                metadata: serde_json::json!({
+                    "description": description,
+                    "updated_at": updated_at_secs
+                }),
+            };
+
+            if let Some(&existing_idx) = seen_pages.get(&page_id) {
+                if score > hits[existing_idx].score {
+                    hits[existing_idx] = hit;
+                }
+            } else {
+                seen_pages.insert(page_id, hits.len());
+                hits.push(hit);
+            }
+        }
+
+        hits.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        Ok(hits)
+    }
+
+    /// Vector similarity query using the embedder and per-project vector index.
+    #[cfg(feature = "vector")]
+    async fn vector_query(
+        &self,
+        project_id: &str,
+        query_str: &str,
+        opts: &SearchOptions,
+    ) -> Vec<SearchHit> {
+        let embedder = match &self.embedder {
+            Some(e) => e,
+            None => return Vec::new(),
+        };
+
+        let query_embedding = match embedder.embed_query(query_str).await {
+            Ok(emb) => emb,
+            Err(e) => {
+                tracing::debug!(error = %e, "Failed to embed query — skipping vector search");
+                return Vec::new();
+            }
+        };
+
+        let dim = embedder.dimension();
+        let model = embedder.model_name().to_string();
+        let vec_idx = match self.get_or_create_vector_index(project_id, dim, &model) {
+            Ok(idx) => idx,
+            Err(_) => return Vec::new(),
+        };
+
+        let mut vec_guard = vec_idx.lock().await;
+        if let Err(e) = vec_guard.reload_if_stale() {
+            tracing::debug!(error = %e, "Failed to reload vector index from disk");
+        }
+        let fetch_limit = (opts.limit * 3).max(10);
+        let results = vec_guard.search(&query_embedding, fetch_limit);
+        drop(vec_guard);
+
+        // Deduplicate by page_id (keep highest score)
+        let mut seen: HashMap<String, SearchHit> = HashMap::new();
+        for result in results {
+            if result.score < opts.min_score {
+                continue;
+            }
+            let hit = SearchHit {
+                page_id: result.meta.page_id.clone(),
+                project_id: project_id.to_string(),
+                title: result.meta.title,
+                path: result.meta.path,
+                score: result.score,
+                chunk_text: result.meta.chunk_text,
+                chunk_index: result.meta.chunk_index,
+                metadata: serde_json::json!({
+                    "search_type": "vector",
+                    "cosine_similarity": result.score
+                }),
+            };
+
+            seen.entry(result.meta.page_id)
+                .and_modify(|existing| {
+                    if hit.score > existing.score {
+                        *existing = hit.clone();
+                    }
+                })
+                .or_insert(hit);
+        }
+
+        let mut hits: Vec<SearchHit> = seen.into_values().collect();
+        hits.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        hits
+    }
+}
+
+// ── Reciprocal Rank Fusion (RRF) ────────────────────────────────────────
+
+/// Merge results from FTS and vector search using Reciprocal Rank Fusion.
+///
+/// RRF score for document d:
+///   score(d) = fts_weight × 1/(k + rank_fts) + (1 - fts_weight) × 1/(k + rank_vec)
+///
+/// k = 60 (standard constant that prevents high-ranked documents from dominating)
+fn rrf_merge(
+    fts_hits: &[SearchHit],
+    vector_hits: &[SearchHit],
+    fts_weight: f32,
+    limit: usize,
+) -> Vec<SearchHit> {
+    const K: f32 = 60.0;
+    let vec_weight = 1.0 - fts_weight;
+
+    // page_id → (best SearchHit, rrf_score)
+    let mut scores: HashMap<String, (SearchHit, f32)> = HashMap::new();
+
+    // Score FTS results by rank
+    for (rank, hit) in fts_hits.iter().enumerate() {
+        let rrf = fts_weight / (K + rank as f32 + 1.0);
+        scores
+            .entry(hit.page_id.clone())
+            .and_modify(|(existing, score)| {
+                *score += rrf;
+                if hit.score > existing.score {
+                    *existing = hit.clone();
+                }
+            })
+            .or_insert_with(|| (hit.clone(), rrf));
+    }
+
+    // Score vector results by rank
+    for (rank, hit) in vector_hits.iter().enumerate() {
+        let rrf = vec_weight / (K + rank as f32 + 1.0);
+        scores
+            .entry(hit.page_id.clone())
+            .and_modify(|(existing, score)| {
+                *score += rrf;
+                // Prefer FTS chunk_text (has highlighting) over vector chunk_text
+            })
+            .or_insert_with(|| (hit.clone(), rrf));
+    }
+
+    // Sort by RRF score descending
+    let mut merged: Vec<(SearchHit, f32)> = scores.into_values().collect();
+    merged.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    merged.truncate(limit);
+
+    // Set the final score to the RRF score
+    merged
+        .into_iter()
+        .map(|(mut hit, rrf_score)| {
+            hit.score = rrf_score;
+            hit
+        })
+        .collect()
 }
 
 #[cfg(test)]

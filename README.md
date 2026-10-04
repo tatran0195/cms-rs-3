@@ -13,7 +13,8 @@ CMS is a modern, fast, and searchable documentation platform built with Rust and
 - **Modern Stack**: Rust backend with Axum, React frontend with Vite
 - **Markdown First**: Write documentation in Markdown, get beautiful HTML
 - **Japanese Search**: Lindera tokenizer for Japanese-aware search
-- **Pluggable Backends**: Local/S3 storage, pgvector/Qdrant search, memory/Redis queue
+- **AI Search**: Hybrid BM25 + semantic vector search (in-process embeddings), optional RAG answers
+- **Pluggable Backends**: Local/S3 storage, memory/Redis queue
 - **Production Ready**: Rate limiting, security headers, observability
 - **Single Machine Deployment**: Optimized for AWS Windows deployment
 
@@ -49,8 +50,8 @@ Following layering discipline:
 │                  Infrastructure Layer                         │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
 │  │  Storage    │  │   Search    │  │      Queue              │ │
-│  │  (Local/S3) │  │ (pgvector/  │  │   (Memory/Redis)        │ │
-│  └─────────────┘  │  Qdrant)     │  └─────────────────────────┘ │
+│  │  (Local/S3) │  │ (Tantivy +  │  │   (Memory/Redis)        │ │
+│  └─────────────┘  │  vectors)    │  └─────────────────────────┘ │
 │                  └─────────────┘                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -170,7 +171,7 @@ cms-rs/
 │   ├── cms-auth/              # Authentication
 │   ├── cms-authz/             # Authorization
 │   ├── cms-storage/           # Storage (Local/S3)
-│   ├── cms-search/            # Search (pgvector/Qdrant)
+│   ├── cms-search/            # Search (Tantivy FTS + vector + RAG)
 │   ├── cms-queue/             # Job queue (Memory/Redis)
 │   ├── cms-analytics/         # Analytics (Postgres/ClickHouse)
 │   ├── cms-mcp/               # MCP protocol

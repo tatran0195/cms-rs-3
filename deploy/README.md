@@ -374,7 +374,7 @@ xcopy /E /Y dist\frontend C:\apps\cms\deploy\frontend\\
 - **Single AWS Windows machine** (no Docker)
 - **In-process auth** (no GoTrue)
 - **Process-local rate limiting** (appropriate for single machine)
-- **Pluggable backends** (local/S3, pgvector/Qdrant, memory/Redis)
+- **Pluggable backends** (local/S3, memory/Redis); embedded Tantivy + vector search
 
 ### Scaling
 

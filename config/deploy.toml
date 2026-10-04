@@ -23,8 +23,12 @@ local_root = "C:/cms/uploads"
 # s3_bucket = "production-cms-bucket"
 
 [search]
-backend = "pgvector"
+backend = "tantivy"
+index_dir = "./data/indexes"
 max_results = 50
+vector_search_enabled = true
+embedding_model = "multilingual-e5-small"
+model_cache_dir = "./data/models"
 
 [queue]
 # Set to "redis" if scaling across instances, or "memory" for single Windows machine

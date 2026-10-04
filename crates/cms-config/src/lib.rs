@@ -31,7 +31,7 @@ pub use database::DatabaseConfig;
 pub use mailer::MailerConfig;
 pub use mcp::McpConfig;
 pub use queue::QueueConfig;
-pub use search::SearchConfig;
+pub use search::{RagConfig, SearchConfig};
 pub use security::{AdminOriginConfig, RateLimitConfig, SecurityHeadersConfig};
 pub use server::ServerConfig;
 pub use site::{DomainTlsConfig, DomainVerificationConfig, SiteConfig};
@@ -197,7 +197,7 @@ mod tests {
             "postgres://postgres:postgres@localhost:5432/cms"
         );
         assert_eq!(config.storage.backend, "local");
-        assert_eq!(config.search.backend, "pgvector");
+        assert_eq!(config.search.backend, "tantivy");
         assert_eq!(config.queue.backend, "postgres");
         assert_eq!(config.analytics.backend, "postgres");
         assert_eq!(
@@ -230,9 +230,11 @@ mod tests {
     #[test]
     fn test_search_config_defaults() {
         let search = SearchConfig::default();
-        assert_eq!(search.backend, "pgvector");
-        assert_eq!(search.qdrant_port, 6333);
+        assert_eq!(search.backend, "tantivy");
         assert_eq!(search.max_results, 50);
+        assert!(search.vector_search_enabled);
+        assert_eq!(search.embedding_model, "multilingual-e5-small");
+        assert!(!search.rag.enabled);
     }
 
     #[test]
@@ -322,7 +324,7 @@ mod tests {
         assert_eq!(config.rate_limit.requests_per_second, 500);
         // Untouched sections retain default values
         assert_eq!(config.queue.backend, "postgres");
-        assert_eq!(config.search.backend, "pgvector");
+        assert_eq!(config.search.backend, "tantivy");
     }
 
     #[test]

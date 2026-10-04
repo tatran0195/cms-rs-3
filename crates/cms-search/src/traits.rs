@@ -35,7 +35,7 @@ pub trait SearchEngine: Send + Sync {
     /// Return live index statistics for a project.
     ///
     /// The default implementation returns all-zero stats, which is appropriate for
-    /// backends (e.g. pgvector) that do not maintain a local index.
+    /// backends that do not maintain a local index.
     async fn index_stats(&self, project_id: &str) -> Result<ProjectIndexStats, AppError> {
         let _ = project_id;
         Ok(ProjectIndexStats::default())

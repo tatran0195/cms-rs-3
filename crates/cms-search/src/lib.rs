@@ -7,121 +7,55 @@
 //! - Markdown text extraction and heading-based document chunking
 //! - Contextual snippets with search hit highlighting
 //! - Multi-process lock handling for safe API and background worker concurrency
-//! - Pluggable backends: Tantivy (isolated per-project index), pgvector (PostgreSQL), and Qdrant
+//! - Semantic (vector) search with in-process ONNX embeddings (feature `vector`), stored
+//!   per project next to the Tantivy index, merged with BM25 via Reciprocal Rank Fusion
+//! - Optional RAG answers via Gemini / OpenAI-compatible / Ollama LLMs
 
 use std::sync::Arc;
 
 use cms_config::SearchConfig;
-use cms_db::PgPool;
 use cms_error::AppError;
 
+#[cfg(feature = "vector")]
+pub mod embedder;
 pub mod markdown;
-pub mod pgvector;
-#[cfg(feature = "qdrant")]
-pub mod qdrant;
+#[cfg(feature = "vector")]
+pub mod rag;
 pub mod tantivy_engine;
 pub mod tokenizer;
 pub mod traits;
+#[cfg(feature = "vector")]
+pub mod vector_index;
 
-pub use pgvector::PgVectorSearchEngine;
-#[cfg(feature = "qdrant")]
-pub use qdrant::QdrantSearchEngine;
+#[cfg(feature = "vector")]
+pub use embedder::Embedder;
 pub use tantivy_engine::{ProjectIndex, TantivyFields, TantivySearchEngine};
 pub use tokenizer::{JapaneseToken, JapaneseTokenizer, LinderaTantivyTokenizer};
 pub use traits::SearchEngine;
 
-/// Create a SearchEngine implementation based on configuration and optional existing PgPool
-pub async fn create_search_engine_with_pool(
-    config: &SearchConfig,
-    pool: PgPool,
-) -> Result<Arc<dyn SearchEngine>, AppError> {
+/// Create the SearchEngine implementation described by configuration.
+///
+/// Only the embedded `tantivy` backend is supported. Vector search is enabled when
+/// `search.vector_search_enabled = true` and the crate is built with the `vector` feature.
+pub fn create_search_engine(config: &SearchConfig) -> Result<Arc<dyn SearchEngine>, AppError> {
     match config.backend.as_str() {
         "tantivy" => {
-            let engine = TantivySearchEngine::new(
+            let embedding_model = config
+                .vector_search_enabled
+                .then_some(config.embedding_model.as_str());
+            let engine = TantivySearchEngine::with_vector_config(
                 &config.index_dir,
                 config.writer_memory_mb,
                 config.lindera_dict_path.as_deref(),
+                embedding_model,
+                Some(config.model_cache_dir.as_str()),
+                config.rag.clone(),
             )?;
             Ok(Arc::new(engine))
         }
-        "pgvector" => {
-            let engine = match &config.pgvector_url {
-                Some(url) if !url.trim().is_empty() => {
-                    PgVectorSearchEngine::new(url.clone()).await?
-                }
-                _ => PgVectorSearchEngine::from_pool(pool),
-            };
-            Ok(Arc::new(engine))
-        }
-        "qdrant" => {
-            #[cfg(feature = "qdrant")]
-            {
-                let engine = QdrantSearchEngine::new(
-                    config.qdrant_host.clone().unwrap_or_default(),
-                    config.qdrant_port,
-                    config.qdrant_api_key.clone(),
-                )
-                .await?;
-                Ok(Arc::new(engine))
-            }
-            #[cfg(not(feature = "qdrant"))]
-            {
-                Err(AppError::SearchUnavailable(
-                    "Qdrant backend requires the 'qdrant' feature".to_string(),
-                ))
-            }
-        }
-        _ => Err(AppError::SearchUnavailable(format!(
-            "Unknown search backend: {}",
-            config.backend
-        ))),
-    }
-}
-
-/// Create a SearchEngine implementation based on configuration and default database URL
-pub async fn create_search_engine(
-    config: &SearchConfig,
-    default_db_url: &str,
-) -> Result<Arc<dyn SearchEngine>, AppError> {
-    match config.backend.as_str() {
-        "tantivy" => {
-            let engine = TantivySearchEngine::new(
-                &config.index_dir,
-                config.writer_memory_mb,
-                config.lindera_dict_path.as_deref(),
-            )?;
-            Ok(Arc::new(engine))
-        }
-        "pgvector" => {
-            let url = config
-                .pgvector_url
-                .as_deref()
-                .filter(|u| !u.trim().is_empty())
-                .unwrap_or(default_db_url);
-            let engine = PgVectorSearchEngine::new(url.to_string()).await?;
-            Ok(Arc::new(engine))
-        }
-        "qdrant" => {
-            #[cfg(feature = "qdrant")]
-            {
-                let engine = QdrantSearchEngine::new(
-                    config.qdrant_host.clone().unwrap_or_default(),
-                    config.qdrant_port,
-                    config.qdrant_api_key.clone(),
-                )
-                .await?;
-                Ok(Arc::new(engine))
-            }
-            #[cfg(not(feature = "qdrant"))]
-            {
-                Err(AppError::SearchUnavailable(
-                    "Qdrant backend requires the 'qdrant' feature".to_string(),
-                ))
-            }
-        }
-        _ => Err(AppError::SearchUnavailable(format!(
-            "Unknown search backend: {}",
-            config.backend
+        other => Err(AppError::SearchUnavailable(format!(
+            "Unknown search backend: '{}'. Only 'tantivy' is supported.",
+            other
         ))),
     }
 }

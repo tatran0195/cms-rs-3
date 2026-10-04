@@ -184,8 +184,7 @@ pub mod app_state {
         ) -> Result<Self, AppError> {
             let storage: Arc<dyn Storage> =
                 cms_storage::create_storage(&config.storage).await?.into();
-            let search =
-                cms_search::create_search_engine_with_pool(&config.search, db.clone()).await?;
+            let search = cms_search::create_search_engine(&config.search)?;
             let analytics =
                 cms_analytics::create_analytics_store(&config.analytics, db.clone()).await?;
             let mailer = cms_biz::email::create_mailer(config.mailer.as_ref())?;

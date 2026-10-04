@@ -22,6 +22,7 @@ import {
   resolveRedirectTarget,
   searchConfigurationSchema,
   searchIndexDiagnosticsQuery,
+  searchIndexDiagnosticsResultSchema,
   transferOwnershipBody,
   updateLanguageBody,
   updateMemberRoleBody,
@@ -104,6 +105,45 @@ describe('projectConfigSchema', () => {
     expect(searchIndexDiagnosticsQuery.parse({})).toEqual({ limit: 10 });
     expect(searchIndexDiagnosticsQuery.safeParse({ limit: 26 }).success).toBe(false);
     expect(searchIndexDiagnosticsQuery.safeParse({ cursor: 'x'.repeat(501) }).success).toBe(false);
+
+    const tantivyPayload = {
+      availability: { configured: false, reason: null },
+      health: 'empty',
+      runtime: 'tantivy',
+      index: {
+        logicalId: 'tantivy:project:01271b61-944c-4b4b-a3dc-632df952934c',
+        schemaVersion: '2',
+        revisionId: null,
+        deploymentVersion: null,
+        embeddingModel: 'lindera-sudachi',
+        vectorSize: 0,
+      },
+      corpus: {
+        chunks: 0,
+        pages: 0,
+        languages: [{ code: 'en', count: 0 }],
+        versions: [{ slug: 'main', count: 0 }],
+        distributionTruncated: { languages: false, versions: false },
+      },
+      latestRun: null,
+      samples: { items: [], nextCursor: null, hasMore: false },
+      issues: { staleCount: 0, failedCount: 0, items: [] },
+    };
+    expect(searchIndexDiagnosticsResultSchema.safeParse(tantivyPayload).success).toBe(true);
+
+    expect(
+      searchIndexDiagnosticsResultSchema.safeParse({
+        ...tantivyPayload,
+        index: { ...tantivyPayload.index, vectorSize: -1 },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      searchIndexDiagnosticsResultSchema.safeParse({
+        ...tantivyPayload,
+        runtime: 'unknown_runtime',
+      }).success,
+    ).toBe(false);
   });
   it('rejects unknown top-level keys (strict guards against prototype pollution)', () => {
     expect(projectConfigSchema.safeParse({ bogus: true }).success).toBe(false);

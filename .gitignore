@@ -19,6 +19,7 @@ apps/web/src/env.js
 *.log
 
 previews/
+uploads/
 
 # Ignore local env file
 .env

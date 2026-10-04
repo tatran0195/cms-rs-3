@@ -47,24 +47,35 @@ local_root = "./uploads"
 s3_path_style = false
 
 [search]
-# Full-text & vector search backend: "tantivy" (isolated per-project index with Lindera SudachiDict), "pgvector" (PostgreSQL), or "qdrant"
+# Search backend: "tantivy" (embedded, isolated per-project index with Lindera SudachiDict)
 backend = "tantivy"
 # Tantivy isolated project index directory (each project gets <index_dir>/projects/<project_id>/)
 index_dir = "./data/indexes"
 # Writer memory budget in megabytes per active project index (defaults to 50)
 writer_memory_mb = 50
-# Dedicated pgvector connection URL (used when backend = "pgvector", defaults to database.url if omitted)
-# pgvector_url = "postgres://postgres:postgres@localhost:5432/cms"
-# Qdrant host (used when backend = "qdrant")
-# qdrant_host = "localhost"
-# Qdrant port (used when backend = "qdrant")
-qdrant_port = 6333
-# Qdrant API key (optional)
-# qdrant_api_key = "secret_qdrant_key"
 # Custom Lindera dictionary path (optional, embedded SudachiDict 2026 is built into binary)
 # lindera_dict_path = "./dicts/sudachidict"
 # Default maximum search result limit
 max_results = 50
+
+# ── Semantic (vector) search ──
+# In-process ONNX embeddings; vectors stored at <index_dir>/projects/<project_id>/vectors/
+vector_search_enabled = true
+# "multilingual-e5-small" (384-dim, ~120MB) or "multilingual-e5-base" (768-dim, ~470MB)
+embedding_model = "multilingual-e5-small"
+# Model weights are downloaded here on first start
+model_cache_dir = "./data/models"
+
+# ── RAG (LLM answers grounded in search results) ──
+[search.rag]
+enabled = false
+# "gemini" | "openai" | "ollama"
+provider = "gemini"
+# api_key = ""   # prefer env: CMS_SEARCH__RAG__API_KEY
+model = "gemini-2.5-flash"
+# api_base_url = "http://localhost:11434/v1"   # for ollama / custom OpenAI-compatible endpoints
+max_context_chunks = 5
+temperature = 0.3
 
 [queue]
 # Background job queue backend: "postgres" (durable), "memory" (dev only), or "redis"

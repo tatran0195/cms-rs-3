@@ -1327,8 +1327,8 @@ pub async fn get_project_search_diagnostics_handler(
                 "schemaVersion": "2",
                 "revisionId": null,
                 "deploymentVersion": null,
-                "embeddingModel": "lindera-sudachi",
-                "vectorSize": 0,
+                "embeddingModel": stats.embedding_model.as_deref().unwrap_or("lindera-sudachi"),
+                "vectorSize": stats.vector_dim,
             },
             "corpus": {
                 "chunks": stats.chunk_count,

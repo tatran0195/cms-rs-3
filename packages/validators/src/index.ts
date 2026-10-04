@@ -160,7 +160,7 @@ export const searchIndexDiagnosticsResultSchema = z
       })
       .strict(),
     health: z.enum(['ready', 'indexing', 'stale', 'failed', 'empty', 'unavailable']),
-    runtime: z.enum(['legacy', 'shadow', 'hybrid']),
+    runtime: z.enum(['legacy', 'shadow', 'hybrid', 'tantivy']),
     index: z
       .object({
         logicalId: z.string(),
@@ -168,7 +168,7 @@ export const searchIndexDiagnosticsResultSchema = z
         revisionId: z.string().nullable(),
         deploymentVersion: z.number().int().nullable(),
         embeddingModel: z.string(),
-        vectorSize: z.number().int().positive(),
+        vectorSize: z.number().int().nonnegative(),
       })
       .strict(),
     corpus: z

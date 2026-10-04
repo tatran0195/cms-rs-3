@@ -79,50 +79,6 @@ pub struct CreateSearchIndexRunRequest {
     pub language_id: Option<Id>,
 }
 
-/// Page embedding entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct PageEmbedding {
-    pub id: Id,
-    pub page_id: Id,
-    pub project_id: Id,
-    pub embedding: Vec<f32>,
-    pub chunk_text: String,
-    pub chunk_index: i32,
-    pub metadata: serde_json::Value,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-/// Page embedding response (without the full embedding vector for API responses)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct PageEmbeddingResponse {
-    pub id: Id,
-    pub page_id: Id,
-    pub project_id: Id,
-    pub chunk_text: String,
-    pub chunk_index: i32,
-    pub metadata: serde_json::Value,
-    pub embedding_dimension: usize,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-impl From<PageEmbedding> for PageEmbeddingResponse {
-    fn from(embedding: PageEmbedding) -> Self {
-        Self {
-            id: embedding.id,
-            page_id: embedding.page_id,
-            project_id: embedding.project_id,
-            chunk_text: embedding.chunk_text,
-            chunk_index: embedding.chunk_index,
-            metadata: embedding.metadata,
-            embedding_dimension: embedding.embedding.len(),
-            created_at: embedding.created_at,
-            updated_at: embedding.updated_at,
-        }
-    }
-}
-
 /// Search request
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct SearchRequest {
@@ -249,10 +205,8 @@ pub struct RagAnswer {
     pub sources: Vec<SearchHit>,
 }
 
-/// Live index statistics for a single project, sourced directly from the search index.
-///
-/// For Tantivy this is derived from the actual on-disk segment data; for other backends
-/// it is approximated from database counts.
+/// Live index statistics for a single project, sourced directly from the search index
+/// (Tantivy segment data plus the per-project vector index).
 #[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema)]
 pub struct ProjectIndexStats {
     /// Total number of stored document chunks (one page may have multiple chunks).
@@ -261,6 +215,15 @@ pub struct ProjectIndexStats {
     pub page_count: u64,
     /// A sample of up to 25 indexed page IDs (in no guaranteed order).
     pub sample_page_ids: Vec<String>,
+    /// Embedding model used for semantic search (`None` when vector search is disabled).
+    #[serde(default)]
+    pub embedding_model: Option<String>,
+    /// Embedding dimension (0 when vector search is disabled).
+    #[serde(default)]
+    pub vector_dim: u64,
+    /// Number of chunk embeddings stored for the project.
+    #[serde(default)]
+    pub vector_count: u64,
 }
 
 /// Request to index a specific page

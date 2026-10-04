@@ -29,13 +29,20 @@ local_root = "./uploads"
 # s3_path_style = false
 
 [search]
-backend = "pgvector"
-# pgvector_url = "postgres://postgres:postgres@localhost:5432/cms"
-# qdrant_host = "localhost"
-qdrant_port = 6333
-# qdrant_api_key = ""
+backend = "tantivy"
+index_dir = "./data/indexes"
 # lindera_dict_path = ""
 max_results = 50
+vector_search_enabled = true
+embedding_model = "multilingual-e5-small"
+model_cache_dir = "./data/models"
+
+[search.rag]
+enabled = false
+provider = "gemini"
+# api_key = ""   # prefer env: CMS_SEARCH__RAG__API_KEY
+model = "gemini-2.5-flash"
+max_context_chunks = 5
 
 [queue]
 # Use memory only for tests/development; Postgres jobs survive process restart.
