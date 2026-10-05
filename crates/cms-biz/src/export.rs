@@ -4,7 +4,6 @@
 
 use std::sync::Arc;
 
-use anyhow::anyhow;
 use bytes::Bytes;
 use chrono::Utc;
 use cms_db::{
@@ -15,14 +14,13 @@ use cms_db::{
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
     export::{
         CreateExportRequest, ExportArtifact, ExportFormat, ExportJob, ExportSchedule,
         ExportSnapshot, ExportStatus,
     },
 };
 use cms_storage::Storage;
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 
@@ -394,19 +392,19 @@ pub async fn process_export_job(
 
     // Generate export content based on format
     let content_result = match job.format {
-        ExportFormat::HTML | ExportFormat::Html => {
+        ExportFormat::Html => {
             generate_html_export(&pages, &snapshot.project_id).await
         }
-        ExportFormat::PDF | ExportFormat::Pdf => {
+        ExportFormat::Pdf => {
             generate_pdf_export(&pages, &snapshot.project_id).await
         }
-        ExportFormat::MARKDOWN | ExportFormat::Markdown => {
+        ExportFormat::Markdown => {
             Ok(generate_markdown_export(&pages).await)
         }
-        ExportFormat::EPUB | ExportFormat::Epub => {
+        ExportFormat::Epub => {
             generate_epub_export(&pages, &snapshot.project_id).await
         }
-        ExportFormat::SQLITE | ExportFormat::Sqlite => {
+        ExportFormat::Sqlite => {
             generate_sqlite_export(pool, &snapshot.project_id, &pages, Some(storage.as_ref())).await
         }
     };
@@ -422,11 +420,11 @@ pub async fn process_export_job(
 
     // Store the export artifact
     let extension = match &job.format {
-        ExportFormat::HTML | ExportFormat::Html => "html",
-        ExportFormat::PDF | ExportFormat::Pdf => "pdf",
-        ExportFormat::MARKDOWN | ExportFormat::Markdown => "md",
-        ExportFormat::EPUB | ExportFormat::Epub => "epub",
-        ExportFormat::SQLITE | ExportFormat::Sqlite => "sqlite",
+        ExportFormat::Html => "html",
+        ExportFormat::Pdf => "pdf",
+        ExportFormat::Markdown => "md",
+        ExportFormat::Epub => "epub",
+        ExportFormat::Sqlite => "sqlite",
     };
 
     let storage_key = format!(
@@ -438,11 +436,11 @@ pub async fn process_export_job(
     );
 
     let content_type = match &job.format {
-        ExportFormat::HTML | ExportFormat::Html => "text/html; charset=utf-8",
-        ExportFormat::PDF | ExportFormat::Pdf => "application/pdf",
-        ExportFormat::MARKDOWN | ExportFormat::Markdown => "text/markdown; charset=utf-8",
-        ExportFormat::EPUB | ExportFormat::Epub => "application/epub+zip",
-        ExportFormat::SQLITE | ExportFormat::Sqlite => "application/vnd.sqlite3",
+        ExportFormat::Html => "text/html; charset=utf-8",
+        ExportFormat::Pdf => "application/pdf",
+        ExportFormat::Markdown => "text/markdown; charset=utf-8",
+        ExportFormat::Epub => "application/epub+zip",
+        ExportFormat::Sqlite => "application/vnd.sqlite3",
     };
 
     let content_len = content.len() as i64;

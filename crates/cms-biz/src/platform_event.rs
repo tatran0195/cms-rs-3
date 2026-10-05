@@ -5,10 +5,9 @@
 use chrono::Utc;
 use cms_db::platform_event::PlatformEventQueries;
 use cms_entity::{
-    common::{Id, PaginatedResponse},
-    platform_event::{CreatePlatformEventRequest, PlatformEvent, PlatformEventResponse},
+    common::PaginatedResponse,
+    platform_event::{CreatePlatformEventRequest, PlatformEventResponse},
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

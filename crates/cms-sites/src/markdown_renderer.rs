@@ -3,14 +3,13 @@
 //! This module provides Markdown to HTML rendering for published pages.
 //! Syntax highlighting is performed **server-side** using [`syntect`] — no
 //! client-side JavaScript is required. A `SyntaxSet` and `ThemeSet` are
-//! loaded once at program startup via [`lazy_static`] and reused across all
+//! loaded once at program startup via [`std::sync::LazyLock`] and reused across all
 //! requests.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::LazyLock};
 
 use ammonia::Builder;
 use cms_entity::{page::Page, project::Project};
-use lazy_static::lazy_static;
 use pulldown_cmark::{html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use syntect::{highlighting::ThemeSet, html::highlighted_html_for_string, parsing::SyntaxSet};
 
@@ -18,13 +17,11 @@ use syntect::{highlighting::ThemeSet, html::highlighted_html_for_string, parsing
 // Global, lazily-initialized syntax/theme sets (expensive to construct)
 // ---------------------------------------------------------------------------
 
-lazy_static! {
-    /// All bundled syntaxes shipped with syntect (TextMate `.tmLanguage` grammars).
-    static ref SYNTAX_SET: SyntaxSet = SyntaxSet::load_defaults_newlines();
+/// All bundled syntaxes shipped with syntect (TextMate `.tmLanguage` grammars).
+static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
 
-    /// All bundled colour themes shipped with syntect.
-    static ref THEME_SET: ThemeSet = ThemeSet::load_defaults();
-}
+/// All bundled colour themes shipped with syntect.
+static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
 
 // ---------------------------------------------------------------------------
 // Configuration

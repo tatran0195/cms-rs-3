@@ -104,7 +104,6 @@ validator = { version = "0.21.0", features = ["derive"] }
 utoipa = { version = "5.5.0", features = ["axum_extras", "chrono", "uuid", "yaml"] }
 schemars = "1.2.2"
 parking_lot = "0.12.5"
-lazy_static = "1.5.0"
 mockall = "0.15.0"
 tempfile = "3.27.0"
 clap = { version = "4.5", features = ["derive"] }
@@ -175,6 +174,4 @@ debug = true
 strip = false
 
 [workspace.lints.rust]
-unused = "allow"
-dead_code = "allow"
 ambiguous_glob_reexports = "allow"

@@ -3,20 +3,18 @@
 //! This module contains business logic for usage tracking, metering,
 //! and entitlement management.
 
-use chrono::Utc;
 use cms_db::usage::{
     AnalyticsEventQueries, OrganizationUsagePlanQueries, UsageCheckpointQueries,
-    UsageEntitlementQueries, UsageMeterQueries, UsagePlanMeterQueries, UsagePlanQueries,
+    UsageEntitlementQueries, UsageMeterQueries, UsagePlanQueries,
 };
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     usage::{
-        OrganizationUsagePlan, OrganizationUsagePlanResponse, UsageEntitlement,
-        UsageEntitlementResponse, UsageMeter, UsageMeterResponse, UsagePlan, UsagePlanMeter,
-        UsagePlanMeterResponse, UsagePlanResponse,
+        OrganizationUsagePlanResponse,
+        UsageEntitlementResponse, UsageMeterResponse,
+        UsagePlanResponse,
     },
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 
@@ -27,7 +25,7 @@ impl UsageService {
     /// Create a usage plan
     pub async fn create_usage_plan(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         name: &str,
         description: Option<&str>,
         price: i64,
@@ -74,7 +72,7 @@ impl UsageService {
     /// Create a usage meter
     pub async fn create_usage_meter(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         code: &str,
         name: &str,
         description: Option<&str>,
@@ -129,7 +127,7 @@ impl UsageService {
         // Check if user has admin permissions for the organization
         ctx.authz.require_org_admin(user_id, org_id).await?;
 
-        let plan = UsagePlanQueries::get_by_id(&ctx.pool, plan_id)
+        let _plan = UsagePlanQueries::get_by_id(&ctx.pool, plan_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Usage plan not found".to_string()))?;
 
@@ -197,7 +195,7 @@ impl UsageService {
         org_id: &str,
         feature_code: &str,
         is_enabled: bool,
-        limit_value: Option<i64>,
+        _limit_value: Option<i64>,
     ) -> Result<UsageEntitlementResponse, AppError> {
         // Check if user has admin permissions for the organization
         ctx.authz.require_org_admin(user_id, org_id).await?;

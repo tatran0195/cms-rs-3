@@ -2,9 +2,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
 
-use crate::common::{Id, PaginatedResponse, Timestamp};
+use crate::common::{Id, PaginatedResponse};
 
 /// Page entity (simplified from Prisma Page model)
 ///

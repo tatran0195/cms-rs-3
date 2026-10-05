@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     Json,
 };
 use cms_biz::usage::UsageService;
@@ -18,7 +18,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 

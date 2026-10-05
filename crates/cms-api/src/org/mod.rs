@@ -14,7 +14,6 @@ pub mod handlers;
 
 use handlers::*;
 
-use crate::extractors::UserId;
 
 /// Create the org router
 pub fn router(state: Arc<AppState>) -> Router {

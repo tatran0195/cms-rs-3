@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::common::{Id, Timestamp};
+use crate::common::Id;
 
 /// Git provider types
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
@@ -24,10 +24,6 @@ pub enum GitSyncOperationType {
     Full,
     Incremental,
     Manual,
-    // Uppercase aliases
-    FULL,
-    INCREMENTAL,
-    MANUAL,
 }
 
 impl sqlx::Type<sqlx::Postgres> for GitSyncOperationType {
@@ -56,9 +52,9 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for GitSyncOperationType {
         buf: &mut sqlx::postgres::PgArgumentBuffer,
     ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + 'static + Send + Sync>> {
         let s = match self {
-            GitSyncOperationType::Full | GitSyncOperationType::FULL => "FULL",
-            GitSyncOperationType::Incremental | GitSyncOperationType::INCREMENTAL => "INCREMENTAL",
-            GitSyncOperationType::Manual | GitSyncOperationType::MANUAL => "MANUAL",
+            GitSyncOperationType::Full => "FULL",
+            GitSyncOperationType::Incremental => "INCREMENTAL",
+            GitSyncOperationType::Manual => "MANUAL",
         };
         <&str as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
     }

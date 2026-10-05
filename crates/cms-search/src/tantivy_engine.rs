@@ -160,7 +160,7 @@ impl ProjectIndex {
             ))
         })?;
 
-        let mut index = Index::open_or_create(mmap_dir, schema).map_err(|e| {
+        let index = Index::open_or_create(mmap_dir, schema).map_err(|e| {
             AppError::IndexingError(format!(
                 "Failed to initialize Tantivy index for project '{}': {}",
                 project_id, e
@@ -1092,7 +1092,7 @@ fn rrf_merge(
         let rrf = vec_weight / (K + rank as f32 + 1.0);
         scores
             .entry(hit.page_id.clone())
-            .and_modify(|(existing, score)| {
+            .and_modify(|(_existing, score)| {
                 *score += rrf;
                 // Prefer FTS chunk_text (has highlighting) over vector chunk_text
             })
@@ -1374,7 +1374,7 @@ mod e2e_tests {
 
         // Same logical page indexed in two distinct projects.
         // Use a unique term that tokenizes as-is (katakana word passes through the Japanese tokenizer).
-        let mut pa = make_page(
+        let pa = make_page(
             "shared_page",
             "proj_a",
             "ネットワーク設定ガイド",

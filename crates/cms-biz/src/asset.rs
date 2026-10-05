@@ -6,13 +6,12 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use chrono::Utc;
-use cms_db::{asset::AssetQueries, page::PageQueries, project::ProjectQueries, PgPool};
+use cms_db::{asset::AssetQueries, page::PageQueries, project::ProjectQueries};
 use cms_entity::{
-    asset::{Asset, AssetResponse, CreateAssetRequest},
-    common::{Id, MemberRole, PaginatedResponse},
+    asset::{AssetResponse, CreateAssetRequest},
+    common::{MemberRole, PaginatedResponse},
 };
 use cms_storage::Storage;
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

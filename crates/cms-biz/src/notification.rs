@@ -2,13 +2,11 @@
 //!
 //! This module contains business logic for notifications.
 
-use chrono::Utc;
 use cms_db::notification::NotificationQueries;
 use cms_entity::{
-    common::{Id, PaginatedResponse},
-    notification::{Notification, NotificationResponse, NotificationStatus, NotificationType},
+    common::PaginatedResponse,
+    notification::{NotificationResponse, NotificationStatus, NotificationType},
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 
@@ -107,7 +105,7 @@ impl NotificationService {
         let updated = NotificationQueries::update_status(
             &ctx.pool,
             notification_id,
-            NotificationStatus::READ,
+            NotificationStatus::Read,
         )
         .await?;
 

@@ -4,10 +4,9 @@
 
 use cms_db::{comment::CommentQueries, page::PageQueries};
 use cms_entity::{
-    comment::{Comment, CommentResponse, CreateCommentRequest, UpdateCommentRequest},
-    common::{Id, MemberRole, PaginatedResponse},
+    comment::{CommentResponse, CreateCommentRequest, UpdateCommentRequest},
+    common::{MemberRole, PaginatedResponse},
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

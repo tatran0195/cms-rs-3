@@ -5,7 +5,7 @@ use cms_entity::{
     common::MemberRole,
     org::Organization,
     project::{
-        Project, ProjectAddon, ProjectAddonResponse, ProjectResponse, ProjectSettings,
+        Project, ProjectAddon, ProjectSettings,
     },
 };
 use cms_error::AppError;

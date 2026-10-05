@@ -14,7 +14,7 @@ use lindera::{
     mode::{Mode, Penalty},
     segmenter::Segmenter,
 };
-use tantivy::tokenizer::{BoxTokenStream, Token, TokenStream, Tokenizer};
+use tantivy::tokenizer::{Token, TokenStream, Tokenizer};
 use unicode_normalization::UnicodeNormalization;
 
 /// Name used to register the Japanese tokenizer in Tantivy

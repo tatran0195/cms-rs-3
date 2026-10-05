@@ -2,18 +2,14 @@
 //!
 //! This module contains business logic for project integrations.
 
-use cms_authz::Authz;
 use cms_db::integration::{
-    IntegrationAuditEventQueries, IntegrationConfirmationQueries,
-    IntegrationIdempotencyRecordQueries, IntegrationWebhookDeliveryQueries,
+    IntegrationAuditEventQueries,
+    IntegrationIdempotencyRecordQueries,
     ProjectIntegrationQueries,
 };
-use cms_entity::{
-    common::Id,
-    integration::{
-        CreateProjectIntegrationRequest, IntegrationProvider, ProjectIntegration,
-        ProjectIntegrationResponse, UpdateProjectIntegrationRequest,
-    },
+use cms_entity::integration::{
+    CreateProjectIntegrationRequest, IntegrationProvider,
+    ProjectIntegrationResponse, UpdateProjectIntegrationRequest,
 };
 
 use crate::{AppError, BizContext};

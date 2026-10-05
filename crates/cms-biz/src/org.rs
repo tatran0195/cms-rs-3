@@ -5,14 +5,13 @@
 use cms_db::org::{InvitationQueries, MemberQueries, OrganizationQueries};
 use cms_entity::{
     auth::UserResponse,
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
     org::{
         CreateInvitationRequest, CreateOrganizationRequest, InvitationResponse,
-        ListInvitationsResponse, ListMembersQuery, ListMembersResponse, Member, MemberResponse,
-        MemberWithUserResponse, Organization, OrganizationResponse, UpdateOrganizationRequest,
+        ListInvitationsResponse, ListMembersQuery, ListMembersResponse, MemberResponse,
+        MemberWithUserResponse, OrganizationResponse, UpdateOrganizationRequest,
     },
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

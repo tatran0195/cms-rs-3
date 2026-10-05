@@ -14,7 +14,6 @@ use cms_biz::project::ProjectService;
 use cms_entity::{page::PageResponse, project::ProjectResponse};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 /// Get a public project
 ///

@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{Id, Timestamp};
+use crate::common::Id;
 
 /// Theme settings for a project
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

@@ -39,6 +39,10 @@ impl StaticFilesHandler {
         }
     }
 
+    pub fn max_age(&self) -> u64 {
+        self.max_age
+    }
+
     /// Serve a static file
     pub async fn serve_file(&self, path: &str) -> Result<Response, StatusCode> {
         // Sanitize the path to prevent directory traversal
@@ -61,8 +65,7 @@ impl StaticFilesHandler {
         if let Ok(val) = header::HeaderValue::from_str(&content_type) {
             headers.insert(header::CONTENT_TYPE, val);
         }
-        if let Ok(val) = header::HeaderValue::from_str(&format!("public, max-age={}", self.max_age))
-        {
+        if let Ok(val) = header::HeaderValue::from_str(&self.cache_control) {
             headers.insert(header::CACHE_CONTROL, val);
         }
 

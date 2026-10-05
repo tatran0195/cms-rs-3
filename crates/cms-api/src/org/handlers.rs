@@ -10,7 +10,7 @@ use axum::{
 };
 use cms_biz::org::OrgService;
 use cms_entity::{
-    common::{Id, PaginatedResponse},
+    common::Id,
     org::{
         CreateInvitationRequest, CreateOrganizationRequest, InvitationResponse,
         ListInvitationsResponse, ListMembersQuery, ListMembersResponse, OrganizationResponse,
@@ -19,7 +19,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 

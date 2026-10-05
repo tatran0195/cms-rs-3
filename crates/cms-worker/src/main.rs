@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use cms_config::Config;
 use cms_error::AppError;
-use cms_worker::{app_state::WorkerState, start_consumers};
+use cms_worker::app_state::WorkerState;
 use tracing::info;
 
 #[tokio::main]

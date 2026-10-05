@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     Json,
 };
 use cms_biz::reader_access::ReaderAccessService;
@@ -13,13 +13,12 @@ use cms_entity::{
     common::Id,
     reader_access::{
         AudienceGrantResponse, AudienceResponse, CreateAudienceGrantRequest, CreateAudienceRequest,
-        CreateReaderInvitationRequest, ReaderInvitationResponse, ReaderResponse,
+        CreateReaderInvitationRequest, ReaderInvitationResponse,
         ReaderSessionResponse, UpdateAudienceRequest,
     },
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 

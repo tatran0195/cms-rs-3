@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::{Query, State};
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
@@ -48,7 +47,6 @@ struct Args {
 #[derive(Clone)]
 struct AppState {
     db: Arc<Mutex<Connection>>,
-    db_path: PathBuf,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -480,18 +478,15 @@ fn query_page(
         id: String,
         version_id: String,
         parent_id: Option<String>,
-        kind: String,
-        slug: String,
         path: String,
         title: String,
         icon: Option<String>,
-        sort_order: i32,
     }
 
     let mut found_page: Option<PageRow> = None;
     for cand in &path_candidates {
         let mut stmt = conn.prepare(
-            "SELECT id, version_id, parent_id, kind, slug, path, title, icon, sort_order FROM pages WHERE version_id = ?1 AND path = ?2 LIMIT 1",
+            "SELECT id, version_id, parent_id, path, title, icon FROM pages WHERE version_id = ?1 AND path = ?2 LIMIT 1",
         )?;
         let mut rows = stmt.query(rusqlite::params![active_version_id, cand])?;
         if let Some(r) = rows.next()? {
@@ -499,12 +494,9 @@ fn query_page(
                 id: r.get(0)?,
                 version_id: r.get(1)?,
                 parent_id: r.get(2)?,
-                kind: r.get(3)?,
-                slug: r.get(4)?,
-                path: r.get(5)?,
-                title: r.get(6)?,
-                icon: r.get(7)?,
-                sort_order: r.get(8)?,
+                path: r.get(3)?,
+                title: r.get(4)?,
+                icon: r.get(5)?,
             });
             break;
         }
@@ -1144,7 +1136,6 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState {
         db: Arc::new(Mutex::new(conn)),
-        db_path: args.db.clone(),
     };
 
     let bind_host = resolve_bind_host(&args.bind, args.network);
@@ -1570,7 +1561,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
 
         // Loopback binding with no cors
@@ -1598,7 +1588,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
 
         // Network binding with explicit origin
@@ -1627,7 +1616,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
 
         let app = create_runner_router(state, None);
@@ -1693,7 +1681,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
         let app = create_runner_router(state, None);
 
@@ -1760,7 +1747,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
         let app = create_runner_router(state, None);
 
@@ -1792,7 +1778,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
         let app = create_runner_router(state, None);
 
@@ -1815,7 +1800,6 @@ mod tests {
         let conn = setup_test_db();
         let state = AppState {
             db: Arc::new(Mutex::new(conn)),
-            db_path: PathBuf::from("test.sqlite"),
         };
         let app = create_runner_router(state, None);
 

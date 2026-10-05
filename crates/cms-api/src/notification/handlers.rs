@@ -18,7 +18,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 
@@ -185,7 +184,7 @@ pub async fn archive_notification_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(notification_id): Path<Id>,
-    Json(request): Json<ArchiveNotificationRequest>,
+    Json(_request): Json<ArchiveNotificationRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     NotificationService::archive_notification(&state.biz_context, &auth.user.id, &notification_id)
         .await?;

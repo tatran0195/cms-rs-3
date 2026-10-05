@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{Id, Timestamp};
+use crate::common::Id;
 
 /// Export status
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
@@ -25,12 +25,6 @@ pub enum ExportFormat {
     Markdown,
     Epub,
     Sqlite,
-    // Uppercase aliases for backward compatibility with biz code
-    HTML,
-    PDF,
-    MARKDOWN,
-    EPUB,
-    SQLITE,
 }
 
 impl sqlx::Type<sqlx::Postgres> for ExportFormat {
@@ -61,11 +55,11 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for ExportFormat {
         buf: &mut sqlx::postgres::PgArgumentBuffer,
     ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + 'static + Send + Sync>> {
         let s = match self {
-            ExportFormat::Html | ExportFormat::HTML => "HTML",
-            ExportFormat::Pdf | ExportFormat::PDF => "PDF",
-            ExportFormat::Markdown | ExportFormat::MARKDOWN => "MARKDOWN",
-            ExportFormat::Epub | ExportFormat::EPUB => "EPUB",
-            ExportFormat::Sqlite | ExportFormat::SQLITE => "SQLITE",
+            ExportFormat::Html => "HTML",
+            ExportFormat::Pdf => "PDF",
+            ExportFormat::Markdown => "MARKDOWN",
+            ExportFormat::Epub => "EPUB",
+            ExportFormat::Sqlite => "SQLITE",
         };
         <&str as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
     }

@@ -3,11 +3,10 @@
 //! This module provides JWT creation, validation, and management for various
 //! JWT-based authentication mechanisms (reader tokens, API tokens, etc.)
 
-use chrono::{DateTime, Duration, Utc};
-use cms_config::AuthConfig;
+use chrono::{Duration, Utc};
 use cms_db::PgPool;
 use cms_error::AppError;
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Header};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -168,7 +167,7 @@ impl ReaderJwtService {
     pub async fn validate_jwt(
         token: &str,
         auth_service: &AuthService,
-        pool: &PgPool,
+        _pool: &PgPool,
     ) -> Result<(ReaderJwtClaims, bool), AppError> {
         // Validate the JWT
         let claims = JwtService::validate_reader_jwt(token, auth_service)?;

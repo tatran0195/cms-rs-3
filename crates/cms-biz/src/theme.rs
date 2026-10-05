@@ -2,13 +2,11 @@
 //!
 //! This module contains business logic for theme management.
 
-use chrono::Utc;
 use cms_db::{project::ProjectQueries, theme::ThemeQueries};
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
-    theme::{CreateThemeRequest, Theme, ThemeResponse, UpdateThemeRequest},
+    common::MemberRole,
+    theme::{CreateThemeRequest, ThemeResponse, UpdateThemeRequest},
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

@@ -6,6 +6,7 @@ edition = "2021"
 [[bin]]
 name = "cms-worker"
 path = "src/main.rs"
+test = false
 
 [dependencies]
 tokio = { workspace = true, features = ["full"] }

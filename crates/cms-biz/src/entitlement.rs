@@ -3,7 +3,7 @@
 //! This module contains business logic for entitlements and feature flags.
 
 use cms_db::usage::UsageEntitlementQueries;
-use cms_entity::{common::Id, usage::UsageEntitlement};
+use cms_entity::usage::UsageEntitlement;
 
 use crate::{AppError, BizContext};
 

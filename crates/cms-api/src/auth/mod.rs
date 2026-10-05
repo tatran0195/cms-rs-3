@@ -11,7 +11,6 @@ mod middleware;
 pub(crate) mod oauth;
 
 use handlers::*;
-use middleware::*;
 
 /// Create the auth router
 pub fn router(state: Arc<AppState>) -> Router {

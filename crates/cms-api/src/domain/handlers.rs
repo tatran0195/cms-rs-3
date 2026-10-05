@@ -10,7 +10,7 @@ use axum::{
 };
 use cms_biz::domain::DomainService;
 use cms_entity::{
-    common::{Id, PaginatedResponse},
+    common::Id,
     domain::{
         CreateDomainRequest, DomainResponse, DomainVerificationResult, ListDomainsQuery,
         UpdateDomainRequest, VerifyDomainRequest,
@@ -18,7 +18,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 
@@ -261,7 +260,7 @@ pub async fn verify_domain_handler(
 )]
 pub async fn check_domain_availability_handler(
     State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
+    _auth: AuthExtractor,
     Path(hostname): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let is_available = DomainService::is_domain_available(&state.biz_context, &hostname).await?;

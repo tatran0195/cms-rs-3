@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use cms_db::{page::PageQueries, project::ProjectQueries, search_index::SearchIndexRunQueries};
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
     search::{
-        IndexPageRequest, ListSearchIndexRunsQuery, RagAnswer, ReindexRequest, SearchIndexRun,
+        IndexPageRequest, ListSearchIndexRunsQuery, RagAnswer, ReindexRequest,
         SearchIndexRunResponse, SearchIndexRunStatus, SearchOptions, SearchRequest, SearchResponse,
         SearchResultItem,
     },

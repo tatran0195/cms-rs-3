@@ -468,7 +468,7 @@ impl PageQueries {
             .map_err(|e| AppError::Database(e.into()))?;
 
         // Build the tree structure from flat rows
-        let mut nodes: Vec<PageTreeNode> = rows
+        let nodes: Vec<PageTreeNode> = rows
             .into_iter()
             .map(|r| PageTreeNode {
                 id: r.id,
@@ -506,7 +506,7 @@ impl PageQueries {
             nodes.into_iter().map(|n| (n.id.clone(), n)).collect();
 
         // Mark nodes that have children
-        for (parent_id, children) in &parent_children {
+        for parent_id in parent_children.keys() {
             if let Some(parent) = node_lookup.get_mut(parent_id) {
                 parent.has_children = true;
                 parent.children = Some(Vec::new());

@@ -741,8 +741,8 @@ pub struct GitWebhookDeliveryQueries;
 
 impl GitWebhookDeliveryQueries {
     pub async fn get_by_id(
-        pool: &PgPool,
-        delivery_id: &str,
+        _pool: &PgPool,
+        _delivery_id: &str,
     ) -> Result<Option<GitWebhookDelivery>, AppError> {
         Err(AppError::NotFound(
             "GitWebhookDelivery queries not yet implemented".to_string(),
@@ -755,8 +755,8 @@ pub struct GitAuditEventQueries;
 
 impl GitAuditEventQueries {
     pub async fn get_by_id(
-        pool: &PgPool,
-        event_id: &str,
+        _pool: &PgPool,
+        _event_id: &str,
     ) -> Result<Option<GitAuditEvent>, AppError> {
         Err(AppError::NotFound(
             "GitAuditEvent queries not yet implemented".to_string(),

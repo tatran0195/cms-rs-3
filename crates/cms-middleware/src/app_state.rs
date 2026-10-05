@@ -206,13 +206,23 @@ mod tests {
     use super::*;
 
     fn valid_production_config() -> Config {
-        let mut config = Config::default();
-        config.environment = "deploy".to_string();
-        config.auth.session_secret = "a_very_secure_and_long_session_secret_for_production_32chars".to_string();
-        config.auth.jwt_secret = "a_very_secure_and_long_jwt_secret_for_production_32chars".to_string();
-        config.database.url = "postgres://cms_user:strong_prod_password@localhost:5432/cms".to_string();
-        config.queue.backend = "postgres".to_string();
-        config
+        Config {
+            environment: "deploy".to_string(),
+            auth: cms_config::AuthConfig {
+                session_secret: "a_very_secure_and_long_session_secret_for_production_32chars".to_string(),
+                jwt_secret: "a_very_secure_and_long_jwt_secret_for_production_32chars".to_string(),
+                ..Default::default()
+            },
+            database: cms_config::DatabaseConfig {
+                url: "postgres://cms_user:strong_prod_password@localhost:5432/cms".to_string(),
+                ..Default::default()
+            },
+            queue: cms_config::QueueConfig {
+                backend: "postgres".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
     }
 
     #[test]

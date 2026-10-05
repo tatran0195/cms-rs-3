@@ -3,14 +3,10 @@
 //! This module contains business logic for OpenAPI document management.
 
 use chrono::Utc;
-use cms_authz::Authz;
 use cms_db::openapi::OpenApiDocumentQueries;
-use cms_entity::{
-    common::Id,
-    openapi::{
-        CreateOpenApiDocumentRequest, OpenApiDocument, OpenApiDocumentResponse,
-        OpenApiParsingResult, ParseOpenApiDocumentRequest, UpdateOpenApiDocumentRequest,
-    },
+use cms_entity::openapi::{
+    CreateOpenApiDocumentRequest, OpenApiDocumentResponse,
+    OpenApiParsingResult, ParseOpenApiDocumentRequest, UpdateOpenApiDocumentRequest,
 };
 
 use crate::{AppError, BizContext};

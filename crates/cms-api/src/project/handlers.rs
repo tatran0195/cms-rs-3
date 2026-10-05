@@ -14,16 +14,14 @@ use cms_biz::{
     project::ProjectService,
 };
 use cms_entity::{
-    common::{Id, PaginatedResponse},
+    common::Id,
     project::{
-        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectResponse,
-        ProjectSettings, ProjectWithOrgResponse, UpdateProjectRequest,
+        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectWithOrgResponse, UpdateProjectRequest,
         UpdateProjectSettingsRequest,
     },
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 
@@ -2674,7 +2672,7 @@ pub async fn list_project_comments_handler(
 pub async fn create_project_comment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(project_id): Path<String>,
+    Path(_project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_entity::comment::CreateCommentRequest;

@@ -816,6 +816,7 @@ struct JwtAccessProviderRow {
     name: String,
     issuer: String,
     audience: String,
+    #[allow(dead_code)]
     secret: String,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,

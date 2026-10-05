@@ -3,27 +3,24 @@
 //! This module contains business logic for Git integration,
 //! including repository connections, sync operations, and conflict resolution.
 
-use chrono::Utc;
 use cms_db::{
     branch::BranchQueries,
     git::{
-        GitAuditEventQueries, GitConflictQueries, GitConnectionQueries, GitFileStateQueries,
+        GitConflictQueries, GitConnectionQueries, GitFileStateQueries,
         GitPreviewQueries, GitPullRequestQueries, GitSyncOperationQueries,
-        GitWebhookDeliveryQueries,
     },
     page::PageQueries,
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
     git::{
-        CreateGitConnectionRequest, GitAuditEvent, GitConflict, GitConnection,
+        CreateGitConnectionRequest, GitConflict, GitConnection,
         GitConnectionResponse, GitFileState, GitPreview, GitProvider, GitPullRequest,
-        GitSyncOperation, GitSyncOperationResponse, GitSyncOperationStatus, GitSyncOperationType,
-        GitWebhookDelivery, UpdateGitConnectionRequest,
+        GitSyncOperationResponse, GitSyncOperationStatus, GitSyncOperationType,
+        UpdateGitConnectionRequest,
     },
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

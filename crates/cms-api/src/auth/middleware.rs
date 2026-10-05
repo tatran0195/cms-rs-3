@@ -5,7 +5,6 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
     http::{header, request::Parts, StatusCode},
@@ -14,7 +13,7 @@ use axum::{
 use axum_extra::extract::cookie::Cookie;
 use base64::prelude::*;
 use cms_biz::auth::AuthService;
-use cms_entity::auth::{ApiKey, UserResponse};
+use cms_entity::auth::UserResponse;
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 

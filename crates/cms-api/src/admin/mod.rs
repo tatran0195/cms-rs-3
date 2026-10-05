@@ -15,7 +15,6 @@ pub mod parity;
 
 use handlers::*;
 
-use crate::extractors::UserId;
 
 /// Create the admin router
 pub fn router(state: Arc<AppState>) -> Router {

@@ -211,6 +211,10 @@ impl AdminOriginExtractor {
     pub fn new(config: Arc<AdminOriginConfig>) -> Self {
         Self { config }
     }
+
+    pub fn config(&self) -> &Arc<AdminOriginConfig> {
+        &self.config
+    }
 }
 
 impl From<&cms_config::AdminOriginConfig> for AdminOriginConfig {

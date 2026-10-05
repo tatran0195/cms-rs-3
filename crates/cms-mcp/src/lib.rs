@@ -5,14 +5,9 @@
 
 use std::sync::Arc;
 
-use axum::{
-    extract::State,
-    http::{HeaderMap, HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
-    Json, Router,
-};
+use axum::{extract::State, Json, Router};
 use cms_biz::{mcp::McpService, BizContext};
-use cms_entity::mcp::{McpCapabilities, McpRequest, McpResponse, McpToolResult};
+use cms_entity::mcp::{McpCapabilities, McpRequest, McpResponse};
 use cms_error::AppError;
 
 /// MCP router

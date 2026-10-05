@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{Id, PaginatedResponse, Timestamp};
+use crate::common::{Id, PaginatedResponse};
 
 /// Branch entity
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

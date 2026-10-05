@@ -386,6 +386,11 @@ impl RateLimitMiddleware {
         })
     }
 
+    /// Get the rate limit config
+    pub fn config(&self) -> &RateLimitConfig {
+        &self.config
+    }
+
     /// Get the rate limiter
     pub fn limiter(&self) -> Arc<RateLimiter> {
         self.limiter.clone()

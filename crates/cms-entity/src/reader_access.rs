@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{Id, Timestamp};
+use crate::common::Id;
 
 /// Reader entity
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

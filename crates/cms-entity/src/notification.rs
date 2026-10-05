@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::common::{Id, Timestamp};
+use crate::common::Id;
 
 /// Notification type
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
@@ -28,10 +28,6 @@ pub enum NotificationStatus {
     Unread,
     Read,
     Archived,
-    // Uppercase aliases for backward compatibility
-    UNREAD,
-    READ,
-    ARCHIVED,
 }
 
 impl sqlx::Type<sqlx::Postgres> for NotificationStatus {
@@ -60,9 +56,9 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for NotificationStatus {
         buf: &mut sqlx::postgres::PgArgumentBuffer,
     ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + 'static + Send + Sync>> {
         let s = match self {
-            NotificationStatus::Unread | NotificationStatus::UNREAD => "UNREAD",
-            NotificationStatus::Read | NotificationStatus::READ => "READ",
-            NotificationStatus::Archived | NotificationStatus::ARCHIVED => "ARCHIVED",
+            NotificationStatus::Unread => "UNREAD",
+            NotificationStatus::Read => "READ",
+            NotificationStatus::Archived => "ARCHIVED",
         };
         <&str as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
     }

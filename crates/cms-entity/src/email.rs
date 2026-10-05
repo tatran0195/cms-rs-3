@@ -1,6 +1,4 @@
 //! Email entity types
-
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Email request

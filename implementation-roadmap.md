@@ -347,7 +347,7 @@ Task:
 ## Phase D — Dependency Cleanup (P3)
 
 ### Session D-1 — Remove Unused Dependencies & Replace `lazy_static`
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P3 — dependency and lint debt
 

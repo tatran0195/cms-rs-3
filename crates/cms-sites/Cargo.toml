@@ -35,7 +35,6 @@ ammonia = { workspace = true }
 
 # Syntax highlighting (server-side, zero JS)
 syntect = { workspace = true }
-lazy_static = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

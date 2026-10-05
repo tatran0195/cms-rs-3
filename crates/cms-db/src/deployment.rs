@@ -6,7 +6,7 @@ use cms_entity::{
     domain::{Domain, DomainResponse},
 };
 use cms_error::AppError;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 /// Database representation of a deployment row

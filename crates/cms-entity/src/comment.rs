@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::common::{Id, Timestamp};
+use crate::common::Id;
 
 /// Comment entity
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

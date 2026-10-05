@@ -5,8 +5,8 @@
 use cms_db::analytics::{AnalyticsEventQueries, AnalyticsQueries};
 use cms_entity::{
     analytics::{
-        AnalyticsDashboardResponse, AnalyticsEvent, AnalyticsEventResponse, AnalyticsQueryRequest,
-        AnalyticsQueryResponse, AnalyticsResultItem,
+        AnalyticsDashboardResponse, AnalyticsEventResponse, AnalyticsQueryRequest,
+        AnalyticsQueryResponse,
     },
     common::MemberRole,
 };

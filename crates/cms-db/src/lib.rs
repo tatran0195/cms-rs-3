@@ -91,9 +91,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_migrations() {
-        let url = std::env::var("CMS_DATABASE__URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL")) else {
+            return;
+        };
         if let Ok(pool) = create_pool(&url).await {
+            if test_connection(&pool).await.is_err() {
+                return;
+            }
             let res = run_migrations(&pool).await;
             assert!(res.is_ok(), "Migration should succeed: {:?}", res.err());
         }
@@ -101,9 +105,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_count() {
-        let url = std::env::var("CMS_DATABASE__URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL")) else {
+            return;
+        };
         if let Ok(pool) = create_pool(&url).await {
+            if test_connection(&pool).await.is_err() {
+                return;
+            }
             let res = crate::notification::NotificationQueries::count_unread_by_user(
                 &pool,
                 "nonexistent-user",

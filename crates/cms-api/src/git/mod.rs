@@ -14,7 +14,6 @@ pub mod handlers;
 
 use handlers::*;
 
-use crate::extractors::UserId;
 
 /// Create the Git router
 pub fn router(state: Arc<AppState>) -> Router {

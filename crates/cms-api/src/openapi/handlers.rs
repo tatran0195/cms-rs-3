@@ -18,7 +18,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 
@@ -219,7 +218,7 @@ pub async fn delete_openapi_document_handler(
 pub async fn parse_openapi_document_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(document_id): Path<Id>,
+    Path(_document_id): Path<Id>,
     Json(request): Json<ParseOpenApiDocumentRequest>,
 ) -> Result<Json<OpenApiParsingResult>, AppError> {
     let result = OpenApiService::parse_document(&state.biz_context, &auth.user.id, request).await?;

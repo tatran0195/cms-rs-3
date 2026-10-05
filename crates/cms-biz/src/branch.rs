@@ -5,12 +5,11 @@
 use cms_db::{branch::BranchQueries, page::PageQueries, project::ProjectQueries};
 use cms_entity::{
     branch::{
-        Branch, BranchResponse, BranchWithProjectResponse, CreateBranchRequest, ListBranchesQuery,
+        BranchResponse, BranchWithProjectResponse, CreateBranchRequest, ListBranchesQuery,
         ListBranchesResponse, SetDefaultBranchRequest, UpdateBranchRequest,
     },
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 

@@ -45,7 +45,7 @@ pub type AppState = cms_middleware::AppState;
 
 /// Create the main API router
 pub fn create_api_router(state: Arc<AppState>) -> Router {
-    use axum::routing::{get, post};
+    use axum::routing::get;
     use openapi::docs::{serve_openapi_spec, serve_openapi_yaml, serve_redoc, serve_swagger_ui};
 
     let mut router = Router::new();

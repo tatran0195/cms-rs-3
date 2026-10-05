@@ -15,10 +15,10 @@ use axum::Router;
 use cms_middleware::{
     app_state::AppState,
     observability::{
-        init_observability, ObservabilityConfig, ObservabilityLayer, REQUEST_ID_HEADER,
+        init_observability, ObservabilityConfig, ObservabilityLayer,
     },
-    rate_limit::{create_per_client_rate_limit_layer, RateLimitConfig},
-    security_headers::{create_security_headers_layer, SecurityHeadersConfig},
+    rate_limit::RateLimitConfig,
+    security_headers::SecurityHeadersConfig,
 };
 
 use crate::create_api_router;

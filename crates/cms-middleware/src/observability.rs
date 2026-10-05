@@ -26,7 +26,6 @@
 
 use std::time::{Duration, Instant};
 
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
     http::{request::Parts, HeaderMap, HeaderValue, Request, StatusCode},

@@ -6,10 +6,10 @@
 
 use std::time::Duration;
 
-use cms_db::{domain::DomainQueries, project::ProjectQueries};
+use cms_db::domain::DomainQueries;
 use cms_entity::{
-    common::{Id, MemberRole},
-    domain::{Domain, DomainResponse},
+    common::MemberRole,
+    domain::DomainResponse,
 };
 
 use crate::{AppError, BizContext};

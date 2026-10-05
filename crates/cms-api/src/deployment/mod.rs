@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use axum::{
-    routing::{delete, get, post, put},
+    routing::{get, post},
     Router,
 };
 use cms_middleware::app_state::AppState;
@@ -14,7 +14,6 @@ pub mod handlers;
 
 use handlers::*;
 
-use crate::extractors::UserId;
 
 /// Create the deployment router
 pub fn router(state: Arc<AppState>) -> Router {

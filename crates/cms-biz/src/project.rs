@@ -8,10 +8,9 @@ use cms_db::{
     project::{ProjectAddonQueries, ProjectQueries, ProjectSettingsQueries},
 };
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
-    org::OrganizationResponse,
+    common::{MemberRole, PaginatedResponse},
     project::{
-        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, Project, ProjectAddon,
+        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse,
         ProjectAddonResponse, ProjectResponse, ProjectSettings, ProjectWithOrgResponse,
         UpdateProjectRequest, UpdateProjectSettingsRequest,
     },
@@ -290,7 +289,7 @@ impl ProjectService {
         user_id: &str,
         project_id: &str,
     ) -> Result<ProjectSettings, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
@@ -322,7 +321,7 @@ impl ProjectService {
         project_id: &str,
         request: UpdateProjectSettingsRequest,
     ) -> Result<ProjectSettings, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
@@ -374,7 +373,7 @@ impl ProjectService {
         config: serde_json::Value,
         is_enabled: bool,
     ) -> Result<ProjectAddonResponse, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 

@@ -5,10 +5,10 @@
 
 use chrono::{DateTime, Utc};
 use cms_entity::auth::{
-    Account, ApiKey, ApiKeyResponse, Session, User, UserResponse, VerificationToken,
+    Account, ApiKey, ApiKeyResponse, Session, User, VerificationToken,
 };
 use cms_error::AppError;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;
 
 /// Database representation of a user row

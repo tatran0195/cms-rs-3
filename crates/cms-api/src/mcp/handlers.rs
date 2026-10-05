@@ -10,12 +10,11 @@ use axum::{
 };
 use cms_biz::mcp::McpService;
 use cms_entity::{
-    common::{Id, PaginatedResponse},
+    common::PaginatedResponse,
     mcp::{ListMcpAuditEventsQuery, McpAuditEventResponse},
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 

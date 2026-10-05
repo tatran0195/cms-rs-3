@@ -2,7 +2,6 @@
 //!
 //! This module provides extractors and utilities for validating request data.
 
-use async_trait::async_trait;
 use axum::{
     extract::{FromRequest, FromRequestParts, Path, Query, Request},
     http::request::Parts,

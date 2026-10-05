@@ -8,13 +8,12 @@ use cms_db::{
     PgPool,
 };
 use cms_entity::{
-    common::{Id, PaginatedResponse},
+    common::PaginatedResponse,
     page::{
-        CreatePageRequest, GetPageTreeResponse, ListPagesQuery, ListPagesResponse, Page,
-        PageListItem, PageResponse, PageTreeNode, ReorderPagesRequest, UpdatePageRequest,
+        CreatePageRequest, GetPageTreeResponse, ListPagesQuery, ListPagesResponse,
+        PageResponse, ReorderPagesRequest, UpdatePageRequest,
     },
 };
-use uuid::Uuid;
 
 use crate::{
     platform_event::{FunnelEventType, PlatformEventService},
@@ -335,7 +334,7 @@ impl PageService {
         page_size: u64,
     ) -> Result<ListPagesResponse, AppError> {
         // Verify project and branch exist
-        let project = ProjectQueries::get_by_id(&ctx.pool, &query.project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, &query.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 

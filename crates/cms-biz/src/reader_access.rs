@@ -3,8 +3,6 @@
 //! This module contains business logic for reader access to private documentation.
 //! It includes readers, audiences, grants, invitations, and JWT-based authentication.
 
-use std::sync::Arc;
-
 use chrono::{Duration, Utc};
 use cms_auth::{
     jwt::{JwtService, ReaderJwtClaims},
@@ -21,12 +19,12 @@ use cms_db::{
     },
 };
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
     reader_access::{
-        AcceptInvitationRequest, Audience, AudienceGrant, AudienceGrantResponse, AudienceResponse,
+        AudienceGrantResponse, AudienceResponse,
         CreateAudienceRequest, CreateInvitationRequest, CreateReaderRequest, JwtAccessProvider,
-        JwtReplay, Reader, ReaderAudience, ReaderAudienceResponse, ReaderAuditLog,
-        ReaderInvitation, ReaderInvitationResponse, ReaderResponse, ReaderSession,
+        ReaderAudienceResponse, ReaderAuditLog,
+        ReaderInvitationResponse, ReaderResponse,
     },
 };
 use uuid::Uuid;
@@ -491,7 +489,7 @@ impl ReaderAccessService {
         ReaderSessionQueries::create(&ctx.pool, reader_id, &session_token, expires_at).await?;
 
         // Create JWT token
-        let claims = ReaderJwtClaims::new(reader_id, "", ""); // Would need project_id and audience_id
+        let _claims = ReaderJwtClaims::new(reader_id, "", ""); // Would need project_id and audience_id
         let token = JwtService::create_reader_jwt(
             reader_id,
             "", // project_id
@@ -552,7 +550,7 @@ impl ReaderAccessService {
     /// Create a JWT access provider
     pub async fn create_jwt_access_provider(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         name: &str,
         issuer: &str,
         audience: &str,

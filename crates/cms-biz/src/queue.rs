@@ -7,7 +7,7 @@ use std::sync::Arc;
 use cms_queue::{JobEnvelope, JobId, JobQueue, JobStatus, JobType};
 use uuid::Uuid;
 
-use crate::{AppError, BizContext};
+use crate::AppError;
 
 /// Queue service
 pub struct QueueService;

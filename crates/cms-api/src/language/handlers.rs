@@ -17,7 +17,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use utoipa::ToSchema;
 
 use crate::auth::AuthExtractor;
 
@@ -217,7 +216,7 @@ pub async fn delete_language_handler(
 pub async fn set_default_language_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(project_id): Path<Id>,
+    Path(_project_id): Path<Id>,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let language_id: String = serde_json::from_value(

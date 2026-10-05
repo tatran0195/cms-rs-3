@@ -15,7 +15,6 @@ pub mod handlers;
 
 use handlers::*;
 
-use crate::extractors::UserId;
 
 /// Create the OpenAPI router
 pub fn router(state: Arc<AppState>) -> Router {

@@ -1,9 +1,8 @@
 //! Common extractors for API handlers
 
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
-    http::{header, request::Parts},
+    http::request::Parts,
 };
 use cms_error::AppError;
 

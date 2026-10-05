@@ -3,7 +3,7 @@
 //! This module contains additional authentication business logic
 //! that doesn't fit in the main auth crate.
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use cms_db::auth::{AccountQueries, ApiKeyQueries, SessionQueries, UserQueries};
 use cms_entity::auth::{ApiKeyResponse, CreateUserRequest, UserResponse};
 use uuid::Uuid;

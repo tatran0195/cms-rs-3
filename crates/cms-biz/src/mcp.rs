@@ -8,7 +8,7 @@ use cms_db::{
 };
 use cms_entity::{
     common::MemberRole,
-    mcp::{McpCapabilities, McpPrompt, McpRequest, McpResource, McpResponse, McpTool},
+    mcp::{McpCapabilities, McpRequest, McpResponse, McpTool},
 };
 
 use crate::{AppError, BizContext};

@@ -1,10 +1,7 @@
 //! Branch database queries
 
 use chrono::{DateTime, Utc};
-use cms_entity::{
-    branch::{Branch, BranchResponse},
-    common::Id,
-};
+use cms_entity::branch::{Branch, BranchResponse};
 use cms_error::AppError;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
 use uuid::Uuid;

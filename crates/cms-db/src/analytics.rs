@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use cms_entity::analytics::{AnalyticsDashboardResponse, AnalyticsEvent, TimeSeriesAnalytics};
+use cms_entity::analytics::{AnalyticsDashboardResponse, TimeSeriesAnalytics};
 use cms_error::AppError;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
+use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 use uuid::Uuid;
 
 // Note: AnalyticsEvent is already defined in usage.rs
@@ -468,7 +468,6 @@ impl AnalyticsEventQueries {
             builder.push(if !has_where { " WHERE " } else { " AND " });
             builder.push("created_at <= ");
             builder.push_bind(v);
-            has_where = true;
         }
 
         builder.push(" ORDER BY created_at DESC LIMIT ");

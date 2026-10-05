@@ -4,24 +4,21 @@
 
 use std::sync::Arc;
 
-use chrono::Utc;
 use cms_db::{
     branch::BranchQueries,
     deployment::{DeploymentQueries, DomainQueries},
-    language::LanguageQueries,
     page::PageQueries,
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{Id, MemberRole, PaginatedResponse},
+    common::{MemberRole, PaginatedResponse},
     deployment::{
-        CreateDeploymentRequest, Deployment, DeploymentResponse, DeploymentStatus,
+        CreateDeploymentRequest, DeploymentResponse, DeploymentStatus,
         UpdateDeploymentRequest,
     },
-    domain::{CreateDomainRequest, Domain, DomainResponse, UpdateDomainRequest},
+    domain::{CreateDomainRequest, DomainResponse, UpdateDomainRequest},
 };
 use cms_storage::Storage;
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 
@@ -37,7 +34,7 @@ impl DeploymentService {
         request: CreateDeploymentRequest,
     ) -> Result<DeploymentResponse, AppError> {
         // Verify project exists
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 

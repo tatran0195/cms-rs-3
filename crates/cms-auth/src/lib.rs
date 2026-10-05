@@ -17,20 +17,16 @@ pub mod session;
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
     http::{header::AUTHORIZATION, request::Parts},
-    RequestPartsExt,
 };
 use axum_extra::extract::CookieJar;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use cms_config::AuthConfig;
 use cms_db::{auth::ApiKeyQueries, PgPool};
-use cms_entity::auth::{ApiKey, ApiKeyResponse, ApiKeyWithSecretResponse, User};
 use cms_error::AppError;
 use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
-use serde::{Deserialize, Serialize};
 pub use session::*;
 
 /// Authentication service

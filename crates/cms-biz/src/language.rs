@@ -15,7 +15,7 @@ use cms_db::{
 use cms_entity::{
     common::{MemberRole, PaginatedResponse},
     language::{
-        CreateLanguageRequest, Language, LanguageCoverage, LanguageResponse, ListLanguagesQuery,
+        CreateLanguageRequest, LanguageCoverage, LanguageResponse, ListLanguagesQuery,
         ListLanguagesResponse, ProjectTranslationResponse, SetDefaultLanguageRequest,
         UpdateLanguageRequest,
     },
@@ -495,7 +495,6 @@ fn canonical_language_tag(value: &str) -> Result<String, AppError> {
                     .iter()
                     .map(|part| part.to_ascii_lowercase()),
             );
-            index = parts.len();
             break;
         }
         let normalized_singleton = singleton.to_ascii_lowercase();
