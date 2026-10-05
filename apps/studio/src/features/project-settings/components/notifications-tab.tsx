@@ -5,7 +5,7 @@ import { Bell } from 'lucide-react';
 import { useId } from 'react';
 import { toast } from 'sonner';
 import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/hooks/api';
-import { useSession } from '@/services/auth-client';
+import { useSession } from '@/features/auth';
 import { SettingsSection } from './section';
 
 interface NotifItem {

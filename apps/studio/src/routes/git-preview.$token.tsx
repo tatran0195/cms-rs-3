@@ -4,7 +4,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Eye, FileText, GitPullRequest } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Markdown } from '@cms/site';
-import { getGitPreviewFn } from '@/functions/site';
+import { getGitPreviewFn } from '@/shared';
 
 export const Route = createFileRoute('/git-preview/$token')({
   loader: async ({ params }) =>

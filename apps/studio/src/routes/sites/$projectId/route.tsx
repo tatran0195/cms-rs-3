@@ -1,10 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
-import { getSiteFn } from '@/functions/site';
-import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
-import { customDomainOrigin } from '@/lib/site-origin';
-import { siteHead } from '@/lib/site-seo';
-import { SiteLayout } from '@cms/site';
+import { getSiteFn, QueryProvider } from '@/shared';
+import { customDomainOrigin, siteHead, SiteLayout } from '@cms/site';
 
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,

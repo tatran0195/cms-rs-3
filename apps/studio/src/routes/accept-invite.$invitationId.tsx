@@ -3,11 +3,9 @@ import { useT } from '@cms/i18n/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { AuthProviders } from '@/components/auth-providers';
+import { AuthLayout, AuthProviders, authClient, useSession } from '@/features/auth';
 import { useGetInvitationInfo } from '@/hooks/api';
-import { AuthLayout } from '@/layouts/auth';
 import { clearPendingInvitation, setPendingInvitation } from '@/lib/invitations';
-import { authClient, useSession } from '@/services/auth-client';
 
 export const Route = createFileRoute('/accept-invite/$invitationId')({
   // Not under the (auth) layout, so noindex it directly: the URL carries a live

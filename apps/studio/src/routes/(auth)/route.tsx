@@ -1,8 +1,6 @@
 import { createFileRoute, Navigate, Outlet, redirect, useLocation } from '@tanstack/react-router';
-import { AuthProviders } from '@/features/auth';
-import { getSessionFn } from '@/functions/session';
-import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
-import { useSession } from '@/services/auth-client';
+import { AuthProviders, getSessionFn, useSession } from '@/features/auth';
+import { QueryProvider } from '@/shared';
 
 export const Route = createFileRoute('/(auth)')({
   beforeLoad: async ({ location }) => {

@@ -1,6 +1,6 @@
 # Frontend Modularization & Single-Binary Site Deployment Plan
 
-**Status:** Phase 1, Phase 3 (`@cms/site` package extraction), Phase 4a (reader-optimized SQLite export), Phase 4b (`apps/reader` SPA), Phase 4c (`cms-site.exe` / `apps/runner` single-binary portable runner), and 4-App Unified Architecture (`api`, `studio`, `reader`, `runner`) complete!  
+**Status:** All Phases complete! Phase 1, Phase 2, Phase 3 (`@cms/site` package extraction), Phase 4 (`apps/reader`, `cms-runner` / `cms-site.exe`, 4-App Unified Architecture), and Phase 5 (`shared/` foundation, thin route adapters, and elimination of legacy directories).  
 **Last updated:** 2026-10-05  
 **Repository baseline:** `main` at `e25966f`  
 **Reference repo:** `D:\Workspace\Software\Cloned-Repos\itsaplan` (inspected)
@@ -527,6 +527,38 @@ Universal documentation site engine extracted into `@cms/site` (`packages/site`)
    - `apps/runner` (Single-binary portable site runner)
 2. All workspace configs, `package.json`, `Cargo.toml`, and scripts updated and verified.
 
+### ✅ Phase 5 — Full Directory Harmonization & Legacy Directory Elimination (Done — 2026-10-05)
+
+1. **Established `apps/studio/src/shared/`:**
+   - `shared/components/`: `ErrorPage`, `NotFound`, `PageLoader`, `InterfaceLanguageDialog`, `LocalizedProductProviders`, `icons/brand.tsx`
+   - `shared/providers/`: `AppProviders`
+   - `shared/integrations/`: `tanstack-query/root-provider.tsx` (`QueryProvider`)
+   - `shared/services/`: `api.ts`, `site-service.ts` (`getSiteFn`, `getSitePageFn`, `listSiteChangelogFn`, `getGitPreviewFn`, `searchSiteFn`, `answerSiteFn`)
+   - `shared/lib/`: `format`, `usage-format`, `shortcut`, `form`, `links`, `languages`, `typography`, `content-security-policy`, `request-negotiation`, `query-client`, `invitations`, `deployment-status`, `custom-domain-rewrite`, `public-route-manifest`
+   - `shared/hooks/`: `api/` hooks and query keys
+   - `shared/types/`: `turndown-plugin-gfm.d.ts`
+   - `shared/index.ts`: Unified barrel re-export
+2. **Thin Route Adapters & Feature Screens:**
+   - Extracted `ProjectPreviewPage` from `routes/app/projects/$projectId/preview.tsx`
+   - Extracted `WorkspaceMembersPage` from `routes/app/(dashboard)/members.tsx`
+   - Unified `ProjectProvider` and `useActiveProject` into `features/projects/context/active-project-context.tsx`
+   - Refactored `git-preview.$token.tsx`, `sites/$projectId/$.tsx`, `accept-invite.$invitationId.tsx`, `routes/app/route.tsx`, `routes/(auth)/route.tsx` to delegate cleanly.
+3. **Cross-Feature Imports & Public Boundaries:**
+   - Eliminated all private cross-feature component imports (e.g. `AddLanguageDialog` exported through `features/editor/index.ts`).
+   - Cleaned all brand icon, dialog, and format imports across features to route through `@/shared`.
+4. **Obsolete Legacy Directories Removed:**
+   - Deleted `src/components/`, `src/layouts/`, `src/stores/`, `src/functions/`, `src/services/`, `src/integrations/`, `src/providers/`, `src/types/`, `src/hooks/`, `src/lib/`.
+   - Result: `apps/studio/src/` strictly contains root files, `routes/`, `features/`, and `shared/` matching Section 4.1.
+5. **Quality Gates Passed:**
+   - `bun --filter @cms/studio typecheck` ✅
+   - `bun --filter @cms/studio test` (48 test files, 271 passed, 0 failures) ✅
+   - `bun --filter @cms/site typecheck` ✅
+   - `bun --filter @cms/site test` (17 test files, 140 passed) ✅
+   - `bun --filter @cms/reader typecheck` ✅
+   - `bun --filter @cms/reader build` ✅
+   - `cargo check -p cms-runner` ✅
+   - `cargo test -p cms-biz --lib export::tests` (5/5 passed) ✅
+
 ---
 
 ## 8. SQLite Export Migration (Fix Existing Code)
@@ -626,17 +658,18 @@ cargo test --workspace --all-features
 - `bun run build:packages` ✅ (non-fatal `node:crypto` warning in `@cms/shared`)
 - `cargo test -p cms-config` — 13 tests ✅
 
-### Post-Phase 1 & 4 (4-App Architecture)
+### Post-Phase 5 (Directory Harmonization & Legacy Directory Elimination)
 
 - `bun --filter @cms/studio typecheck` ✅
-- `bun --filter @cms/studio test` — 65 files, 413 tests ✅
+- `bun --filter @cms/studio test` — 48 test files, 271 tests passed (0 failures) ✅
+- `bun --filter @cms/site typecheck` ✅
+- `bun --filter @cms/site test` — 17 test files, 140 tests passed ✅
 - `bun --filter @cms/reader typecheck` ✅
-- `bun --filter @cms/reader build` ✅ (emits into `dist/reader`)
-- `bun --filter @cms/site test` — 17 files, 140 tests ✅
+- `bun --filter @cms/reader build` — cleanly emits into `dist/reader` ✅
 - `cargo check -p cms-runner` ✅
-- `cargo build -p cms-runner` — produces `target/debug/cms-site.exe` ✅
 - `cargo test -p cms-biz --lib export::tests` — 5/5 passed ✅
-- Zero stale `@/components/site/*` imports ✅
+- All legacy duplicate directories in `apps/studio/src/` (`components/`, `layouts/`, `stores/`, `functions/`, `services/`, `integrations/`, `providers/`, `types/`, `hooks/`, `lib/`) completely removed ✅
+- `apps/studio/src/` matches §4.1 target layout strictly: `routes/`, `features/`, `shared/` + root files ✅
 - Single-binary Windows portability verified without Docker ✅
 
 ---

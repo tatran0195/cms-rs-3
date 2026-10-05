@@ -57,32 +57,34 @@ vi.mock('@/hooks/api', () => ({
   useImportProjectTheme: () => mutation,
   useExportProjectTheme: () => mutation,
 }));
-vi.mock('@/lib/site-theme', () => ({
-  projectThemeVariables: () => ({}),
-  projectThemeStyle: () => ({}),
-}));
-vi.mock('@/components/site/documentation-theme-provider', () => ({
-  DocumentationThemeProvider: ({
-    children,
-    theme,
-    direction,
-  }: {
-    children: ReactNode;
-    theme: { id: string; layout: { shell: string } };
-    direction: string;
-  }) => (
-    <div data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
-      {children}
-    </div>
-  ),
-  DocumentationStudioPreviewLayout: ({ header, navigation, content }: Record<'header' | 'navigation' | 'content', ReactNode>) => (
-    <div>
-      {header}
-      {navigation}
-      {content}
-    </div>
-  ),
-}));
+vi.mock('@cms/site', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@cms/site')>();
+  return {
+    ...actual,
+    projectThemeVariables: () => ({}),
+    projectThemeStyle: () => ({}),
+    DocumentationThemeProvider: ({
+      children,
+      theme,
+      direction,
+    }: {
+      children: ReactNode;
+      theme: { id: string; layout: { shell: string } };
+      direction: string;
+    }) => (
+      <div data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
+        {children}
+      </div>
+    ),
+    DocumentationStudioPreviewLayout: ({ header, navigation, content }: Record<'header' | 'navigation' | 'content', ReactNode>) => (
+      <div>
+        {header}
+        {navigation}
+        {content}
+      </div>
+    ),
+  };
+});
 
 const project: Project = {
   id: 'project-a',

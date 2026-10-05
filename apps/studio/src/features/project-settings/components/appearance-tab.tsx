@@ -4,7 +4,7 @@ import { useTheme } from '@cms/design-system/theme';
 import { INTERFACE_LOCALES, type MessageKey } from '@cms/i18n';
 import { useLocale } from '@cms/i18n/react';
 import { Check } from 'lucide-react';
-import { InterfaceLocaleLabel } from '@/components/interface-language-dialog';
+import { InterfaceLocaleLabel } from '@/shared';
 import { SettingsSection } from './section';
 
 interface ThemeOption {

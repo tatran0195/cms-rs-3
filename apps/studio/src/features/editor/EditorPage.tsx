@@ -61,10 +61,10 @@ import {
   useUploadAsset,
 } from '@/hooks/api';
 import { PublishControl } from '@/features/publishing';
-import { astWorkerClient } from '@/lib/ast-worker-client';
-import { draftPreviewHref } from '@/lib/draft-preview';
-import { typographyVars } from '@/lib/typography';
-import { editorStore } from '@/features/editor/stores/editor-store';
+import { astWorkerClient } from './utils/ast-worker-client';
+import { draftPreviewHref } from './utils/draft-preview';
+import { typographyVars } from '@/shared/lib/typography';
+import { editorStore } from './stores/editor-store';
 
 export interface EditorPageProps {
   projectId: string;

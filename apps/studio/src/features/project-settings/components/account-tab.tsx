@@ -9,8 +9,8 @@ import { useForm } from '@tanstack/react-form';
 import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { required, email as validateEmail } from '@/lib/form';
-import { authClient, useSession } from '@/services/auth-client';
+import { authClient, useSession } from '@/features/auth';
+import { email as validateEmail, required } from '@/shared';
 import { GradientAvatar, SettingsSection } from './section';
 
 function NameForm({ initialName }: { initialName: string }) {

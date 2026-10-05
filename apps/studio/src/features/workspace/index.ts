@@ -6,3 +6,4 @@ export { NotificationsPopover } from './components/NotificationsPopover';
 export { SidebarAccountFooter } from './components/SidebarAccountFooter';
 export { SiteSwitcher } from './components/SiteSwitcher';
 export { SupportAccessBanner } from './components/SupportAccessBanner';
+export { WorkspaceMembersPage } from './WorkspaceMembersPage';

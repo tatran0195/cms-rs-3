@@ -37,7 +37,7 @@ vi.mock('@cms/i18n/react', () => ({
 vi.mock('@cms/design-system/components/ui/confirm', () => ({
   useConfirm: () => vi.fn(async () => false),
 }));
-vi.mock('@/services/auth-client', () => ({
+vi.mock('@/features/auth', () => ({
   useSession: () => ({ data: { user: { id: currentUserId } } }),
 }));
 vi.mock('@/hooks/api', () => ({

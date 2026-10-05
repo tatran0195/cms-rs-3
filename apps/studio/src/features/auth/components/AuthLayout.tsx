@@ -2,7 +2,7 @@ import { CmsMark } from '@cms/design-system/brand';
 import { useT } from '@cms/i18n/react';
 import { Cloud, Globe2, Languages, ShieldCheck } from 'lucide-react';
 import type { ComponentType, ReactNode, SVGProps } from 'react';
-import { InterfaceLanguageButton } from '@/components/interface-language-dialog';
+import { InterfaceLanguageButton } from '@/shared';
 
 const BRAND_POINTS: {
   icon: ComponentType<SVGProps<SVGSVGElement>>;

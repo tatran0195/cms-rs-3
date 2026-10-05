@@ -1,8 +1,5 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router';
-import { ErrorPage } from '@/components/error-page';
-import { NotFound } from '@/components/not-found';
-import { PageLoader } from '@/components/page-loader';
-import { queryClient } from '@/lib/query-client';
+import { ErrorPage, NotFound, PageLoader, queryClient } from '@/shared';
 import { routeTree } from './routeTree.gen';
 
 export { queryClient };

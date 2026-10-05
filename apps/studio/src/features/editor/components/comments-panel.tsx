@@ -8,8 +8,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Comment } from '@/hooks/api';
 import { useComments, useCreateComment, useDeleteComment, useResolveComment } from '@/hooks/api';
-import { useFormatters } from '@/lib/format';
-import { useSession } from '@/services/auth-client';
+import { useSession } from '@/features/auth';
+import { useFormatters } from '@/shared';
 
 interface CommentsPanelProps {
   projectId: string;

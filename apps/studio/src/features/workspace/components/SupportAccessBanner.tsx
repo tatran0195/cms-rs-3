@@ -2,8 +2,8 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { useT } from '@cms/i18n/react';
 import { ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { ADMIN_URL } from '@/lib/links';
-import { authClient } from '@/services/auth-client';
+import { authClient } from '@/features/auth';
+import { ADMIN_URL } from '@/shared';
 
 export function SupportAccessBanner({ customerId, customerName }: { customerId: string; customerName?: string | null }) {
   const t = useT();

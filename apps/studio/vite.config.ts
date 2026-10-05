@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import mdx from '@mdx-js/rollup';
 import { createEnv } from '@t3-oss/env-core';
@@ -42,7 +43,14 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    resolve: { tsconfigPaths: true },
+    resolve: {
+      alias: {
+        '@/hooks': fileURLToPath(new URL('./src/shared/hooks', import.meta.url)),
+        '@/services': fileURLToPath(new URL('./src/shared/services', import.meta.url)),
+        '@/lib': fileURLToPath(new URL('./src/shared/lib', import.meta.url)),
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
     server: {
       host: '0.0.0.0',
       port: 4310,

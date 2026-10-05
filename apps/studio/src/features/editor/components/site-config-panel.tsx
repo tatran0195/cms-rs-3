@@ -16,17 +16,19 @@ import {
   SearchCheck,
   Type,
 } from 'lucide-react';
-import { BannerSection } from '@/components/project-settings/banner-section';
-import { BrandingSection } from '@/components/project-settings/branding-section';
-import { FooterSection } from '@/components/project-settings/footer-section';
-import { NavbarSection } from '@/components/project-settings/navbar-section';
-import { RedirectsSection } from '@/components/project-settings/redirects-section';
-import { SearchSection } from '@/components/project-settings/search-section';
-import { SeoSection } from '@/components/project-settings/seo-section';
-import { StylingSection } from '@/components/project-settings/styling-section';
-import { ThemeSection } from '@/components/project-settings/theme-section';
-import { TypographySection } from '@/components/project-settings/typography-section';
-import { VariablesSection } from '@/components/project-settings/variables-section';
+import {
+  BannerSection,
+  BrandingSection,
+  FooterSection,
+  NavbarSection,
+  RedirectsSection,
+  SearchSection,
+  SeoSection,
+  StylingSection,
+  ThemeSection,
+  TypographySection,
+  VariablesSection,
+} from '@/features/project-settings';
 import type { Project } from '@/hooks/api';
 
 /**

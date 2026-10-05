@@ -40,11 +40,12 @@ export { SitePageAlternatesContext, useSitePageAlternates, type SiteLanguageAlte
 // Lib
 export { siteHref, siteLanguageParam, siteBasePath, isCustomDomainSite } from './lib/site-paths';
 export { siteHead, pageHead, changelogFeedUrl, sitePageUrl } from './lib/site-seo';
-export { resolveProjectTheme, projectThemeCss, projectThemeStyle, siteThemeNoFlashScript } from './lib/site-theme';
+export { resolveProjectTheme, projectThemeCss, projectThemeStyle, projectThemeVariables, siteThemeNoFlashScript } from './lib/site-theme';
 export { publishedSiteLogo } from './lib/site-branding';
 export { customDomainOrigin } from './lib/site-origin';
 export { resolveLanguagePathRedirect } from './lib/site-language-path';
 export { redirectIfConfigured } from './lib/site-redirects';
+export { buildSiteRedirectHref } from './lib/site-redirect-href';
 export { scalarOpenApiConfiguration } from './lib/openapi-reference';
 
 // Context

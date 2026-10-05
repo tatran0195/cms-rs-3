@@ -6,7 +6,7 @@ import { useT } from '@cms/i18n/react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { AddLanguageDialog } from '@/components/editor/add-language-dialog';
+import { AddLanguageDialog } from '@/features/editor';
 import type { Language, Project } from '@/hooks/api';
 import { useDeleteLanguage, useLanguages, useUpdateLanguage } from '@/hooks/api';
 import { SectionHeader, sortLanguagesDefaultFirst } from './shared';

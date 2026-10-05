@@ -1,14 +1,16 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import { SitePageView } from '@cms/site';
-import { getSiteFn, getSitePageFn } from '@/functions/site';
+import {
+  customDomainOrigin,
+  isCustomDomainSite,
+  pageHead,
+  redirectIfConfigured,
+  resolveLanguagePathRedirect,
+  SitePageView,
+} from '@cms/site';
+import { getSiteFn, getSitePageFn } from '@/shared';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
 import type { SitePage } from '@/hooks/api/types';
-import { resolveLanguagePathRedirect } from '@/lib/site-language-path';
-import { customDomainOrigin } from '@/lib/site-origin';
-import { isCustomDomainSite } from '@/lib/site-paths';
-import { redirectIfConfigured } from '@/lib/site-redirects';
-import { pageHead } from '@/lib/site-seo';
 
 const OpenApiReferenceView = lazy(() =>
   import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })),

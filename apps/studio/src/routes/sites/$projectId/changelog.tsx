@@ -1,11 +1,7 @@
-import { siteT } from '@cms/i18n/site';
+import { changelogFeedUrl, customDomainOrigin, SiteChangelogView, sitePageUrl } from '@cms/site';
 import { createFileRoute, useSearch } from '@tanstack/react-router';
-import { Sparkles } from 'lucide-react';
-import { getSiteFn, listSiteChangelogFn } from '@/functions/site';
+import { getSiteFn, listSiteChangelogFn } from '@/shared';
 import type { ChangelogEntry } from '@/hooks/api/types';
-import { localeTag } from '@/lib/format';
-import { customDomainOrigin } from '@/lib/site-origin';
-import { changelogFeedUrl, sitePageUrl } from '@/lib/site-seo';
 
 export const Route = createFileRoute('/sites/$projectId/changelog')({
   component: SiteChangelog,
@@ -76,8 +72,6 @@ export const Route = createFileRoute('/sites/$projectId/changelog')({
     };
   },
 });
-
-import { SiteChangelogView } from '@cms/site';
 
 function SiteChangelog() {
   const { lang } = useSearch({ strict: false }) as { lang?: string };

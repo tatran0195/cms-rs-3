@@ -2,6 +2,9 @@
   "extends": "@cms/tsconfig/react.json",
   "compilerOptions": {
     "paths": {
+      "@/hooks/*": ["./src/shared/hooks/*"],
+      "@/services/*": ["./src/shared/services/*"],
+      "@/lib/*": ["./src/shared/lib/*"],
       "@/*": ["./src/*"]
     }
   },

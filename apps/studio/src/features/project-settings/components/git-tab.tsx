@@ -10,7 +10,7 @@ import { useForm } from '@tanstack/react-form';
 import { ArrowUpRight, Check, CircleAlert, Copy, DownloadCloud, Eye, EyeOff, GitBranch, Globe, Hammer, Loader2, RefreshCw } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { GithubIcon } from '@/components/icons/brand';
+import { copyToClipboard, GithubIcon, useFormatters } from '@/shared';
 import type { Deployment } from '@/hooks/api';
 import {
   useBranches,
@@ -21,8 +21,6 @@ import {
   useUpdateWorkspaceSettings,
   useWorkspaceSettings,
 } from '@/hooks/api';
-import { useFormatters } from '@/lib/format';
-import { copyToClipboard } from '@/lib/invitations';
 import { GitWorkflow } from './git-workflow';
 import { SettingsSection } from './section';
 

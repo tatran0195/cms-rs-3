@@ -1,7 +1,7 @@
 import { useT } from '@cms/i18n/react';
 import { Check, Loader2 } from 'lucide-react';
 import { memo } from 'react';
-import { useEditorStore } from '@/stores/editor-store';
+import { useEditorStore } from '../stores/editor-store';
 
 /**
  * Isolated atomic save status indicator. Subscribes specifically to `syncStatus`

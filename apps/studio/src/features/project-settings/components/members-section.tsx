@@ -12,7 +12,7 @@ import { useForm } from '@tanstack/react-form';
 import { Check, Copy, Crown, Link2, Mail, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { GradientAvatar } from '@/components/settings/section';
+import { GradientAvatar } from './section';
 import {
   useCancelProjectInvitation,
   useInviteProjectMember,
@@ -23,7 +23,7 @@ import {
 } from '@/hooks/api';
 import { email as validateEmail } from '@/lib/form';
 import { copyToClipboard, inviteAcceptUrl } from '@/lib/invitations';
-import { useSession } from '@/services/auth-client';
+import { useSession } from '@/features/auth';
 import { SectionHeader } from './shared';
 
 /** A small button that copies an invite link to the clipboard with feedback. */

@@ -26,7 +26,10 @@ vi.mock('@tanstack/react-router', () => ({
   }),
   useNavigate: () => mocks.navigate,
 }));
-vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
+vi.mock('@/hooks/api', () => ({
+  useProjects: mocks.useProjects,
+  useCreateProject: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 vi.mock('@/components/app/new-project-dialog', () => ({
   NewProjectDialog: () => null,
 }));

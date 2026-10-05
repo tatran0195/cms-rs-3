@@ -14,7 +14,7 @@ import { useLocale } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { ChevronsUpDown, Languages, LogOut, Moon, Sun } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
-import { InterfaceLanguageDialog } from '@/components/interface-language-dialog';
+import { InterfaceLanguageDialog } from '@/shared';
 import { authClient } from '@/features/auth';
 
 const subscribeToHydration = () => () => undefined;

@@ -1,11 +1,8 @@
 import { createFileRoute, Navigate, Outlet, redirect } from '@tanstack/react-router';
+import { getSessionFn, useSession } from '@/features/auth';
+import { ProjectProvider } from '@/features/projects';
 import { SupportAccessBanner } from '@/features/workspace';
-import { AppProviders } from '@/components/app-providers';
-import { PageLoader } from '@/components/page-loader';
-import { getSessionFn } from '@/functions/session';
-import { QueryProvider } from '@/integrations/tanstack-query/root-provider';
-import { useSession } from '@/services/auth-client';
-import { ProjectProvider } from '@/stores/active-project';
+import { AppProviders, PageLoader, QueryProvider } from '@/shared';
 
 export const Route = createFileRoute('/app')({
   beforeLoad: async () => {

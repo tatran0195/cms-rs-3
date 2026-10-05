@@ -6,7 +6,7 @@ import { useT } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { NewProjectDialog } from '@/components/app/new-project-dialog';
+import { NewProjectDialog } from './components/NewProjectDialog';
 import { useProjects } from '@/hooks/api';
 import { useFormatters } from '@/lib/format';
 

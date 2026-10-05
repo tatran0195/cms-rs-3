@@ -8,3 +8,4 @@ export { VerifyEmailPage } from './VerifyEmailPage';
 export { authDocumentTitle } from './utils/auth-document-title';
 export { isEmailNotVerifiedError } from './utils/auth-errors';
 export * from './services/auth-client';
+export { getSessionFn } from './services/session';

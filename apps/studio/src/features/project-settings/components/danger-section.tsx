@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Project } from '@/hooks/api';
 import { useDeleteProject, useProjectMembers, useTransferProjectOwnership } from '@/hooks/api';
-import { useSession } from '@/services/auth-client';
+import { useSession } from '@/features/auth';
 import { SectionHeader } from './shared';
 
 interface ProjectMemberUser {

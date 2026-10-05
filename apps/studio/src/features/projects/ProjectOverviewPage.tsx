@@ -25,13 +25,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { env } from '@/env';
-import { SectionCard } from '@/features/analytics/components/SectionCard';
-import { ViewsAreaChart } from '@/features/analytics/components/ViewsAreaChart';
+import { SectionCard, ViewsAreaChart } from '@/features/analytics';
 import type { AnalyticsRange, Deployment } from '@/hooks/api';
 import { useDeployments, useDomains, usePages, useProject, useProjectMembers, usePublishAnyway } from '@/hooks/api';
 import { useProjectAnalytics } from '@/hooks/api/analytics';
-import { deploymentStatusLabel, deploymentStatusVariant } from '@/lib/deployment-status';
-import { useFormatters, viewsTrend } from '@/lib/format';
+import { deploymentStatusLabel, deploymentStatusVariant } from '@/shared/lib/deployment-status';
+import { useFormatters, viewsTrend } from '@/shared/lib/format';
 
 export interface ProjectOverviewPageProps {
   projectId: string;

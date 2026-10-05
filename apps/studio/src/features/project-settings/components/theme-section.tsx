@@ -24,9 +24,13 @@ import type { ProjectConfig } from '@cms/validators';
 import { Download, FileJson, LayoutTemplate, RotateCcw, Undo2, Upload } from 'lucide-react';
 import { type ChangeEvent, type CSSProperties, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { DocumentationStudioPreviewLayout, DocumentationThemeProvider } from '@/components/site/documentation-theme-provider';
+import {
+  DocumentationStudioPreviewLayout,
+  DocumentationThemeProvider,
+  projectThemeStyle,
+  projectThemeVariables,
+} from '@cms/site';
 import { type Project, type ProjectThemeImportResult, useExportProjectTheme, useImportProjectTheme, useUpdateProjectConfig } from '@/hooks/api';
-import { projectThemeStyle, projectThemeVariables } from '@/lib/site-theme';
 import { Field, SaveBar, SectionHeader, Segmented } from './shared';
 
 type Appearance = 'light' | 'dark' | 'system';

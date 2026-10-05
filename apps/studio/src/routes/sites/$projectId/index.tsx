@@ -1,11 +1,7 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
-import { SitePageView } from '@cms/site';
-import { getSiteFn, getSitePageFn } from '@/functions/site';
+import { customDomainOrigin, isCustomDomainSite, pageHead, redirectIfConfigured, SitePageView } from '@cms/site';
+import { getSiteFn, getSitePageFn } from '@/shared';
 import { ApiResponseError } from '@/hooks/api/client-helpers';
-import { customDomainOrigin } from '@/lib/site-origin';
-import { isCustomDomainSite } from '@/lib/site-paths';
-import { redirectIfConfigured } from '@/lib/site-redirects';
-import { pageHead } from '@/lib/site-seo';
 
 export const Route = createFileRoute('/sites/$projectId/')({
   component: SiteHome,

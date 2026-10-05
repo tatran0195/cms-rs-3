@@ -1,7 +1,7 @@
 import { useT } from '@cms/i18n/react';
 import { useRouterState } from '@tanstack/react-router';
 import { type ReactNode, useEffect } from 'react';
-import { LocalizedProductProviders } from '@/components/localized-product-providers';
+import { LocalizedProductProviders } from '@/shared';
 import { authDocumentTitle } from '../utils/auth-document-title';
 
 function AuthDocumentTitle() {

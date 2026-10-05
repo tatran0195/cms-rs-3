@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({ stopImpersonating: vi.fn() }));
 vi.mock('@cms/i18n/react', () => ({
   useT: () => (key: string, variables?: Record<string, string>) => (variables ? `${key}(${Object.values(variables).join(',')})` : key),
 }));
-vi.mock('@/services/auth-client', () => ({
+vi.mock('@/features/auth', () => ({
   authClient: { admin: { stopImpersonating: mocks.stopImpersonating } },
 }));
 vi.mock('@/lib/links', () => ({ ADMIN_URL: 'https://admin.example.test' }));

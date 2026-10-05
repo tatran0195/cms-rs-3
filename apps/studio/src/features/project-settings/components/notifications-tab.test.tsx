@@ -9,7 +9,7 @@ vi.mock('@/hooks/api', () => ({
   useWorkspaceSettings: () => ({ data: { notifications: {} } }),
   useUpdateWorkspaceSettings: () => ({ isPending: false, mutate: vi.fn() }),
 }));
-vi.mock('@/services/auth-client', () => ({
+vi.mock('@/features/auth', () => ({
   useSession: () => ({ data: { user: { email: 'reader@example.com' } } }),
 }));
 
