@@ -91,16 +91,6 @@ export interface SitePage {
   next: { title: string; path: string } | null;
 }
 
-export interface SearchCitation {
-  id: string;
-  pageId: string;
-  title: string;
-  path: string;
-  heading?: string;
-  snippet: string;
-  direction: 'ltr' | 'rtl';
-}
-
 export interface SiteSearchHit {
   id: string;
   title: string;
@@ -111,16 +101,6 @@ export interface SiteSearchHit {
   score: number;
   /** Language of the matched published page; used to build its localized URL. */
   language: string;
-}
-
-export interface SearchAnswer {
-  status: 'answered' | 'no_answer';
-  answer: string;
-  confidence: number;
-  citations: SearchCitation[];
-  model?: string;
-  cacheHit: boolean;
-  quotaRemaining: number;
 }
 
 export interface ChangelogEntry {

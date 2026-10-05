@@ -39,11 +39,6 @@ function SiteRoute() {
               version: options.version,
               limit: options.limit,
             }),
-          answer: (options) =>
-            siteService.answer(options.projectId, options.query, {
-              language: options.language,
-              version: options.version,
-            }),
         }}
       >
         <SiteLayout site={site} projectId={projectId} lang={lang} basePath={`/sites/${projectId}`} />

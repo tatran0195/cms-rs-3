@@ -50,4 +50,4 @@ export { scalarOpenApiConfiguration } from './lib/openapi-reference';
 // Context
 export { SiteApiProvider, useSiteApi, type SiteApiConfig } from './context/site-api-context';
 export { SiteAnalyticsProvider, useSiteAnalytics } from './context/site-analytics-provider';
-export { useSiteSearch, useAnswerSite } from './hooks/use-site-search';
+export { useSiteSearch } from './hooks/use-site-search';

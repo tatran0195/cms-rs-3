@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useSiteApi } from '../context/site-api-context';
 
 export const useSiteSearch = (
@@ -24,25 +24,6 @@ export const useSiteSearch = (
         });
       }
       return [];
-    },
-  });
-};
-
-export const useAnswerSite = () => {
-  const api = useSiteApi();
-  return useMutation({
-    mutationFn: async (input: { projectId: string; query: string; language?: string; version?: string }) => {
-      if (api.answer) {
-        return api.answer(input);
-      }
-      return {
-        status: 'no_answer' as const,
-        answer: '',
-        confidence: 0,
-        citations: [],
-        cacheHit: false,
-        quotaRemaining: 0,
-      };
     },
   });
 };
