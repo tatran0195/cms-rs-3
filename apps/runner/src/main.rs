@@ -215,13 +215,11 @@ fn query_bootstrap(conn: &Connection, target_lang: Option<&str>) -> anyhow::Resu
     let mut project_config = serde_json::Map::new();
     let mut stmt = conn.prepare("SELECT key, value FROM project_config")?;
     let config_rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
-    for row in config_rows {
-        if let Ok((k, v)) = row {
-            if let Ok(json_val) = serde_json::from_str(&v) {
-                project_config.insert(k, json_val);
-            } else {
-                project_config.insert(k, serde_json::Value::String(v));
-            }
+    for (k, v) in config_rows.flatten() {
+        if let Ok(json_val) = serde_json::from_str(&v) {
+            project_config.insert(k, json_val);
+        } else {
+            project_config.insert(k, serde_json::Value::String(v));
         }
     }
 
@@ -802,32 +800,127 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
     let conn = state.db.lock();
     let shell = query_bootstrap(&conn, None).ok();
 
-    let mut injected_html = raw_html.to_string();
-    if let Some(s) = shell {
-        if let Ok(json_str) = serde_json::to_string(&s) {
-            let bootstrap_script = format!(
-                "<script id=\"__SITE_BOOTSTRAP__\">window.__SITE__ = {};</script>",
-                json_str
-            );
-            injected_html = injected_html.replace(
-                "<script id=\"__SITE_BOOTSTRAP__\">\n      // Injected by standalone server at runtime\n    </script>",
-                &bootstrap_script,
-            );
-        }
+    let injected_html = inject_bootstrap_and_meta(raw_html, shell.as_ref());
+    Html(injected_html).into_response()
+}
 
-        let site_title = &s.project.name;
-        let site_desc = s.project.description.as_deref().unwrap_or("");
-        let meta_tags = format!(
-            r#"<title>{}</title>
-    <meta name="description" content="{}" />
-    <meta property="og:title" content="{}" />
-    <meta property="og:description" content="{}" />"#,
-            site_title, site_desc, site_title, site_desc
-        );
-        injected_html = injected_html.replace("<!-- __SITE_HEAD__ -->", &meta_tags);
+pub(crate) fn html_escape(input: &str) -> String {
+    let mut out = String::with_capacity(input.len() + 16);
+    for c in input.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#x27;"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+pub(crate) fn escape_script_json(json: &str) -> String {
+    let mut out = String::with_capacity(json.len() + 32);
+    for c in json.chars() {
+        match c {
+            '<' => out.push_str(r"\u003c"),
+            '>' => out.push_str(r"\u003e"),
+            '&' => out.push_str(r"\u0026"),
+            '\u{2028}' => out.push_str(r"\u2028"),
+            '\u{2029}' => out.push_str(r"\u2029"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+fn inject_bootstrap_script(html: &str, safe_json: &str) -> String {
+    let script_tag = format!(
+        r#"<script type="application/json" id="__bootstrap__">{}</script>"#,
+        safe_json
+    );
+
+    // 1. Modern placeholder: <script type="application/json" id="__bootstrap__">...</script>
+    if let Some(start) = html.find(r#"<script type="application/json" id="__bootstrap__">"#) {
+        if let Some(end_rel) = html[start..].find("</script>") {
+            let end = start + end_rel + "</script>".len();
+            return format!("{}{}{}", &html[..start], script_tag, &html[end..]);
+        }
     }
 
-    Html(injected_html).into_response()
+    // 2. Legacy placeholder: <script id="__SITE_BOOTSTRAP__">...</script>
+    if let Some(start) = html.find(r#"<script id="__SITE_BOOTSTRAP__">"#) {
+        if let Some(end_rel) = html[start..].find("</script>") {
+            let end = start + end_rel + "</script>".len();
+            return format!("{}{}{}", &html[..start], script_tag, &html[end..]);
+        }
+    }
+
+    // 3. Comment placeholder
+    if html.contains("<!-- __SITE_BOOTSTRAP__ -->") {
+        return html.replace("<!-- __SITE_BOOTSTRAP__ -->", &script_tag);
+    }
+
+    // 4. Inject before </head>
+    if let Some(pos) = html.find("</head>") {
+        return format!("{}{}\n    {}", &html[..pos], script_tag, &html[pos..]);
+    }
+
+    // 5. Append as fallback
+    format!("{}\n{}", html, script_tag)
+}
+
+fn inject_meta(html: &str, site_title: &str, site_desc: &str) -> String {
+    let meta_tags = format!(
+        "<title>{site_title}</title>\n    <meta name=\"description\" content=\"{site_desc}\" />\n    <meta property=\"og:title\" content=\"{site_title}\" />\n    <meta property=\"og:description\" content=\"{site_desc}\" />"
+    );
+
+    let mut working = html.to_string();
+
+    if working.contains("<!-- __SITE_HEAD__ -->") {
+        // Remove pre-existing default <title>...</title> to avoid duplicate title tags
+        if let Some(start) = working.find("<title>") {
+            if let Some(end_rel) = working[start..].find("</title>") {
+                let end = start + end_rel + "</title>".len();
+                let mut remove_end = end;
+                if working[remove_end..].starts_with("\r\n") {
+                    remove_end += 2;
+                } else if working[remove_end..].starts_with('\n') {
+                    remove_end += 1;
+                }
+                working.replace_range(start..remove_end, "");
+            }
+        }
+        working.replace("<!-- __SITE_HEAD__ -->", &meta_tags)
+    } else if let Some(start) = working.find("<title>") {
+        if let Some(end_rel) = working[start..].find("</title>") {
+            let end = start + end_rel + "</title>".len();
+            format!("{}{}{}", &working[..start], meta_tags, &working[end..])
+        } else {
+            format!("{}\n{}", working, meta_tags)
+        }
+    } else if let Some(pos) = working.find("</head>") {
+        format!("{}{}\n    {}", &working[..pos], meta_tags, &working[pos..])
+    } else {
+        format!("{}\n{}", working, meta_tags)
+    }
+}
+
+pub(crate) fn inject_bootstrap_and_meta(raw_html: &str, shell: Option<&SiteShell>) -> String {
+    let Some(s) = shell else {
+        return raw_html.to_string();
+    };
+
+    let mut html = raw_html.to_string();
+
+    if let Ok(raw_json) = serde_json::to_string(s) {
+        let safe_json = escape_script_json(&raw_json);
+        html = inject_bootstrap_script(&html, &safe_json);
+    }
+
+    let site_title = html_escape(&s.project.name);
+    let site_desc = html_escape(s.project.description.as_deref().unwrap_or(""));
+    inject_meta(&html, &site_title, &site_desc)
 }
 
 // ── Main Entrypoint ──────────────────────────────────────────────────────────
@@ -928,3 +1021,151 @@ async fn shutdown_signal() {
         .expect("Failed to listen for Ctrl+C event");
     tracing::info!("Shutdown signal received, shutting down gracefully...");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escape_script_json_escapes_dangerous_chars() {
+        let original_data = serde_json::json!({
+            "name": "</script><script>alert('xss')</script>",
+            "sep": "\u{2028}\u{2029}",
+            "amp": "&",
+            "gt": ">"
+        });
+        let raw_json = serde_json::to_string(&original_data).expect("serialize");
+        let escaped = escape_script_json(&raw_json);
+
+        assert!(!escaped.contains('<'), "must not contain raw <");
+        assert!(!escaped.contains('>'), "must not contain raw >");
+        assert!(!escaped.contains('&'), "must not contain raw &");
+        assert!(!escaped.contains('\u{2028}'), "must not contain raw U+2028");
+        assert!(!escaped.contains('\u{2029}'), "must not contain raw U+2029");
+        assert!(escaped.contains(r"\u003c/script\u003e"));
+
+        // Must roundtrip through serde_json to original values
+        let parsed: serde_json::Value = serde_json::from_str(&escaped).expect("must parse back");
+        assert_eq!(
+            parsed["name"].as_str().unwrap(),
+            "</script><script>alert('xss')</script>"
+        );
+        assert_eq!(parsed["sep"].as_str().unwrap(), "\u{2028}\u{2029}");
+        assert_eq!(parsed["amp"].as_str().unwrap(), "&");
+        assert_eq!(parsed["gt"].as_str().unwrap(), ">");
+    }
+
+    #[test]
+    fn test_html_escape_replaces_all_special_chars() {
+        let malicious = r#"<script>alert("xss & 'more'")</script>"#;
+        let escaped = html_escape(malicious);
+        assert_eq!(
+            escaped,
+            "&lt;script&gt;alert(&quot;xss &amp; &#x27;more&#x27;&quot;)&lt;/script&gt;"
+        );
+        assert!(!escaped.contains('<'));
+        assert!(!escaped.contains('>'));
+        assert!(!escaped.contains('"'));
+        assert!(!escaped.contains('\''));
+    }
+
+    #[test]
+    fn test_inject_bootstrap_and_meta_prevents_xss() {
+        let shell = SiteShell {
+            project: ProjectMetadata {
+                id: "proj_123".to_string(),
+                name: r#"Evil <Project> "</script><script>alert('xss')</script>""#.to_string(),
+                slug: "evil-project".to_string(),
+                description: Some(
+                    r#"Description with "quotes", <tags>, & ampersand, and line break \u{2028}."#.to_string(),
+                ),
+                config: Some(serde_json::json!({
+                    "custom": "</script><img src=x onerror=alert(1)>"
+                })),
+                primary_domain: None,
+            },
+            nav: vec![],
+            languages: vec![LanguageItem {
+                code: "en".to_string(),
+                label: "English".to_string(),
+                direction: "LTR".to_string(),
+                is_default: true,
+                enabled: true,
+            }],
+            versions: vec![VersionItem {
+                id: "v1".to_string(),
+                name: "v1.0".to_string(),
+                slug: "v1.0".to_string(),
+                is_default: true,
+            }],
+            active_language: "en".to_string(),
+            active_version: "v1.0".to_string(),
+            language_config: None,
+            version: 1,
+            generated_at: "2026-10-05T00:00:00Z".to_string(),
+        };
+
+        // Test modern template
+        let template_modern = r#"<!doctype html>
+<html>
+  <head>
+    <title>Documentation</title>
+    <!-- __SITE_HEAD__ -->
+    <script type="application/json" id="__bootstrap__"></script>
+  </head>
+  <body><div id="root"></div></body>
+</html>"#;
+
+        let result = inject_bootstrap_and_meta(template_modern, Some(&shell));
+
+        // 1. Meta tags and title verification
+        assert!(!result.contains("<title>Documentation</title>"), "old title replaced");
+        assert!(result.contains(
+            "<title>Evil &lt;Project&gt; &quot;&lt;/script&gt;&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;&quot;</title>"
+        ));
+        assert!(result.contains(
+            r#"<meta name="description" content="Description with &quot;quotes&quot;, &lt;tags&gt;, &amp; ampersand, and line break \u{2028}." />"#
+        ));
+
+        // 2. Script data block verification
+        let script_start = result
+            .find(r#"<script type="application/json" id="__bootstrap__">"#)
+            .expect("bootstrap tag exists");
+        let script_content_start = script_start + r#"<script type="application/json" id="__bootstrap__">"#.len();
+        let script_end = result[script_content_start..]
+            .find("</script>")
+            .expect("bootstrap close exists")
+            + script_content_start;
+        let script_body = &result[script_content_start..script_end];
+
+        // Ensure script body has no raw < or > or </script>
+        assert!(!script_body.contains('<'), "script body must not contain raw <");
+        assert!(!script_body.contains('>'), "script body must not contain raw >");
+        assert!(!script_body.contains('\u{2028}'), "script body must not contain raw U+2028");
+        assert!(!script_body.contains('\u{2029}'), "script body must not contain raw U+2029");
+
+        // Verify JSON parses back accurately
+        let roundtrip: SiteShell = serde_json::from_str(script_body).expect("JSON inside script tag must be valid");
+        assert_eq!(roundtrip.project.name, shell.project.name);
+        assert_eq!(roundtrip.project.description, shell.project.description);
+
+        // 3. Test legacy template with <script id="__SITE_BOOTSTRAP__">
+        let template_legacy = r#"<!doctype html>
+<html>
+  <head>
+    <title>Documentation</title>
+    <!-- __SITE_HEAD__ -->
+    <script id="__SITE_BOOTSTRAP__">
+      // Injected by standalone server at runtime
+    </script>
+  </head>
+  <body><div id="root"></div></body>
+</html>"#;
+
+        let result_legacy = inject_bootstrap_and_meta(template_legacy, Some(&shell));
+        assert!(result_legacy.contains(r#"<script type="application/json" id="__bootstrap__">"#));
+        assert!(!result_legacy.contains("window.__SITE__"));
+        assert!(!result_legacy.contains("Injected by standalone server at runtime"));
+    }
+}
+

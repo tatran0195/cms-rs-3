@@ -137,7 +137,7 @@ Task:
 ---
 
 ### Session B-2 — Fix Portable Runner HTML Injection (P0)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P0 — portable Reader HTML injection (`apps/runner/src/main.rs`)
 

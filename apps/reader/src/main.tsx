@@ -20,7 +20,29 @@ const queryClient = new QueryClient({
   },
 });
 
-const bootstrapSite = typeof window !== 'undefined' ? window.__SITE__ : undefined;
+function readBootstrap(): any {
+  if (typeof document === 'undefined') return undefined;
+
+  const scriptTag =
+    document.getElementById('__bootstrap__') ||
+    document.getElementById('__SITE_BOOTSTRAP__');
+
+  if (scriptTag?.textContent) {
+    try {
+      return JSON.parse(scriptTag.textContent);
+    } catch {
+      // Ignore malformed bootstrap JSON
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.__SITE__) {
+    return window.__SITE__;
+  }
+
+  return undefined;
+}
+
+const bootstrapSite = readBootstrap();
 
 const router = createSiteRouter({
   queryClient,
