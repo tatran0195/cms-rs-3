@@ -28,6 +28,42 @@ export interface NavNode {
   children: NavNode[];
 }
 
+export interface SiteFeedbackFeature {
+  enabled: boolean;
+  placement: 'after-content' | 'after-navigation';
+  presentation: 'compact' | 'card';
+}
+
+export interface SiteLinkFeature {
+  enabled: boolean;
+  url: string | null;
+}
+
+export interface SiteFeatures {
+  feedback: SiteFeedbackFeature;
+  editSuggestions: SiteLinkFeature;
+  issueLinks: SiteLinkFeature;
+}
+
+export function resolveSiteFeatures(config?: ProjectConfig | null): SiteFeatures {
+  const addons = config?.addons;
+  return {
+    feedback: {
+      enabled: addons?.feedback !== false,
+      placement: addons?.feedbackPlacement ?? 'after-content',
+      presentation: addons?.feedbackPresentation ?? 'compact',
+    },
+    editSuggestions: {
+      enabled: addons?.editSuggestions !== false,
+      url: addons?.editUrl?.trim() || null,
+    },
+    issueLinks: {
+      enabled: addons?.issueLinks !== false,
+      url: addons?.issueUrl?.trim() || null,
+    },
+  };
+}
+
 export interface SiteShell {
   project: {
     id: string;
@@ -35,6 +71,7 @@ export interface SiteShell {
     slug: string;
     description: string | null;
     config: ProjectConfig | null;
+    features?: SiteFeatures;
     /** Verified primary custom domain — canonical/301 consolidation target. */
     primaryDomain: string | null;
   };

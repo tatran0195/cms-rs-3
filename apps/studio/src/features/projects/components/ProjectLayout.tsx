@@ -15,7 +15,7 @@ export { PublishControl } from '@/features/publishing';
 export function ProjectLayout({ projectId, children }: { projectId: string; children: ReactNode }) {
   const t = useT();
   const { data: project } = useProject(projectId);
-  const previewEnabled = project ? project.config?.addons?.previewDeployments !== false : false;
+  const previewEnabled = Boolean(project);
   // The editor is a focused, full-screen workspace (Mintlify-style): it renders
   // its OWN chrome (top bar + page-tree sidebar) and hides the dashboard nav.
   const pathname = useRouterState({ select: (s) => s.location.pathname });

@@ -1,6 +1,6 @@
 // UI-facing shapes for API responses. Dates arrive as ISO strings over JSON.
 
-import type { AddonAvailabilityState, AddonGroup, AddonId } from '@cms/shared/addons';
+import type { AddonGroup, AddonId } from '@cms/shared/addons';
 import type { LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
 
 export type { AnalyticsRange, LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
@@ -208,24 +208,7 @@ export interface ProjectAddon {
   config: Record<string, unknown>;
   revision: number;
   updatedAt: string | null;
-  status: 'active' | 'inactive' | 'needs_configuration' | 'unavailable';
-  availability: {
-    state: AddonAvailabilityState;
-    plans: readonly string[];
-    entitlement: `addons.${AddonId}`;
-    available: boolean;
-    schemaVersion: 1;
-    projectId: string;
-    capabilityKey: string;
-    availability: 'complete' | 'unavailable';
-    decision: 'enabled' | 'disabled' | 'unknown';
-    planKey: string | null;
-    source: 'plan' | 'compatibility' | null;
-    limit: string | null;
-    meterKey: string | null;
-    behavior: 'observe' | 'warn' | 'block';
-    enforcement: 'advisory';
-  };
+  status: 'active' | 'inactive' | 'needs_configuration';
 }
 
 interface CommentAnchor {

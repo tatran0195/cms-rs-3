@@ -92,7 +92,7 @@ Task: Remove all plan/billing/entitlement UI and the analytics consent component
 ---
 
 ### Session F-8 — Replace Plan-Aware Add-Ons with Typed `SiteFeatures`
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — add-on contract; generic plan-aware add-on system.
 

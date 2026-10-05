@@ -78,7 +78,7 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
   const activeLanguage = languages?.find((language) => language.id === activeLanguageId);
   const contentDir = activeLanguage?.direction === 'RTL' ? 'rtl' : 'ltr';
   const activeBranchId = search.branchId ?? branches?.find((branch) => branch.isDefault)?.id ?? branches?.[0]?.id;
-  const previewEnabled = project ? project.config?.addons?.previewDeployments !== false : false;
+  const previewEnabled = Boolean(project);
   const { data: pages, isPending: pagesPending } = usePages(previewEnabled ? projectId : undefined, activeLanguageId, activeBranchId);
   const selected = useMemo(() => pages?.find((page) => page.id === search.pageId) ?? firstPage(pages), [pages, search.pageId]);
   const { data: page, isPending: pagePending } = usePage(previewEnabled ? projectId : undefined, selected?.id);

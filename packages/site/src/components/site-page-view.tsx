@@ -7,8 +7,7 @@ import { Markdown } from './markdown';
 import { DocumentationPageLayout } from './documentation-theme-provider';
 import { useSitePageAlternates } from './page-alternates-context';
 import { TableOfContents } from './toc';
-import type { ProjectConfig } from '@cms/validators';
-import type { SitePage } from '../types';
+import { type SiteFeatures, type SitePage, resolveSiteFeatures } from '../types';
 import { localeTag } from '../lib/format';
 import { siteHref } from '../lib/site-paths';
 import { useSiteAnalytics } from '../context/site-analytics-provider';
@@ -32,12 +31,12 @@ function ReaderActions({
   projectId,
   path,
   language,
-  addons,
+  features,
 }: {
   projectId: string;
   path: string;
   language?: string;
-  addons: NonNullable<ProjectConfig['addons']> | undefined;
+  features: SiteFeatures;
 }) {
   const t = siteT(language);
   const { track } = useSiteAnalytics();
@@ -46,10 +45,10 @@ function ReaderActions({
   useEffect(() => {
     setPageUrl(window.location.href);
   }, []);
-  const editUrl = addons?.editSuggestions !== false ? applyUrlTemplate(addons?.editUrl, path, pageUrl) : null;
-  const issueUrl = addons?.issueLinks !== false ? applyUrlTemplate(addons?.issueUrl, path, pageUrl) : null;
-  const showFeedback = addons?.feedback !== false;
-  const presentation = addons?.feedbackPresentation ?? 'compact';
+  const editUrl = features.editSuggestions.enabled ? applyUrlTemplate(features.editSuggestions.url ?? undefined, path, pageUrl) : null;
+  const issueUrl = features.issueLinks.enabled ? applyUrlTemplate(features.issueLinks.url ?? undefined, path, pageUrl) : null;
+  const showFeedback = features.feedback.enabled;
+  const presentation = features.feedback.presentation;
 
   if (!showFeedback && !editUrl && !issueUrl) {
     return null;
@@ -162,12 +161,12 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
   const ancestors = breadcrumbs.slice(0, -1);
   // Whether ReaderActions will render — when it doesn't, the prev/next pager
   // takes over the article-footer divider it normally provides.
-  const addons = data.project.config?.addons;
+  const features = data.project.features ?? resolveSiteFeatures(data.project.config);
   const hasReaderActions =
-    addons?.feedback !== false ||
-    (addons?.editSuggestions !== false && Boolean(addons?.editUrl?.trim())) ||
-    (addons?.issueLinks !== false && Boolean(addons?.issueUrl?.trim()));
-  const readerActionsAfterNavigation = addons?.feedbackPlacement === 'after-navigation';
+    features.feedback.enabled ||
+    (features.editSuggestions.enabled && Boolean(features.editSuggestions.url)) ||
+    (features.issueLinks.enabled && Boolean(features.issueLinks.url));
+  const readerActionsAfterNavigation = features.feedback.placement === 'after-navigation';
   const readableText = page.content
     .replace(/<[^>]+>/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
@@ -238,7 +237,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
         />
       </div>
 
-      {readerActionsAfterNavigation ? null : <ReaderActions projectId={projectId} path={page.path} language={language} addons={addons} />}
+      {readerActionsAfterNavigation ? null : <ReaderActions projectId={projectId} path={page.path} language={language} features={features} />}
 
       {prev || next ? (
         <nav
@@ -278,7 +277,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
           )}
         </nav>
       ) : null}
-      {readerActionsAfterNavigation ? <ReaderActions projectId={projectId} path={page.path} language={language} addons={addons} /> : null}
+      {readerActionsAfterNavigation ? <ReaderActions projectId={projectId} path={page.path} language={language} features={features} /> : null}
     </article>
   );
 
