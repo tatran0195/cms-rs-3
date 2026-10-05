@@ -565,7 +565,7 @@ SSR path — these are best handled in the SPA, which already compiles MDX via `
   `public/handlers.rs`, `workspace/handlers.rs`, `auth/middleware.rs`.
 - cms-rs server: `src/main.rs`, `crates/cms-sites/src/lib.rs` (+ `host_resolution.rs`,
   `markdown_renderer.rs`, `security.rs`, `seo.rs`, `static_files.rs`), `config.toml`.
-- Product flow: `crates/cms-api/tests/product_flow_e2e.rs`; snapshot storage/query: `crates/cms-db/src/deployment.rs`,
+- Product flow: `crates/cms-api/tests/test_*.rs` (with shared harness in `tests/common/mod.rs`); snapshot storage/query: `crates/cms-db/src/deployment.rs`,
   `crates/cms-biz/src/deployment.rs`, `migrations/20260107000000_snapshot_page_content.sql`,
   `migrations/20260108000000_snapshot_page_lookup_indexes.sql`; translation coverage:
   `crates/cms-biz/src/language.rs`.
