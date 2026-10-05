@@ -118,7 +118,7 @@ Task:
 These sessions require `cargo` to be available. Run them in order; each has an explicit exit gate.
 
 ### Session B-1 — Fix Static-File Path Traversal (P0)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P0 — static-file confinement (`crates/cms-sites/src/spa.rs`)
 
