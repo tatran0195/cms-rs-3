@@ -1572,6 +1572,7 @@ dependencies = [
  "cms-error",
  "cms-middleware",
  "cms-storage",
+ "ipnet",
  "lazy_static",
  "pulldown-cmark",
  "serde",

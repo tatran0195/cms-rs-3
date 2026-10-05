@@ -307,14 +307,6 @@ impl SecurityHeadersMiddleware {
             }
         }
 
-        // X-XSS-Protection
-        if self.config.enable_x_xss_protection {
-            response.headers_mut().insert(
-                "x-xss-protection",
-                HeaderValue::from_static("1; mode=block"),
-            );
-        }
-
         // Content-Security-Policy
         if self.config.enable_csp {
             if let Ok(header_value) = HeaderValue::from_str(&self.config.csp) {

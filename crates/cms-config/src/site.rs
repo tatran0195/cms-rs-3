@@ -18,6 +18,10 @@ pub struct SiteConfig {
     /// Maximum age for SEO cache
     #[serde(default = "default_seo_cache_max_age")]
     pub seo_cache_max_age: usize,
+
+    /// Trusted proxy IP addresses or CIDR blocks (falls back to server.trusted_proxies if empty)
+    #[serde(default)]
+    pub trusted_proxies: Vec<String>,
 }
 
 fn default_seo_cache_max_age() -> usize {
@@ -31,6 +35,7 @@ impl Default for SiteConfig {
             self_host: None,
             edge_secret: None,
             seo_cache_max_age: default_seo_cache_max_age(),
+            trusted_proxies: Vec::new(),
         }
     }
 }

@@ -177,7 +177,7 @@ Task:
 ---
 
 ### Session B-4 — Fix Trusted Forwarded-Host Header Handling (P0)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P0 — host trust and headers (`crates/cms-sites/src/host_resolution.rs`)
 

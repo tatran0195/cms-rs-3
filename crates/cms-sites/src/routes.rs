@@ -13,11 +13,10 @@ use crate::{
     SitesAppState,
 };
 
-/// Derive the site base host from config, falling back to `"cms.app"`.
+/// Derive the site base host from config.
 ///
-/// Prefers the operator's `site.self_host`, then `site.marketing_host`, then the
-/// historical default — so self-hosted operators and branded deployments don't
-/// need to bake `cms.app` into the binary.
+/// Prefers the operator's `site.self_host`, then `site.marketing_host`,
+/// falling back to `"localhost"`.
 pub fn site_host(state: &Arc<SitesAppState>) -> String {
     let site = &state.config.site;
     site.self_host
@@ -28,15 +27,48 @@ pub fn site_host(state: &Arc<SitesAppState>) -> String {
                 .trim_start_matches("http://")
                 .to_string()
         })
-        .unwrap_or_else(|| "cms.app".to_string())
+        .unwrap_or_else(|| "localhost".to_string())
 }
 
 /// Create the full router with all site routes
 pub fn create_router(state: Arc<SitesAppState>) -> Router {
-    let host_resolver = Arc::new(HostResolver::with_generation(
+    let mut canonical_domains = Vec::new();
+    if let Some(ref host) = state.config.site.self_host {
+        let clean = host.trim_start_matches("https://").trim_start_matches("http://");
+        let bare = clean.split(':').next().unwrap_or(clean);
+        if !bare.is_empty() {
+            canonical_domains.push(bare.to_string());
+        }
+    }
+    if let Some(ref host) = state.config.site.marketing_host {
+        let clean = host.trim_start_matches("https://").trim_start_matches("http://");
+        let bare = clean.split(':').next().unwrap_or(clean);
+        if !bare.is_empty() && !canonical_domains.contains(&bare.to_string()) {
+            canonical_domains.push(bare.to_string());
+        }
+    }
+    let default_h = site_host(&state);
+    let bare_default = default_h.split(':').next().unwrap_or(&default_h);
+    if !bare_default.is_empty()
+        && bare_default != "localhost"
+        && bare_default != "127.0.0.1"
+        && !canonical_domains.contains(&bare_default.to_string())
+    {
+        canonical_domains.push(bare_default.to_string());
+    }
+
+    let trusted_proxies = if !state.config.site.trusted_proxies.is_empty() {
+        state.config.site.trusted_proxies.clone()
+    } else {
+        state.config.server.trusted_proxies.clone()
+    };
+
+    let host_resolver = Arc::new(HostResolver::with_options(
         state.biz_context.pool.clone(),
-        site_host(&state),
+        default_h,
         state.host_resolution_generation.clone(),
+        canonical_domains,
+        trusted_proxies,
     ));
 
     Router::new()

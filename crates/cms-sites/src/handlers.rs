@@ -10,7 +10,7 @@ use cms_entity::deployment::DeploymentSnapshotContent;
 use cms_error::AppError;
 
 use crate::{
-    host_resolution::{HostResolutionResult, HostResolver},
+    host_resolution::{ClientIp, HostResolutionResult, HostResolver},
     markdown_renderer::{HighlightTheme, MarkdownRenderer, MarkdownRendererConfig},
     routes::site_host,
     security::SiteSecurityHeaders,
@@ -26,13 +26,29 @@ use crate::{
 pub async fn record_trusted_tls_observation(
     state: &Arc<SitesAppState>,
     headers: &HeaderMap,
+    client_ip: Option<std::net::IpAddr>,
     resolution: &HostResolutionResult,
 ) {
-    if !resolution.is_custom_domain
-        || !headers
-            .get("x-forwarded-proto")
-            .and_then(|value| value.to_str().ok())
-            .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https"))
+    if !resolution.is_custom_domain {
+        return;
+    }
+
+    let trusted_proxies = if !state.config.site.trusted_proxies.is_empty() {
+        crate::host_resolution::parse_trusted_proxies(&state.config.site.trusted_proxies)
+    } else {
+        crate::host_resolution::parse_trusted_proxies(&state.config.server.trusted_proxies)
+    };
+    if !trusted_proxies.is_empty() {
+        let is_trusted = client_ip.map_or(false, |ip| trusted_proxies.iter().any(|net| net.contains(&ip)));
+        if !is_trusted {
+            return;
+        }
+    }
+
+    if !headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("https"))
     {
         return;
     }
@@ -183,12 +199,13 @@ pub fn get_seo_generator(base_url: &str) -> SeoGenerator {
 pub async fn root_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
+    ClientIp(client_ip): ClientIp,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
     // Resolve host to project using the router-scoped cache.
-    let resolution = host_resolver.resolve(&headers).await?;
+    let resolution = host_resolver.resolve(&headers, client_ip).await?;
     if let Some(result) = resolution.as_ref() {
-        record_trusted_tls_observation(&state, &headers, result).await;
+        record_trusted_tls_observation(&state, &headers, client_ip, result).await;
     }
 
     match resolution {
@@ -203,13 +220,14 @@ pub async fn root_handler(
 pub async fn wildcard_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
+    ClientIp(client_ip): ClientIp,
     headers: HeaderMap,
     Path(path): Path<String>,
 ) -> Result<Response, AppError> {
     // Resolve host to project using the router-scoped cache.
-    let resolution = host_resolver.resolve(&headers).await?;
+    let resolution = host_resolver.resolve(&headers, client_ip).await?;
     if let Some(result) = resolution.as_ref() {
-        record_trusted_tls_observation(&state, &headers, result).await;
+        record_trusted_tls_observation(&state, &headers, client_ip, result).await;
     }
 
     match resolution {
@@ -507,9 +525,10 @@ pub fn serve_not_found() -> Result<Html<String>, AppError> {
 pub async fn robots_txt_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
+    ClientIp(client_ip): ClientIp,
     headers: HeaderMap,
 ) -> Result<String, AppError> {
-    match host_resolver.resolve(&headers).await? {
+    match host_resolver.resolve(&headers, client_ip).await? {
         Some(result) => {
             let site = load_published_site_snapshot(
                 &state,
@@ -545,9 +564,10 @@ pub async fn robots_txt_handler(
 pub async fn sitemap_xml_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
+    ClientIp(client_ip): ClientIp,
     headers: HeaderMap,
 ) -> Result<String, AppError> {
-    match host_resolver.resolve(&headers).await? {
+    match host_resolver.resolve(&headers, client_ip).await? {
         Some(result) => {
             let site = load_published_site_snapshot(
                 &state,
@@ -767,9 +787,10 @@ pub async fn apple_touch_icon_handler(
 pub async fn manifest_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
+    ClientIp(client_ip): ClientIp,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
-    let manifest = match host_resolver.resolve(&headers).await? {
+    let manifest = match host_resolver.resolve(&headers, client_ip).await? {
         Some(result) => {
             let site = load_published_site_snapshot(
                 &state,

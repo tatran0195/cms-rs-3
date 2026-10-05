@@ -26,6 +26,10 @@ pub struct ServerConfig {
     /// Trusted proxy hops for X-Forwarded-For parsing
     #[serde(default = "default_trusted_proxy_hops")]
     pub trusted_proxy_hops: usize,
+
+    /// Trusted proxy IP addresses or CIDR blocks (e.g. "127.0.0.1", "::1", "10.0.0.0/8")
+    #[serde(default)]
+    pub trusted_proxies: Vec<String>,
 }
 
 fn default_port() -> u16 {
@@ -47,6 +51,7 @@ impl Default for ServerConfig {
             tls_cert_path: None,
             tls_key_path: None,
             trusted_proxy_hops: default_trusted_proxy_hops(),
+            trusted_proxies: Vec::new(),
         }
     }
 }

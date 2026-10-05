@@ -133,7 +133,7 @@ async fn test_security_headers_present() {
     // Check for security headers
     assert!(headers.contains_key("x-content-type-options"));
     assert!(headers.contains_key("x-frame-options"));
-    assert!(headers.contains_key("x-xss-protection"));
+    assert!(!headers.contains_key("x-xss-protection"));
     assert!(headers.contains_key("content-security-policy"));
     assert!(headers.contains_key("referrer-policy"));
     assert!(headers.contains_key("permissions-policy"));

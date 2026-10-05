@@ -138,7 +138,10 @@ async fn main() -> Result<(), AppError> {
         .await
         .map_err(|e| AppError::Internal(e.into()))?;
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .with_graceful_shutdown(async move {
             shutdown_signal().await;
             let _ = worker_shutdown_tx.send(true);

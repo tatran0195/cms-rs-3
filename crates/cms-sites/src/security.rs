@@ -95,13 +95,6 @@ pub fn get_security_headers(config: &SiteSecurityConfig) -> HeaderMap {
         );
     }
 
-    // Enable XSS protection
-    if config.enable_x_xss_protection {
-        headers.insert(
-            HeaderName::from_static("x-xss-protection"),
-            HeaderValue::from_static("1; mode=block"),
-        );
-    }
 
     // Content Security Policy
     if config.enable_csp {
@@ -140,17 +133,17 @@ pub fn get_security_headers(config: &SiteSecurityConfig) -> HeaderMap {
     headers
 }
 
-/// Check if request is secure (HTTPS)
-pub fn is_secure_request(headers: &HeaderMap) -> bool {
-    // Check X-Forwarded-Proto header (for reverse proxy)
-    if let Some(proto) = headers.get("X-Forwarded-Proto") {
-        if let Ok(proto_str) = proto.to_str() {
-            return proto_str.eq_ignore_ascii_case("https");
+/// Check if request is secure (HTTPS), accepting X-Forwarded-Proto ONLY from trusted proxies
+pub fn is_secure_request(headers: &HeaderMap, is_trusted_proxy: bool) -> bool {
+    // Check X-Forwarded-Proto header only when caller is a verified trusted proxy
+    if is_trusted_proxy {
+        if let Some(proto) = headers.get("X-Forwarded-Proto") {
+            if let Ok(proto_str) = proto.to_str() {
+                return proto_str.eq_ignore_ascii_case("https");
+            }
         }
     }
 
-    // Check if the request is directly HTTPS
-    // Note: This is typically determined at the server level
     false
 }
 
@@ -223,7 +216,7 @@ mod tests {
 
         assert!(headers.contains_key("x-frame-options"));
         assert!(headers.contains_key("x-content-type-options"));
-        assert!(headers.contains_key("x-xss-protection"));
+        assert!(!headers.contains_key("x-xss-protection"));
         assert!(headers.contains_key("content-security-policy"));
         assert!(headers.contains_key("referrer-policy"));
         assert!(headers.contains_key("permissions-policy"));
