@@ -24,7 +24,7 @@ export { SiteNav, firstLeafPath, isVersionIndependentNavNode } from './component
 export { MobileNav } from './components/mobile-nav';
 export { SiteSearch } from './components/site-search';
 export { SiteBanner } from './components/site-banner';
-export { SiteAnalyticsConsent, appendAnalyticsScript } from './components/site-analytics-consent';
+
 export { MadeWithBadge } from './components/made-with-badge';
 export { PageIcon, hasIcon } from './components/page-icon';
 export { TableOfContents } from './components/toc';

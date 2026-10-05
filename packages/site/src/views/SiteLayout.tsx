@@ -9,7 +9,7 @@ import { LanguageSwitcher } from '../components/language-switcher';
 import { MadeWithBadge } from '../components/made-with-badge';
 import { MobileNav } from '../components/mobile-nav';
 import { type SiteLanguageAlternate, SitePageAlternatesContext } from '../components/page-alternates-context';
-import { SiteAnalyticsConsent } from '../components/site-analytics-consent';
+
 import { SiteBanner } from '../components/site-banner';
 import { firstLeafPath, SiteNav } from '../components/site-nav';
 import { SiteSearch } from '../components/site-search';
@@ -460,7 +460,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                   hotkey={searchHotkey}
                 />
               )}
-              <SiteAnalyticsConsent projectId={projectId} config={config} />
+
             </>
           }
         />

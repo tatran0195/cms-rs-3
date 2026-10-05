@@ -110,7 +110,6 @@ export interface ChangelogEntry {
   pages: number;
 }
 
-export type SiteAnalyticsConsent = 'unknown' | 'granted' | 'denied' | 'not_required';
 
 export type PublicAnalyticsPayload =
   | { name: 'page_view'; path: string; referrer?: string; language?: string }

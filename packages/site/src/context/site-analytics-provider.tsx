@@ -1,17 +1,13 @@
 import type { ProjectConfig } from '@cms/validators';
 import { useMutation } from '@tanstack/react-query';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo } from 'react';
-import type { PublicAnalyticsPayload, SiteAnalyticsConsent } from '../types';
+import type { PublicAnalyticsPayload } from '../types';
 
-export type {
-  PublicAnalyticsPayload,
-  SiteAnalyticsConsent,
-} from '../types';
+export type { PublicAnalyticsPayload } from '../types';
 
 interface SiteAnalyticsEvent {
   eventId: string;
   occurredAt: string;
-  consentState: SiteAnalyticsConsent;
   sessionId?: string;
   payload: PublicAnalyticsPayload;
 }
@@ -34,14 +30,6 @@ const sessionIdFn = (): string | undefined => {
   return id;
 };
 
-const consentStateFn = (projectId: string, config?: ProjectConfig | null): SiteAnalyticsConsent => {
-  if (config?.addons?.consentBanner?.enabled === false) return 'denied';
-  if (!config?.analytics?.cookieConsent) return 'not_required';
-  if (typeof window === 'undefined') return 'unknown';
-  const value = window.localStorage.getItem(`cms.analytics.consent.${projectId}`);
-  return value === 'accepted' ? 'granted' : value === 'declined' ? 'denied' : 'unknown';
-};
-
 type SiteAnalyticsContextValue = {
   track: (payload: PublicAnalyticsPayload) => void;
 };
@@ -52,7 +40,7 @@ export function SiteAnalyticsProvider({
   projectId,
   path,
   language,
-  config,
+  config: _config,
 }: {
   children: ReactNode;
   projectId: string;
@@ -79,12 +67,11 @@ export function SiteAnalyticsProvider({
       createEvent({
         eventId: randomIdFn(),
         occurredAt: new Date().toISOString(),
-        consentState: consentStateFn(projectId, config),
         sessionId: sessionIdFn(),
         payload,
       });
     },
-    [config, createEvent, projectId],
+    [createEvent],
   );
 
   useEffect(() => {
@@ -169,3 +156,4 @@ export function useSiteAnalytics(): SiteAnalyticsContextValue {
   }
   return value;
 }
+

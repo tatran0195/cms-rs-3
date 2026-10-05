@@ -15,7 +15,6 @@ export interface UsageMetric {
 }
 
 export interface ProjectUsageData {
-  plan: { key: string };
   period: { start: string; endExclusive: string };
   availability: UsageAvailability;
   meters: UsageMetric[];
@@ -101,7 +100,6 @@ const availabilityKeys: Record<UsageAvailability, MessageKey> = {
   unavailable: 'settings.usage.availability.unavailable',
 };
 
-const planLabelKeys: ReadonlyMap<string, MessageKey> = new Map([['free', 'settings.usage.plan.free']]);
 
 function UsageSkeleton() {
   return <div aria-hidden className="h-36 animate-pulse rounded-xl border border-border bg-muted/40" />;
@@ -121,9 +119,6 @@ export function UsageTab({ project }: { project: Project }) {
             <h2 className="font-semibold text-xl tracking-tight">{t('settings.usage.title')}</h2>
             <p className="mt-1 max-w-2xl text-muted-foreground text-sm">{t('settings.usage.description')}</p>
           </div>
-          <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-sm">
-            {t(planLabelKeys.get(usage?.plan.key ?? '') ?? 'settings.usage.plan.unconfigured')}
-          </span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-border border-t pt-4 text-muted-foreground text-xs">
           <span>

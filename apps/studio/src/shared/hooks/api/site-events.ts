@@ -1,7 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../services/api';
 
-export type SiteAnalyticsConsent = 'denied' | 'granted' | 'not_required' | 'unknown';
 export type PublicAnalyticsPayload =
   | { name: 'page_view' | 'page_engaged'; path: string; language?: string; referrer?: string; engagementMs?: number; scrollDepth?: number }
   | {
@@ -18,7 +17,6 @@ export type PublicAnalyticsPayload =
 interface SiteAnalyticsEvent {
   eventId: string;
   occurredAt: string;
-  consentState: SiteAnalyticsConsent;
   sessionId?: string;
   payload: PublicAnalyticsPayload;
 }

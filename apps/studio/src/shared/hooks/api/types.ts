@@ -191,7 +191,6 @@ export interface Asset {
 }
 
 export interface WorkspaceSettings {
-  plan: string;
   notifications: Record<string, boolean>;
   integrations: Record<string, unknown>;
   git: Record<string, unknown>;

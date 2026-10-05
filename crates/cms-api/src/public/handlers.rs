@@ -202,8 +202,7 @@ pub async fn get_public_meta_handler(
         "providers": {
             "google": google,
             "github": github
-        },
-        "marketingAnalytics": null
+        }
     })))
 }
 
