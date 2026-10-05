@@ -9,6 +9,7 @@ import { QueryClient } from '@tanstack/react-query';
 import {
   OpenApiReferenceView,
   pageHead,
+  SiteApiProvider,
   SiteChangelogView,
   SiteLayout,
   SitePageView,
@@ -49,9 +50,24 @@ function RootComponent() {
   const { site } = rootRoute.useLoaderData();
   const { lang } = rootRoute.useSearch();
   return (
-    <SiteLayout site={site} projectId={site?.project.id ?? 'standalone'} lang={lang} basePath="">
-      <Outlet />
-    </SiteLayout>
+    <SiteApiProvider
+      config={{
+        search: async (options) => {
+          const params = new URLSearchParams({ q: options.query });
+          if (options.language) params.set('lang', options.language);
+          if (options.version) params.set('version', options.version);
+          if (options.limit) params.set('limit', String(options.limit));
+          const res = await fetch(`/api/v1/search?${params.toString()}`);
+          if (!res.ok) throw new Error(`Search failed: ${res.status}`);
+          const json = await res.json();
+          return json.hits ?? json;
+        },
+      }}
+    >
+      <SiteLayout site={site} projectId={site?.project.id ?? 'standalone'} lang={lang} basePath="">
+        <Outlet />
+      </SiteLayout>
+    </SiteApiProvider>
   );
 }
 

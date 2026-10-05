@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 import { QueryProvider, siteService } from '@/shared';
-import { siteHead, SiteLayout } from '@cms/site';
+import { siteHead, SiteApiProvider, SiteLayout } from '@cms/site';
 
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,
@@ -31,7 +31,23 @@ function SiteRoute() {
 
   return (
     <QueryProvider>
-      <SiteLayout site={site} projectId={projectId} lang={lang} basePath={`/sites/${projectId}`} />
+      <SiteApiProvider
+        config={{
+          search: (options) =>
+            siteService.search(options.projectId, options.query, {
+              language: options.language,
+              version: options.version,
+              limit: options.limit,
+            }),
+          answer: (options) =>
+            siteService.answer(options.projectId, options.query, {
+              language: options.language,
+              version: options.version,
+            }),
+        }}
+      >
+        <SiteLayout site={site} projectId={projectId} lang={lang} basePath={`/sites/${projectId}`} />
+      </SiteApiProvider>
     </QueryProvider>
   );
 }
