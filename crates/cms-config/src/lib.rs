@@ -99,9 +99,32 @@ pub struct Config {
     /// Admin origin configuration
     #[serde(default)]
     pub admin_origin: AdminOriginConfig,
+
+    /// Environment profile ("dev", "deploy", "production", "test", etc.)
+    #[serde(default = "default_environment")]
+    pub environment: String,
+}
+
+fn default_environment() -> String {
+    std::env::var("CMS_ENV").unwrap_or_else(|_| "dev".to_string())
 }
 
 impl Config {
+    /// Check whether this configuration is operating in production/deploy mode.
+    pub fn is_production(&self) -> bool {
+        let env = self.environment.trim().to_lowercase();
+        if matches!(env.as_str(), "deploy" | "production" | "prod") {
+            return true;
+        }
+        if let Ok(env_var) = std::env::var("CMS_ENV") {
+            let env_var = env_var.trim().to_lowercase();
+            if matches!(env_var.as_str(), "deploy" | "production" | "prod") {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Load configuration from the environment and files
     ///
     /// Configuration is loaded in the following cascading order (later sources override earlier ones):
@@ -149,7 +172,12 @@ impl Config {
 
         let settings = builder.build()?;
 
-        Ok(settings.try_deserialize()?)
+        let mut config: Config = settings.try_deserialize()?;
+        // Keep environment consistent with CMS_ENV if not explicitly specified in sources
+        if config.environment.is_empty() || config.environment == "dev" {
+            config.environment = env;
+        }
+        Ok(config)
     }
 
     /// Load configuration from a specific path, with environment variable overrides
@@ -329,6 +357,7 @@ mod tests {
 
     #[test]
     fn test_load_from_path() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let deploy_path = format!("{}/../../config/deploy.toml", manifest_dir);
         let config = Config::load_from_path(&deploy_path);
@@ -342,6 +371,30 @@ mod tests {
         assert_eq!(config.queue.workers, 8);
         assert_eq!(config.queue.max_retries, 5);
         assert!(!config.admin_origin.allow_localhost);
+    }
+
+    #[test]
+    fn test_is_production() {
+        let _guard = ENV_MUTEX.lock().unwrap();
+        env::remove_var("CMS_ENV");
+        let mut config = Config::default();
+        assert!(!config.is_production());
+
+        config.environment = "deploy".to_string();
+        assert!(config.is_production());
+
+        config.environment = "production".to_string();
+        assert!(config.is_production());
+
+        config.environment = "prod".to_string();
+        assert!(config.is_production());
+
+        config.environment = "dev".to_string();
+        assert!(!config.is_production());
+
+        env::set_var("CMS_ENV", "deploy");
+        assert!(config.is_production());
+        env::remove_var("CMS_ENV");
     }
 
     #[test]

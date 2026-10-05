@@ -15,8 +15,22 @@ use middleware::*;
 
 /// Create the auth router
 pub fn router(state: Arc<AppState>) -> Router {
+    let admin_origin_config =
+        cms_middleware::admin_origin::AdminOriginConfig::from(&state.config.admin_origin);
+    let admin_origin_layer =
+        cms_middleware::admin_origin::AdminOriginLayer::new(admin_origin_config)
+            .expect("Invalid admin origin configuration");
+
+    let admin_routes = Router::new()
+        .route(
+            "/admin/stop-impersonating",
+            post(stop_impersonating_handler),
+        )
+        .layer(admin_origin_layer);
+
     Router::new()
         .merge(oauth::router())
+        .merge(admin_routes)
         .route("/login", post(login_handler))
         .route("/register", post(register_handler))
         .route("/logout", post(logout_handler))
@@ -36,10 +50,6 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/sign-in/social", post(sign_in_social_handler))
         .route("/verify-email", post(verify_email_handler))
         .route("/update-user", post(update_user_handler))
-        .route(
-            "/admin/stop-impersonating",
-            post(stop_impersonating_handler),
-        )
         .route(
             "/organizations/accept-invitation",
             post(accept_invitation_handler),

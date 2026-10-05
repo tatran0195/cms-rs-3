@@ -360,10 +360,11 @@ pub async fn oauth_callback_handler(
     )
     .await?;
 
-    let cookie_val = format!(
-        "better-auth.session_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        session_token,
-        30 * 24 * 3600
+    let cookie_val = state.config.auth.session_cookie_value(
+        &session_token,
+        30 * 24 * 3600,
+        state.config.is_production(),
+        state.config.server.https,
     );
 
     let mut headers = HeaderMap::new();

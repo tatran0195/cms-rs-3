@@ -45,6 +45,8 @@ backend = "postgres"
 session_expiration_hours = 168
 jwt_expiration_hours = 720
 api_key_prefix = "cms_api_key"
+session_cookie_secure = true
+session_cookie_same_site = "Lax"
 
 [site]
 seo_cache_max_age = 600

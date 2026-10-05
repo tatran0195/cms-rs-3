@@ -157,7 +157,7 @@ Task:
 ---
 
 ### Session B-3 — Harden Auth Config & Cookie Flags (P0)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P0 — production auth/config (`crates/cms-config/src/auth.rs`, `AppState::validate_config`)
 

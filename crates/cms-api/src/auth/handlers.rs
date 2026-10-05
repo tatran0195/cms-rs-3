@@ -56,10 +56,11 @@ pub async fn login_handler(
     .await;
 
     let mut res_headers = HeaderMap::new();
-    let cookie_val = format!(
-        "better-auth.session_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        session_token,
-        30 * 24 * 3600
+    let cookie_val = state.config.auth.session_cookie_value(
+        &session_token,
+        30 * 24 * 3600,
+        state.config.is_production(),
+        state.config.server.https,
     );
     if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
         res_headers.insert(axum::http::header::SET_COOKIE, val);
@@ -116,12 +117,13 @@ pub async fn logout_handler(
     }
 
     let mut res_headers = HeaderMap::new();
-    res_headers.insert(
-        axum::http::header::SET_COOKIE,
-        axum::http::HeaderValue::from_static(
-            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
-        ),
+    let cookie_val = state.config.auth.clear_session_cookie_value(
+        state.config.is_production(),
+        state.config.server.https,
     );
+    if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
+        res_headers.insert(axum::http::header::SET_COOKIE, val);
+    }
 
     Ok((
         res_headers,
@@ -160,10 +162,11 @@ pub async fn refresh_session_handler(
     let user = AuthService::refresh_session(&state.biz_context, &session_token).await?;
 
     let mut res_headers = HeaderMap::new();
-    let cookie_val = format!(
-        "better-auth.session_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        session_token,
-        30 * 24 * 3600
+    let cookie_val = state.config.auth.session_cookie_value(
+        &session_token,
+        30 * 24 * 3600,
+        state.config.is_production(),
+        state.config.server.https,
     );
     res_headers.insert(
         axum::http::header::SET_COOKIE,
@@ -391,10 +394,11 @@ pub async fn sign_in_email_otp_handler(
     .await?;
 
     let mut headers = HeaderMap::new();
-    let cookie_val = format!(
-        "better-auth.session_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        session_token,
-        30 * 24 * 3600
+    let cookie_val = state.config.auth.session_cookie_value(
+        &session_token,
+        30 * 24 * 3600,
+        state.config.is_production(),
+        state.config.server.https,
     );
     headers.insert(
         axum::http::header::SET_COOKIE,
@@ -440,12 +444,13 @@ pub async fn sign_out_better_auth_handler(
     }
 
     let mut res_headers = HeaderMap::new();
-    res_headers.insert(
-        axum::http::header::SET_COOKIE,
-        axum::http::HeaderValue::from_static(
-            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
-        ),
+    let cookie_val = state.config.auth.clear_session_cookie_value(
+        state.config.is_production(),
+        state.config.server.https,
     );
+    if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
+        res_headers.insert(axum::http::header::SET_COOKIE, val);
+    }
 
     Ok((res_headers, Json(serde_json::json!({ "success": true }))))
 }

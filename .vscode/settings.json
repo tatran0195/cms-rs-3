@@ -1,5 +1,9 @@
 {
   "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "never",
+    "source.organizeImports.biome": "always"
+  },
   "cSpell.words": [
     "apalis",
     "Casbin",
