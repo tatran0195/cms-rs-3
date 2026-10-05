@@ -75,7 +75,7 @@ dev-worker:
 	$(CARGO) run -p cms-worker
 
 dev-frontend:
-	$(BUN) --filter @cms/app dev
+	$(BUN) --filter @cms/studio dev
 
 # ==============================================================================
 # Build
@@ -94,7 +94,7 @@ build-packages:
 	$(BUN) run build:packages
 
 build-frontend:
-	$(BUN) --filter @cms/app build
+	$(BUN) --filter @cms/studio build
 
 # ==============================================================================
 # Testing
@@ -107,7 +107,7 @@ test-backend:
 	$(CARGO) test --workspace
 
 test-frontend:
-	$(BUN) --filter @cms/app test
+	$(BUN) --filter @cms/studio test
 
 test-e2e:
 	$(CARGO) xtask e2e
@@ -122,7 +122,7 @@ check:
 
 lint:
 	$(CARGO) clippy --workspace --all-targets --all-features -- -D warnings
-	$(BUN) --filter @cms/app typecheck
+	$(BUN) --filter @cms/studio typecheck
 
 fmt:
 	$(CARGO) fmt --all
@@ -159,4 +159,4 @@ db-status:
 .PHONY: clean
 clean:
 	$(CARGO) clean
-	$(BUN) --filter @cms/app clean
+	$(BUN) --filter @cms/studio clean

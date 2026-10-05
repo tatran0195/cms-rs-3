@@ -1,0 +1,12 @@
+{
+  "extends": "@cms/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "paths": {
+      "@cms/site/*": ["./src/*"]
+    }
+  },
+
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", ".cache", ".turbo"]
+}

@@ -407,7 +407,7 @@ pub async fn process_export_job(
             generate_epub_export(&pages, &snapshot.project_id).await
         }
         ExportFormat::SQLITE | ExportFormat::Sqlite => {
-            generate_sqlite_export(pool, &snapshot.project_id, &pages).await
+            generate_sqlite_export(pool, &snapshot.project_id, &pages, Some(storage.as_ref())).await
         }
     };
 
@@ -738,11 +738,23 @@ async fn generate_epub_export(
     Ok(Bytes::from(output))
 }
 
+/// Binary asset item for self-contained SQLite export
+#[derive(Debug, Clone)]
+pub struct ExportAssetItem {
+    pub path: String,
+    pub storage_key: String,
+    pub mime_type: String,
+    pub data: Vec<u8>,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+}
+
 /// Generate isolated self-contained SQLite snapshot export
 pub async fn generate_sqlite_export(
     pool: &cms_db::PgPool,
     project_id: &str,
     pages: &[cms_entity::page::PageListItem],
+    storage: Option<&dyn Storage>,
 ) -> Result<Bytes, AppError> {
     // 1. Fetch metadata from PostgreSQL
     let project = cms_db::project::ProjectQueries::get_by_id(pool, project_id)
@@ -754,19 +766,42 @@ pub async fn generate_sqlite_export(
             .await
             .unwrap_or_default();
 
-    let assets =
+    let languages =
+        cms_db::language::LanguageQueries::get_by_project(pool, project_id, Some(100), Some(0))
+            .await
+            .unwrap_or_default();
+
+    let raw_assets =
         cms_db::asset::AssetQueries::get_by_project(pool, project_id, Some(10_000), Some(0))
             .await
             .unwrap_or_default();
 
-    let deployments =
-        cms_db::deployment::DeploymentQueries::get_by_project(pool, project_id, Some(100), Some(0))
-            .await
-            .unwrap_or_default();
+    // Fetch binary data for assets if storage is available
+    let mut assets = Vec::with_capacity(raw_assets.len());
+    for a in raw_assets {
+        let data = if let Some(s) = storage {
+            match s.get(&a.storage_key).await {
+                Ok(bytes) => bytes.to_vec(),
+                Err(e) => {
+                    tracing::warn!("Failed to fetch asset blob {}: {}", a.storage_key, e);
+                    Vec::new()
+                }
+            }
+        } else {
+            Vec::new()
+        };
 
-    let pages_vec = pages.to_vec();
+        assets.push(ExportAssetItem {
+            path: a.file_name.clone(),
+            storage_key: a.storage_key.clone(),
+            mime_type: a.content_type.clone(),
+            data,
+            width: a.width,
+            height: a.height,
+        });
+    }
 
-    build_sqlite_export_database(project, branches, pages_vec, assets, deployments).await
+    build_sqlite_export_database(project, branches, pages.to_vec(), languages, assets).await
 }
 
 /// Helper function to build the isolated SQLite artifact from entity records
@@ -774,8 +809,8 @@ pub async fn build_sqlite_export_database(
     project: cms_entity::project::Project,
     branches: Vec<cms_entity::branch::Branch>,
     pages: Vec<cms_entity::page::PageListItem>,
-    assets: Vec<cms_entity::asset::Asset>,
-    deployments: Vec<cms_entity::deployment::Deployment>,
+    languages: Vec<cms_entity::language::Language>,
+    assets: Vec<ExportAssetItem>,
 ) -> Result<Bytes, AppError> {
     tokio::task::spawn_blocking(move || -> Result<Bytes, AppError> {
         let temp_file = tempfile::NamedTempFile::new()
@@ -785,216 +820,378 @@ pub async fn build_sqlite_export_database(
         let conn = rusqlite::Connection::open(path)
             .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to open sqlite db: {}", e)))?;
 
-        // Initialize schema
+        // Initialize reader-optimized schema
         conn.execute_batch(
             r#"
             PRAGMA journal_mode = WAL;
             PRAGMA foreign_keys = ON;
 
-            CREATE TABLE project (
-                id TEXT PRIMARY KEY,
-                organization_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                slug TEXT NOT NULL,
+            -- Format identification and compatibility check
+            CREATE TABLE export_meta (
+                schema_version INTEGER NOT NULL,
+                project_id     TEXT    NOT NULL,
+                project_name   TEXT    NOT NULL,
+                project_slug   TEXT    NOT NULL,
+                exported_at    TEXT    NOT NULL
+            );
+
+            -- Named versions only (branches excluding trunk 'main')
+            CREATE TABLE versions (
+                id         TEXT    PRIMARY KEY,
+                slug       TEXT    NOT NULL UNIQUE,
+                label      TEXT    NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_default INTEGER NOT NULL DEFAULT 0
+            );
+
+            -- Page navigation tree (version-scoped)
+            CREATE TABLE pages (
+                id          TEXT    PRIMARY KEY,
+                version_id  TEXT    NOT NULL,
+                parent_id   TEXT,
+                kind        TEXT    NOT NULL DEFAULT 'PAGE',
+                slug        TEXT    NOT NULL,
+                path        TEXT    NOT NULL,
+                title       TEXT    NOT NULL,
+                icon        TEXT,
+                sort_order  INTEGER NOT NULL DEFAULT 0,
+                is_draft    INTEGER NOT NULL DEFAULT 0,
+                openapi_url TEXT,
+                link_url    TEXT,
+                FOREIGN KEY (version_id) REFERENCES versions(id) ON DELETE CASCADE,
+                FOREIGN KEY (parent_id) REFERENCES pages(id) ON DELETE CASCADE
+            );
+
+            -- Page content per language (Markdown source stored, rendered on demand)
+            CREATE TABLE page_content (
+                page_id     TEXT NOT NULL,
+                language    TEXT NOT NULL,
+                markdown    TEXT NOT NULL,
                 description TEXT,
-                icon TEXT,
-                is_public INTEGER NOT NULL,
-                config TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at  TEXT NOT NULL,
+                PRIMARY KEY (page_id, language),
+                FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
             );
 
-            CREATE TABLE branch (
-                id TEXT PRIMARY KEY,
-                project_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                slug TEXT NOT NULL,
-                description TEXT,
-                is_default INTEGER NOT NULL,
-                is_protected INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+            -- Supported languages for this project
+            CREATE TABLE languages (
+                code       TEXT PRIMARY KEY,
+                label      TEXT NOT NULL,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                is_rtl     INTEGER NOT NULL DEFAULT 0
             );
 
-            CREATE TABLE page (
-                id TEXT PRIMARY KEY,
-                project_id TEXT NOT NULL,
-                branch_id TEXT NOT NULL,
-                language_id TEXT,
-                parent_id TEXT,
-                kind TEXT,
-                path TEXT NOT NULL,
-                slug TEXT NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT,
-                content TEXT,
-                icon TEXT,
-                config TEXT,
-                translation_key TEXT,
-                position INTEGER NOT NULL,
-                is_published INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+            -- UI string overrides / translations
+            CREATE TABLE i18n_messages (
+                language TEXT NOT NULL,
+                key      TEXT NOT NULL,
+                value    TEXT NOT NULL,
+                PRIMARY KEY (language, key),
+                FOREIGN KEY (language) REFERENCES languages(code) ON DELETE CASCADE
             );
 
-            CREATE TABLE asset (
-                id TEXT PRIMARY KEY,
-                project_id TEXT NOT NULL,
-                page_id TEXT,
-                storage_key TEXT NOT NULL,
-                file_name TEXT NOT NULL,
-                content_type TEXT NOT NULL,
-                file_size INTEGER NOT NULL,
-                width INTEGER,
-                height INTEGER,
-                alt_text TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+            -- Embedded binary assets
+            CREATE TABLE assets (
+                path      TEXT PRIMARY KEY,
+                mime_type TEXT NOT NULL,
+                data      BLOB NOT NULL,
+                width     INTEGER,
+                height    INTEGER
             );
 
-            CREATE TABLE deployment (
-                id TEXT PRIMARY KEY,
-                project_id TEXT NOT NULL,
-                branch_id TEXT,
-                status TEXT NOT NULL,
-                build_logs TEXT,
-                error_message TEXT,
-                deployed_at TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+            -- Changelog entries
+            CREATE TABLE changelog (
+                id           TEXT NOT NULL,
+                version_id   TEXT NOT NULL,
+                language     TEXT NOT NULL,
+                slug         TEXT NOT NULL,
+                title        TEXT NOT NULL,
+                published_at TEXT NOT NULL,
+                content      TEXT NOT NULL,
+                PRIMARY KEY (id, language),
+                FOREIGN KEY (version_id) REFERENCES versions(id) ON DELETE CASCADE,
+                FOREIGN KEY (language) REFERENCES languages(code) ON DELETE CASCADE
             );
 
-            CREATE INDEX idx_page_path ON page(path);
-            CREATE INDEX idx_page_slug ON page(slug);
-            CREATE INDEX idx_page_branch ON page(branch_id);
-            CREATE INDEX idx_asset_project ON asset(project_id);
+            -- Project-level configuration for the reader
+            CREATE TABLE project_config (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            -- Indexes for fast lookup
+            CREATE INDEX idx_pages_version ON pages(version_id);
+            CREATE INDEX idx_pages_path ON pages(path);
+            CREATE INDEX idx_content_lang ON page_content(language);
+            CREATE INDEX idx_changelog_ver ON changelog(version_id, published_at DESC);
+
+            -- Full-text search (FTS5)
+            CREATE VIRTUAL TABLE page_fts USING fts5(
+                page_id UNINDEXED,
+                version_id UNINDEXED,
+                language UNINDEXED,
+                title,
+                content
+            );
             "#,
         )
         .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to create sqlite schema: {}", e)))?;
 
-        // Insert project
+        // 1. Insert export_meta (schema_version = 1)
         conn.execute(
             r#"
-            INSERT INTO project (id, organization_id, name, slug, description, icon, is_public, config, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            INSERT INTO export_meta (schema_version, project_id, project_name, project_slug, exported_at)
+            VALUES (?1, ?2, ?3, ?4, ?5)
             "#,
             rusqlite::params![
+                1,
                 project.id,
-                project.organization_id,
                 project.name,
                 project.slug,
-                project.description,
-                project.icon,
-                if project.is_public { 1 } else { 0 },
-                project.config.as_ref().map(|c| c.to_string()),
-                project.created_at.to_rfc3339(),
-                project.updated_at.to_rfc3339(),
+                Utc::now().to_rfc3339(),
             ],
         )
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert project: {}", e)))?;
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert export_meta: {}", e)))?;
 
-        // Insert branches
-        for b in &branches {
+        // 2. Insert languages
+        let mut default_lang_code = "en".to_string();
+        let mut lang_id_to_code: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+        if languages.is_empty() {
             conn.execute(
                 r#"
-                INSERT INTO branch (id, project_id, name, slug, description, is_default, is_protected, created_at, updated_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                INSERT INTO languages (code, label, is_default, is_rtl)
+                VALUES (?1, ?2, ?3, ?4)
+                "#,
+                rusqlite::params!["en", "English", 1, 0],
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert default language: {}", e)))?;
+        } else {
+            for (idx, lang) in languages.iter().enumerate() {
+                lang_id_to_code.insert(lang.id.clone(), lang.code.clone());
+                let is_def = if lang.is_default || idx == 0 {
+                    default_lang_code = lang.code.clone();
+                    1
+                } else {
+                    0
+                };
+                conn.execute(
+                    r#"
+                    INSERT OR REPLACE INTO languages (code, label, is_default, is_rtl)
+                    VALUES (?1, ?2, ?3, ?4)
+                    "#,
+                    rusqlite::params![
+                        lang.code,
+                        lang.name,
+                        is_def,
+                        if lang.is_rtl { 1 } else { 0 },
+                    ],
+                )
+                .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert language: {}", e)))?;
+            }
+        }
+
+        // 3. Filter branches: exclude trunk 'main'
+        let mut version_branches: Vec<cms_entity::branch::Branch> = branches
+            .into_iter()
+            .filter(|b| {
+                let slug = b.slug.trim().to_lowercase();
+                let name = b.name.trim().to_lowercase();
+                slug != "main" && name != "main"
+            })
+            .collect();
+
+        // Handle single-branch repository or test setup where only 'main' was present
+        let remapped_main = if version_branches.is_empty() {
+            let default_branch = cms_entity::branch::Branch {
+                id: "default-version".to_string(),
+                project_id: project.id.clone(),
+                name: "v1.0".to_string(),
+                slug: "v1.0".to_string(),
+                description: Some("Default release version".to_string()),
+                is_default: true,
+                is_protected: false,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            version_branches.push(default_branch);
+            true
+        } else {
+            false
+        };
+
+        let mut valid_version_ids = std::collections::HashSet::new();
+        let has_explicit_default = version_branches.iter().any(|b| b.is_default);
+
+        for (idx, b) in version_branches.iter().enumerate() {
+            valid_version_ids.insert(b.id.clone());
+            let is_def = if b.is_default || (!has_explicit_default && idx == 0) { 1 } else { 0 };
+            conn.execute(
+                r#"
+                INSERT INTO versions (id, slug, label, sort_order, is_default)
+                VALUES (?1, ?2, ?3, ?4, ?5)
                 "#,
                 rusqlite::params![
                     b.id,
-                    b.project_id,
-                    b.name,
                     b.slug,
-                    b.description,
-                    if b.is_default { 1 } else { 0 },
-                    if b.is_protected { 1 } else { 0 },
-                    b.created_at.to_rfc3339(),
-                    b.updated_at.to_rfc3339(),
+                    b.name,
+                    idx as i32,
+                    is_def,
                 ],
             )
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert branch: {}", e)))?;
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert version: {}", e)))?;
         }
 
-        // Insert pages
+        // 4. Insert pages, page_content, and page_fts
         for p in &pages {
-            conn.execute(
-                r#"
-                INSERT INTO page (id, project_id, branch_id, language_id, parent_id, kind, path, slug, title, description, content, icon, config, translation_key, position, is_published, created_at, updated_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
-                "#,
-                rusqlite::params![
-                    p.id,
-                    p.project_id,
-                    p.branch_id,
-                    p.language_id,
-                    p.parent_id,
-                    p.kind,
-                    p.path,
-                    p.slug,
-                    p.title,
-                    p.description,
-                    p.content,
-                    p.icon,
-                    p.config.as_ref().map(|c| c.to_string()),
-                    p.translation_key,
-                    p.position,
-                    if p.is_published { 1 } else { 0 },
-                    p.created_at.to_rfc3339(),
-                    p.updated_at.to_rfc3339(),
-                ],
-            )
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page: {}", e)))?;
-        }
+            let target_version_id = if remapped_main && (p.branch_id == "main" || !valid_version_ids.contains(&p.branch_id)) {
+                "default-version".to_string()
+            } else {
+                p.branch_id.clone()
+            };
 
-        // Insert assets
-        for a in &assets {
+            // Only export pages belonging to valid version branches
+            if !valid_version_ids.contains(&target_version_id) {
+                continue;
+            }
+
+            // Extract openapi_url and link_url from config if present
+            let (openapi_url, link_url) = if let Some(cfg) = &p.config {
+                (
+                    cfg.get("openapi_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    cfg.get("link_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                )
+            } else {
+                (None, None)
+            };
+
             conn.execute(
                 r#"
-                INSERT INTO asset (id, project_id, page_id, storage_key, file_name, content_type, file_size, width, height, alt_text, created_at, updated_at)
+                INSERT INTO pages (id, version_id, parent_id, kind, slug, path, title, icon, sort_order, is_draft, openapi_url, link_url)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                 "#,
                 rusqlite::params![
-                    a.id,
-                    a.project_id,
-                    a.page_id,
-                    a.storage_key,
-                    a.file_name,
-                    a.content_type,
-                    a.file_size,
+                    p.id,
+                    target_version_id,
+                    p.parent_id,
+                    p.kind.as_deref().unwrap_or("PAGE"),
+                    p.slug,
+                    p.path,
+                    p.title,
+                    p.icon,
+                    p.position,
+                    if p.is_published { 0 } else { 1 },
+                    openapi_url,
+                    link_url,
+                ],
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page: {}", e)))?;
+
+            // Resolve language code
+            let lang_code = p.language_id
+                .as_ref()
+                .and_then(|id| lang_id_to_code.get(id))
+                .cloned()
+                .unwrap_or_else(|| default_lang_code.clone());
+
+            let markdown_content = p.content.as_deref().unwrap_or("");
+            conn.execute(
+                r#"
+                INSERT OR REPLACE INTO page_content (page_id, language, markdown, description, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5)
+                "#,
+                rusqlite::params![
+                    p.id,
+                    lang_code,
+                    markdown_content,
+                    p.description,
+                    p.updated_at.to_rfc3339(),
+                ],
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page_content: {}", e)))?;
+
+            // Insert into FTS5 index
+            conn.execute(
+                r#"
+                INSERT INTO page_fts (page_id, version_id, language, title, content)
+                VALUES (?1, ?2, ?3, ?4, ?5)
+                "#,
+                rusqlite::params![
+                    p.id,
+                    target_version_id,
+                    lang_code,
+                    p.title,
+                    markdown_content,
+                ],
+            )
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page_fts: {}", e)))?;
+        }
+
+        // 5. Insert project_config
+        conn.execute(
+            r#"
+            INSERT OR REPLACE INTO project_config (key, value)
+            VALUES (?1, ?2), (?3, ?4), (?5, ?6)
+            "#,
+            rusqlite::params![
+                "name",
+                serde_json::to_string(&project.name).unwrap_or_default(),
+                "slug",
+                serde_json::to_string(&project.slug).unwrap_or_default(),
+                "description",
+                serde_json::to_string(&project.description).unwrap_or_default(),
+            ],
+        )
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert project_config: {}", e)))?;
+
+        if let Some(config_val) = &project.config {
+            if let Some(obj) = config_val.as_object() {
+                for (k, v) in obj {
+                    conn.execute(
+                        r#"
+                        INSERT OR REPLACE INTO project_config (key, value)
+                        VALUES (?1, ?2)
+                        "#,
+                        rusqlite::params![k, v.to_string()],
+                    )
+                    .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert custom config: {}", e)))?;
+                }
+            }
+        }
+
+        // 6. Insert assets
+        for a in &assets {
+            conn.execute(
+                r#"
+                INSERT OR REPLACE INTO assets (path, mime_type, data, width, height)
+                VALUES (?1, ?2, ?3, ?4, ?5)
+                "#,
+                rusqlite::params![
+                    a.path,
+                    a.mime_type,
+                    a.data,
                     a.width,
                     a.height,
-                    a.alt_text,
-                    a.created_at.to_rfc3339(),
-                    a.updated_at.to_rfc3339(),
                 ],
             )
             .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert asset: {}", e)))?;
-        }
 
-        // Insert deployments
-        for d in &deployments {
-            conn.execute(
-                r#"
-                INSERT INTO deployment (id, project_id, branch_id, status, build_logs, error_message, deployed_at, created_at, updated_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-                "#,
-                rusqlite::params![
-                    d.id,
-                    d.project_id,
-                    d.branch_id,
-                    format!("{:?}", d.status),
-                    d.build_logs,
-                    d.error_message,
-                    d.deployed_at.map(|t| t.to_rfc3339()),
-                    d.created_at.to_rfc3339(),
-                    d.updated_at.to_rfc3339(),
-                ],
-            )
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert deployment: {}", e)))?;
+            if !a.storage_key.is_empty() && a.storage_key != a.path {
+                conn.execute(
+                    r#"
+                    INSERT OR IGNORE INTO assets (path, mime_type, data, width, height)
+                    VALUES (?1, ?2, ?3, ?4, ?5)
+                    "#,
+                    rusqlite::params![
+                        a.storage_key,
+                        a.mime_type,
+                        a.data,
+                        a.width,
+                        a.height,
+                    ],
+                )
+                .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert asset alias: {}", e)))?;
+            }
         }
 
         // Checkpoint WAL so everything is in the main database file
@@ -1024,9 +1221,9 @@ mod tests {
             PageListItem {
                 id: "p1".to_string(),
                 project_id: "proj-1".to_string(),
-                branch_id: "main".to_string(),
+                branch_id: "branch-v1".to_string(),
                 parent_id: None,
-                language_id: None,
+                language_id: Some("lang-en".to_string()),
                 kind: Some("PAGE".to_string()),
                 path: "/getting-started".to_string(),
                 slug: "getting-started".to_string(),
@@ -1047,9 +1244,9 @@ mod tests {
             PageListItem {
                 id: "p2".to_string(),
                 project_id: "proj-1".to_string(),
-                branch_id: "main".to_string(),
+                branch_id: "branch-v1".to_string(),
                 parent_id: None,
-                language_id: None,
+                language_id: Some("lang-en".to_string()),
                 kind: Some("PAGE".to_string()),
                 path: "/api-reference".to_string(),
                 slug: "api-reference".to_string(),
@@ -1126,37 +1323,106 @@ mod tests {
             updated_at: Utc::now(),
         };
 
-        let branch = cms_entity::branch::Branch {
-            id: "main".to_string(),
+        let branch_main = cms_entity::branch::Branch {
+            id: "branch-main".to_string(),
             project_id: "proj-1".to_string(),
             name: "main".to_string(),
             slug: "main".to_string(),
             description: None,
             is_default: true,
+            is_protected: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let branch_v1 = cms_entity::branch::Branch {
+            id: "branch-v1".to_string(),
+            project_id: "proj-1".to_string(),
+            name: "v1.0".to_string(),
+            slug: "v1.0".to_string(),
+            description: None,
+            is_default: false,
             is_protected: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
 
-        let bytes = build_sqlite_export_database(project, vec![branch], pages, vec![], vec![])
-            .await
-            .expect("SQLite export generation failed");
+        let language = cms_entity::language::Language {
+            id: "lang-en".to_string(),
+            project_id: "proj-1".to_string(),
+            code: "en".to_string(),
+            name: "English".to_string(),
+            is_default: true,
+            is_rtl: false,
+            enabled: true,
+            position: 0,
+            config: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let asset = ExportAssetItem {
+            path: "logo.png".to_string(),
+            storage_key: "assets/proj-1/logo.png".to_string(),
+            mime_type: "image/png".to_string(),
+            data: vec![1, 2, 3, 4],
+            width: Some(100),
+            height: Some(100),
+        };
+
+        // When branches contain 'main' and 'v1.0', 'main' must be excluded
+        let bytes = build_sqlite_export_database(
+            project,
+            vec![branch_main, branch_v1],
+            pages,
+            vec![language],
+            vec![asset],
+        )
+        .await
+        .expect("SQLite export generation failed");
 
         assert!(bytes.len() > 512);
-        // SQLite 3 file format header is "SQLite format 3\0"
         assert_eq!(&bytes[..15], b"SQLite format 3");
 
-        // Verify it can be read back by rusqlite
         let temp = tempfile::NamedTempFile::new().unwrap();
         std::fs::write(temp.path(), &bytes).unwrap();
         let conn = rusqlite::Connection::open(temp.path()).unwrap();
-        let mut stmt = conn.prepare("SELECT name, slug FROM project").unwrap();
-        let name: String = stmt.query_row([], |r| r.get(0)).unwrap();
-        assert_eq!(name, "Test Project");
 
-        let count: i64 = conn
-            .query_row("SELECT count(*) FROM page", [], |r| r.get(0))
+        // Check schema version in export_meta
+        let (schema_ver, proj_name): (i32, String) = conn
+            .query_row(
+                "SELECT schema_version, project_name FROM export_meta",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
             .unwrap();
-        assert_eq!(count, 2);
+        assert_eq!(schema_ver, 1);
+        assert_eq!(proj_name, "Test Project");
+
+        // Verify 'main' branch was excluded, only 'v1.0' exists
+        let version_slugs: Vec<String> = {
+            let mut stmt = conn.prepare("SELECT slug FROM versions").unwrap();
+            let rows = stmt.query_map([], |r| r.get(0)).unwrap();
+            rows.map(|r| r.unwrap()).collect()
+        };
+        assert_eq!(version_slugs, vec!["v1.0".to_string()]);
+
+        // Verify FTS5 search works
+        let search_hits: Vec<String> = {
+            let mut stmt = conn
+                .prepare("SELECT title FROM page_fts WHERE page_fts MATCH 'Getting'")
+                .unwrap();
+            let rows = stmt.query_map([], |r| r.get(0)).unwrap();
+            rows.map(|r| r.unwrap()).collect()
+        };
+        assert_eq!(search_hits, vec!["Getting Started".to_string()]);
+
+        // Verify embedded asset blob
+        let asset_data: Vec<u8> = conn
+            .query_row("SELECT data FROM assets WHERE path = 'logo.png'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(asset_data, vec![1, 2, 3, 4]);
     }
 }

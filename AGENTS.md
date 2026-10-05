@@ -25,9 +25,9 @@ This CMS platform is deployed exclusively for **internal company use**. It is **
 
 ---
 
-## 🧭 Frontend Application Scope (`apps/app`)
+## 🧭 Frontend Application Scope (`apps/studio`)
 
-The frontend application (`@cms/app`) consists strictly of:
+The frontend application (`@cms/studio`) consists strictly of:
 1. **Application Shell (`/app`)**:
    - Workspace overview & project management (`/app`, `/app/(dashboard)/`)
    - Cross-project analytics (`/app/analytics`)

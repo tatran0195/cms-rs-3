@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "bun run build:packages && bun --filter @cms/app build",
+    "build": "bun run build:packages && bun --filter @cms/studio build",
     "build:packages": "bun --filter \"./packages/*\" build",
     "typecheck": "bun --filter '*' typecheck",
     "test": "bun --filter '*' test",
