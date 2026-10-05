@@ -39,6 +39,7 @@ fn run_e2e(extra_test_args: Vec<String>) {
         "--",
         "--ignored",
         "--nocapture",
+        "--test-threads=1",
     ]);
     command.args(extra_test_args);
 

@@ -91,6 +91,24 @@ async fn main() -> Result<(), AppError> {
     let config = Config::load()?;
     info!("Configuration loaded");
 
+    // Startup check: verify frontend assets directory
+    let asset_root = cms_sites::spa::get_asset_root();
+    if config.is_production() {
+        cms_sites::validate_frontend_assets(&asset_root).map_err(|e| {
+            AppError::Validation(format!("Frontend assets startup check failed: {e}"))
+        })?;
+        info!("Frontend assets verified at {}", asset_root.display());
+    } else {
+        match cms_sites::validate_frontend_assets(&asset_root) {
+            Ok(canonical) => info!("Frontend assets verified at {}", canonical.display()),
+            Err(err) => {
+                tracing::warn!(
+                    "Frontend assets check: {err}. In dev mode, SPA requests will return 500 until frontend is built."
+                );
+            }
+        }
+    }
+
     // Build application state
     let state = Arc::new(AppState::from_config(&config).await?);
     info!("Application state initialized");

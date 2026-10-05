@@ -23,9 +23,9 @@ $ErrorActionPreference = "Stop"
 # Paths
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $WorkspaceRoot = (Resolve-Path "$ScriptDir\..").Path
-$SourceBinary = "$WorkspaceRoot\target\release\cms_server.exe"
+$SourceBinary = "$WorkspaceRoot\target\release\cms-server.exe"
 $DeployDir = "C:\CMS_Server"
-$TargetBinary = "$DeployDir\cms_server.exe"
+$TargetBinary = "$DeployDir\cms-server.exe"
 
 Write-Host "Starting deployment to $Environment environment..."
 

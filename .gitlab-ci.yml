@@ -22,6 +22,8 @@ default:
     - $env:Path += ";$env:CARGO_HOME\bin"
     - rustup default $RUST_VERSION
     - rustup component add clippy rustfmt
+    # Ensure bun is installed and configured
+    - if (-not (Get-Command bun -ErrorAction SilentlyContinue)) { powershell -c "irm bun.sh/install.ps1 | iex"; $env:Path += ";$env:USERPROFILE\.bun\bin" }
 
 lint:
   stage: lint
@@ -37,10 +39,15 @@ test:
 build:
   stage: build
   script:
+    - bun install --frozen-lockfile
+    - bun --filter @cms/studio build
+    - bun --filter @cms/reader build
     - cargo build --release
   artifacts:
     paths:
-      - target/release/cms_server.exe
+      - target/release/cms-server.exe
+      - dist/frontend/
+      - dist/reader/
     expire_in: 1 week
     
 deploy:
@@ -48,6 +55,6 @@ deploy:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - echo "Deploying cms_server.exe to AWS Windows machine"
+    - echo "Deploying cms-server.exe to AWS Windows machine"
     # Placeholder for actual deployment script (e.g. Stop-Service, Copy-Item, Start-Service)
     - .\deploy\deploy.ps1 -Environment production

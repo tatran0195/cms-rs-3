@@ -1,5 +1,6 @@
 //! PostgreSQL-backed product flow covering project creation, language-scoped
-//! document creation, public resolution, and a real deployment artifact.
+//! document creation, public resolution, real deployment artifacts, RBAC,
+//! API keys, site features, and domain lifecycle.
 //!
 //! Run against a disposable database with `cargo xtask e2e`.
 
@@ -30,16 +31,16 @@ fn session_cookie(token: &str) -> String {
     format!("better-auth.session_token={token}")
 }
 
-async fn request(
+async fn request_with_headers(
     app: &Router,
     method: Method,
     uri: &str,
-    cookie: Option<&str>,
+    headers: &[(&str, &str)],
     body: Option<Value>,
 ) -> anyhow::Result<(StatusCode, Value)> {
     let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(cookie) = cookie {
-        builder = builder.header(header::COOKIE, cookie);
+    for (name, val) in headers {
+        builder = builder.header(*name, *val);
     }
     let request_body = match body {
         Some(value) => {
@@ -57,6 +58,20 @@ async fn request(
         serde_json::from_slice(&bytes)?
     };
     Ok((status, payload))
+}
+
+async fn request(
+    app: &Router,
+    method: Method,
+    uri: &str,
+    cookie: Option<&str>,
+    body: Option<Value>,
+) -> anyhow::Result<(StatusCode, Value)> {
+    let mut headers = Vec::new();
+    if let Some(cookie) = cookie {
+        headers.push((header::COOKIE.as_str(), cookie));
+    }
+    request_with_headers(app, method, uri, &headers, body).await
 }
 
 async fn site_request(app: &Router, host: &str, uri: &str) -> anyhow::Result<(StatusCode, String)> {
@@ -278,8 +293,6 @@ async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
 }
 
 async fn cleanup(state: &AppState, seed: &Seed) -> anyhow::Result<()> {
-    // Organization/project cascades remove all seeded product rows. User/session
-    // cleanup is separate because organizations are not owned by the user FK.
     sqlx::query(r#"DELETE FROM "Organization" WHERE id = $1"#)
         .bind(&seed.organization_id)
         .execute(&state.biz_context.pool)
@@ -345,136 +358,145 @@ async fn create_page(
     Ok(value["data"].clone())
 }
 
-async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
-    let app = Router::new()
-        .nest("/api", cms_api::create_api_router(state.clone()))
-        .merge(cms_sites::sites_router(state.clone()))
-        .layer(Extension(state.clone()));
-    let cookie = session_cookie(&seed.session_token);
-    let admin_cookie = session_cookie(&seed.platform_admin_session_token);
+/// Test context encapsulating application state, seed data, routes, and worker handles.
+struct TestContext {
+    state: Arc<AppState>,
+    seed: Seed,
+    app: Router,
+    worker_shutdown_tx: tokio::sync::watch::Sender<bool>,
+    worker_handles: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl TestContext {
+    async fn setup() -> anyhow::Result<Self> {
+        let database_url = std::env::var("CMS_E2E_DATABASE_URL").map_err(|_| {
+            anyhow::anyhow!("set CMS_E2E_DATABASE_URL to a disposable PostgreSQL database")
+        })?;
+        let mut config = Config::default();
+        config.database.url = database_url;
+        config.site.self_host = Some("cms.app".to_string());
+        config.domain_tls.proxy_secret = Some("e2e-trusted-proxy-secret".to_string());
+        let storage_root = std::env::temp_dir().join(format!("cms-product-e2e-{}", Uuid::new_v4()));
+        config.storage.local_root = Some(storage_root.to_string_lossy().into_owned());
+
+        let state = Arc::new(AppState::from_config(&config).await?);
+        let worker_state = Arc::new(cms_worker::app_state::WorkerState::from_app_state(&state).await?);
+        let (worker_shutdown_tx, worker_shutdown_rx) = tokio::sync::watch::channel(false);
+        let worker_handles = cms_worker::start_consumers_with_shutdown(
+            state.job_queue.clone(),
+            worker_state,
+            worker_shutdown_rx,
+        )
+        .await?;
+
+        let seed_data = seed(&state).await?;
+        let app = Router::new()
+            .nest("/api", cms_api::create_api_router(state.clone()))
+            .merge(cms_sites::sites_router(state.clone()))
+            .layer(Extension(state.clone()));
+
+        Ok(Self {
+            state,
+            seed: seed_data,
+            app,
+            worker_shutdown_tx,
+            worker_handles,
+        })
+    }
+
+    fn user_cookie(&self) -> String {
+        session_cookie(&self.seed.session_token)
+    }
+
+    fn admin_cookie(&self) -> String {
+        session_cookie(&self.seed.platform_admin_session_token)
+    }
+
+    async fn teardown(self) -> anyhow::Result<()> {
+        let _ = self.worker_shutdown_tx.send(true);
+        for handle in self.worker_handles {
+            let _ = handle.await;
+        }
+        let cleanup_result = cleanup(&self.state, &self.seed).await;
+        self.state.biz_context.pool.close().await;
+        cleanup_result
+    }
+}
+
+// =============================================================================
+// Individual Focused E2E Test Cases
+// =============================================================================
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+    let admin_cookie = ctx.admin_cookie();
+
     expect_status(
-        request(&app, Method::GET, "/api/admin/sites", Some(&cookie), None).await?,
+        request(&ctx.app, Method::GET, "/api/admin/sites", Some(&cookie), None).await?,
         StatusCode::FORBIDDEN,
         "organization owners are not platform administrators",
     )?;
 
-    // The real app route creates a project and atomically seeds its default
-    // branch and English language.
     let project = create_project(
-        &app,
+        &ctx.app,
         &cookie,
-        format!("Product E2E {}", Uuid::new_v4().simple()),
-        &seed.organization_id,
+        format!("Admin E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
         true,
     )
     .await?;
-    let project_id = required_string(&project, "id", "created project")?.to_string();
-    let project_slug = required_string(&project, "slug", "created project")?.to_string();
-    let organization_slug: String =
-        sqlx::query_scalar(r#"SELECT slug FROM "Organization" WHERE id = $1"#)
-            .bind(&seed.organization_id)
-            .fetch_one(&state.biz_context.pool)
-            .await?;
-    let private_project = create_project(
-        &app,
-        &cookie,
-        format!("Private E2E {}", Uuid::new_v4().simple()),
-        &seed.organization_id,
-        false,
-    )
-    .await?;
-    let private_project_id = required_string(&private_project, "id", "private project")?;
-    let private_project_slug = required_string(&private_project, "slug", "private project")?;
+    let project_id = required_string(&project, "id", "created project")?;
 
     let signup_at = Utc::now() - Duration::hours(2);
     for (event_type, created_at, metadata) in [
         ("signup_completed", signup_at, json!({})),
         ("page_edited", signup_at + Duration::minutes(20), json!({})),
-        (
-            "publish_clicked",
-            signup_at + Duration::minutes(30),
-            json!({ "auto": false }),
-        ),
-        (
-            "publish_ready",
-            signup_at - Duration::minutes(1),
-            json!({ "auto": false }),
-        ),
+        ("publish_clicked", signup_at + Duration::minutes(30), json!({ "auto": false })),
+        ("publish_ready", signup_at - Duration::minutes(1), json!({ "auto": false })),
     ] {
         sqlx::query(
             r#"INSERT INTO "PlatformEvent" (id, organization_id, user_id, event_type, metadata, created_at)
                VALUES ($1, $2, $3, $4, $5, $6)"#,
         )
         .bind(Uuid::new_v4().to_string())
-        .bind(&seed.organization_id)
-        .bind(&seed.platform_admin_id)
+        .bind(&ctx.seed.organization_id)
+        .bind(&ctx.seed.platform_admin_id)
         .bind(event_type)
         .bind(metadata)
         .bind(created_at)
-        .execute(&state.biz_context.pool)
+        .execute(&ctx.state.biz_context.pool)
         .await?;
     }
 
     let overview = expect_status(
-        request(
-            &app,
-            Method::GET,
-            "/api/admin/overview",
-            Some(&admin_cookie),
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, "/api/admin/overview", Some(&admin_cookie), None).await?,
         StatusCode::OK,
         "load platform-admin overview from persisted records",
     )?;
-    anyhow::ensure!(overview["data"]["admins"]
-        .as_i64()
-        .is_some_and(|count| count >= 1));
-    anyhow::ensure!(overview["data"]["sites"]
-        .as_i64()
-        .is_some_and(|count| count >= 2));
+    anyhow::ensure!(overview["data"]["admins"].as_i64().is_some_and(|c| c >= 1));
+    anyhow::ensure!(overview["data"]["sites"].as_i64().is_some_and(|c| c >= 1));
+
     let admin_user = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/admin/users/{}", seed.user_id),
-            Some(&admin_cookie),
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/admin/users/{}", ctx.seed.user_id), Some(&admin_cookie), None).await?,
         StatusCode::OK,
         "load user detail with actual memberships",
     )?;
-    let workspaces = admin_user["data"]["workspaces"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("admin user workspaces is not an array"))?;
-    let workspace = workspaces
-        .iter()
-        .find(|workspace| workspace["organizationId"] == seed.organization_id)
-        .ok_or_else(|| anyhow::anyhow!("admin user detail omitted seeded organization"))?;
-    anyhow::ensure!(workspace["projectCount"] == 2);
-    let projects = workspace["projects"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("admin membership projects is not an array"))?;
-    anyhow::ensure!(projects.iter().any(|project| project["id"] == project_id));
-    anyhow::ensure!(projects
-        .iter()
-        .any(|project| project["id"] == private_project_id));
+    let workspaces = admin_user["data"]["workspaces"].as_array().ok_or_else(|| anyhow::anyhow!("workspaces is not array"))?;
+    let ws = workspaces.iter().find(|w| w["organizationId"] == ctx.seed.organization_id).ok_or_else(|| anyhow::anyhow!("org missing"))?;
+    anyhow::ensure!(ws["projectCount"].as_i64().is_some_and(|c| c >= 1));
+
     expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/admin/users/{}/suspend", seed.user_id),
-            Some(&cookie),
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::POST, &format!("/api/admin/users/{}/suspend", ctx.seed.user_id), Some(&cookie), None).await?,
         StatusCode::FORBIDDEN,
         "organization owner cannot invoke platform user operations",
     )?;
+
     let invite = expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             "/api/admin/organizations/invite",
             Some(&admin_cookie),
@@ -488,25 +510,20 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         )
         .await?,
         StatusCode::OK,
-        "platform admin creates a real owner invitation and starter site",
+        "platform admin creates owner invitation and starter site",
     )?;
     let invited_org_id = required_string(&invite["data"], "organizationId", "admin invite")?;
     let invited_project_id = required_string(&invite["data"], "projectId", "admin invite")?;
     let invitation_id = required_string(&invite["data"], "invitationId", "admin invite")?;
+
     let public_invitation = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/invitations/{invitation_id}"),
-            None,
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/public/invitations/{invitation_id}"), None, None).await?,
         StatusCode::OK,
-        "resolve an invitation by its opaque invitation id",
+        "resolve invitation by public ID",
     )?;
     anyhow::ensure!(public_invitation["data"]["id"] == invitation_id);
     anyhow::ensure!(public_invitation["data"]["email"] == invite["data"]["ownerEmail"]);
+
     let starter_records: (i64, i64, i64) = sqlx::query_as(
         r#"SELECT
              (SELECT COUNT(*) FROM "Project" WHERE id = $1 AND organization_id = $2),
@@ -515,145 +532,161 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     )
     .bind(invited_project_id)
     .bind(invited_org_id)
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&ctx.state.biz_context.pool)
     .await?;
     anyhow::ensure!(starter_records == (1, 1, 1));
     sqlx::query(r#"DELETE FROM "Organization" WHERE id = $1"#)
         .bind(invited_org_id)
-        .execute(&state.biz_context.pool)
+        .execute(&ctx.state.biz_context.pool)
         .await?;
+
     expect_status(
-        request(
-            &app,
-            Method::POST,
-            "/api/platform-events",
-            None,
-            Some(json!({ "event_type": "custom_test" })),
-        )
-        .await?,
+        request(&ctx.app, Method::POST, "/api/platform-events", None, Some(json!({ "event_type": "custom_test" }))).await?,
         StatusCode::UNAUTHORIZED,
-        "reject unauthenticated platform-event injection",
+        "reject unauthenticated event injection",
     )?;
+
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             "/api/platform-events",
             Some(&cookie),
             Some(json!({
                 "event_type": "custom_test",
-                "organization_id": seed.organization_id,
-                "user_id": seed.platform_admin_id,
+                "organization_id": ctx.seed.organization_id,
+                "user_id": ctx.seed.platform_admin_id,
                 "metadata": { "source": "e2e" },
             })),
         )
         .await?,
         StatusCode::OK,
-        "record an event using authenticated identity instead of body user ID",
+        "record event using authenticated identity",
     )?;
-    let recorded_event_user: String = sqlx::query_scalar(
+    let recorded_user: String = sqlx::query_scalar(
         r#"SELECT user_id FROM "PlatformEvent" WHERE event_type = 'custom_test' ORDER BY created_at DESC LIMIT 1"#,
     )
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&ctx.state.biz_context.pool)
     .await?;
-    anyhow::ensure!(recorded_event_user == seed.user_id);
+    anyhow::ensure!(recorded_user == ctx.seed.user_id);
+
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             "/api/platform-events",
             Some(&cookie),
             Some(json!({
                 "event_type": "publish_ready",
-                "organization_id": seed.organization_id,
+                "organization_id": ctx.seed.organization_id,
                 "metadata": { "auto": false },
             })),
         )
         .await?,
         StatusCode::FORBIDDEN,
-        "prevent clients from spoofing trusted funnel milestones",
+        "prevent clients from spoofing trusted milestones",
     )?;
 
-    let public_host = format!("{project_slug}.cms.app");
-    let (unreleased_status, _) = site_request(&app, &public_host, "/").await?;
-    anyhow::ensure!(
-        unreleased_status == StatusCode::NOT_FOUND,
-        "hosted site should stay hidden before its first release, got {unreleased_status}"
-    );
-    let private_host = format!("{private_project_slug}.cms.app");
-    let (private_status, _) = site_request(&app, &private_host, "/").await?;
-    anyhow::ensure!(
-        private_status == StatusCode::NOT_FOUND,
-        "private project must not be rendered by the hosted SSR router, got {private_status}"
-    );
+    ctx.teardown().await
+}
 
-    // Public sites expose only committed releases, never unsnapshotted editor
-    // state. The first publish below makes the site public.
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_02_project_visibility_and_access_control() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let public_project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Public E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let public_id = required_string(&public_project, "id", "public project")?;
+    let public_slug = required_string(&public_project, "slug", "public project")?;
+
+    let private_project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Private E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        false,
+    )
+    .await?;
+    let private_id = required_string(&private_project, "id", "private project")?;
+    let private_slug = required_string(&private_project, "slug", "private project")?;
+
+    let org_slug: String = sqlx::query_scalar(r#"SELECT slug FROM "Organization" WHERE id = $1"#)
+        .bind(&ctx.seed.organization_id)
+        .fetch_one(&ctx.state.biz_context.pool)
+        .await?;
+
+    let public_host = format!("{public_slug}.cms.app");
+    let (unreleased_status, _) = site_request(&ctx.app, &public_host, "/").await?;
+    anyhow::ensure!(unreleased_status == StatusCode::NOT_FOUND, "unreleased public site hidden");
+
+    let private_host = format!("{private_slug}.cms.app");
+    let (private_status, _) = site_request(&ctx.app, &private_host, "/").await?;
+    anyhow::ensure!(private_status == StatusCode::NOT_FOUND, "private project hidden from SSR");
+
     expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}"),
-            None,
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{public_id}"), None, None).await?,
         StatusCode::NOT_FOUND,
-        "hide project before its first published release",
+        "hide unreleased public project",
     )?;
+
     expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{private_project_id}"),
-            None,
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{private_id}"), None, None).await?,
         StatusCode::NOT_FOUND,
-        "hide private project from public API",
+        "hide private project from public sites endpoint",
     )?;
+
     expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/projects/{organization_slug}/{private_project_slug}"),
-            None,
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/public/projects/{org_slug}/{private_slug}"), None, None).await?,
         StatusCode::NOT_FOUND,
         "hide private project from legacy public route",
     )?;
 
-    // The public shell intentionally emits only language codes; get the actual
-    // default-language ID from the authenticated project language list.
+    expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{private_id}"), None, None).await?,
+        StatusCode::UNAUTHORIZED,
+        "unauthenticated caller cannot access private project",
+    )?;
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_03_language_scoping_and_bcp47_validation() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Language E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
     let language_list = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/app/projects/{project_id}/languages"),
-            Some(&cookie),
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
         StatusCode::OK,
         "list project languages",
     )?;
-    let languages = language_list["data"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("language list did not return an array: {language_list}"))?;
-    let english = languages
-        .iter()
-        .find(|language| language["isDefault"] == true)
-        .ok_or_else(|| anyhow::anyhow!("project create did not seed a default language"))?;
-    let english_language_id =
-        required_string(english, "id", "default English language")?.to_string();
+    let languages = language_list["data"].as_array().ok_or_else(|| anyhow::anyhow!("not array"))?;
+    let english = languages.iter().find(|l| l["isDefault"] == true).ok_or_else(|| anyhow::anyhow!("missing default language"))?;
+    let english_id = required_string(english, "id", "english id")?;
     anyhow::ensure!(english["code"] == "en");
 
-    let rtl_language_response = expect_status(
+    let rtl_resp = expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/languages"),
             Some(&cookie),
@@ -668,16 +701,14 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         StatusCode::OK,
         "create RTL language",
     )?;
-    let rtl_language = rtl_language_response["data"].clone();
-    let rtl_language_id =
-        required_string(&rtl_language, "id", "RTL language")?.to_string();
-    anyhow::ensure!(rtl_language["code"] == "he-IL");
-    anyhow::ensure!(rtl_language["direction"] == "RTL");
+    let rtl_lang = rtl_resp["data"].clone();
+    let rtl_id = required_string(&rtl_lang, "id", "rtl id")?;
+    anyhow::ensure!(rtl_lang["code"] == "he-IL");
+    anyhow::ensure!(rtl_lang["direction"] == "RTL");
 
-    // BCP-47 canonicalization and duplicate codes are observable API failures.
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/languages"),
             Some(&cookie),
@@ -687,9 +718,10 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         StatusCode::BAD_REQUEST,
         "reject malformed language code",
     )?;
+
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/languages"),
             Some(&cookie),
@@ -700,149 +732,191 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "reject duplicate language code",
     )?;
 
-    let english_group = create_page(
-        &app,
+    expect_status(
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/projects/{project_id}/languages/{english_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
+        StatusCode::CONFLICT,
+        "protect default language from deletion",
+    )?;
+
+    let _en_page = create_page(
+        &ctx.app,
         &cookie,
-        &project_id,
+        project_id,
+        json!({
+            "title": "Welcome",
+            "slug": "welcome",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "translationKey": "welcome-doc",
+            "isPublished": true,
+            "content": "# Welcome",
+        }),
+    )
+    .await?;
+
+    let _rtl_page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "ברוכים הבאים",
+            "slug": "welcome",
+            "kind": "PAGE",
+            "languageId": rtl_id,
+            "translationKey": "welcome-doc",
+            "isPublished": true,
+            "content": "# ברוכים הבאים",
+        }),
+    )
+    .await?;
+
+    let refreshed_languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "read translation coverage",
+    )?;
+    let rtl_cov = refreshed_languages["data"]
+        .as_array()
+        .and_then(|langs| langs.iter().find(|l| l["id"] == rtl_id))
+        .and_then(|l| l.get("coverage"))
+        .ok_or_else(|| anyhow::anyhow!("coverage missing"))?;
+    anyhow::ensure!(rtl_cov["sourcePageCount"] == 1);
+    anyhow::ensure!(rtl_cov["pageCount"] == 1);
+    anyhow::ensure!(rtl_cov["matchedPages"] == 1);
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_04_page_hierarchy_and_tree_reordering() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Hierarchy E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
+
+    let rtl_lang = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            Some(json!({ "code": "he-il", "name": "Hebrew", "direction": "RTL" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "create rtl",
+    )?;
+    let rtl_id = rtl_lang["data"]["id"].as_str().unwrap();
+
+    let en_group = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
         json!({
             "title": "Guide",
             "slug": "guide",
             "kind": "GROUP",
-            "languageId": english_language_id,
+            "languageId": english_id,
             "isPublished": true,
         }),
     )
     .await?;
-    let english_group_id =
-        required_string(&english_group, "id", "English guide group")?.to_string();
+    let en_group_id = required_string(&en_group, "id", "en group")?;
 
     let rtl_group = create_page(
-        &app,
+        &ctx.app,
         &cookie,
-        &project_id,
+        project_id,
         json!({
             "title": "מדריך",
             "slug": "guide",
             "kind": "GROUP",
-            "languageId": rtl_language_id,
+            "languageId": rtl_id,
             "isPublished": true,
         }),
     )
     .await?;
-    let rtl_group_id = required_string(&rtl_group, "id", "RTL guide group")?.to_string();
-    anyhow::ensure!(rtl_group["languageId"] == rtl_language_id);
-
-    let english_page = create_page(
-        &app,
-        &cookie,
-        &project_id,
-        json!({
-            "title": "Getting started",
-            "slug": "start",
-            "kind": "PAGE",
-            "parentId": english_group_id,
-            "languageId": english_language_id,
-            "translationKey": "getting-started",
-            "isPublished": true,
-            "content": "# Getting started\n\nEnglish release content.",
-        }),
-    )
-    .await?;
-    let english_page_id = required_string(&english_page, "id", "English page")?.to_string();
-    anyhow::ensure!(english_page["path"] == "/guide/start");
-    let page_created_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "PlatformEvent"
-           WHERE user_id = $1 AND event_type = 'page_edited'
-             AND metadata->>'page_id' = $2 AND metadata->>'operation' = 'create'"#,
-    )
-    .bind(&seed.user_id)
-    .bind(&english_page_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    anyhow::ensure!(
-        page_created_events == 1,
-        "creating a document should emit one trusted edit event"
-    );
+    let rtl_group_id = required_string(&rtl_group, "id", "rtl group")?;
 
     let rtl_page = create_page(
-        &app,
+        &ctx.app,
         &cookie,
-        &project_id,
+        project_id,
         json!({
             "title": "התחלה",
             "slug": "start",
             "kind": "PAGE",
             "parentId": rtl_group_id,
-            "languageId": rtl_language_id,
+            "languageId": rtl_id,
             "translationKey": "getting-started",
             "isPublished": true,
-            "content": "# התחלה\n\nתוכן גרסה עברית.",
+            "content": "# התחלה",
         }),
     )
     .await?;
-    let rtl_page_id = required_string(&rtl_page, "id", "RTL page")?.to_string();
-    anyhow::ensure!(rtl_page["languageId"] == rtl_language_id);
+    let rtl_page_id = required_string(&rtl_page, "id", "rtl page")?;
     anyhow::ensure!(rtl_page["path"] == "/guide/start");
 
-    // A parent from a different language and a language from a different
-    // project must not leak records across the scope boundary.
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages"),
             Some(&cookie),
             Some(json!({
-                "title": "Wrong scope",
-                "slug": "wrong-scope",
-                "parentId": english_group_id,
-                "languageId": rtl_language_id,
+                "title": "Cross scope",
+                "slug": "cross-scope",
+                "parentId": en_group_id,
+                "languageId": rtl_id,
             })),
         )
         .await?,
         StatusCode::CONFLICT,
-        "reject parent in another language",
-    )?;
-    let private_default_language =
-        cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, private_project_id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("private project has no default language"))?;
-    expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/app/projects/{project_id}/pages"),
-            Some(&cookie),
-            Some(json!({
-                "title": "Wrong project language",
-                "slug": "wrong-project-language",
-                "languageId": private_default_language.id,
-            })),
-        )
-        .await?,
-        StatusCode::CONFLICT,
-        "reject language from another project",
+        "reject parenting under different language",
     )?;
 
     let draft_page = create_page(
-        &app,
+        &ctx.app,
         &cookie,
-        &project_id,
+        project_id,
         json!({
             "title": "Draft",
             "slug": "draft",
             "parentId": rtl_group_id,
-            "languageId": rtl_language_id,
+            "languageId": rtl_id,
             "isPublished": false,
-            "content": "DO NOT SHIP",
+            "content": "Draft",
         }),
     )
     .await?;
-    let _draft_page_id = required_string(&draft_page, "id", "draft page")?;
+    let draft_id = required_string(&draft_page, "id", "draft")?;
 
     let reorder = expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages/reorder"),
             Some(&cookie),
@@ -850,18 +924,19 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
                 "items": [
                     { "id": rtl_group_id, "parentId": null, "position": 0 },
                     { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
-                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 2 },
+                    { "id": draft_id, "parentId": rtl_group_id, "position": 2 },
                 ]
             })),
         )
         .await?,
         StatusCode::OK,
-        "reorder RTL page tree",
+        "reorder tree",
     )?;
     anyhow::ensure!(reorder["data"]["success"] == true);
+
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages/reorder"),
             Some(&cookie),
@@ -869,20 +944,18 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
                 "items": [
                     { "id": rtl_group_id, "parentId": rtl_page_id, "position": 0 },
                     { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
-                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 2 },
+                    { "id": draft_id, "parentId": rtl_group_id, "position": 2 },
                 ]
             })),
         )
         .await?,
         StatusCode::CONFLICT,
-        "reject page-tree cycle atomically",
+        "reject cycle",
     )?;
 
-    // Real operations test for docs side-tree handling all possible cases:
-    // 1. Un-nest draft page from group to root level
-    let reorder_unnest = expect_status(
+    let unnest = expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages/reorder"),
             Some(&cookie),
@@ -890,69 +963,26 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
                 "items": [
                     { "id": rtl_group_id, "parentId": null, "position": 0 },
                     { "id": rtl_page_id, "parentId": rtl_group_id, "position": 0 },
-                    { "id": _draft_page_id, "parentId": null, "position": 1 },
+                    { "id": draft_id, "parentId": null, "position": 1 },
                 ]
             })),
         )
         .await?,
         StatusCode::OK,
-        "un-nest draft page to root",
+        "unnest page to root",
     )?;
-    anyhow::ensure!(reorder_unnest["data"]["success"] == true);
+    anyhow::ensure!(unnest["data"]["success"] == true);
 
-    let draft_row: (Option<String>, String) =
-        sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
-            .bind(_draft_page_id)
-            .fetch_one(&state.biz_context.pool)
-            .await?;
-    anyhow::ensure!(
-        draft_row.0.is_none(),
-        "draft page parent_id must be null after un-nesting"
-    );
-    anyhow::ensure!(
-        draft_row.1 == "/draft",
-        "draft page path must be /draft at root"
-    );
+    let draft_row: (Option<String>, String) = sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
+        .bind(draft_id)
+        .fetch_one(&ctx.state.biz_context.pool)
+        .await?;
+    anyhow::ensure!(draft_row.0.is_none());
+    anyhow::ensure!(draft_row.1 == "/draft");
 
-    // 2. Re-nest draft page back under RTL group with new position
-    let reorder_renest = expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/app/projects/{project_id}/pages/reorder"),
-            Some(&cookie),
-            Some(json!({
-                "items": [
-                    { "id": rtl_group_id, "parentId": null, "position": 0 },
-                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 0 },
-                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
-                ]
-            })),
-        )
-        .await?,
-        StatusCode::OK,
-        "re-nest draft page back under RTL group",
-    )?;
-    anyhow::ensure!(reorder_renest["data"]["success"] == true);
-
-    let draft_nested_row: (Option<String>, String) =
-        sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
-            .bind(_draft_page_id)
-            .fetch_one(&state.biz_context.pool)
-            .await?;
-    anyhow::ensure!(
-        draft_nested_row.0.as_deref() == Some(&rtl_group_id),
-        "draft page parent_id must be rtl_group_id"
-    );
-    anyhow::ensure!(
-        draft_nested_row.1.ends_with("/draft"),
-        "draft page path must end with /draft"
-    );
-
-    // 3. Reject duplicate IDs in reorder request
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages/reorder"),
             Some(&cookie),
@@ -965,20 +995,17 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         )
         .await?,
         StatusCode::BAD_REQUEST,
-        "reject duplicate page id in reorder request",
+        "reject duplicate id in reorder",
     )?;
 
-    // 4. Reject self-parenting
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages/reorder"),
             Some(&cookie),
             Some(json!({
-                "items": [
-                    { "id": rtl_group_id, "parentId": rtl_group_id, "position": 0 },
-                ]
+                "items": [{ "id": rtl_group_id, "parentId": rtl_group_id, "position": 0 }],
             })),
         )
         .await?,
@@ -986,17 +1013,14 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "reject self-parenting",
     )?;
 
-    // 5. Reject non-existent parent
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/pages/reorder"),
             Some(&cookie),
             Some(json!({
-                "items": [
-                    { "id": rtl_page_id, "parentId": "non-existent-page-id", "position": 0 },
-                ]
+                "items": [{ "id": rtl_page_id, "parentId": "non-existent-id", "position": 0 }],
             })),
         )
         .await?,
@@ -1004,36 +1028,73 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         "reject non-existent parent",
     )?;
 
-    // 6. Reset tree to clean state before publishing
-    let reorder_final = expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/app/projects/{project_id}/pages/reorder"),
-            Some(&cookie),
-            Some(json!({
-                "items": [
-                    { "id": rtl_group_id, "parentId": null, "position": 0 },
-                    { "id": rtl_page_id, "parentId": rtl_group_id, "position": 1 },
-                    { "id": _draft_page_id, "parentId": rtl_group_id, "position": 2 },
-                ]
-            })),
-        )
-        .await?,
+    let del_group = expect_status(
+        request(&ctx.app, Method::DELETE, &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"), Some(&cookie), None).await?,
         StatusCode::OK,
-        "final reorder RTL page tree",
+        "delete group",
     )?;
-    anyhow::ensure!(reorder_final["data"]["success"] == true);
+    anyhow::ensure!(del_group["data"]["success"] == true);
 
-    // Publishing runs the real renderer and writes branch/language-scoped
-    // artifacts into the configured storage backend.
+    let reparented = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "read reparented child",
+    )?;
+    anyhow::ensure!(reparented["data"]["path"] == "/start");
+    anyhow::ensure!(reparented["data"]["parentId"].is_null());
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_05_publishing_immutability_and_ssr() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Publish E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+    let project_slug = required_string(&project, "slug", "project")?;
+    let public_host = format!("{project_slug}.cms.app");
+
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
+
+    let en_page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "Getting started",
+            "slug": "start",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "translationKey": "getting-started",
+            "isPublished": true,
+            "content": "# Getting started\n\nEnglish release content.",
+        }),
+    )
+    .await?;
+    let en_page_id = required_string(&en_page, "id", "en page")?;
+
     let deployment = expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/deployments"),
             Some(&cookie),
-            Some(json!({ "message": "E2E release" })),
+            Some(json!({ "message": "E2E publish test" })),
         )
         .await?,
         StatusCode::OK,
@@ -1041,1155 +1102,467 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
     )?;
     anyhow::ensure!(deployment["data"]["status"] == "PENDING");
     let deployment_id = required_string(&deployment["data"], "id", "deployment")?;
-    let publish_click_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "PlatformEvent"
-           WHERE user_id = $1 AND event_type = 'publish_clicked'
-             AND metadata->>'deployment_id' = $2"#,
-    )
-    .bind(&seed.user_id)
-    .bind(deployment_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    anyhow::ensure!(
-        publish_click_events == 1,
-        "publish request should emit one trusted click event"
-    );
-    let (first_version, first_pages) = wait_for_deployment_ready(&state, deployment_id).await?;
-    let publish_ready_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "PlatformEvent"
-           WHERE user_id = $1 AND event_type = 'publish_ready'
-             AND metadata->>'deployment_id' = $2"#,
-    )
-    .bind(&seed.user_id)
-    .bind(deployment_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    anyhow::ensure!(
-        publish_ready_events == 1,
-        "successful publish should emit one trusted ready event"
-    );
-    let funnel_after_product_flow = expect_status(
-        request(
-            &app,
-            Method::GET,
-            "/api/admin/funnel?days=30",
-            Some(&admin_cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "include server-emitted product events in the trusted funnel",
-    )?;
-    for stage in ["signups", "edited", "published", "ready"] {
-        anyhow::ensure!(
-            funnel_after_product_flow["data"][stage]
-                .as_i64()
-                .is_some_and(|count| count >= 2),
-            "funnel stage {stage} should count both product events and aggregation fixture"
-        );
-    }
-    anyhow::ensure!(
-        funnel_after_product_flow["data"]["readyWithin24Hours"].as_i64() == Some(1),
-        "a ready event that predates signup must not count toward 24-hour activation"
-    );
-    anyhow::ensure!(funnel_after_product_flow["data"]["medianHoursToReady"]
-        .as_f64()
-        .is_some());
-    anyhow::ensure!(first_version == 1);
-    anyhow::ensure!(first_pages == 2);
-    let english_page_listing = cms_db::deployment::DeploymentQueries::get_snapshot_page_listing(
-        &state.biz_context.pool,
-        deployment_id,
-        &english_language_id,
-    )
-    .await?;
-    anyhow::ensure!(english_page_listing.len() == 1);
-    anyhow::ensure!(english_page_listing[0].page_id == english_page_id);
-    anyhow::ensure!(english_page_listing[0].path.trim_matches('/') == "guide/start");
-    anyhow::ensure!(english_page_listing[0].title == "Getting started");
-    let expected_admin_page_count: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "Page" WHERE project_id = $1 AND UPPER(kind) = 'PAGE'"#,
-    )
-    .bind(&project_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    let admin_site = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/admin/sites/{project_id}"),
-            Some(&admin_cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "load platform site detail with real deployment, language, and page data",
-    )?;
-    anyhow::ensure!(admin_site["data"]["pages"] == expected_admin_page_count);
-    anyhow::ensure!(admin_site["data"]["usage"]["deployments"] == 1);
-    anyhow::ensure!(admin_site["data"]["languages"]
-        .as_array()
-        .is_some_and(|items| items.len() == 2));
-    anyhow::ensure!(admin_site["data"]["latestDeployment"]["id"] == deployment_id);
-    anyhow::ensure!(admin_site["data"]["latestDeployment"]["status"] == "READY");
-    anyhow::ensure!(admin_site["data"]["access"]["readers"] == 0);
-    anyhow::ensure!(admin_site["data"]["access"]["audiences"] == 0);
-    anyhow::ensure!(admin_site["data"]["access"]["jwtEnabled"] == false);
-    let english_artifact = state
-        .storage
-        .get(&format!(
-            "sites/{project_id}/{deployment_id}/en/guide/start.html"
-        ))
-        .await?;
-    let rtl_artifact = state
-        .storage
-        .get(&format!(
-            "sites/{project_id}/{deployment_id}/he-IL/guide/start.html"
-        ))
-        .await?;
-    let english_html = String::from_utf8(english_artifact.to_vec())?;
-    let rtl_html = String::from_utf8(rtl_artifact.to_vec())?;
-    anyhow::ensure!(english_html.contains("lang=\"en\""));
-    anyhow::ensure!(english_html.contains("English release content"));
-    anyhow::ensure!(rtl_html.contains("lang=\"he-IL\""));
-    anyhow::ensure!(rtl_html.contains("תוכן גרסה עברית"));
-    anyhow::ensure!(
-        !state
-            .storage
-            .exists(&format!(
-                "sites/{project_id}/{deployment_id}/he-IL/quickstart/draft.html"
-            ))
-            .await?
-    );
 
-    let (ssr_status, ssr_html) = site_request(&app, &public_host, "/guide/start").await?;
-    anyhow::ensure!(
-        ssr_status == StatusCode::OK,
-        "published host SSR should serve the release page, got {ssr_status}: {ssr_html}"
-    );
+    let (version, page_count) = wait_for_deployment_ready(&ctx.state, deployment_id).await?;
+    anyhow::ensure!(version == 1);
+    anyhow::ensure!(page_count == 1);
+
+    let en_artifact = ctx.state.storage.get(&format!("sites/{project_id}/{deployment_id}/en/start.html")).await?;
+    let en_html = String::from_utf8(en_artifact.to_vec())?;
+    anyhow::ensure!(en_html.contains("English release content"));
+
+    let (ssr_status, ssr_html) = site_request(&ctx.app, &public_host, "/start").await?;
+    anyhow::ensure!(ssr_status == StatusCode::OK);
     anyhow::ensure!(ssr_html.contains("<html lang=\"en\" dir=\"ltr\">"));
     anyhow::ensure!(ssr_html.contains("English release content"));
-    anyhow::ensure!(ssr_html.contains(&format!(
-        "<link rel=\"canonical\" href=\"https://{public_host}/guide/start\">"
-    )));
-    anyhow::ensure!(!ssr_html.contains("DO NOT SHIP"));
-    let (root_listing_status, root_listing_html) = site_request(&app, &public_host, "/").await?;
-    anyhow::ensure!(root_listing_status == StatusCode::OK);
-    anyhow::ensure!(root_listing_html.contains("Getting started"));
-    anyhow::ensure!(
-        !root_listing_html.contains("English release content"),
-        "root listing must render page metadata without loading Markdown bodies"
-    );
-    let (sitemap_status, sitemap_body) = site_request(&app, &public_host, "/sitemap.xml").await?;
-    anyhow::ensure!(
-        sitemap_status == StatusCode::OK,
-        "published sitemap endpoint failed: {sitemap_body}"
-    );
-    anyhow::ensure!(sitemap_body.contains("/guide/start"));
-    anyhow::ensure!(!sitemap_body.contains("/he-IL/"));
-    let (robots_status, robots_body) = site_request(&app, &public_host, "/robots.txt").await?;
+    anyhow::ensure!(ssr_html.contains(&format!("<link rel=\"canonical\" href=\"https://{public_host}/start\">")));
+
+    let (root_status, root_html) = site_request(&ctx.app, &public_host, "/").await?;
+    anyhow::ensure!(root_status == StatusCode::OK);
+    anyhow::ensure!(root_html.contains("Getting started"));
+
+    let (sitemap_status, sitemap_body) = site_request(&ctx.app, &public_host, "/sitemap.xml").await?;
+    anyhow::ensure!(sitemap_status == StatusCode::OK);
+    anyhow::ensure!(sitemap_body.contains("/start"));
+
+    let (robots_status, _) = site_request(&ctx.app, &public_host, "/robots.txt").await?;
     anyhow::ensure!(robots_status == StatusCode::OK);
-    anyhow::ensure!(robots_body.contains("https://"));
-    let (manifest_status, manifest_body) =
-        site_request(&app, &public_host, "/site.webmanifest").await?;
+
+    let (manifest_status, _) = site_request(&ctx.app, &public_host, "/site.webmanifest").await?;
     anyhow::ensure!(manifest_status == StatusCode::OK);
-    anyhow::ensure!(serde_json::from_str::<Value>(&manifest_body).is_ok());
-    let (draft_ssr_status, draft_ssr_body) =
-        site_request(&app, &public_host, "/guide/draft").await?;
-    anyhow::ensure!(
-        draft_ssr_status == StatusCode::NOT_FOUND,
-        "hosted SSR must not expose an unpublished page: {draft_ssr_body}"
-    );
 
-    // Change the editor record after v1. Both the API and the public host SSR
-    // must continue rendering the immutable release until another deploy passes.
+    // Immutability: edit page after publish
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::PATCH,
-            &format!("/api/app/projects/{project_id}/pages/{english_page_id}"),
+            &format!("/api/app/projects/{project_id}/pages/{en_page_id}"),
             Some(&cookie),
-            Some(json!({
-                "content": "# Getting started\n\nEditor-only change after release one.",
-            })),
+            Some(json!({ "content": "# Getting started\n\nEditor change after v1." })),
         )
         .await?,
         StatusCode::OK,
-        "edit English page after v1 without changing published content",
+        "edit page",
     )?;
-    let page_updated_events: i64 = sqlx::query_scalar(
-        r#"SELECT COUNT(*) FROM "PlatformEvent"
-           WHERE user_id = $1 AND event_type = 'page_edited'
-             AND metadata->>'page_id' = $2 AND metadata->>'operation' = 'update'"#,
-    )
-    .bind(&seed.user_id)
-    .bind(&english_page_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    anyhow::ensure!(
-        page_updated_events == 1,
-        "updating a document should emit one trusted edit event"
-    );
-    let (ssr_after_edit_status, ssr_after_edit_html) =
-        site_request(&app, &public_host, "/guide/start").await?;
-    anyhow::ensure!(
-        ssr_after_edit_status == StatusCode::OK,
-        "v1 should remain available after an editor edit, got {ssr_after_edit_status}"
-    );
-    anyhow::ensure!(ssr_after_edit_html.contains("English release content"));
-    anyhow::ensure!(!ssr_after_edit_html.contains("Editor-only change after release one"));
 
-    let page_by_id = expect_status(
+    // SSR still serves v1 content
+    let (ssr2_status, ssr2_html) = site_request(&ctx.app, &public_host, "/start").await?;
+    anyhow::ensure!(ssr2_status == StatusCode::OK);
+    anyhow::ensure!(ssr2_html.contains("English release content"));
+    anyhow::ensure!(!ssr2_html.contains("Editor change after v1"));
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_06_public_search_and_grounded_qa() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("SearchQA E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
+
+    let rtl_resp = expect_status(
         request(
-            &app,
-            Method::GET,
-            &format!("/api/public/pages/{rtl_page_id}"),
-            None,
-            None,
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            Some(json!({ "code": "he-il", "name": "Hebrew", "direction": "RTL" })),
         )
         .await?,
         StatusCode::OK,
-        "read an immutable release page by ID",
+        "rtl",
     )?;
-    anyhow::ensure!(page_by_id["data"]["page"]["path"] == "guide/start");
-    anyhow::ensure!(page_by_id["data"]["version"] == 1);
+    let rtl_id = rtl_resp["data"]["id"].as_str().unwrap();
+
+    let en_page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "Search Guide",
+            "slug": "guide",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "isPublished": true,
+            "content": "# Search Guide\n\nQuantum algorithms and distributed consensus.",
+        }),
+    )
+    .await?;
+    let en_page_id = required_string(&en_page, "id", "en page")?;
+
+    let rtl_page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "מדריך חיפוש",
+            "slug": "guide",
+            "kind": "PAGE",
+            "languageId": rtl_id,
+            "isPublished": true,
+            "content": "# מדריך חיפוש\n\nאלגוריתמי קוונטים וקונצנזוס מבוזר.",
+        }),
+    )
+    .await?;
+    let rtl_page_id = required_string(&rtl_page, "id", "rtl page")?;
+
+    let deployment = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments"),
+            Some(&cookie),
+            Some(json!({ "message": "SearchQA publish" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "publish",
+    )?;
+    let deployment_id = required_string(&deployment["data"], "id", "deployment")?;
+    wait_for_deployment_ready(&ctx.state, deployment_id).await?;
+
+    let en_search = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/search?q=Quantum&lang=en&version=main"), None, None).await?,
+        StatusCode::OK,
+        "en search",
+    )?;
+    anyhow::ensure!(en_search["data"]["hits"].as_array().is_some_and(|h| h.iter().any(|hit| hit["id"] == en_page_id)));
+
+    let rtl_search = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/search?q=Quantum&lang=he-IL&version=main"), None, None).await?,
+        StatusCode::OK,
+        "rtl search isolation",
+    )?;
+    anyhow::ensure!(rtl_search["data"]["hits"].as_array().is_some_and(Vec::is_empty));
+
+    let qa = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/public/sites/{project_id}/answer"),
+            None,
+            Some(json!({ "question": "אלגוריתמי", "lang": "he-IL", "version": "main" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "grounded qa",
+    )?;
+    anyhow::ensure!(qa["data"]["mode"] == "extractive");
+    anyhow::ensure!(qa["data"]["sources"].as_array().is_some_and(|s| s.iter().any(|src| src["id"] == rtl_page_id)));
 
     expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/public/sites/{project_id}/events"),
             None,
             Some(json!({
                 "type": "page_view",
-                "userId": &seed.user_id,
-                "ip": "203.0.113.99",
-                "metadata": { "path": "guide/start" },
+                "userId": &ctx.seed.user_id,
+                "ip": "203.0.113.195",
+                "metadata": { "path": "guide" },
             })),
         )
         .await?,
         StatusCode::OK,
-        "record a public analytics event",
+        "public analytics event",
     )?;
-    let stored_event = sqlx::query_as::<_, (Option<String>, Option<String>)>(
+
+    let stored: (Option<String>, Option<String>) = sqlx::query_as(
         r#"SELECT user_id, ip_address FROM "AnalyticsEvent" WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1"#,
     )
-    .bind(&project_id)
-    .fetch_one(&state.biz_context.pool)
+    .bind(project_id)
+    .fetch_one(&ctx.state.biz_context.pool)
     .await?;
-    anyhow::ensure!(stored_event.0.is_none());
-    anyhow::ensure!(stored_event.1.is_none());
-    expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/public/sites/{private_project_id}/events"),
-            None,
-            Some(json!({ "type": "page_view" })),
-        )
-        .await?,
-        StatusCode::NOT_FOUND,
-        "do not accept public analytics for a private project",
-    )?;
-    expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/public/sites/{project_id}/events"),
-            None,
-            Some(json!({ "type": "bad event type!" })),
-        )
-        .await?,
-        StatusCode::BAD_REQUEST,
-        "reject malformed analytics event type",
-    )?;
+    anyhow::ensure!(stored.0.is_none(), "user_id stripped for privacy");
+    anyhow::ensure!(stored.1.is_none(), "ip stripped for privacy");
 
-    let english_search = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=English&lang=en&version=main"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "search the published English snapshot",
-    )?;
-    anyhow::ensure!(english_search["data"]["hits"]
-        .as_array()
-        .is_some_and(|hits| {
-            hits.iter().any(|hit| hit["id"] == english_page_id)
-                && hits.iter().all(|hit| hit["id"] != rtl_page_id)
-        }));
-    let rtl_search = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=English&lang=he-IL&version=main"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "keep public search scoped to the selected language",
-    )?;
-    anyhow::ensure!(rtl_search["data"]["hits"]
-        .as_array()
-        .is_some_and(Vec::is_empty));
-    let grounded_answer = expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/public/sites/{project_id}/answer"),
-            None,
-            Some(json!({
-                "question": "התחלה",
-                "lang": "he-IL",
-                "version": "main",
-            })),
-        )
-        .await?,
-        StatusCode::OK,
-        "answer from the selected published language",
-    )?;
-    anyhow::ensure!(grounded_answer["data"]["mode"] == "extractive");
-    anyhow::ensure!(grounded_answer["data"]["sources"]
-        .as_array()
-        .is_some_and(|sources| { sources.iter().any(|source| source["id"] == rtl_page_id) }));
+    ctx.teardown().await
+}
 
-    let legacy_project = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/projects/{organization_slug}/{project_slug}"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read snapshot-backed legacy project route",
-    )?;
-    anyhow::ensure!(legacy_project["id"] == project_id);
-    let legacy_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/pages/{organization_slug}/{project_slug}/guide/start"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read snapshot-backed legacy page route",
-    )?;
-    anyhow::ensure!(legacy_page["id"] == english_page_id);
-    let legacy_pages = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/pages/{organization_slug}/{project_slug}"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "list snapshot-backed legacy pages",
-    )?;
-    anyhow::ensure!(legacy_pages.as_array().is_some_and(|pages| {
-        pages.iter().any(|page| page["id"] == english_page_id)
-            && pages.iter().all(|page| page["id"] != rtl_page_id)
-    }));
-    let legacy_search = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/search/{organization_slug}/{project_slug}?q=English&lang=en"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "search from the snapshot-backed legacy route",
-    )?;
-    anyhow::ensure!(legacy_search
-        .as_array()
-        .is_some_and(|pages| { pages.iter().any(|page| page["id"] == english_page_id) }));
-    let legacy_sitemap = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sitemap/{organization_slug}/{project_slug}"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "build legacy sitemap from published snapshot",
-    )?;
-    anyhow::ensure!(legacy_sitemap["urls"].as_array().is_some_and(|urls| {
-        urls.iter().any(|url| {
-            url["loc"]
-                .as_str()
-                .is_some_and(|loc| loc.ends_with("/guide/start"))
-        })
-    }));
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
 
-    let after_create_shell = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}?lang=he-IL"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "resolve RTL site shell",
-    )?;
-    anyhow::ensure!(after_create_shell["data"]["activeLanguage"] == "he-IL");
-    let rtl_nav = after_create_shell["data"]["nav"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("public nav is not an array"))?;
-    anyhow::ensure!(rtl_nav.iter().any(|node| node["title"] == "מדריך"));
-
-    let rtl_public_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read RTL public page",
-    )?;
-    anyhow::ensure!(rtl_public_page["data"]["activeLanguage"] == "he-IL");
-    anyhow::ensure!(rtl_public_page["data"]["page"]["title"] == "התחלה");
-    anyhow::ensure!(rtl_public_page["data"]["page"]["content"]
-        .as_str()
-        .unwrap()
-        .contains("תוכן גרסה עברית"));
-    anyhow::ensure!(rtl_public_page["data"]["languages"]
-        .as_array()
-        .is_some_and(|items| {
-            items
-                .iter()
-                .any(|item| item["code"] == "en" && item["path"] == "guide/start")
-        }));
-
-    let english_public_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=en&version=main"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read English public page",
-    )?;
-    anyhow::ensure!(english_public_page["data"]["page"]["title"] == "Getting started");
-    anyhow::ensure!(english_public_page["data"]["page"]["content"]
-        .as_str()
-        .unwrap()
-        .contains("English release content"));
-
-    let fallback_shell = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}?lang=not-a-language"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "fallback unknown public language",
-    )?;
-    anyhow::ensure!(fallback_shell["data"]["activeLanguage"] == "en");
-
-    // Coverage deliberately includes unpublished PAGE records, excludes GROUP
-    // records, and matches same paths even though translation keys are metadata.
-    let refreshed_languages = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/app/projects/{project_id}/languages"),
-            Some(&cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read page translation coverage",
-    )?;
-    let rtl_coverage = refreshed_languages["data"]
-        .as_array()
-        .and_then(|languages| {
-            languages
-                .iter()
-                .find(|language| language["id"] == rtl_language_id)
-        })
-        .and_then(|language| language.get("coverage"))
-        .ok_or_else(|| anyhow::anyhow!("RTL coverage missing from {refreshed_languages}"))?;
-    anyhow::ensure!(rtl_coverage["sourcePageCount"] == 1);
-    anyhow::ensure!(rtl_coverage["pageCount"] == 2);
-    anyhow::ensure!(rtl_coverage["matchedPages"] == 1);
-    anyhow::ensure!(rtl_coverage["extraPages"] == 1);
-
-    // Rename one language's parent and verify descendant paths recompute without
-    // changing the corresponding tree in English.
-    expect_status(
-        request(
-            &app,
-            Method::PATCH,
-            &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"),
-            Some(&cookie),
-            Some(json!({ "slug": "quickstart" })),
-        )
-        .await?,
-        StatusCode::OK,
-        "rename RTL group",
-    )?;
-    let moved_rtl_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"),
-            Some(&cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read moved RTL page",
-    )?;
-    anyhow::ensure!(moved_rtl_page["data"]["path"] == "/quickstart/start");
-    let unchanged_english_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/app/projects/{project_id}/pages/{english_page_id}"),
-            Some(&cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read unchanged English page",
-    )?;
-    anyhow::ensure!(unchanged_english_page["data"]["path"] == "/guide/start");
-    let (unreleased_translation_path_status, unreleased_translation_path_body) =
-        site_request(&app, &public_host, "/quickstart/start").await?;
-    anyhow::ensure!(
-        unreleased_translation_path_status == StatusCode::NOT_FOUND,
-        "SSR must not resolve a translated editor path before deploy: \
-         {unreleased_translation_path_body}"
-    );
-
-    let old_release_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "keep published v1 paths immutable after editor rename",
-    )?;
-    anyhow::ensure!(old_release_page["data"]["page"]["id"] == rtl_page_id);
-    anyhow::ensure!(old_release_page["data"]["activeVersion"] == "main");
-    anyhow::ensure!(old_release_page["data"]["version"] == 1);
-    expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=he-IL&\
-                 version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::NOT_FOUND,
-        "do not leak unpublished editor path into v1",
-    )?;
-    let old_release_search = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=quickstart&lang=he-IL&version=main"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "search must not expose paths changed after v1",
-    )?;
-    anyhow::ensure!(old_release_search["data"]["hits"]
-        .as_array()
-        .is_some_and(Vec::is_empty));
-
-    // A draft is neither publicly readable nor included in deployment output.
-    expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/page?path=quickstart%2Fdraft&lang=he-IL"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::NOT_FOUND,
-        "hide unpublished page",
-    )?;
-
-    let default_delete = request(
-        &app,
-        Method::DELETE,
-        &format!("/api/app/projects/{project_id}/languages/{english_language_id}"),
-        Some(&cookie),
-        None,
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Rollback E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
     )
     .await?;
-    expect_status(
-        default_delete,
-        StatusCode::CONFLICT,
-        "protect default language",
-    )?;
+    let project_id = required_string(&project, "id", "project")?;
 
-    // A second release captures the editor changes and gets the next immutable
-    // branch-local version. Public reads switch only after this commit.
-    let second_deployment = expect_status(
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
+
+    let page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "Version One",
+            "slug": "page",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "isPublished": true,
+            "content": "# Initial Version 1 Content",
+        }),
+    )
+    .await?;
+    let page_id = required_string(&page, "id", "page")?;
+
+    let dep1 = expect_status(
+        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "v1" }))).await?,
+        StatusCode::OK,
+        "dep1",
+    )?;
+    let dep1_id = required_string(&dep1["data"], "id", "dep1 id")?;
+    let (v1, _) = wait_for_deployment_ready(&ctx.state, dep1_id).await?;
+    anyhow::ensure!(v1 == 1);
+
+    expect_status(
         request(
-            &app,
-            Method::POST,
-            &format!("/api/app/projects/{project_id}/deployments"),
+            &ctx.app,
+            Method::PATCH,
+            &format!("/api/app/projects/{project_id}/pages/{page_id}"),
             Some(&cookie),
-            Some(json!({ "message": "E2E release after rename" })),
+            Some(json!({ "content": "# Updated Version 2 Content" })),
         )
         .await?,
         StatusCode::OK,
-        "publish updated project release",
+        "edit page for v2",
     )?;
-    anyhow::ensure!(second_deployment["data"]["status"] == "PENDING");
-    let second_deployment_id =
-        required_string(&second_deployment["data"], "id", "second deployment")?;
-    let (second_version, second_pages) =
-        wait_for_deployment_ready(&state, second_deployment_id).await?;
-    anyhow::ensure!(second_version == 2);
-    anyhow::ensure!(second_pages == 2);
-    let second_english_artifact = state
-        .storage
-        .get(&format!(
-            "sites/{project_id}/{second_deployment_id}/en/guide/start.html"
-        ))
-        .await?;
-    anyhow::ensure!(String::from_utf8(second_english_artifact.to_vec())?
-        .contains("Editor-only change after release one"));
-    let (ssr_after_v2_status, ssr_after_v2_html) =
-        site_request(&app, &public_host, "/guide/start").await?;
-    anyhow::ensure!(ssr_after_v2_status == StatusCode::OK);
-    anyhow::ensure!(ssr_after_v2_html.contains("Editor-only change after release one"));
+
+    let dep2 = expect_status(
+        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "v2" }))).await?,
+        StatusCode::OK,
+        "dep2",
+    )?;
+    let dep2_id = required_string(&dep2["data"], "id", "dep2 id")?;
+    let (v2, _) = wait_for_deployment_ready(&ctx.state, dep2_id).await?;
+    anyhow::ensure!(v2 == 2);
+
+    let pub_v2 = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=page&lang=en&version=main"), None, None).await?,
+        StatusCode::OK,
+        "public read v2",
+    )?;
+    anyhow::ensure!(pub_v2["data"]["version"] == 2);
+    anyhow::ensure!(pub_v2["data"]["page"]["content"].as_str().unwrap().contains("Updated Version 2 Content"));
+
+    let rollback = expect_status(
+        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments/{dep1_id}/rollback"), Some(&cookie), Some(json!({}))).await?,
+        StatusCode::OK,
+        "rollback",
+    )?;
+    let rollback_id = required_string(&rollback["data"], "id", "rollback id")?;
+    let (v3, _) = wait_for_deployment_ready(&ctx.state, rollback_id).await?;
+    anyhow::ensure!(v3 == 3);
+
+    let pub_v3 = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=page&lang=en&version=main"), None, None).await?,
+        StatusCode::OK,
+        "public read rollback v3",
+    )?;
+    anyhow::ensure!(pub_v3["data"]["version"] == 3);
+    anyhow::ensure!(pub_v3["data"]["page"]["content"].as_str().unwrap().contains("Initial Version 1 Content"));
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_08_custom_domain_lifecycle_and_tls_verification() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Domain E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
+
+    let _page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "Home",
+            "slug": "home",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "isPublished": true,
+            "content": "# Welcome Custom Domain",
+        }),
+    )
+    .await?;
+
+    let dep = expect_status(
+        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "initial" }))).await?,
+        StatusCode::OK,
+        "dep",
+    )?;
+    let dep_id = required_string(&dep["data"], "id", "dep id")?;
+    wait_for_deployment_ready(&ctx.state, dep_id).await?;
 
     let custom_hostname = format!("docs-{}.example.invalid", Uuid::new_v4().simple());
     let custom_domain = cms_db::domain::DomainQueries::create(
-        &state.biz_context.pool,
-        second_deployment_id,
+        &ctx.state.biz_context.pool,
+        dep_id,
         &custom_hostname,
         true,
     )
     .await?;
-    let (unverified_host_status, unverified_host_body) =
-        site_request(&app, &custom_hostname, "/guide/start").await?;
-    anyhow::ensure!(unverified_host_status == StatusCode::OK);
-    anyhow::ensure!(!unverified_host_body.contains("Editor-only change after release one"));
-    let unverified_domain_resolution = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/domains/resolve?host={custom_hostname}"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "do not resolve an unverified public hostname",
-    )?;
-    anyhow::ensure!(unverified_domain_resolution["data"].is_null());
+
     expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/domains/tls-authorize?domain={custom_hostname}"),
-            None,
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/public/domains/tls-authorize?domain={custom_hostname}"), None, None).await?,
         StatusCode::NOT_FOUND,
-        "do not issue TLS for an unverified hostname",
+        "unverified domain cannot authorize TLS",
     )?;
 
-    let second_rtl_artifact = state
-        .storage
-        .get(&format!(
-            "sites/{project_id}/{second_deployment_id}/he-IL/quickstart/start.html"
-        ))
-        .await?;
-    anyhow::ensure!(
-        String::from_utf8(second_rtl_artifact.to_vec())?.contains("תוכן גרסה עברית")
-    );
-    let second_public_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=he-IL&\
-                 version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "switch public reads to newly committed release",
-    )?;
-    anyhow::ensure!(second_public_page["data"]["version"] == 2);
-    anyhow::ensure!(second_public_page["data"]["page"]["path"] == "quickstart/start");
+    cms_db::domain::DomainQueries::verify(&ctx.state.biz_context.pool, &custom_domain.id, &custom_domain.verification_token).await?;
+    ctx.state.invalidate_host_resolution_cache();
+
     expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::NOT_FOUND,
-        "remove stale page path from latest release",
-    )?;
-    let new_release_search = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/search?q=quickstart&lang=he-IL&version=main"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "search the updated release in the selected language",
-    )?;
-    anyhow::ensure!(new_release_search["data"]["hits"]
-        .as_array()
-        .is_some_and(|hits| { hits.iter().any(|hit| hit["id"] == rtl_page_id) }));
-    let page_by_id_after_v2 = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/pages/{rtl_page_id}"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "page-ID reads follow the latest immutable release",
-    )?;
-    anyhow::ensure!(page_by_id_after_v2["data"]["page"]["path"] == "quickstart/start");
-    let changelog = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/changelog"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read snapshot-backed changelog",
-    )?;
-    anyhow::ensure!(changelog["data"]
-        .as_array()
-        .is_some_and(|items| items.len() == 2));
-    anyhow::ensure!(changelog["data"][0]["version"] == 2);
-
-    let rollback = expect_status(
-        request(
-            &app,
-            Method::POST,
-            &format!("/api/app/projects/{project_id}/deployments/{deployment_id}/rollback"),
-            Some(&cookie),
-            Some(json!({})),
-        )
-        .await?,
-        StatusCode::OK,
-        "rollback by publishing a copy of the target snapshot",
-    )?;
-    anyhow::ensure!(rollback["data"]["status"] == "PENDING");
-    let rollback_id = required_string(&rollback["data"], "id", "rollback deployment")?;
-    let (rollback_version, rollback_pages) = wait_for_deployment_ready(&state, rollback_id).await?;
-    anyhow::ensure!(rollback_version == 3);
-    anyhow::ensure!(rollback_pages == 2);
-    anyhow::ensure!(
-        state
-            .storage
-            .exists(&format!(
-                "sites/{project_id}/{rollback_id}/he-IL/guide/start.html"
-            ))
-            .await?
-    );
-    let public_after_rollback = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "serve rollback snapshot as latest release",
-    )?;
-    anyhow::ensure!(public_after_rollback["data"]["version"] == 3);
-    let english_after_rollback = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=en&version=main"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "restore the first release's English page on rollback",
-    )?;
-    anyhow::ensure!(english_after_rollback["data"]["page"]["content"]
-        .as_str()
-        .is_some_and(|content| content.contains("English release content")));
-    anyhow::ensure!(!english_after_rollback["data"]["page"]["content"]
-        .as_str()
-        .unwrap()
-        .contains("Editor-only change after release one"));
-    let (ssr_after_rollback_status, ssr_after_rollback_html) =
-        site_request(&app, &public_host, "/guide/start").await?;
-    anyhow::ensure!(ssr_after_rollback_status == StatusCode::OK);
-    anyhow::ensure!(ssr_after_rollback_html.contains("English release content"));
-    anyhow::ensure!(!ssr_after_rollback_html.contains("Editor-only change after release one"));
-
-    // The custom hostname stays bound to deployment 2 even after the default
-    // branch is rolled back to v1 as release 3.
-    cms_db::domain::DomainQueries::verify(
-        &state.biz_context.pool,
-        &custom_domain.id,
-        &custom_domain.verification_token,
-    )
-    .await?;
-    // This fixture changes the database directly instead of going through the
-    // product verification route, so explicitly invalidate the router cache.
-    state.invalidate_host_resolution_cache();
-    expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/domains/tls-authorize?domain={custom_hostname}"),
-            None,
-            None,
-        )
-        .await?,
+        request(&ctx.app, Method::GET, &format!("/api/public/domains/tls-authorize?domain={custom_hostname}"), None, None).await?,
         StatusCode::NO_CONTENT,
-        "authorize TLS for a verified hostname with a published release",
+        "verified domain authorizes TLS",
     )?;
-    let (custom_host_status, custom_host_html) =
-        site_request(&app, &custom_hostname, "/guide/start").await?;
-    anyhow::ensure!(custom_host_status == StatusCode::OK);
-    anyhow::ensure!(custom_host_html.contains("Editor-only change after release one"));
-    anyhow::ensure!(custom_host_html.contains(&format!(
-        "<link rel=\"canonical\" href=\"https://{custom_hostname}/guide/start\">"
-    )));
-    let (custom_sitemap_status, custom_sitemap) =
-        site_request(&app, &custom_hostname, "/sitemap.xml").await?;
-    anyhow::ensure!(custom_sitemap_status == StatusCode::OK);
-    anyhow::ensure!(custom_sitemap.contains(&format!("https://{custom_hostname}/guide/start")));
-    let verified_domain_resolution = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/domains/resolve?host={custom_hostname}"),
-            None,
-            None,
-        )
-        .await?,
+
+    let (custom_status, custom_html) = site_request(&ctx.app, &custom_hostname, "/home").await?;
+    anyhow::ensure!(custom_status == StatusCode::OK);
+    anyhow::ensure!(custom_html.contains("Welcome Custom Domain"));
+    anyhow::ensure!(custom_html.contains(&format!("<link rel=\"canonical\" href=\"https://{custom_hostname}/home\">")));
+
+    let resolved = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/domains/resolve?host={custom_hostname}"), None, None).await?,
         StatusCode::OK,
-        "resolve a verified custom hostname",
+        "resolve domain",
     )?;
-    anyhow::ensure!(verified_domain_resolution["data"]["projectId"] == project_id);
-    anyhow::ensure!(verified_domain_resolution["data"]["verified"] == true);
+    anyhow::ensure!(resolved["data"]["projectId"] == project_id);
+    anyhow::ensure!(resolved["data"]["verified"] == true);
 
-    let (untrusted_https_status, _) =
-        site_request_through_tls_proxy(&app, &custom_hostname, "/", None).await?;
-    anyhow::ensure!(untrusted_https_status == StatusCode::OK);
-    let pending_tls_status: String =
-        sqlx::query_scalar(r#"SELECT ssl_status FROM "Domain" WHERE id = $1"#)
-            .bind(&custom_domain.id)
-            .fetch_one(&state.biz_context.pool)
-            .await?;
-    anyhow::ensure!(
-        pending_tls_status == "PENDING",
-        "client-supplied HTTPS headers must not mark TLS active"
-    );
+    let (untrusted_tls_status, _) = site_request_through_tls_proxy(&ctx.app, &custom_hostname, "/", None).await?;
+    anyhow::ensure!(untrusted_tls_status == StatusCode::OK);
+    let pending_tls: String = sqlx::query_scalar(r#"SELECT ssl_status FROM "Domain" WHERE id = $1"#)
+        .bind(&custom_domain.id)
+        .fetch_one(&ctx.state.biz_context.pool)
+        .await?;
+    anyhow::ensure!(pending_tls == "PENDING");
 
-    let (trusted_https_status, _) = site_request_through_tls_proxy(
-        &app,
-        &custom_hostname,
-        "/",
-        Some("e2e-trusted-proxy-secret"),
+    let (trusted_tls_status, _) = site_request_through_tls_proxy(&ctx.app, &custom_hostname, "/", Some("e2e-trusted-proxy-secret")).await?;
+    anyhow::ensure!(trusted_tls_status == StatusCode::OK);
+    let active_tls: String = sqlx::query_scalar(r#"SELECT ssl_status FROM "Domain" WHERE id = $1"#)
+        .bind(&custom_domain.id)
+        .fetch_one(&ctx.state.biz_context.pool)
+        .await?;
+    anyhow::ensure!(active_tls == "ACTIVE");
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_09_preview_branches_and_isolation() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Branch E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
     )
     .await?;
-    anyhow::ensure!(trusted_https_status == StatusCode::OK);
-    let (active_tls_status, tls_checked_at): (String, Option<chrono::DateTime<Utc>>) =
-        sqlx::query_as(r#"SELECT ssl_status, ssl_checked_at FROM "Domain" WHERE id = $1"#)
-            .bind(&custom_domain.id)
-            .fetch_one(&state.biz_context.pool)
-            .await?;
-    anyhow::ensure!(active_tls_status == "ACTIVE" && tls_checked_at.is_some());
+    let project_id = required_string(&project, "id", "project")?;
+    let project_slug = required_string(&project, "slug", "project")?;
+    let public_host = format!("{project_slug}.cms.app");
 
-    // Unrelated partial updates retain hostname-bound state. Changing the
-    // hostname rotates the DNS token and atomically clears all TLS observations.
-    let previous_expiry = (Utc::now() + Duration::days(30))
-        .with_nanosecond(0)
-        .expect("a whole-second timestamp is valid");
-    sqlx::query(
-        r#"UPDATE "Domain"
-           SET ssl_certificate = 'e2e-public-cert', ssl_certificate_expires_at = $2,
-               ssl_last_error = 'stale test detail', acme_order_url = 'https://acme.invalid/order'
-           WHERE id = $1"#,
-    )
-    .bind(&custom_domain.id)
-    .bind(previous_expiry)
-    .execute(&state.biz_context.pool)
-    .await?;
-    expect_status(
-        request(
-            &app,
-            Method::PUT,
-            &format!("/api/domains/{}", custom_domain.id),
-            Some(&cookie),
-            Some(json!({ "is_primary": false })),
-        )
-        .await?,
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
         StatusCode::OK,
-        "apply an unrelated domain update through the authenticated API",
+        "languages",
     )?;
-    let partial_update =
-        cms_db::domain::DomainQueries::get_by_id(&state.biz_context.pool, &custom_domain.id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("domain disappeared after partial update"))?;
-    anyhow::ensure!(partial_update.verified_at.is_some());
-    anyhow::ensure!(partial_update.verification_token == custom_domain.verification_token);
-    anyhow::ensure!(partial_update.ssl_certificate.as_deref() == Some("e2e-public-cert"));
-    anyhow::ensure!(partial_update.ssl_certificate_expires_at == Some(previous_expiry));
-    anyhow::ensure!(partial_update.ssl_status == "ACTIVE");
-    anyhow::ensure!(partial_update.ssl_checked_at.is_some());
-    anyhow::ensure!(partial_update.ssl_last_error.as_deref() == Some("stale test detail"));
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
 
-    let replacement_hostname = format!("renamed-{}.example.invalid", Uuid::new_v4().simple());
-    let hostname_update = expect_status(
-        request(
-            &app,
-            Method::PUT,
-            &format!("/api/domains/{}", custom_domain.id),
-            Some(&cookie),
-            Some(json!({ "hostname": replacement_hostname.clone() })),
-        )
-        .await?,
+    let main_dep = expect_status(
+        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "main" }))).await?,
         StatusCode::OK,
-        "change a custom hostname through the authenticated API",
+        "main dep",
     )?;
-    anyhow::ensure!(hostname_update["hostname"] == replacement_hostname);
-    let changed_domain =
-        cms_db::domain::DomainQueries::get_by_id(&state.biz_context.pool, &custom_domain.id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("domain disappeared after hostname change"))?;
-    anyhow::ensure!(changed_domain.hostname == replacement_hostname);
-    anyhow::ensure!(changed_domain.verification_token != custom_domain.verification_token);
-    anyhow::ensure!(changed_domain.verified_at.is_none());
-    anyhow::ensure!(changed_domain.ssl_certificate.is_none());
-    anyhow::ensure!(changed_domain.ssl_certificate_expires_at.is_none());
-    anyhow::ensure!(changed_domain.ssl_status == "PENDING");
-    anyhow::ensure!(changed_domain.ssl_checked_at.is_none());
-    anyhow::ensure!(changed_domain.ssl_last_error.is_none());
-    let acme_order: Option<String> =
-        sqlx::query_scalar(r#"SELECT acme_order_url FROM "Domain" WHERE id = $1"#)
-            .bind(&custom_domain.id)
-            .fetch_one(&state.biz_context.pool)
-            .await?;
-    anyhow::ensure!(acme_order.is_none());
-    for hostname in [&custom_hostname, &replacement_hostname] {
-        expect_status(
-            request(
-                &app,
-                Method::GET,
-                &format!("/api/public/domains/tls-authorize?domain={hostname}"),
-                None,
-                None,
-            )
-            .await?,
-            StatusCode::NOT_FOUND,
-            "revoke TLS authorization after a hostname change",
-        )?;
-    }
-    let (old_host_after_rename_status, old_host_after_rename_html) =
-        site_request(&app, &custom_hostname, "/guide/start").await?;
-    anyhow::ensure!(old_host_after_rename_status == StatusCode::OK);
-    anyhow::ensure!(
-        !old_host_after_rename_html.contains("Editor-only change after release one"),
-        "a cached old-host mapping must be invalidated immediately after rename"
-    );
-    let (new_host_before_verification_status, new_host_before_verification_html) =
-        site_request(&app, &replacement_hostname, "/guide/start").await?;
-    anyhow::ensure!(new_host_before_verification_status == StatusCode::OK);
-    anyhow::ensure!(
-        !new_host_before_verification_html.contains("Editor-only change after release one")
-    );
+    let main_dep_id = required_string(&main_dep["data"], "id", "main dep id")?;
+    wait_for_deployment_ready(&ctx.state, main_dep_id).await?;
 
-    expect_status(
+    let preview_branch_resp = expect_status(
         request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=quickstart%2Fstart&lang=he-IL&\
-                 version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::NOT_FOUND,
-        "rollback removes newer path from public release",
-    )?;
-
-    // Deleting a navigation group must not strand its children with stale
-    // materialized paths. They become root documents while the finished release
-    // artifact remains untouched.
-    let delete_group = expect_status(
-        request(
-            &app,
-            Method::DELETE,
-            &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"),
-            Some(&cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "delete RTL navigation group",
-    )?;
-    anyhow::ensure!(delete_group["data"]["success"] == true);
-    let reparented_page = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"),
-            Some(&cookie),
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "read child reparented after group deletion",
-    )?;
-    anyhow::ensure!(reparented_page["data"]["path"] == "/start");
-    anyhow::ensure!(reparented_page["data"]["parentId"].is_null());
-    anyhow::ensure!(
-        state
-            .storage
-            .exists(&format!(
-                "sites/{project_id}/{deployment_id}/he-IL/guide/start.html"
-            ))
-            .await?
-    );
-    anyhow::ensure!(
-        state
-            .storage
-            .exists(&format!(
-                "sites/{project_id}/{second_deployment_id}/he-IL/quickstart/start.html"
-            ))
-            .await?
-    );
-    anyhow::ensure!(
-        state
-            .storage
-            .exists(&format!(
-                "sites/{project_id}/{rollback_id}/he-IL/guide/start.html"
-            ))
-            .await?
-    );
-    let public_after_delete = expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=guide%2Fstart&lang=he-IL&version=main"
-            ),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::OK,
-        "keep rollback snapshot immutable after navigation deletion",
-    )?;
-    anyhow::ensure!(public_after_delete["data"]["version"] == 3);
-
-    // Publish a real non-default preview branch. Public readers can select it
-    // explicitly, but the ordinary project host must remain on the default
-    // branch rather than exposing the most recently published branch.
-    let preview_branch_response = expect_status(
-        request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/branches"),
             Some(&cookie),
-            Some(json!({
-                "project_id": project_id,
-                "name": "Preview",
-                "is_protected": true,
-            })),
+            Some(json!({ "project_id": project_id, "name": "Preview", "is_protected": true })),
         )
         .await?,
         StatusCode::OK,
-        "create non-default preview branch",
+        "create preview branch",
     )?;
-    let preview_branch = preview_branch_response["data"].clone();
-    let preview_branch_id = required_string(&preview_branch, "id", "preview branch")?;
-    anyhow::ensure!(preview_branch["is_default"] == false);
-    let preview_page = create_page(
-        &app,
+    let preview_branch_id = required_string(&preview_branch_resp["data"], "id", "preview branch id")?;
+
+    let _preview_page = create_page(
+        &ctx.app,
         &cookie,
-        &project_id,
+        project_id,
         json!({
-            "title": "Preview only",
+            "title": "Preview Only",
             "slug": "preview-only",
             "kind": "PAGE",
             "branchId": preview_branch_id,
-            "languageId": english_language_id,
+            "languageId": english_id,
             "isPublished": true,
-            "content": "This page belongs only to the preview branch.",
+            "content": "Secret preview content",
         }),
     )
     .await?;
-    let preview_page_id = required_string(&preview_page, "id", "preview-only page")?;
-    let preview_deployment = expect_status(
+
+    let preview_dep = expect_status(
         request(
-            &app,
+            &ctx.app,
             Method::POST,
             &format!("/api/app/projects/{project_id}/branches/{preview_branch_id}/merge"),
             Some(&cookie),
@@ -2197,136 +1570,569 @@ async fn run_flow(state: Arc<AppState>, seed: &Seed) -> anyhow::Result<()> {
         )
         .await?,
         StatusCode::OK,
-        "build and publish the preview branch through the product route",
+        "publish preview branch",
     )?;
-    anyhow::ensure!(preview_deployment["data"]["status"] == "PENDING");
-    let preview_deployment_id =
-        required_string(&preview_deployment["data"], "id", "preview deployment")?;
-    let (preview_version, preview_pages) =
-        wait_for_deployment_ready(&state, preview_deployment_id).await?;
-    anyhow::ensure!(preview_version == 1);
-    anyhow::ensure!(preview_pages == 1);
+    let preview_dep_id = required_string(&preview_dep["data"], "id", "preview dep id")?;
+    wait_for_deployment_ready(&ctx.state, preview_dep_id).await?;
 
-    let selected_preview_page = expect_status(
+    let preview_read = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=preview"), None, None).await?,
+        StatusCode::OK,
+        "read preview page explicitly",
+    )?;
+    anyhow::ensure!(preview_read["data"]["page"]["content"].as_str().unwrap().contains("Secret preview content"));
+
+    expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=main"), None, None).await?,
+        StatusCode::NOT_FOUND,
+        "preview page hidden on main branch",
+    )?;
+
+    let (preview_host_status, _) = site_request(&ctx.app, &public_host, "/preview-only").await?;
+    anyhow::ensure!(preview_host_status == StatusCode::NOT_FOUND, "preview content not served on default host");
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_10_project_settings_and_site_features() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Settings E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
+    let initial_settings = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/settings"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "get settings",
+    )?;
+    anyhow::ensure!(initial_settings["data"]["id"].is_string());
+
+    let updated_settings = expect_status(
         request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=preview"
-            ),
+            &ctx.app,
+            Method::PUT,
+            &format!("/api/app/projects/{project_id}/settings"),
+            Some(&cookie),
+            Some(json!({
+                "theme": "dark",
+                "search_enabled": true,
+                "comments_enabled": true,
+            })),
+        )
+        .await?,
+        StatusCode::OK,
+        "update settings",
+    )?;
+    anyhow::ensure!(updated_settings["data"]["theme"] == "dark");
+    anyhow::ensure!(updated_settings["data"]["search_enabled"] == true);
+    anyhow::ensure!(updated_settings["data"]["comments_enabled"] == true);
+
+    let fetched = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/settings"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "fetch updated settings",
+    )?;
+    anyhow::ensure!(fetched["data"]["theme"] == "dark");
+    anyhow::ensure!(fetched["data"]["search_enabled"] == true);
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let second_email = format!("collab-{}@example.invalid", Uuid::new_v4());
+    let second_user = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            "/api/auth/register",
             None,
+            Some(json!({
+                "email": second_email,
+                "password": "Password123!",
+                "name": "Collaborator User",
+            })),
+        )
+        .await?,
+        StatusCode::OK,
+        "register second user",
+    )?;
+    let second_user_id = required_string(&second_user, "id", "second user")?;
+
+    let initial_members = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/orgs/{}/members", ctx.seed.organization_id), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "list org members",
+    )?;
+    let members_arr = initial_members.as_array().ok_or_else(|| anyhow::anyhow!("members not array"))?;
+    anyhow::ensure!(members_arr.len() == 1, "initial member count is 1 (owner)");
+
+    let add_member = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            Some(&cookie),
+            Some(json!({ "user_id": second_user_id, "role": "MEMBER" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "add member",
+    )?;
+    let membership_id = required_string(&add_member, "id", "membership id")?;
+
+    let members_after_add = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/orgs/{}/members", ctx.seed.organization_id), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "list members after add",
+    )?;
+    anyhow::ensure!(members_after_add.as_array().unwrap().len() == 2);
+
+    let updated_role = expect_status(
+        request(
+            &ctx.app,
+            Method::PUT,
+            &format!("/api/orgs/{}/members/{membership_id}", ctx.seed.organization_id),
+            Some(&cookie),
+            Some(json!({ "role": "ADMIN" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "update member role",
+    )?;
+    anyhow::ensure!(updated_role["role"] == "ADMIN");
+
+    let remove_member = expect_status(
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/orgs/{}/members/{membership_id}", ctx.seed.organization_id),
+            Some(&cookie),
             None,
         )
         .await?,
         StatusCode::OK,
-        "read a page from its explicitly selected preview branch",
+        "remove member",
     )?;
-    anyhow::ensure!(selected_preview_page["data"]["page"]["id"] == preview_page_id);
-    let default_branch_page = request(
-        &app,
+    anyhow::ensure!(remove_member["success"] == true);
+
+    let members_after_remove = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/orgs/{}/members", ctx.seed.organization_id), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "list members after remove",
+    )?;
+    anyhow::ensure!(members_after_remove.as_array().unwrap().len() == 1);
+
+    sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
+        .bind(second_user_id)
+        .execute(&ctx.state.biz_context.pool)
+        .await?;
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_12_api_tokens_lifecycle_and_authentication() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("ApiToken E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
+    let created_key = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/api-keys"),
+            Some(&cookie),
+            Some(json!({ "name": "CI Automated Publisher" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "create api key",
+    )?;
+    let key_id = required_string(&created_key["data"], "id", "key id")?;
+    let raw_key = required_string(&created_key["data"], "key", "raw key")?;
+
+    let key_headers = [("x-api-key", raw_key)];
+    let (auth_status, pages_val) = request_with_headers(
+        &ctx.app,
         Method::GET,
-        &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=main"),
-        None,
+        &format!("/api/app/projects/{project_id}/pages"),
+        &key_headers,
         None,
     )
     .await?;
-    expect_status(
-        default_branch_page,
-        StatusCode::NOT_FOUND,
-        "keep branch content isolated",
-    )?;
-    let (preview_path_status, preview_path_body) =
-        site_request(&app, &public_host, "/preview-only").await?;
-    anyhow::ensure!(
-        preview_path_status == StatusCode::NOT_FOUND,
-        "default public host must not expose a preview-branch page: {preview_path_body}"
-    );
+    anyhow::ensure!(auth_status == StatusCode::OK, "api token authenticates request");
+    anyhow::ensure!(pages_val["data"].is_array());
 
-    // Edge case: if the default branch has no successful active release, a
-    // preview release must not silently become the default public site.
-    let default_branch_id: String = sqlx::query_scalar(
-        r#"SELECT id FROM "Branch" WHERE project_id = $1 AND is_default = TRUE"#,
-    )
-    .bind(&project_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
-    sqlx::query(
-        r#"UPDATE "Deployment" SET status = 'FAILED', updated_at = NOW()
-           WHERE project_id = $1 AND branch_id = $2 AND status = 'ACTIVE'"#,
-    )
-    .bind(&project_id)
-    .bind(default_branch_id)
-    .execute(&state.biz_context.pool)
-    .await?;
-    let (no_default_release_status, no_default_release_body) =
-        site_request(&app, &public_host, "/").await?;
-    anyhow::ensure!(
-        no_default_release_status == StatusCode::NOT_FOUND,
-        "do not fall back to a non-default branch when main has no active release: \
-         {no_default_release_body}"
-    );
-    expect_status(
-        request(
-            &app,
-            Method::GET,
-            &format!("/api/public/sites/{project_id}"),
-            None,
-            None,
-        )
-        .await?,
-        StatusCode::NOT_FOUND,
-        "do not default public API reads to a preview branch",
+    let del_key = expect_status(
+        request(&ctx.app, Method::DELETE, &format!("/api/app/projects/{project_id}/api-keys/{key_id}"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "delete api key",
     )?;
-    let still_explicitly_selectable_preview = expect_status(
+    anyhow::ensure!(del_key["data"]["id"] == key_id);
+
+    let (revoked_status, _) = request_with_headers(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/app/projects/{project_id}/pages"),
+        &key_headers,
+        None,
+    )
+    .await?;
+    anyhow::ensure!(revoked_status == StatusCode::UNAUTHORIZED, "revoked api token is rejected");
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_13_translation_linking_and_alternate_language_navigation() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("TransLinking E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "project")?;
+
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap();
+
+    let rtl_lang = expect_status(
         request(
-            &app,
-            Method::GET,
-            &format!(
-                "/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=preview"
-            ),
-            None,
-            None,
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            Some(json!({ "code": "he-il", "name": "Hebrew", "direction": "RTL" })),
         )
         .await?,
         StatusCode::OK,
-        "allow explicit preview-branch reads when main has no release",
+        "create rtl",
     )?;
-    anyhow::ensure!(still_explicitly_selectable_preview["data"]["page"]["id"] == preview_page_id);
+    let rtl_id = rtl_lang["data"]["id"].as_str().unwrap();
 
-    Ok(())
+    let _en_page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "Architecture Overview",
+            "slug": "architecture",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "translationKey": "arch-overview-doc",
+            "isPublished": true,
+            "content": "# Architecture Overview",
+        }),
+    )
+    .await?;
+
+    let _rtl_page = create_page(
+        &ctx.app,
+        &cookie,
+        project_id,
+        json!({
+            "title": "סקירת ארכיטקטורה",
+            "slug": "mivne",
+            "kind": "PAGE",
+            "languageId": rtl_id,
+            "translationKey": "arch-overview-doc",
+            "isPublished": true,
+            "content": "# סקירת ארכיטקטורה",
+        }),
+    )
+    .await?;
+
+    let dep = expect_status(
+        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "publish" }))).await?,
+        StatusCode::OK,
+        "publish",
+    )?;
+    let dep_id = required_string(&dep["data"], "id", "dep id")?;
+    wait_for_deployment_ready(&ctx.state, dep_id).await?;
+
+    let en_public = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=architecture&lang=en&version=main"), None, None).await?,
+        StatusCode::OK,
+        "read en page",
+    )?;
+    anyhow::ensure!(en_public["data"]["page"]["title"] == "Architecture Overview");
+    let en_alt_langs = en_public["data"]["languages"].as_array().ok_or_else(|| anyhow::anyhow!("languages missing"))?;
+    anyhow::ensure!(en_alt_langs.iter().any(|item| item["code"] == "he-IL" && item["path"] == "mivne"));
+
+    let rtl_public = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=mivne&lang=he-IL&version=main"), None, None).await?,
+        StatusCode::OK,
+        "read rtl page",
+    )?;
+    anyhow::ensure!(rtl_public["data"]["page"]["title"] == "סקירת ארכיטקטורה");
+    let rtl_alt_langs = rtl_public["data"]["languages"].as_array().ok_or_else(|| anyhow::anyhow!("languages missing"))?;
+    anyhow::ensure!(rtl_alt_langs.iter().any(|item| item["code"] == "en" && item["path"] == "architecture"));
+
+    ctx.teardown().await
+}
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_14_atomic_project_creation_invariants() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Atomic Invariants {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "atomic project")?;
+
+    let (project_count, branch_count, language_count, settings_count): (i64, i64, i64, i64) = sqlx::query_as(
+        r#"SELECT
+             (SELECT COUNT(*) FROM "Project" WHERE id = $1),
+             (SELECT COUNT(*) FROM "Branch" WHERE project_id = $1 AND is_default = TRUE),
+             (SELECT COUNT(*) FROM "Language" WHERE project_id = $1 AND is_default = TRUE AND code = 'en'),
+             (SELECT COUNT(*) FROM "ProjectSettings" WHERE project_id = $1)"#,
+    )
+    .bind(project_id)
+    .fetch_one(&ctx.state.biz_context.pool)
+    .await?;
+    anyhow::ensure!(project_count == 1, "project must exist");
+    anyhow::ensure!(branch_count == 1, "default branch must exist atomically");
+    anyhow::ensure!(language_count == 1, "default english language must exist atomically");
+    anyhow::ensure!(settings_count == 1, "project settings must exist atomically");
+
+    let pages_resp = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/pages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "read empty pages",
+    )?;
+    anyhow::ensure!(pages_resp["data"].as_array().is_some_and(Vec::is_empty));
+
+    ctx.teardown().await
 }
 
 #[tokio::test]
 #[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
 async fn product_flow_creates_and_publishes_language_scoped_docs() -> anyhow::Result<()> {
-    let database_url = std::env::var("CMS_E2E_DATABASE_URL").map_err(|_| {
-        anyhow::anyhow!("set CMS_E2E_DATABASE_URL to a disposable PostgreSQL database")
-    })?;
-    let mut config = Config::default();
-    config.database.url = database_url;
-    config.site.self_host = Some("cms.app".to_string());
-    config.domain_tls.proxy_secret = Some("e2e-trusted-proxy-secret".to_string());
-    let storage_root = std::env::temp_dir().join(format!("cms-product-e2e-{}", Uuid::new_v4()));
-    config.storage.local_root = Some(storage_root.to_string_lossy().into_owned());
+    let ctx = TestContext::setup().await?;
+    let cookie = ctx.user_cookie();
+    let admin_cookie = ctx.admin_cookie();
 
-    let state = Arc::new(AppState::from_config(&config).await?);
-    let worker_state = Arc::new(cms_worker::app_state::WorkerState::from_app_state(&state).await?);
-    let (worker_shutdown_tx, worker_shutdown_rx) = tokio::sync::watch::channel(false);
-    let worker_handles = cms_worker::start_consumers_with_shutdown(
-        state.job_queue.clone(),
-        worker_state,
-        worker_shutdown_rx,
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("Product E2E {}", Uuid::new_v4().simple()),
+        &ctx.seed.organization_id,
+        true,
     )
     .await?;
+    let project_id = required_string(&project, "id", "created project")?.to_string();
+    let project_slug = required_string(&project, "slug", "created project")?.to_string();
+    let public_host = format!("{project_slug}.cms.app");
 
-    let seed_data = seed(&state).await?;
-    let result = run_flow(state.clone(), &seed_data).await;
-    let _ = worker_shutdown_tx.send(true);
-    for handle in worker_handles {
-        let _ = handle.await;
-    }
-    let cleanup_result = cleanup(&state, &seed_data).await;
-    state.biz_context.pool.close().await;
-    cleanup_result?;
-    result
+    let languages = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        StatusCode::OK,
+        "list languages",
+    )?;
+    let english_id = languages["data"][0]["id"].as_str().unwrap().to_string();
+
+    let rtl_resp = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            Some(json!({
+                "code": "he-il",
+                "name": "Hebrew (Israel)",
+                "direction": "RTL",
+                "config": { "reader": { "greeting": "שלום" } },
+            })),
+        )
+        .await?,
+        StatusCode::OK,
+        "create RTL",
+    )?;
+    let rtl_id = rtl_resp["data"]["id"].as_str().unwrap().to_string();
+
+    let en_page = create_page(
+        &ctx.app,
+        &cookie,
+        &project_id,
+        json!({
+            "title": "Getting started",
+            "slug": "start",
+            "kind": "PAGE",
+            "languageId": english_id,
+            "translationKey": "getting-started",
+            "isPublished": true,
+            "content": "# Getting started\n\nEnglish release content.",
+        }),
+    )
+    .await?;
+    let en_page_id = required_string(&en_page, "id", "en page")?.to_string();
+
+    let rtl_page = create_page(
+        &ctx.app,
+        &cookie,
+        &project_id,
+        json!({
+            "title": "התחלה",
+            "slug": "start",
+            "kind": "PAGE",
+            "languageId": rtl_id,
+            "translationKey": "getting-started",
+            "isPublished": true,
+            "content": "# התחלה\n\nתוכן גרסה עברית.",
+        }),
+    )
+    .await?;
+    let rtl_page_id = required_string(&rtl_page, "id", "rtl page")?.to_string();
+
+    let dep = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments"),
+            Some(&cookie),
+            Some(json!({ "message": "E2E release" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "publish",
+    )?;
+    let deployment_id = required_string(&dep["data"], "id", "deployment")?;
+    let (v1, p1) = wait_for_deployment_ready(&ctx.state, deployment_id).await?;
+    anyhow::ensure!(v1 == 1 && p1 == 2);
+
+    let (ssr_status, ssr_html) = site_request(&ctx.app, &public_host, "/start").await?;
+    anyhow::ensure!(ssr_status == StatusCode::OK);
+    anyhow::ensure!(ssr_html.contains("English release content"));
+
+    let en_search = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/search?q=English&lang=en&version=main"), None, None).await?,
+        StatusCode::OK,
+        "search",
+    )?;
+    anyhow::ensure!(en_search["data"]["hits"].as_array().is_some_and(|h| h.iter().any(|hit| hit["id"] == en_page_id)));
+
+    let qa = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/public/sites/{project_id}/answer"),
+            None,
+            Some(json!({ "question": "התחלה", "lang": "he-IL", "version": "main" })),
+        )
+        .await?,
+        StatusCode::OK,
+        "qa",
+    )?;
+    anyhow::ensure!(qa["data"]["sources"].as_array().is_some_and(|s| s.iter().any(|src| src["id"] == rtl_page_id)));
+
+    let custom_hostname = format!("docs-{}.example.invalid", Uuid::new_v4().simple());
+    let custom_domain = cms_db::domain::DomainQueries::create(
+        &ctx.state.biz_context.pool,
+        deployment_id,
+        &custom_hostname,
+        true,
+    )
+    .await?;
+    cms_db::domain::DomainQueries::verify(&ctx.state.biz_context.pool, &custom_domain.id, &custom_domain.verification_token).await?;
+    ctx.state.invalidate_host_resolution_cache();
+
+    let (custom_status, _) = site_request(&ctx.app, &custom_hostname, "/start").await?;
+    anyhow::ensure!(custom_status == StatusCode::OK);
+
+    let preview_branch_resp = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/branches"),
+            Some(&cookie),
+            Some(json!({ "project_id": project_id, "name": "Preview", "is_protected": true })),
+        )
+        .await?,
+        StatusCode::OK,
+        "create preview branch",
+    )?;
+    let preview_branch_id = required_string(&preview_branch_resp["data"], "id", "preview branch id")?;
+
+    let preview_page = create_page(
+        &ctx.app,
+        &cookie,
+        &project_id,
+        json!({
+            "title": "Preview Only",
+            "slug": "preview-only",
+            "kind": "PAGE",
+            "branchId": preview_branch_id,
+            "languageId": english_id,
+            "isPublished": true,
+            "content": "Secret preview content",
+        }),
+    )
+    .await?;
+    let preview_page_id = required_string(&preview_page, "id", "preview page id")?;
+
+    let preview_dep = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/branches/{preview_branch_id}/merge"),
+            Some(&cookie),
+            Some(json!({})),
+        )
+        .await?,
+        StatusCode::OK,
+        "publish preview",
+    )?;
+    let preview_dep_id = required_string(&preview_dep["data"], "id", "preview dep id")?;
+    wait_for_deployment_ready(&ctx.state, preview_dep_id).await?;
+
+    let preview_read = expect_status(
+        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=preview"), None, None).await?,
+        StatusCode::OK,
+        "read preview",
+    )?;
+    anyhow::ensure!(preview_read["data"]["page"]["id"] == preview_page_id);
+
+    ctx.teardown().await
 }

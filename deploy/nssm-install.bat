@@ -16,7 +16,7 @@ SETLOCAL ENABLEDELAYEDEXPANSION
 :: Default values
 SET SERVICE_NAME=CMSServer
 SET BINARY_PATH=%~dp0..\target\release\cms-server.exe
-SET CONFIG_PATH=%~dp0..\config\deploy.env
+SET CONFIG_PATH=%~dp0..\config\deploy.toml
 SET FRONTEND_DIR=%~dp0..\dist\frontend
 
 :: Parse command line arguments

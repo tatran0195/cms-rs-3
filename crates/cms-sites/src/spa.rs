@@ -107,9 +107,55 @@ fn validate_relative_path(path: &str) -> Result<PathBuf, &'static str> {
     Ok(rel_path.to_path_buf())
 }
 
-/// Fallback HTML when assets are missing.
+/// Validate frontend asset bundle existence and contents.
+/// Fails if the asset root does not exist, is not a directory, is empty,
+/// or lacks `index.html`.
+pub fn validate_frontend_assets(asset_root: &Path) -> Result<PathBuf, String> {
+    if !asset_root.exists() {
+        return Err(format!(
+            "Frontend assets directory not found at '{}'. Run 'bun run build' or set FRONTEND_DIR.",
+            asset_root.display()
+        ));
+    }
+    let canonical_root = asset_root.canonicalize().map_err(|e| {
+        format!(
+            "Failed to resolve frontend assets directory '{}': {e}",
+            asset_root.display()
+        )
+    })?;
+    if !canonical_root.is_dir() {
+        return Err(format!(
+            "Frontend assets path '{}' is not a directory.",
+            canonical_root.display()
+        ));
+    }
+    let mut entries = std::fs::read_dir(&canonical_root).map_err(|e| {
+        format!(
+            "Failed to read frontend assets directory '{}': {e}",
+            canonical_root.display()
+        )
+    })?;
+    if entries.next().is_none() {
+        return Err(format!(
+            "Frontend assets directory '{}' is empty. Run 'bun run build' before starting the server.",
+            canonical_root.display()
+        ));
+    }
+    let index_file = canonical_root.join("index.html");
+    if !index_file.is_file() {
+        return Err(format!(
+            "Frontend assets directory '{}' is missing 'index.html'. Run 'bun run build' before starting the server.",
+            canonical_root.display()
+        ));
+    }
+    Ok(canonical_root)
+}
+
+/// Fallback HTML when assets are missing. Returns 500 Internal Server Error rather than 200 OK.
 fn fallback_html_response() -> Response {
-    Html(r#"<!DOCTYPE html><html><head><meta charset="utf-8"><title>CMS</title></head><body><div id="root"><h1>CMS App</h1><p>Frontend assets not found in dist/frontend.</p></div></body></html>"#.to_string()).into_response()
+    let mut res = Html(r#"<!DOCTYPE html><html><head><meta charset="utf-8"><title>CMS - Missing Assets</title></head><body><div id="root"><h1>CMS App</h1><p>Frontend assets not found in dist/frontend. Please build the frontend bundle before running the server.</p></div></body></html>"#.to_string()).into_response();
+    *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+    res
 }
 
 /// Serve static file or SPA index.html fallback from a specified root directory,
@@ -322,5 +368,32 @@ mod tests {
         let dir = tempdir().unwrap();
         let res = serve_spa_file_from_root("api/v1/unknown", dir.path());
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_missing_assets_returns_500_not_200() {
+        let dir = tempdir().unwrap();
+        // Empty directory has no index.html and no assets
+        let res = serve_spa_file_from_root("some/spa/route", dir.path());
+        assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn test_validate_frontend_assets() {
+        // Non-existent directory
+        let missing = Path::new("non_existent_frontend_directory_12345");
+        assert!(validate_frontend_assets(missing).is_err());
+
+        // Empty directory
+        let dir = tempdir().unwrap();
+        assert!(validate_frontend_assets(dir.path()).is_err());
+
+        // Directory with files but no index.html
+        fs::write(dir.path().join("other.txt"), "hello").unwrap();
+        assert!(validate_frontend_assets(dir.path()).is_err());
+
+        // Directory with index.html
+        fs::write(dir.path().join("index.html"), "<html></html>").unwrap();
+        assert!(validate_frontend_assets(dir.path()).is_ok());
     }
 }

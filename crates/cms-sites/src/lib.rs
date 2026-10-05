@@ -24,7 +24,7 @@ pub mod static_files;
 
 pub use mime::get_mime_type;
 pub use routes::create_router;
-pub use spa::serve_spa_file;
+pub use spa::{serve_spa_file, validate_frontend_assets};
 
 /// AppState for sites - this will be provided by the binary crate
 pub type SitesAppState = AppState;

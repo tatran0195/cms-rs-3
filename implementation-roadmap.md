@@ -324,7 +324,7 @@ Task:
 ## Phase C — CI & Release Artifact (P1)
 
 ### Session C-1 — Fix Artifact Name Mismatch & Add Studio/Reader Build to CI
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — build/deploy contract
 
