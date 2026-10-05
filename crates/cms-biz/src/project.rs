@@ -31,43 +31,23 @@ impl ProjectService {
         org_id: &str,
         request: CreateProjectRequest,
     ) -> Result<ProjectWithOrgResponse, AppError> {
-        let effective_org_id = if org_id.trim().is_empty() {
+        let (effective_org_id, new_org_info) = if org_id.trim().is_empty() {
             // Check if user already belongs to an organization
             let user_memberships =
                 cms_db::org::MemberQueries::get_by_user(&ctx.pool, user_id).await?;
             if let Some(first_membership) = user_memberships.first() {
-                first_membership.organization_id.clone()
+                (first_membership.organization_id.clone(), None)
             } else {
                 // Mint dedicated organization for user (site is its own workspace)
-                let org_slug = uuid::Uuid::new_v4().to_string();
-                let org = cms_db::org::OrganizationQueries::create(
-                    &ctx.pool,
-                    &request.name,
-                    &org_slug,
-                    None,
-                )
-                .await?;
-                let _ = cms_db::org::MemberQueries::create(
-                    &ctx.pool,
-                    user_id,
-                    &org.id,
-                    cms_entity::common::MemberRole::Owner,
-                )
-                .await?;
-                org.id
+                let new_org_id = Uuid::new_v4().to_string();
+                let org_slug = Uuid::new_v4().to_string();
+                let org_name = request.name.clone();
+                (new_org_id, Some((org_name, org_slug, user_id.to_string())))
             }
         } else {
             ctx.authz.require_org_member(user_id, org_id).await?;
-            org_id.to_string()
+            (org_id.to_string(), None)
         };
-
-        // Autumn-style active entitlement check: verify organization can create projects
-        crate::entitlement::EntitlementService::require_feature_entitlement(
-            ctx,
-            &effective_org_id,
-            "projects",
-        )
-        .await?;
 
         // Generate a unique slug
         let mut slug = request.name.to_lowercase().replace(' ', "-");
@@ -87,32 +67,21 @@ impl ProjectService {
             counter += 1;
         }
 
-        // Create the project
-        let project = ProjectQueries::create(
+        let new_org_tuple = new_org_info
+            .as_ref()
+            .map(|(name, slug, uid)| (name.as_str(), slug.as_str(), uid.as_str()));
+
+        // Create the project atomically in one transaction:
+        // (organization + membership if minted), project, default branch, default language, required settings
+        let (project, org) = ProjectQueries::create_atomic(
             &ctx.pool,
+            new_org_tuple,
             &effective_org_id,
             &request.name,
             &slug,
             request.description.as_deref(),
             request.icon.as_deref(),
             request.is_public,
-        )
-        .await?;
-
-        // Get the organization for the response
-        let org = cms_db::org::OrganizationQueries::get_by_id(&ctx.pool, &effective_org_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-
-        // Create default settings
-        ProjectSettingsQueries::upsert(
-            &ctx.pool,
-            &project.id,
-            None,
-            None,
-            None,
-            Some(true),
-            Some(true),
         )
         .await?;
 
@@ -425,6 +394,7 @@ impl ProjectService {
     pub async fn update_project_addon(
         ctx: &BizContext,
         user_id: &str,
+        project_id: &str,
         addon_id: &str,
         config: Option<serde_json::Value>,
         is_enabled: Option<bool>,
@@ -432,6 +402,10 @@ impl ProjectService {
         let addon = ProjectAddonQueries::get_by_id(&ctx.pool, addon_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Addon not found".to_string()))?;
+
+        if addon.project_id != project_id {
+            return Err(AppError::NotFound("Addon not found for this project".to_string()));
+        }
 
         // Check if user has admin role in the project
         ctx.authz
@@ -447,11 +421,16 @@ impl ProjectService {
     pub async fn delete_project_addon(
         ctx: &BizContext,
         user_id: &str,
+        project_id: &str,
         addon_id: &str,
     ) -> Result<bool, AppError> {
         let addon = ProjectAddonQueries::get_by_id(&ctx.pool, addon_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Addon not found".to_string()))?;
+
+        if addon.project_id != project_id {
+            return Err(AppError::NotFound("Addon not found for this project".to_string()));
+        }
 
         // Check if user has admin role in the project
         ctx.authz
@@ -459,5 +438,293 @@ impl ProjectService {
             .await?;
 
         ProjectAddonQueries::delete(&ctx.pool, addon_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_atomic_project_creation_seeds_branch_language_settings() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => {
+                // If database is not reachable, skip test gracefully
+                return;
+            }
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let user_email = format!("test-{}@internal.company", Uuid::new_v4());
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Atomic Test User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&user_id)
+        .bind(&user_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let org_name = format!("Atomic Org {}", Uuid::new_v4());
+        let org_slug = format!("atomic-org-{}", Uuid::new_v4());
+        let org_id = Uuid::new_v4().to_string();
+
+        let proj_name = format!("Atomic Proj {}", Uuid::new_v4());
+        let proj_slug = format!("atomic-proj-{}", Uuid::new_v4());
+
+        // 1. Call create_atomic with new organization
+        let result = ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name, &org_slug, &user_id)),
+            &org_id,
+            &proj_name,
+            &proj_slug,
+            Some("Atomic project description"),
+            None,
+            false,
+        )
+        .await;
+
+        assert!(result.is_ok(), "create_atomic failed: {:?}", result.err());
+        let (project, org) = result.unwrap();
+
+        assert_eq!(project.name, proj_name);
+        assert_eq!(project.slug, proj_slug);
+        assert_eq!(org.id, org_id);
+
+        // 2. Verify default branch was created atomically
+        let default_branch = cms_db::branch::BranchQueries::get_default(&pool, &project.id).await;
+        assert!(default_branch.is_ok(), "get_default branch failed");
+        let branch = default_branch.unwrap();
+        assert!(branch.is_some(), "default branch 'main' must exist immediately after creation");
+        let branch = branch.unwrap();
+        assert_eq!(branch.name, "main");
+        assert_eq!(branch.slug, "main");
+        assert!(branch.is_default);
+
+        // 3. Verify default language was created atomically
+        let default_language = cms_db::language::LanguageQueries::get_default(&pool, &project.id).await;
+        assert!(default_language.is_ok(), "get_default language failed");
+        let lang = default_language.unwrap();
+        assert!(lang.is_some(), "default language 'en' must exist immediately after creation");
+        let lang = lang.unwrap();
+        assert_eq!(lang.code, "en");
+        assert!(lang.is_default);
+
+        // 4. Verify settings were created atomically
+        let settings = cms_db::project::ProjectSettingsQueries::get(&pool, &project.id).await;
+        assert!(settings.is_ok(), "get settings failed");
+        let settings = settings.unwrap();
+        assert!(settings.is_some(), "settings must exist immediately after creation without extra upsert");
+        let settings = settings.unwrap();
+        assert_eq!(settings.default_language.as_deref(), Some("en"));
+        assert!(settings.search_enabled);
+        assert!(settings.comments_enabled);
+
+        // Cleanup created test rows
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectSettings\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Language\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Branch\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+            .bind(&org_id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org_id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+            .bind(&user_id)
+            .execute(&pool)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_update_project_addon_mismatched_project_id_fails() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let project_id = format!("test-proj-{}", Uuid::new_v4());
+        let foreign_project_id = format!("test-foreign-proj-{}", Uuid::new_v4());
+        let org_id = format!("test-org-{}", Uuid::new_v4());
+
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at) VALUES ($1, 'Test Org', $2, $3, $3)"#,
+        )
+        .bind(&org_id)
+        .bind(format!("org-{}", Uuid::new_v4()))
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "Project" (id, organization_id, name, slug, is_public, created_at, updated_at) VALUES ($1, $2, 'Test Proj', $3, false, $4, $4)"#,
+        )
+        .bind(&project_id)
+        .bind(&org_id)
+        .bind(format!("proj-{}", Uuid::new_v4()))
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let addon = match cms_db::project::ProjectAddonQueries::create(
+            &pool,
+            &project_id,
+            "feedback",
+            serde_json::json!({}),
+            true,
+        )
+        .await
+        {
+            Ok(a) => a,
+            Err(_) => return,
+        };
+
+        let result = ProjectService::update_project_addon(
+            &ctx,
+            &user_id,
+            &foreign_project_id,
+            &addon.id,
+            None,
+            Some(false),
+        )
+        .await;
+
+        assert!(result.is_err(), "update with mismatched project_id should fail");
+        match result.unwrap_err() {
+            AppError::NotFound(msg) => assert!(msg.contains("not found")),
+            err => panic!("Expected NotFound error, got: {:?}", err),
+        }
+
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectAddon\" WHERE id = $1")
+            .bind(&addon.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project_id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org_id)
+            .execute(&pool)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_resolve_git_conflict_mismatched_project_id_fails() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let project_id = format!("test-proj-{}", Uuid::new_v4());
+        let foreign_project_id = format!("test-foreign-proj-{}", Uuid::new_v4());
+        let org_id = format!("test-org-{}", Uuid::new_v4());
+        let conflict_id = format!("test-conflict-{}", Uuid::new_v4());
+
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at) VALUES ($1, 'Test Org 2', $2, $3, $3)"#,
+        )
+        .bind(&org_id)
+        .bind(format!("org-{}", Uuid::new_v4()))
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "Project" (id, organization_id, name, slug, is_public, created_at, updated_at) VALUES ($1, $2, 'Test Proj 2', $3, false, $4, $4)"#,
+        )
+        .bind(&project_id)
+        .bind(&org_id)
+        .bind(format!("proj-{}", Uuid::new_v4()))
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "GitConflict" (id, project_id, file_path, conflict_type, base_content, local_content, remote_content, created_at)
+               VALUES ($1, $2, 'README.md', 'CONTENT', 'base', 'local', 'remote', $3)"#,
+        )
+        .bind(&conflict_id)
+        .bind(&project_id)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let result = crate::git::GitService::resolve_conflict(
+            &ctx,
+            &user_id,
+            &foreign_project_id,
+            &conflict_id,
+            "resolved",
+        )
+        .await;
+
+        assert!(result.is_err(), "resolve_conflict with mismatched project_id should fail");
+        match result.unwrap_err() {
+            AppError::NotFound(msg) => assert!(msg.contains("not found")),
+            err => panic!("Expected NotFound error, got: {:?}", err),
+        }
+
+        let _ = cms_db::sqlx::query("DELETE FROM \"GitConflict\" WHERE id = $1")
+            .bind(&conflict_id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project_id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org_id)
+            .execute(&pool)
+            .await;
     }
 }

@@ -50,4 +50,14 @@ pub trait JobQueue: Send + Sync {
 
     /// Start job consumers (for in-memory backend)
     async fn start_consumers(&self) -> Result<(), AppError>;
+
+    /// List dead-letter (failed) jobs for observability and operator inspection
+    async fn list_dead_letter_jobs(
+        &self,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Result<Vec<JobEnvelope>, AppError> {
+        self.list_jobs(Some(JobStatus::Failed), None, limit, offset)
+            .await
+    }
 }

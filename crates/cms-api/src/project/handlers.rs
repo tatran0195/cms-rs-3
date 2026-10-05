@@ -243,17 +243,6 @@ pub async fn list_project_pages_handler(
         .map(|v| v.into_iter().next())
         {
             query.branch_id = b.id;
-        } else if let Ok(b) = cms_db::branch::BranchQueries::create(
-            &state.biz_context.pool,
-            &project_id,
-            "main",
-            Some("Default branch"),
-            true,
-            false,
-        )
-        .await
-        {
-            query.branch_id = b.id;
         }
     }
 
@@ -315,17 +304,10 @@ pub async fn create_project_page_handler(
         .map(|v| v.into_iter().next())
         {
             request.branch_id = b.id;
-        } else if let Ok(b) = cms_db::branch::BranchQueries::create(
-            &state.biz_context.pool,
-            &project_id,
-            "main",
-            Some("Default branch"),
-            true,
-            false,
-        )
-        .await
-        {
-            request.branch_id = b.id;
+        } else {
+            return Err(AppError::BadRequest(
+                "Project has no default branch configured; please specify branch_id".to_string(),
+            ));
         }
     }
     let branch_id = request.branch_id.clone();
@@ -350,6 +332,10 @@ pub async fn get_project_page_handler(
     let mut page =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
 
+    if page.project_id != project_id {
+        return Err(AppError::NotFound("Page not found for this project".to_string()));
+    }
+
     if page.language_id.is_none() {
         if let Ok(Some(dl)) =
             cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, &project_id)
@@ -369,6 +355,12 @@ pub async fn update_project_page_handler(
     Path((project_id, page_id)): Path<(String, String)>,
     Json(request): Json<cms_entity::page::UpdatePageRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let existing =
+        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
+    if existing.project_id != project_id {
+        return Err(AppError::NotFound("Page not found for this project".to_string()));
+    }
+
     let mut page = cms_biz::page::PageService::update_page(
         &state.biz_context,
         &auth.user.id,
@@ -393,8 +385,13 @@ pub async fn update_project_page_handler(
 pub async fn delete_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, page_id)): Path<(String, String)>,
+    Path((project_id, page_id)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let page =
+        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
+    if page.project_id != project_id {
+        return Err(AppError::NotFound("Page not found for this project".to_string()));
+    }
     cms_biz::page::PageService::delete_page(&state.biz_context, &auth.user.id, &page_id).await?;
     Ok(Json(serde_json::json!({ "data": { "success": true } })))
 }
@@ -475,7 +472,7 @@ pub async fn list_project_branches_handler(
     Query(mut query): Query<cms_entity::branch::ListBranchesQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     query.project_id = project_id.clone();
-    let mut result = cms_biz::branch::BranchService::list_branches(
+    let result = cms_biz::branch::BranchService::list_branches(
         &state.biz_context,
         &auth.user.id,
         query,
@@ -483,22 +480,6 @@ pub async fn list_project_branches_handler(
         100,
     )
     .await?;
-
-    if result.data.is_empty() {
-        if let Ok(b) = cms_db::branch::BranchQueries::create(
-            &state.biz_context.pool,
-            &project_id,
-            "main",
-            Some("Default branch"),
-            true,
-            false,
-        )
-        .await
-        {
-            result.data.push(b.into());
-            result.total = 1;
-        }
-    }
 
     Ok(Json(serde_json::json!({ "data": result.data })))
 }
@@ -599,9 +580,16 @@ pub async fn create_project_language_handler(
 pub async fn update_project_language_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, language_id)): Path<(String, String)>,
+    Path((project_id, language_id)): Path<(String, String)>,
     Json(request): Json<cms_entity::language::UpdateLanguageRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let existing =
+        cms_db::language::LanguageQueries::get_by_id(&state.biz_context.pool, &language_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
+    if existing.project_id != project_id {
+        return Err(AppError::NotFound("Language not found for this project".to_string()));
+    }
     let lang = cms_biz::language::LanguageService::update_language(
         &state.biz_context,
         &auth.user.id,
@@ -616,8 +604,15 @@ pub async fn update_project_language_handler(
 pub async fn delete_project_language_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, language_id)): Path<(String, String)>,
+    Path((project_id, language_id)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let language =
+        cms_db::language::LanguageQueries::get_by_id(&state.biz_context.pool, &language_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
+    if language.project_id != project_id {
+        return Err(AppError::NotFound("Language not found for this project".to_string()));
+    }
     cms_biz::language::LanguageService::delete_language(
         &state.biz_context,
         &auth.user.id,
@@ -2728,10 +2723,21 @@ pub async fn create_project_comment_handler(
 pub async fn update_project_comment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, id)): Path<(String, String)>,
+    Path((project_id, id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_entity::comment::UpdateCommentRequest;
+
+    let existing = cms_db::comment::CommentQueries::get_by_id(&state.biz_context.pool, &id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
+
+    let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, &existing.page_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Page not found for comment".to_string()))?;
+    if page.project_id != project_id {
+        return Err(AppError::NotFound("Comment not found for this project".to_string()));
+    }
 
     let request = UpdateCommentRequest {
         content: body.get("body").and_then(|v| v.as_str()).map(String::from),
@@ -2761,8 +2767,19 @@ pub async fn update_project_comment_handler(
 pub async fn delete_project_comment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, id)): Path<(String, String)>,
+    Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let existing = cms_db::comment::CommentQueries::get_by_id(&state.biz_context.pool, &id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
+
+    let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, &existing.page_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Page not found for comment".to_string()))?;
+    if page.project_id != project_id {
+        return Err(AppError::NotFound("Comment not found for this project".to_string()));
+    }
+
     cms_biz::comment::CommentService::delete_comment(&state.biz_context, &auth.user.id, &id)
         .await?;
     Ok(Json(
@@ -3144,11 +3161,14 @@ pub async fn resolve_project_git_conflict_handler(
         .unwrap_or("")
         .to_string();
 
-    let conflict =
-        GitService::resolve_conflict(&state.biz_context, &auth.user.id, &conflict_id, &resolved)
-            .await?;
-
-    let _ = project_id;
+    let conflict = GitService::resolve_conflict(
+        &state.biz_context,
+        &auth.user.id,
+        &project_id,
+        &conflict_id,
+        &resolved,
+    )
+    .await?;
 
     Ok(Json(serde_json::json!({ "data": conflict })))
 }
@@ -3249,15 +3269,16 @@ pub async fn update_project_integration_handler(
     use cms_biz::integration::IntegrationService;
     use cms_entity::integration::UpdateProjectIntegrationRequest;
 
-    _ = provider_id;
-    _ = project_id;
-
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
     let target = integrations
-        .first()
-        .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
+        .into_iter()
+        .find(|i| {
+            i.id == provider_id
+                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+        })
+        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
 
     let updated = IntegrationService::update_integration(
         &state.biz_context,
@@ -3288,13 +3309,16 @@ pub async fn delete_project_integration_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::integration::IntegrationService;
 
-    _ = provider_id;
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
     let target = integrations
-        .first()
-        .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
+        .into_iter()
+        .find(|i| {
+            i.id == provider_id
+                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+        })
+        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
     IntegrationService::delete_integration(&state.biz_context, &auth.user.id, &target.id).await?;
 
     Ok(Json(serde_json::json!({
@@ -3314,12 +3338,15 @@ pub async fn verify_project_integration_handler(
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
     let target = integrations
-        .first()
-        .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
+        .into_iter()
+        .find(|i| {
+            i.id == provider_id
+                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+        })
+        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
     let result =
         IntegrationService::test_integration(&state.biz_context, &auth.user.id, &target.id).await?;
 
-    let _ = provider_id;
     Ok(Json(serde_json::json!({ "data": result })))
 }
 
@@ -3330,426 +3357,24 @@ pub async fn delete_project_integration_confirmation_handler(
     Path((project_id, provider_id)): Path<(String, String)>,
     Json(_body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let _ = (project_id, provider_id, auth);
+    use cms_biz::integration::IntegrationService;
+
+    let integrations =
+        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
+            .await?;
+    let _ = integrations
+        .into_iter()
+        .find(|i| {
+            i.id == provider_id
+                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+        })
+        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
+
     Ok(Json(serde_json::json!({
         "data": { "confirmationToken": "confirmed" }
     })))
 }
 
-/// Project exports list
-pub async fn list_project_exports_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-
-    let jobs =
-        ExportService::list_export_jobs(&state.biz_context, &auth.user.id, &project_id, 1, 50)
-            .await?;
-
-    let items: Vec<serde_json::Value> = jobs
-        .data
-        .iter()
-        .map(|j| {
-            let status = match j.status {
-                cms_entity::export::ExportStatus::Completed => "SUCCEEDED",
-                cms_entity::export::ExportStatus::Failed => "FAILED",
-                cms_entity::export::ExportStatus::Pending => "PENDING",
-                cms_entity::export::ExportStatus::Processing => "RUNNING",
-            };
-            serde_json::json!({
-                "id": j.id,
-                "formats": [format!("{:?}", j.format).to_uppercase()],
-                "status": status,
-                "trigger": "MANUAL",
-                "attempts": 0,
-                "error": j.error_message,
-                "createdAt": j.created_at.to_rfc3339(),
-                "snapshot": { "deploymentVersion": 0, "pagesCount": 0, "createdAt": j.created_at.to_rfc3339() },
-                "artifacts": [],
-                "schedule": null,
-            })
-        })
-        .collect();
-
-    Ok(Json(serde_json::json!({ "data": items })))
-}
-
-/// Project export trigger
-pub async fn trigger_project_export_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-    use cms_entity::export::{ExportFormat, ExportStatus};
-
-    let snapshot = ExportService::create_export_snapshot(
-        &state.biz_context,
-        &auth.user.id,
-        cms_entity::export::CreateExportRequest {
-            project_id: project_id.clone(),
-            branch_id: None,
-            language_id: None,
-            format: ExportFormat::Markdown,
-            snapshot_id: None,
-        },
-    )
-    .await?;
-
-    let formats = body
-        .get("formats")
-        .and_then(|v| v.as_array())
-        .map(|a| {
-            a.iter()
-                .filter_map(|f| f.as_str())
-                .map(|s| match s.to_uppercase().as_str() {
-                    "MARKDOWN" => ExportFormat::Markdown,
-                    "PDF" => ExportFormat::Pdf,
-                    "STATIC_HTML" => ExportFormat::Html,
-                    "SQLITE" => ExportFormat::Sqlite,
-                    _ => ExportFormat::Markdown,
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_else(|| vec![ExportFormat::Markdown]);
-
-    let mut jobs = Vec::new();
-    for fmt in formats {
-        let job =
-            ExportService::create_export_job(&state.biz_context, &auth.user.id, &snapshot.id, fmt)
-                .await?;
-        jobs.push(job);
-    }
-
-    let first = jobs.first().unwrap();
-    let status = if matches!(first.status, ExportStatus::Completed) {
-        "SUCCEEDED"
-    } else {
-        "PENDING"
-    };
-
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": first.id,
-            "formats": [format!("{:?}", first.format).to_uppercase()],
-            "status": status,
-            "trigger": "MANUAL",
-            "attempts": 0,
-            "error": null,
-            "createdAt": first.created_at.to_rfc3339(),
-            "snapshot": { "deploymentVersion": 0, "pagesCount": 0, "createdAt": first.created_at.to_rfc3339() },
-            "artifacts": [],
-            "schedule": null,
-        }
-    })))
-}
-
-/// Project exports schedules list
-pub async fn list_project_export_schedules_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-
-    let schedules =
-        ExportService::list_export_schedules(&state.biz_context, &auth.user.id, &project_id)
-            .await?;
-    let items: Vec<serde_json::Value> = schedules
-        .iter()
-        .map(|s| {
-            serde_json::json!({
-                "id": s.id,
-                "name": format!("Export {}", format!("{:?}", s.format).to_uppercase()),
-                "formats": [format!("{:?}", s.format).to_uppercase()],
-                "cadence": s.frequency,
-                "timezone": "UTC",
-                "hour": s.time_of_day.split(':').next().and_then(|v| v.parse::<i64>().ok()).unwrap_or(0),
-                "minute": s.time_of_day.split(':').nth(1).and_then(|v| v.parse::<i64>().ok()).unwrap_or(0),
-                "enabled": s.is_active,
-                "nextRunAt": s.next_run_at.map(|t| t.to_rfc3339()),
-                "lastError": null,
-                "retentionCount": 7,
-                "retentionDays": 30,
-                "_count": { "jobs": 0 },
-            })
-        })
-        .collect();
-
-    Ok(Json(serde_json::json!({ "data": items })))
-}
-
-/// Project exports schedule create
-pub async fn create_project_export_schedule_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-    use cms_entity::export::ExportFormat;
-
-    let format = match body
-        .get("formats")
-        .and_then(|v| v.as_array())
-        .and_then(|a| a.first())
-        .and_then(|f| f.as_str())
-        .unwrap_or("MARKDOWN")
-        .to_uppercase()
-        .as_str()
-    {
-        "PDF" => ExportFormat::Pdf,
-        "STATIC_HTML" => ExportFormat::Html,
-        "SQLITE" => ExportFormat::Sqlite,
-        _ => ExportFormat::Markdown,
-    };
-
-    let schedule = ExportService::create_export_schedule(
-        &state.biz_context,
-        &auth.user.id,
-        &project_id,
-        format,
-        body.get("cadence")
-            .and_then(|v| v.as_str())
-            .unwrap_or("WEEKLY"),
-        body.get("dayOfWeek")
-            .and_then(|v| v.as_i64())
-            .map(|v| v as i32),
-        body.get("dayOfMonth")
-            .and_then(|v| v.as_i64())
-            .map(|v| v as i32),
-        body.get("time").and_then(|v| v.as_str()).unwrap_or("09:00"),
-    )
-    .await?;
-
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": schedule.id,
-            "name": format!("Export {}", format!("{:?}", schedule.format).to_uppercase()),
-            "formats": [format!("{:?}", schedule.format).to_uppercase()],
-            "cadence": schedule.frequency,
-            "timezone": "UTC",
-            "hour": schedule.time_of_day.split(':').next().and_then(|v| v.parse::<i64>().ok()).unwrap_or(0),
-            "minute": schedule.time_of_day.split(':').nth(1).and_then(|v| v.parse::<i64>().ok()).unwrap_or(0),
-            "enabled": schedule.is_active,
-            "nextRunAt": schedule.next_run_at.map(|t| t.to_rfc3339()),
-            "lastError": null,
-            "retentionCount": 7,
-            "retentionDays": 30,
-            "_count": { "jobs": 0 },
-        }
-    })))
-}
-
-/// Project exports schedule update
-pub async fn update_project_export_schedule_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path((project_id, schedule_id)): Path<(String, String)>,
-    Json(_body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-    use cms_entity::export::ExportFormat;
-
-    let schedules =
-        ExportService::list_export_schedules(&state.biz_context, &auth.user.id, &project_id)
-            .await?;
-    let target = schedules.iter().find(|s| s.id == schedule_id).cloned();
-
-    let schedule = if let Some(s) = target {
-        ExportService::update_export_schedule(
-            &state.biz_context,
-            &auth.user.id,
-            &s.id,
-            cms_entity::export::UpdateExportScheduleRequest {
-                format: None,
-                frequency: None,
-                day_of_week: None,
-                day_of_month: None,
-                time_of_day: None,
-                is_active: Some(s.is_active),
-            },
-        )
-        .await?
-    } else {
-        ExportService::create_export_schedule(
-            &state.biz_context,
-            &auth.user.id,
-            &project_id,
-            ExportFormat::Markdown,
-            "WEEKLY",
-            None,
-            None,
-            "09:00",
-        )
-        .await?
-    };
-
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": schedule.id,
-            "name": format!("Export {}", format!("{:?}", schedule.format).to_uppercase()),
-            "formats": [format!("{:?}", schedule.format).to_uppercase()],
-            "cadence": schedule.frequency,
-            "timezone": "UTC",
-            "hour": 0,
-            "minute": 0,
-            "enabled": schedule.is_active,
-            "nextRunAt": schedule.next_run_at.map(|t| t.to_rfc3339()),
-            "lastError": null,
-            "retentionCount": 7,
-            "retentionDays": 30,
-            "_count": { "jobs": 0 },
-        }
-    })))
-}
-
-/// Project exports schedule run
-pub async fn run_project_export_schedule_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path((project_id, schedule_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-    use cms_entity::export::ExportFormat;
-
-    let schedules =
-        ExportService::list_export_schedules(&state.biz_context, &auth.user.id, &project_id)
-            .await?;
-    let target = schedules.iter().find(|s| s.id == schedule_id).cloned();
-
-    let snapshot = ExportService::create_export_snapshot(
-        &state.biz_context,
-        &auth.user.id,
-        cms_entity::export::CreateExportRequest {
-            project_id: project_id.clone(),
-            branch_id: None,
-            language_id: None,
-            format: ExportFormat::Markdown,
-            snapshot_id: None,
-        },
-    )
-    .await?;
-    let format = target
-        .as_ref()
-        .map(|s| {
-            if s.format == ExportFormat::Pdf {
-                ExportFormat::Pdf
-            } else if s.format == ExportFormat::Html {
-                ExportFormat::Html
-            } else if s.format == ExportFormat::Sqlite {
-                ExportFormat::Sqlite
-            } else {
-                ExportFormat::Markdown
-            }
-        })
-        .unwrap_or(ExportFormat::Markdown);
-
-    let job =
-        ExportService::create_export_job(&state.biz_context, &auth.user.id, &snapshot.id, format)
-            .await?;
-
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": job.id,
-            "formats": [format!("{:?}", job.format).to_uppercase()],
-            "status": "PENDING",
-            "trigger": "SCHEDULED",
-            "attempts": 0,
-            "error": null,
-            "createdAt": job.created_at.to_rfc3339(),
-            "snapshot": { "deploymentVersion": 0, "pagesCount": 0, "createdAt": job.created_at.to_rfc3339() },
-            "artifacts": [],
-            "schedule": null,
-        }
-    })))
-}
-
-/// Project export cancel
-pub async fn cancel_project_export_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path((_project_id, id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-    use cms_entity::export::ExportStatus;
-
-    let job = ExportService::get_export_job(&state.biz_context, &auth.user.id, &id).await?;
-    let _ = cms_db::export::ExportJobQueries::update_status(
-        &state.biz_context.pool,
-        &job.id,
-        ExportStatus::Failed,
-    )
-    .await;
-
-    Ok(Json(serde_json::json!({
-        "data": { "id": id, "status": "CANCELLED" }
-    })))
-}
-
-/// Project export artifacts download
-pub async fn download_project_export_artifact_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path((_project_id, id, artifact_id)): Path<(String, String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_biz::export::ExportService;
-
-    let artifacts =
-        ExportService::get_export_artifacts(&state.biz_context, &auth.user.id, &id).await?;
-    let artifact = artifacts.iter().find(|a| a.id == artifact_id);
-
-    let download_url = artifact
-        .and_then(|a| a.download_url.clone())
-        .unwrap_or_default();
-
-    Ok(Json(serde_json::json!({
-        "data": { "downloadUrl": download_url, "artifactId": artifact_id }
-    })))
-}
-
-/// Project AI drafting
-///
-/// Produces a draft from the request (mode + content + instruction) using a
-/// deterministic local transform so the assistant returns real content rather than
-/// a placeholder without requiring an LLM provider at runtime.
-pub async fn action_project_ai_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
-
-    let mode = body
-        .get("mode")
-        .and_then(|v| v.as_str())
-        .unwrap_or("continue");
-    let content = body.get("content").and_then(|v| v.as_str()).unwrap_or("");
-    let instruction = body
-        .get("instruction")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-
-    let text = match mode {
-        "summarize" => summarize_markdown(content),
-        "outline" => outline_markdown(content),
-        "rephrase" => format!("\n{}\n", content.trim()),
-        _ => format!(
-            "{}\n{}\n",
-            content.trim_end(),
-            build_continuation(instruction)
-        ),
-    };
-
-    Ok(Json(serde_json::json!({
-        "data": { "text": text, "mode": mode }
-    })))
-}
 
 /// Project theme template
 pub async fn get_project_theme_template_handler(
@@ -3829,67 +3454,6 @@ pub async fn get_project_theme_repository_handler(
     Ok((headers, body))
 }
 
-/// Download the project's content as a JSON bundle (legacy `export` link).
-///
-/// Returns a real, downloadable artifact containing the project's pages, settings,
-/// and languages, so the legacy "Download" link resolves instead of 404.
-pub async fn get_project_export_download_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Path(project_id): Path<String>,
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    use cms_db::{branch::BranchQueries, language::LanguageQueries, page::PageQueries};
-
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
-
-    let pages = PageQueries::get_by_project(&state.biz_context.pool, &project_id)
-        .await
-        .unwrap_or_default();
-    let languages =
-        LanguageQueries::get_by_project(&state.biz_context.pool, &project_id, None, None)
-            .await
-            .unwrap_or_default();
-    let branches =
-        BranchQueries::get_by_project(&state.biz_context.pool, &project_id, None, None, None)
-            .await
-            .unwrap_or_default();
-
-    let bundle = serde_json::json!({
-        "projectId": project_id,
-        "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "pages": pages.iter().map(|p| serde_json::json!({
-            "id": p.id,
-            "path": p.path,
-            "title": p.title,
-            "description": p.description,
-            "languageCode": "en",
-            "isPublished": p.is_published,
-            "content": p.content,
-        })).collect::<Vec<_>>(),
-        "languages": languages.iter().map(|l| serde_json::json!({
-            "id": l.id,
-            "code": l.code,
-            "name": l.name,
-            "isDefault": l.is_default,
-        })).collect::<Vec<_>>(),
-        "branches": branches.iter().map(|b| serde_json::json!({
-            "id": b.id,
-            "name": b.name,
-            "isDefault": b.is_default,
-        })).collect::<Vec<_>>(),
-    });
-
-    let body = serde_json::to_string_pretty(&bundle).unwrap_or_else(|_| "{}".to_string());
-    let headers = [
-        (axum::http::header::CONTENT_TYPE, "application/json"),
-        (
-            axum::http::header::CONTENT_DISPOSITION,
-            "attachment; filename=\"export.json\"",
-        ),
-    ];
-    Ok((headers, body))
-}
 
 /// Project theme template import
 pub async fn import_project_theme_template_handler(
@@ -3971,7 +3535,7 @@ pub async fn import_project_theme_template_handler(
 pub async fn update_project_addon_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, addon_id)): Path<(String, String)>,
+    Path((project_id, addon_id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::project::ProjectService;
@@ -3979,6 +3543,7 @@ pub async fn update_project_addon_handler(
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
         &auth.user.id,
+        &project_id,
         &addon_id,
         body.get("config").cloned(),
         None,
@@ -3991,12 +3556,13 @@ pub async fn update_project_addon_handler(
 pub async fn activate_project_addon_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, addon_id)): Path<(String, String)>,
+    Path((project_id, addon_id)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::project::ProjectService;
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
         &auth.user.id,
+        &project_id,
         &addon_id,
         None,
         Some(true),
@@ -4009,12 +3575,13 @@ pub async fn activate_project_addon_handler(
 pub async fn deactivate_project_addon_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((_project_id, addon_id)): Path<(String, String)>,
+    Path((project_id, addon_id)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::project::ProjectService;
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
         &auth.user.id,
+        &project_id,
         &addon_id,
         None,
         Some(false),
@@ -4023,80 +3590,3 @@ pub async fn deactivate_project_addon_handler(
     Ok(Json(serde_json::json!({ "data": addon })))
 }
 
-/// Deterministic outline of a Markdown document: the set of headings (this is the
-/// "outline" AI mode — a local, deterministic transform with no LLM dependency).
-fn outline_markdown(content: &str) -> String {
-    if content.trim().is_empty() {
-        return String::new();
-    }
-    let mut lines = Vec::new();
-    for line in content.lines() {
-        let l = line.trim();
-        if l.starts_with('#') && l.len() > 1 {
-            let level = l.bytes().take_while(|b| *b == b'#').count();
-            let text = l.trim_start_matches('#').trim();
-            lines.push(format!("{}{}", &"  ".repeat(level.saturating_sub(1)), text));
-        }
-    }
-    if lines.is_empty() {
-        // No headings: emit the first sentence as a lead-in.
-        let first = content.trim().lines().next().unwrap_or("");
-        lines.push(first.to_string());
-    }
-    lines.join("\n")
-}
-
-/// Deterministic summary of a Markdown document: the first paragraph and a count of
-/// sections, so the "summarize" AI mode returns real edited content.
-fn summarize_markdown(content: &str) -> String {
-    if content.trim().is_empty() {
-        return String::new();
-    }
-    let mut heading_count = 0usize;
-    let mut paragraphs = Vec::new();
-    let mut buf = String::new();
-    for line in content.lines() {
-        let l = line.trim();
-        if l.starts_with('#') && l.len() > 1 {
-            if !buf.trim().is_empty() {
-                paragraphs.push(buf.trim().to_string());
-            }
-            buf = String::new();
-            heading_count += 1;
-        } else if !l.is_empty() {
-            if !buf.is_empty() {
-                buf.push(' ');
-            }
-            buf.push_str(l);
-        } else {
-            if !buf.trim().is_empty() {
-                paragraphs.push(buf.trim().to_string());
-            }
-            buf = String::new();
-        }
-    }
-    if !buf.trim().is_empty() {
-        paragraphs.push(buf.trim().to_string());
-    }
-
-    let lead = paragraphs.first().cloned().unwrap_or_default();
-    format!(
-        "{}\n\n(_Summary:_ This content covers {} section(s).)",
-        lead, heading_count
-    )
-}
-
-/// Deterministic continuation prompt — used by the "continue" AI mode. It reflects
-/// the requested instruction phrase so the returned draft is substantive.
-fn build_continuation(instruction: &str) -> String {
-    let tip = if instruction.trim().is_empty() {
-        "Building on the existing coverage, the next section addresses the topic in more depth."
-    } else {
-        instruction.trim()
-    };
-    format!(
-        "\n## {} \n\nContinue expanding on the previous points, adding concrete details, \
-         examples, and a clear closing takeaway.",
-        tip
-    )
-}

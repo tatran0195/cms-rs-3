@@ -602,13 +602,7 @@ pub async fn sitemap_xml_handler(
 
 /// Security.txt handler
 pub async fn security_txt_handler() -> String {
-    "Contact: security@cms.com\nEncryption: https://cms.com/.well-known/pgp-key.txt\nAcknowledgments: https://cms.com/security/acknowledgments\nPolicy: https://cms.com/security/policy\nHiring: https://cms.com/jobs".to_string()
-}
-
-/// PGP key handler
-pub async fn pgp_key_handler() -> String {
-    // In a real implementation, this would serve the actual PGP key
-    "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n-----END PGP PUBLIC KEY BLOCK-----".to_string()
+    "Contact: security@cms.com\nAcknowledgments: https://cms.com/security/acknowledgments\nPolicy: https://cms.com/security/policy\nHiring: https://cms.com/jobs".to_string()
 }
 
 /// Asset handler for published site assets

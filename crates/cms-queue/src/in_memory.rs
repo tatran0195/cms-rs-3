@@ -29,17 +29,14 @@ impl MemoryJobQueue {
         }
     }
 
-    async fn process_job(&self, job: JobEnvelope) -> Result<(), AppError> {
-        // In a real implementation, this would call the appropriate handler
-        // based on job.job_type
-
-        // For now, just mark as completed
+    /// In-memory test fake: do not mark complete without executing a handler.
+    /// Handlers or test callers must explicitly acknowledge or reject via ack/nack.
+    pub async fn process_job(&self, job: JobEnvelope) -> Result<(), AppError> {
         let mut jobs = self.jobs.lock().await;
         if let Some(existing) = jobs.get_mut(&job.id) {
-            existing.status = JobStatus::Completed;
-            existing.completed_at = Some(Utc::now());
+            existing.status = JobStatus::Processing;
+            existing.started_at = Some(Utc::now());
         }
-
         Ok(())
     }
 }
@@ -91,10 +88,19 @@ impl JobQueue for MemoryJobQueue {
     async fn consume(&self, _consumer_name: &str) -> Result<JobEnvelope, AppError> {
         let mut receiver = self.receiver.lock().await;
 
-        receiver
+        let mut job = receiver
             .recv()
             .await
-            .ok_or_else(|| AppError::Storage("No jobs available".to_string()))
+            .ok_or_else(|| AppError::Storage("No jobs available".to_string()))?;
+
+        let mut jobs = self.jobs.lock().await;
+        if let Some(existing) = jobs.get_mut(&job.id) {
+            existing.status = JobStatus::Processing;
+            existing.started_at = Some(Utc::now());
+            job = existing.clone();
+        }
+
+        Ok(job)
     }
 
     async fn ack(&self, job_id: &JobId) -> Result<(), AppError> {
@@ -174,31 +180,8 @@ impl JobQueue for MemoryJobQueue {
     }
 
     async fn start_consumers(&self) -> Result<(), AppError> {
-        for i in 0..self.num_workers {
-            let queue = Arc::new(self.clone());
-            let consumer_name = format!("worker-{}", i);
-
-            tokio::spawn(async move {
-                loop {
-                    match queue.consume(&consumer_name).await {
-                        Ok(job) => {
-                            if let Err(e) = queue.process_job(job).await {
-                                tracing::error!("Error processing job: {}", e);
-                            }
-                            // Auto-ack for now
-                            // In a real implementation, we'd have proper ack/nack
-                        }
-                        Err(e) => {
-                            if e.to_string() != "No jobs available" {
-                                tracing::error!("Error consuming job: {}", e);
-                            }
-                            tokio::time::sleep(Duration::from_secs(1)).await;
-                        }
-                    }
-                }
-            });
-        }
-
+        // In-memory test fake: job processing loop is driven by cms-worker or test harnesses
+        // calling consume() and ack()/nack(). Do not automatically mark jobs completed.
         Ok(())
     }
 }
@@ -228,12 +211,33 @@ mod tests {
 
         assert_eq!(job_id, job.id);
 
-        // Give the consumer time to process
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        let consumed = queue.consume("test-worker").await.unwrap();
+        assert_eq!(consumed.id, job_id);
+        assert_eq!(consumed.status, JobStatus::Processing);
 
-        // Get the job
+        queue.ack(&consumed.id).await.unwrap();
+
         let retrieved = queue.get_job(job_id).await.unwrap();
         assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().status, JobStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn test_memory_queue_nack_marks_failed() {
+        let queue = MemoryJobQueue::new(1);
+        let queue = Arc::new(queue);
+
+        let job = JobEnvelope::new(JobType::Analytics, serde_json::json!({}));
+        let job_id = queue.enqueue(job.clone()).await.unwrap();
+
+        let consumed = queue.consume("test-worker").await.unwrap();
+        queue.nack(&consumed.id, "synthetic failure").await.unwrap();
+
+        let dead_letters = queue.list_dead_letter_jobs(None, None).await.unwrap();
+        assert_eq!(dead_letters.len(), 1);
+        assert_eq!(dead_letters[0].id, job_id);
+        assert_eq!(dead_letters[0].status, JobStatus::Failed);
+        assert_eq!(dead_letters[0].error_message.as_deref(), Some("synthetic failure"));
     }
 
     #[tokio::test]

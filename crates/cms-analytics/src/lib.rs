@@ -11,14 +11,10 @@ use cms_config::AnalyticsConfig;
 use cms_db::PgPool;
 use cms_error::AppError;
 
-#[cfg(feature = "clickhouse")]
-pub mod clickhouse;
 pub mod postgres;
 pub mod sqlite;
 pub mod traits;
 
-#[cfg(feature = "clickhouse")]
-pub use clickhouse::ClickHouseAnalyticsStore;
 pub use postgres::PostgresAnalyticsStore;
 pub use sqlite::SqliteAnalyticsStore;
 pub use traits::AnalyticsStore;
@@ -40,26 +36,9 @@ pub async fn create_analytics_store(
             let store = SqliteAnalyticsStore::new(&config.sqlite_path)?;
             Ok(Arc::new(store))
         }
-        "clickhouse" => {
-            #[cfg(feature = "clickhouse")]
-            {
-                let store = ClickHouseAnalyticsStore::new(
-                    config.clickhouse_host.clone().unwrap_or_default(),
-                    config.clickhouse_port,
-                    config.clickhouse_database.clone().unwrap_or_default(),
-                    config.clickhouse_username.clone(),
-                    config.clickhouse_password.clone(),
-                )
-                .await?;
-                Ok(Arc::new(store))
-            }
-            #[cfg(not(feature = "clickhouse"))]
-            {
-                Err(AppError::Storage(
-                    "ClickHouse backend requires the 'clickhouse' feature".to_string(),
-                ))
-            }
-        }
+        "clickhouse" => Err(AppError::Storage(
+            "ClickHouse analytics backend is not supported; use 'postgres'".into(),
+        )),
         _ => Err(AppError::Storage(format!(
             "Unknown analytics backend: {}",
             config.backend

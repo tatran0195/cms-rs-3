@@ -310,8 +310,6 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/{project_id}/integrations/{provider_id}/delete-confirmation",
             post(delete_project_integration_confirmation_handler),
         )
-        // Project AI
-        .route("/{project_id}/ai", post(action_project_ai_handler))
         // Project theme template
         .route(
             "/{project_id}/theme-template",
@@ -324,40 +322,6 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/{project_id}/theme-repository",
             get(get_project_theme_repository_handler),
-        )
-        .route(
-            "/{project_id}/export",
-            get(get_project_export_download_handler),
-        )
-        // Project exports
-        .route("/{project_id}/exports", get(list_project_exports_handler))
-        .route(
-            "/{project_id}/exports",
-            post(trigger_project_export_handler),
-        )
-        .route(
-            "/{project_id}/exports/schedules",
-            get(list_project_export_schedules_handler),
-        )
-        .route(
-            "/{project_id}/exports/schedules",
-            post(create_project_export_schedule_handler),
-        )
-        .route(
-            "/{project_id}/exports/{id}/cancel",
-            post(cancel_project_export_handler),
-        )
-        .route(
-            "/{project_id}/exports/{id}/artifacts/{artifact_id}/download",
-            get(download_project_export_artifact_handler),
-        )
-        .route(
-            "/{project_id}/exports/schedules/{schedule_id}",
-            patch(update_project_export_schedule_handler),
-        )
-        .route(
-            "/{project_id}/exports/schedules/{schedule_id}/run",
-            post(run_project_export_schedule_handler),
         )
         // Project API keys
         .route("/{project_id}/api-keys", get(list_project_api_keys_handler))

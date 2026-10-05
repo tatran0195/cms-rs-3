@@ -67,11 +67,6 @@ export const queryKeys = {
     list: () => ['notifications'] as const,
     unreadCount: () => ['notifications', 'unread-count'] as const,
   },
-  exports: {
-    all: (projectId: string) => ['projects', projectId, 'exports'] as const,
-    runs: (projectId: string) => ['projects', projectId, 'exports', 'runs'] as const,
-    schedules: (projectId: string) => ['projects', projectId, 'exports', 'schedules'] as const,
-  },
   gitWorkflow: {
     detail: (projectId: string) => ['git-workflow', projectId] as const,
   },

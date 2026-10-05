@@ -265,12 +265,17 @@ impl GitService {
     pub async fn resolve_conflict(
         ctx: &BizContext,
         user_id: &str,
+        project_id: &str,
         conflict_id: &str,
         resolved_content: &str,
     ) -> Result<GitConflict, AppError> {
         let conflict = GitConflictQueries::get_by_id(&ctx.pool, conflict_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Conflict not found".to_string()))?;
+
+        if conflict.project_id != project_id {
+            return Err(AppError::NotFound("Conflict not found for this project".to_string()));
+        }
 
         // Check if user has access to the project
         ctx.authz

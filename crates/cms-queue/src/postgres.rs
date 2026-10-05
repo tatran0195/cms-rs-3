@@ -87,7 +87,7 @@ impl PostgresJobQueue {
                        locked_by = NULL,
                        locked_at = NULL
                    WHERE status = 'processing'
-                     AND locked_at < NOW() - INTERVAL '1 hour'
+                     AND locked_at < NOW() - INTERVAL '15 minutes'
                    RETURNING payload, status
                )
                UPDATE "Deployment" AS deployment
@@ -107,6 +107,37 @@ impl PostgresJobQueue {
         .await
         .map_err(AppError::Database)?;
         Ok(())
+    }
+
+    /// Enqueue a job within an existing PostgreSQL transaction (Transactional Outbox).
+    ///
+    /// The job will only be visible to workers once the transaction commits, ensuring
+    /// atomicity with the state change that produced the job.
+    pub async fn enqueue_tx<'a>(
+        tx: &mut sqlx::Transaction<'a, sqlx::Postgres>,
+        job: JobEnvelope,
+    ) -> Result<JobId, AppError> {
+        let id = if job.id.0.is_empty() {
+            Uuid::new_v4().to_string()
+        } else {
+            job.id.0.clone()
+        };
+        let job_type = Self::job_type_text(&job.job_type)?;
+        sqlx::query(
+            r#"INSERT INTO "CmsJob" (id, job_type, payload, status, retry_count,
+                                      error_message, created_at, started_at, completed_at,
+                                      available_at)
+               VALUES ($1, $2, $3, 'pending', 0, NULL, $4, NULL, NULL, $5)"#,
+        )
+        .bind(&id)
+        .bind(job_type)
+        .bind(job.payload)
+        .bind(job.created_at)
+        .bind(Utc::now())
+        .execute(&mut **tx)
+        .await
+        .map_err(AppError::Database)?;
+        Ok(JobId(id))
     }
 
     fn job_type_text(job_type: &JobType) -> Result<String, AppError> {
@@ -367,5 +398,75 @@ impl JobQueue for PostgresJobQueue {
         // Consumers need service dependencies (storage, mailer, search); the
         // cms-worker crate owns that processing loop.
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_postgres_enqueue_tx_and_dead_letter_visibility() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let queue = PostgresJobQueue::new(pool.clone(), 2);
+
+        // 1. Enqueue job via transactional outbox (in transaction)
+        let job = JobEnvelope::new(JobType::Analytics, serde_json::json!({ "test": "outbox" }));
+        let mut tx = match pool.begin().await {
+            Ok(t) => t,
+            Err(_) => return,
+        };
+
+        let job_id = PostgresJobQueue::enqueue_tx(&mut tx, job).await.unwrap();
+        tx.commit().await.unwrap();
+
+        // 2. Job is visible and in pending status
+        let loaded = queue.get_job(job_id.clone()).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().status, JobStatus::Pending);
+
+        // 3. Consume the job (simulating worker lease claim)
+        let consumed = queue.consume("test-lease-worker").await.unwrap();
+        assert_eq!(consumed.id, job_id);
+        assert_eq!(consumed.status, JobStatus::Processing);
+
+        // 4. First nack -> retrying
+        queue.nack(&job_id, "first transient error").await.unwrap();
+        let loaded = queue.get_job(job_id.clone()).await.unwrap().unwrap();
+        assert_eq!(loaded.status, JobStatus::Retrying);
+        assert_eq!(loaded.retry_count, 1);
+
+        // Force available_at to NOW() so we can consume again immediately
+        let _ = sqlx::query(r#"UPDATE "CmsJob" SET available_at = NOW() WHERE id = $1"#)
+            .bind(&job_id.0)
+            .execute(&pool)
+            .await;
+
+        // 5. Consume again and nack -> exceeds max_retries (2) -> failed (dead-letter)
+        let consumed2 = queue.consume("test-lease-worker").await.unwrap();
+        assert_eq!(consumed2.id, job_id);
+        queue.nack(&job_id, "terminal failure").await.unwrap();
+
+        let dead_letters = queue.list_dead_letter_jobs(None, None).await.unwrap();
+        assert!(dead_letters.iter().any(|j| j.id == job_id));
+        let dead_letter = dead_letters.into_iter().find(|j| j.id == job_id).unwrap();
+        assert_eq!(dead_letter.status, JobStatus::Failed);
+        assert_eq!(dead_letter.retry_count, 2);
+        assert_eq!(dead_letter.error_message.as_deref(), Some("terminal failure"));
+
+        // Cleanup
+        let _ = queue.delete_job(job_id).await;
     }
 }

@@ -100,7 +100,7 @@ async fn main() -> Result<(), AppError> {
     // PostgreSQL queue; FOR UPDATE SKIP LOCKED prevents duplicate claims.
     let worker_state = Arc::new(WorkerState::from_app_state(&state).await?);
     let (worker_shutdown_tx, worker_shutdown_rx) = tokio::sync::watch::channel(false);
-    cms_worker::start_consumers_with_shutdown(
+    let worker_handles = cms_worker::start_consumers_with_shutdown(
         state.job_queue.clone(),
         worker_state,
         worker_shutdown_rx,
@@ -145,6 +145,9 @@ async fn main() -> Result<(), AppError> {
         .with_graceful_shutdown(async move {
             shutdown_signal().await;
             let _ = worker_shutdown_tx.send(true);
+            for handle in worker_handles {
+                let _ = handle.await;
+            }
         })
         .await
         .map_err(|e| AppError::Internal(e.into()))

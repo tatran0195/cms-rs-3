@@ -15,15 +15,11 @@ use cms_error::AppError;
 
 pub mod in_memory;
 pub mod postgres;
-#[cfg(feature = "redis")]
-pub mod redis;
 pub mod traits;
 pub mod types;
 
 pub use in_memory::MemoryJobQueue;
 pub use postgres::PostgresJobQueue;
-#[cfg(feature = "redis")]
-pub use redis::RedisJobQueue;
 pub use traits::JobQueue;
 pub use types::*;
 
@@ -37,23 +33,9 @@ pub async fn create_job_queue(config: &QueueConfig) -> Result<Arc<dyn JobQueue>,
         "postgres" => Err(AppError::InvalidInput(
             "PostgreSQL queue creation requires the initialized database pool".to_string(),
         )),
-        "redis" => {
-            #[cfg(feature = "redis")]
-            {
-                if let Some(redis_url) = &config.redis_url {
-                    let queue = RedisJobQueue::new(redis_url.clone(), config.max_retries).await?;
-                    Ok(Arc::new(queue))
-                } else {
-                    Err(AppError::Storage("Redis URL not configured".to_string()))
-                }
-            }
-            #[cfg(not(feature = "redis"))]
-            {
-                Err(AppError::Storage(
-                    "Redis backend requires the 'redis' feature".to_string(),
-                ))
-            }
-        }
+        "redis" => Err(AppError::InvalidInput(
+            "Redis queue backend has been removed. PostgreSQL ('postgres') is the sole production queue backend.".to_string(),
+        )),
         _ => Err(AppError::Storage(format!(
             "Unknown queue backend: {}",
             config.backend

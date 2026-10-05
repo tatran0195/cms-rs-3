@@ -42,7 +42,7 @@ async fn main() -> Result<(), AppError> {
 
     // Start job consumers with graceful shutdown listener
     info!("Starting job consumers...");
-    cms_worker::start_consumers_with_shutdown(job_queue, state, shutdown_rx).await?;
+    let handles = cms_worker::start_consumers_with_shutdown(job_queue, state, shutdown_rx).await?;
 
     // Keep the worker running until CTRL+C
     tokio::signal::ctrl_c()
@@ -52,8 +52,12 @@ async fn main() -> Result<(), AppError> {
     info!("Worker received stop signal, shutting down consumers gracefully...");
     let _ = shutdown_tx.send(true);
 
-    // Give in-flight tasks a moment to wrap up
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    // Join all consumer tasks to ensure clean shutdown
+    for (i, handle) in handles.into_iter().enumerate() {
+        if let Err(e) = handle.await {
+            tracing::error!("Error joining worker consumer task {}: {}", i, e);
+        }
+    }
     info!("Worker shutdown complete.");
 
     Ok(())

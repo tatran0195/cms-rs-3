@@ -193,12 +193,14 @@ struct SiteSearchHit {
 #[derive(Debug, Deserialize)]
 struct BootstrapQuery {
     lang: Option<String>,
+    version: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct PageQuery {
     path: Option<String>,
     lang: Option<String>,
+    version: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -211,7 +213,11 @@ struct SearchQuery {
 
 // ── Database Queries ─────────────────────────────────────────────────────────
 
-fn query_bootstrap(conn: &Connection, target_lang: Option<&str>) -> anyhow::Result<SiteShell> {
+fn query_bootstrap(
+    conn: &Connection,
+    target_lang: Option<&str>,
+    target_version: Option<&str>,
+) -> anyhow::Result<SiteShell> {
     // 1. Project metadata
     let (project_id, project_name, project_slug, exported_at): (String, String, String, String) = conn
         .query_row(
@@ -284,8 +290,8 @@ fn query_bootstrap(conn: &Connection, target_lang: Option<&str>) -> anyhow::Resu
 
     // 3. Versions
     let mut versions = Vec::new();
-    let mut active_version_id = String::new();
-    let mut active_version_slug = String::new();
+    let mut default_version_id = String::new();
+    let mut default_version_slug = String::new();
     let mut stmt = conn.prepare("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")?;
     let ver_rows = stmt.query_map([], |r| {
         Ok((
@@ -298,9 +304,9 @@ fn query_bootstrap(conn: &Connection, target_lang: Option<&str>) -> anyhow::Resu
 
     for (idx, row) in ver_rows.enumerate() {
         let (id, slug, name, is_default) = row?;
-        if is_default || idx == 0 && active_version_id.is_empty() {
-            active_version_id = id.clone();
-            active_version_slug = slug.clone();
+        if is_default || (idx == 0 && default_version_id.is_empty()) {
+            default_version_id = id.clone();
+            default_version_slug = slug.clone();
         }
         versions.push(VersionItem {
             id,
@@ -309,6 +315,16 @@ fn query_bootstrap(conn: &Connection, target_lang: Option<&str>) -> anyhow::Resu
             is_default,
         });
     }
+
+    let (active_version_id, active_version_slug) = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
+        if let Some(v) = versions.iter().find(|v| v.slug == req_ver || v.id == req_ver) {
+            (v.id.clone(), v.slug.clone())
+        } else {
+            anyhow::bail!("Version '{}' not found", req_ver);
+        }
+    } else {
+        (default_version_id, default_version_slug)
+    };
 
     // 4. Navigation tree for active version
     struct RawPageNode {
@@ -419,9 +435,37 @@ fn query_page(
     conn: &Connection,
     target_path: &str,
     target_lang: Option<&str>,
+    target_version: Option<&str>,
 ) -> anyhow::Result<Option<SitePageResponse>> {
-    let bootstrap = query_bootstrap(conn, target_lang)?;
+    let bootstrap = match query_bootstrap(conn, target_lang, target_version) {
+        Ok(b) => b,
+        Err(_) => return Ok(None),
+    };
+
+    if let Some(req_lang) = target_lang.filter(|s| !s.trim().is_empty()) {
+        if !bootstrap.languages.iter().any(|l| l.code == req_lang) {
+            return Ok(None);
+        }
+    }
+
+    if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
+        if !bootstrap.versions.iter().any(|v| v.slug == req_ver || v.id == req_ver) {
+            return Ok(None);
+        }
+    }
+
     let active_lang = bootstrap.active_language.clone();
+
+    let active_version_item = match bootstrap
+        .versions
+        .iter()
+        .find(|v| v.slug == bootstrap.active_version || v.id == bootstrap.active_version)
+    {
+        Some(v) => v,
+        None => return Ok(None),
+    };
+    let active_version_id = &active_version_item.id;
+    let active_version_slug = &active_version_item.slug;
 
     // Normalize path
     let normalized = target_path.trim().trim_matches('/');
@@ -431,7 +475,7 @@ fn query_page(
         vec![format!("/{}", normalized), normalized.to_string()]
     };
 
-    // Find page record
+    // Find page record scoped strictly to active_version_id
     struct PageRow {
         id: String,
         version_id: String,
@@ -447,9 +491,9 @@ fn query_page(
     let mut found_page: Option<PageRow> = None;
     for cand in &path_candidates {
         let mut stmt = conn.prepare(
-            "SELECT id, version_id, parent_id, kind, slug, path, title, icon, sort_order FROM pages WHERE path = ?1 LIMIT 1",
+            "SELECT id, version_id, parent_id, kind, slug, path, title, icon, sort_order FROM pages WHERE version_id = ?1 AND path = ?2 LIMIT 1",
         )?;
-        let mut rows = stmt.query([cand])?;
+        let mut rows = stmt.query(rusqlite::params![active_version_id, cand])?;
         if let Some(r) = rows.next()? {
             found_page = Some(PageRow {
                 id: r.get(0)?,
@@ -466,51 +510,24 @@ fn query_page(
         }
     }
 
-    // Fallback: if root was requested and no page has path="/" or "", pick the first page in active version
-    if found_page.is_none() && normalized.is_empty() {
-        let mut stmt = conn.prepare(
-            "SELECT id, version_id, parent_id, kind, slug, path, title, icon, sort_order FROM pages ORDER BY sort_order ASC LIMIT 1",
-        )?;
-        let mut rows = stmt.query([])?;
-        if let Some(r) = rows.next()? {
-            found_page = Some(PageRow {
-                id: r.get(0)?,
-                version_id: r.get(1)?,
-                parent_id: r.get(2)?,
-                kind: r.get(3)?,
-                slug: r.get(4)?,
-                path: r.get(5)?,
-                title: r.get(6)?,
-                icon: r.get(7)?,
-                sort_order: r.get(8)?,
-            });
-        }
-    }
-
     let page_row = match found_page {
         Some(p) => p,
         None => return Ok(None),
     };
 
-    // Query content for the page
+    // Query content for the page specifically for active_lang (no cross-language fallback)
     let mut content_query = conn.prepare(
         "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 AND language = ?2 LIMIT 1",
     )?;
     let mut content_rows = content_query.query(rusqlite::params![page_row.id, active_lang])?;
 
-    let (markdown, description, updated_at) = if let Some(r) = content_rows.next()? {
-        (r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?)
-    } else {
-        // Fallback: pick any language content
-        let mut fallback_query = conn.prepare(
-            "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 LIMIT 1",
-        )?;
-        let mut fallback_rows = fallback_query.query([&page_row.id])?;
-        if let Some(r) = fallback_rows.next()? {
-            (r.get(0)?, r.get(1)?, r.get(2)?)
-        } else {
-            (String::new(), None, bootstrap.generated_at.clone())
-        }
+    let (markdown, description, updated_at) = match content_rows.next()? {
+        Some(r) => (
+            r.get::<_, String>(0)?,
+            r.get::<_, Option<String>>(1)?,
+            r.get::<_, String>(2)?,
+        ),
+        None => return Ok(None),
     };
 
     let headings = extract_headings(&markdown);
@@ -598,7 +615,7 @@ fn query_page(
             config: None,
         },
         active_language: active_lang,
-        active_version: bootstrap.active_version,
+        active_version: active_version_slug.clone(),
         versions: bootstrap.versions,
         language_config: None,
         languages: page_languages,
@@ -636,34 +653,73 @@ fn query_changelog(conn: &Connection) -> Vec<ChangelogEntry> {
     entries
 }
 
-fn execute_search(conn: &Connection, clean_q: &str, limit: usize) -> Vec<SiteSearchHit> {
+fn execute_search(
+    conn: &Connection,
+    clean_q: &str,
+    limit: usize,
+    target_lang: Option<&str>,
+    target_version: Option<&str>,
+) -> anyhow::Result<Vec<SiteSearchHit>> {
     let fts_query = clean_q
         .split_whitespace()
         .map(|w| format!("\"{}\"*", w.replace('\"', "")))
+        .filter(|w| w != "\"\"*")
         .collect::<Vec<_>>()
         .join(" ");
 
-    let mut hits = Vec::new();
-    let mut stmt = match conn.prepare(
+    if fts_query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let resolved_version_id = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
+        let mut stmt = conn.prepare("SELECT id FROM versions WHERE slug = ?1 OR id = ?1 LIMIT 1")?;
+        let mut rows = stmt.query([req_ver])?;
+        if let Some(r) = rows.next()? {
+            Some(r.get::<_, String>(0)?)
+        } else {
+            return Ok(Vec::new());
+        }
+    } else {
+        None
+    };
+
+    let clean_lang = target_lang.filter(|s| !s.trim().is_empty());
+
+    let mut sql = String::from(
         r#"
         SELECT p.id, p.title, p.path, p.icon, c.description,
                snippet(page_fts, 4, '<mark>', '</mark>', '...', 12) as snippet,
-               f.language
+               f.language,
+               f.rank
         FROM page_fts f
         JOIN pages p ON p.id = f.page_id
         LEFT JOIN page_content c ON c.page_id = p.id AND c.language = f.language
         WHERE page_fts MATCH ?1
-        LIMIT ?2
         "#,
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("FTS query prepare failed: {}", e);
-            return hits;
-        }
-    };
+    );
 
-    let rows = stmt.query_map(rusqlite::params![fts_query, limit as i64], |r| {
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(fts_query)];
+
+    if let Some(vid) = resolved_version_id {
+        params.push(Box::new(vid));
+        sql.push_str(&format!(" AND p.version_id = ?{}", params.len()));
+    }
+
+    if let Some(lang) = clean_lang {
+        params.push(Box::new(lang.to_string()));
+        sql.push_str(&format!(" AND f.language = ?{}", params.len()));
+    }
+
+    params.push(Box::new(limit as i64));
+    sql.push_str(&format!(
+        " ORDER BY f.rank ASC, p.sort_order ASC, p.id ASC LIMIT ?{}",
+        params.len()
+    ));
+
+    let mut stmt = conn.prepare(&sql)?;
+    let params_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let rows = stmt.query_map(params_refs.as_slice(), |r| {
+        let rank: f64 = r.get(7)?;
         Ok(SiteSearchHit {
             id: r.get(0)?,
             title: r.get(1)?,
@@ -671,18 +727,17 @@ fn execute_search(conn: &Connection, clean_q: &str, limit: usize) -> Vec<SiteSea
             icon: r.get(3)?,
             description: r.get::<_, Option<String>>(4)?.unwrap_or_default(),
             snippet: r.get::<_, Option<String>>(5)?.unwrap_or_default(),
-            score: 1.0,
+            score: -rank,
             language: r.get(6)?,
         })
-    });
+    })?;
 
-    if let Ok(results) = rows {
-        for hit in results.flatten() {
-            hits.push(hit);
-        }
+    let mut hits = Vec::new();
+    for hit in rows {
+        hits.push(hit?);
     }
 
-    hits
+    Ok(hits)
 }
 
 fn query_asset_from_db(conn: &Connection, clean_path: &str) -> Option<(String, Vec<u8>)> {
@@ -710,17 +765,18 @@ async fn api_bootstrap(
     Query(query): Query<BootstrapQuery>,
 ) -> Response {
     let lang = query.lang;
+    let version = query.version;
     let res = tokio::task::spawn_blocking(move || {
         let conn = state.db.lock();
-        query_bootstrap(&conn, lang.as_deref())
+        query_bootstrap(&conn, lang.as_deref(), version.as_deref())
     })
     .await;
 
     match res {
         Ok(Ok(shell)) => Json(shell).into_response(),
         Ok(Err(e)) => {
-            tracing::error!("Failed to query bootstrap: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load site configuration").into_response()
+            tracing::warn!("Failed to query bootstrap: {}", e);
+            (StatusCode::NOT_FOUND, "Site configuration or version not found").into_response()
         }
         Err(e) => {
             tracing::error!("Spawn blocking task join error in api_bootstrap: {}", e);
@@ -735,10 +791,11 @@ async fn api_page(
 ) -> Response {
     let path = query.path.unwrap_or_else(|| "/".to_string());
     let lang = query.lang;
+    let version = query.version;
     let path_clone = path.clone();
     let res = tokio::task::spawn_blocking(move || {
         let conn = state.db.lock();
-        query_page(&conn, &path_clone, lang.as_deref())
+        query_page(&conn, &path_clone, lang.as_deref(), version.as_deref())
     })
     .await;
 
@@ -782,18 +839,32 @@ async fn api_search(
         return Json(serde_json::json!({ "hits": [] })).into_response();
     }
     let limit = query.limit.unwrap_or(20).min(50);
+    let lang = query.lang;
+    let version = query.version;
 
     let res = tokio::task::spawn_blocking(move || {
         let conn = state.db.lock();
-        execute_search(&conn, &clean_q, limit)
+        execute_search(&conn, &clean_q, limit, lang.as_deref(), version.as_deref())
     })
     .await;
 
     match res {
-        Ok(hits) => Json(serde_json::json!({ "hits": hits })).into_response(),
+        Ok(Ok(hits)) => Json(serde_json::json!({ "hits": hits })).into_response(),
+        Ok(Err(e)) => {
+            tracing::error!("Search query execution failed: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Search failed", "detail": e.to_string() })),
+            )
+                .into_response()
+        }
         Err(e) => {
             tracing::error!("Spawn blocking task join error in api_search: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Internal server error" })),
+            )
+                .into_response()
         }
     }
 }
@@ -873,7 +944,7 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
     // Fast Bootstrap Injection into index.html via blocking task
     let res = tokio::task::spawn_blocking(move || {
         let conn = state.db.lock();
-        query_bootstrap(&conn, None).ok()
+        query_bootstrap(&conn, None, None).ok()
     })
     .await;
 
@@ -1427,6 +1498,7 @@ mod tests {
                 is_rtl INTEGER NOT NULL
             );
             INSERT INTO languages VALUES ('en', 'English', 1, 0);
+            INSERT INTO languages VALUES ('fr', 'French', 0, 0);
 
             CREATE TABLE versions (
                 id TEXT PRIMARY KEY,
@@ -1436,6 +1508,7 @@ mod tests {
                 is_default INTEGER NOT NULL
             );
             INSERT INTO versions VALUES ('v1', 'latest', 'v1.0', 1, 1);
+            INSERT INTO versions VALUES ('v2', 'v2.0', 'v2.0', 2, 0);
 
             CREATE TABLE pages (
                 id TEXT PRIMARY KEY,
@@ -1448,7 +1521,10 @@ mod tests {
                 icon TEXT,
                 sort_order INTEGER NOT NULL
             );
-            INSERT INTO pages VALUES ('page1', 'v1', NULL, 'document', 'getting-started', 'Getting Started', '/getting-started', NULL, 1);
+            INSERT INTO pages VALUES ('page1', 'v1', NULL, 'document', 'getting-started', 'Getting Started v1', '/getting-started', NULL, 1);
+            INSERT INTO pages VALUES ('page2', 'v2', NULL, 'document', 'getting-started', 'Getting Started v2', '/getting-started', NULL, 1);
+            INSERT INTO pages VALUES ('page3', 'v1', NULL, 'document', 'auth', 'Authentication v1', '/auth', NULL, 2);
+            INSERT INTO pages VALUES ('page4', 'v2', NULL, 'document', 'auth', 'Authentication v2', '/auth', NULL, 2);
 
             CREATE TABLE page_content (
                 page_id TEXT NOT NULL,
@@ -1458,10 +1534,16 @@ mod tests {
                 updated_at TEXT NOT NULL,
                 PRIMARY KEY (page_id, language)
             );
-            INSERT INTO page_content VALUES ('page1', 'en', '# Getting Started\n\nWelcome to documentation.', 'Intro page', '2026-10-05T00:00:00Z');
+            INSERT INTO page_content VALUES ('page1', 'en', '# Getting Started v1\n\nWelcome to documentation v1.', 'Intro page v1', '2026-10-05T00:00:00Z');
+            INSERT INTO page_content VALUES ('page2', 'en', '# Getting Started v2\n\nWelcome to documentation v2.', 'Intro page v2', '2026-10-05T00:00:00Z');
+            INSERT INTO page_content VALUES ('page3', 'en', '# Authentication v1\n\nAuthentication legacy tokens guide.', 'Auth guide v1', '2026-10-05T00:00:00Z');
+            INSERT INTO page_content VALUES ('page4', 'en', '# Authentication v2\n\nAuthentication oauth modern guide.', 'Auth guide v2', '2026-10-05T00:00:00Z');
 
-            CREATE VIRTUAL TABLE page_fts USING fts5(page_id UNINDEXED, language UNINDEXED, title, description, content);
-            INSERT INTO page_fts VALUES ('page1', 'en', 'Getting Started', 'Intro page', 'Welcome to documentation.');
+            CREATE VIRTUAL TABLE page_fts USING fts5(page_id UNINDEXED, version_id UNINDEXED, language UNINDEXED, title, content);
+            INSERT INTO page_fts VALUES ('page1', 'v1', 'en', 'Getting Started v1', 'Welcome to documentation v1.');
+            INSERT INTO page_fts VALUES ('page2', 'v2', 'en', 'Getting Started v2', 'Welcome to documentation v2.');
+            INSERT INTO page_fts VALUES ('page3', 'v1', 'en', 'Authentication v1', 'Authentication legacy tokens guide.');
+            INSERT INTO page_fts VALUES ('page4', 'v2', 'en', 'Authentication v2', 'Authentication oauth modern guide.');
 
             CREATE TABLE changelog (
                 slug TEXT PRIMARY KEY,
@@ -1561,8 +1643,8 @@ mod tests {
         let shell: SiteShell = serde_json::from_slice(&body).unwrap();
         assert_eq!(shell.project.name, "Test Project");
         assert_eq!(shell.active_language, "en");
-        assert_eq!(shell.nav.len(), 1);
-        assert_eq!(shell.nav[0].title, "Getting Started");
+        assert_eq!(shell.nav.len(), 2);
+        assert_eq!(shell.nav[0].title, "Getting Started v1");
 
         // 2. Test page
         let req = axum::http::Request::builder()
@@ -1573,8 +1655,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let page_resp: SitePageResponse = serde_json::from_slice(&body).unwrap();
-        assert_eq!(page_resp.page.title, "Getting Started");
-        assert!(page_resp.page.content.contains("Welcome to documentation"));
+        assert_eq!(page_resp.page.title, "Getting Started v1");
+        assert!(page_resp.page.content.contains("Welcome to documentation v1"));
 
         // 3. Test changelog
         let req = axum::http::Request::builder()
@@ -1604,5 +1686,182 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers().get("content-type").unwrap(), "image/png");
     }
+
+    #[tokio::test]
+    async fn test_version_scoping_duplicate_path() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+        let app = create_runner_router(state, None);
+
+        // 1. Querying version latest / v1 returns Getting Started v1
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started&version=latest")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(page.page.title, "Getting Started v1");
+        assert_eq!(page.page.id, "page1");
+        assert_eq!(page.active_version, "latest");
+
+        // 2. Querying version v2.0 / v2 returns Getting Started v2
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started&version=v2.0")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(page.page.title, "Getting Started v2");
+        assert_eq!(page.page.id, "page2");
+        assert_eq!(page.active_version, "v2.0");
+
+        // 3. Querying by version ID directly also works
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started&version=v2")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(page.page.id, "page2");
+
+        // 4. Default version (when omitted) returns default version v1
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(page.page.id, "page1");
+
+        // 5. Querying non-existent version returns 404
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started&version=nonexistent")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_language_scoping_no_cross_language_fallback() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+        let app = create_runner_router(state, None);
+
+        // 1. Language 'fr' exists in languages table, but page1 has no content for 'fr'
+        // Must return 404 NOT_FOUND instead of falling back to English content
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started&lang=fr")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(
+            res.status(),
+            StatusCode::NOT_FOUND,
+            "Missing language content must return 404, not fallback to arbitrary language"
+        );
+
+        // 2. Non-existent language code in languages table must also return 404
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started&lang=de")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_root_path_no_cross_version_fallback() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+        let app = create_runner_router(state, None);
+
+        // When no page has path="/" or "", root request must return 404, not pick first page across all versions
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            res.status(),
+            StatusCode::NOT_FOUND,
+            "Root path with no root page defined must return 404, not cross-version fallback"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_search_version_and_language_scoping_and_ranking() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+        let app = create_runner_router(state, None);
+
+        // 1. Scoped to v1
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/search?q=authentication&version=v1")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let hits = val["hits"].as_array().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0]["id"], "page3");
+        assert_eq!(hits[0]["title"], "Authentication v1");
+        // Verify deterministic score (not constant 1.0)
+        let score = hits[0]["score"].as_f64().unwrap();
+        assert!(score != 1.0, "Score should be calculated via BM25, not hardcoded 1.0");
+
+        // 2. Scoped to v2
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/search?q=authentication&version=v2.0")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let hits = val["hits"].as_array().unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0]["id"], "page4");
+        assert_eq!(hits[0]["title"], "Authentication v2");
+
+        // 3. Scoped to language with no matches
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/search?q=authentication&lang=fr")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let hits = val["hits"].as_array().unwrap();
+        assert_eq!(hits.len(), 0, "No hits should be returned for unmatched language");
+    }
 }
+
 

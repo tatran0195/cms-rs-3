@@ -11,14 +11,14 @@ use uuid::Uuid;
 
 /// Database representation of an organization row
 #[derive(Debug, FromRow)]
-struct OrganizationRow {
-    id: String,
-    name: String,
-    slug: String,
-    description: Option<String>,
-    logo: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+pub(crate) struct OrganizationRow {
+    pub id: String,
+    pub name: String,
+    pub slug: String,
+    pub description: Option<String>,
+    pub logo: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// Database representation of a member row

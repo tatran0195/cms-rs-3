@@ -16,16 +16,8 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
 
-# Optional Redis backend
-redis = { workspace = true, optional = true }
-deadpool-redis = { workspace = true, optional = true }
-
-# Optional apalis backend (not actually used - we have our own implementations)
-# apalis = { version = "0.4", optional = true }
-
 [features]
 default = ["memory"]
-redis = ["dep:redis", "dep:deadpool-redis"]
 memory = []
 
 [lints]

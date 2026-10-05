@@ -197,6 +197,8 @@ mod tests {
             jwt_expiration_hours: 24 * 30,
             api_key_prefix: "test_prefix".to_string(),
             system_admin_emails: Vec::new(),
+            session_cookie_secure: false,
+            session_cookie_same_site: "Lax".to_string(),
             oauth: None,
         };
 

@@ -6,7 +6,6 @@ export { AddonsSection } from './components/addons-section';
 export { AuthenticationSection } from './components/authentication-section';
 export { DangerSection } from './components/danger-section';
 export { DomainSection } from './components/domain-section';
-export { ExportsSection } from './components/exports-section';
 export { GeneralSection } from './components/general-section';
 export { LanguagesSection } from './components/languages-section';
 export { MembersSection } from './components/members-section';

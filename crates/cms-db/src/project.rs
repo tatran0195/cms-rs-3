@@ -1,8 +1,12 @@
 //! Project database queries
 
 use chrono::{DateTime, Utc};
-use cms_entity::project::{
-    Project, ProjectAddon, ProjectAddonResponse, ProjectResponse, ProjectSettings,
+use cms_entity::{
+    common::MemberRole,
+    org::Organization,
+    project::{
+        Project, ProjectAddon, ProjectAddonResponse, ProjectResponse, ProjectSettings,
+    },
 };
 use cms_error::AppError;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
@@ -276,31 +280,91 @@ impl ProjectQueries {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
-    /// Create a new project
-    pub async fn create(
+    /// Create a project atomically along with default branch, default language, and default settings.
+    /// If `new_org_info` is `Some((org_name, org_slug, user_id))`, also creates the organization
+    /// and owner membership in the same transaction.
+    pub async fn create_atomic(
         pool: &PgPool,
-        organization_id: &str,
+        new_org_info: Option<(&str, &str, &str)>,
+        effective_org_id: &str,
         name: &str,
         slug: &str,
         description: Option<&str>,
         icon: Option<&str>,
         is_public: bool,
-    ) -> Result<Project, AppError> {
-        let id = Uuid::new_v4().to_string();
+    ) -> Result<(Project, Organization), AppError> {
+        let mut tx = pool.begin().await?;
+        let now = Utc::now();
+
+        let org: Organization = if let Some((org_name, org_slug, user_id)) = new_org_info {
+            let org_row = sqlx::query_as::<_, crate::org::OrganizationRow>(
+                r#"
+                INSERT INTO "Organization" (id, name, slug, description, logo, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+                "#,
+            )
+            .bind(effective_org_id)
+            .bind(org_name)
+            .bind(org_slug)
+            .bind::<Option<String>>(None)
+            .bind::<Option<String>>(None)
+            .bind(now)
+            .bind(now)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|e| {
+                if e.to_string().contains("duplicate key") {
+                    AppError::Conflict("Organization with this slug already exists".to_string())
+                } else {
+                    AppError::Database(e.into())
+                }
+            })?;
+
+            let member_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                r#"
+                INSERT INTO "Member" (id, user_id, organization_id, role, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                "#,
+            )
+            .bind(&member_id)
+            .bind(user_id)
+            .bind(effective_org_id)
+            .bind(MemberRole::Owner)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
+
+            org_row.into()
+        } else {
+            let org_row = sqlx::query_as::<_, crate::org::OrganizationRow>(
+                "SELECT * FROM \"Organization\" WHERE id = $1",
+            )
+            .bind(effective_org_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| AppError::Database(e.into()))?
+            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
+
+            org_row.into()
+        };
+
+        let project_id = Uuid::new_v4().to_string();
         let branch_id = Uuid::new_v4().to_string();
         let language_id = Uuid::new_v4().to_string();
-        let now = Utc::now();
-        let mut tx = pool.begin().await?;
 
         let row = sqlx::query_as::<_, ProjectRow>(
             r#"
             INSERT INTO "Project" (id, organization_id, name, slug, description, icon, is_public, config, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, '{}', $8, $9)
             RETURNING *
-            "#
+            "#,
         )
-        .bind(&id)
-        .bind(organization_id)
+        .bind(&project_id)
+        .bind(effective_org_id)
         .bind(name)
         .bind(slug)
         .bind(description)
@@ -318,9 +382,7 @@ impl ProjectQueries {
             }
         })?;
 
-        // A project is not usable without a branch and a default language. Seed
-        // both in the same transaction as the project instead of swallowing
-        // insert failures and leaving a half-created workspace.
+        // Default branch
         sqlx::query(
             r#"
             INSERT INTO "Branch" (
@@ -330,11 +392,13 @@ impl ProjectQueries {
             "#,
         )
         .bind(&branch_id)
-        .bind(&id)
+        .bind(&project_id)
         .bind(now)
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
 
+        // Default language
         sqlx::query(
             r#"
             INSERT INTO "Language" (
@@ -345,13 +409,53 @@ impl ProjectQueries {
             "#,
         )
         .bind(&language_id)
-        .bind(&id)
+        .bind(&project_id)
         .bind(now)
         .execute(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        // Default settings
+        sqlx::query(
+            r#"
+            INSERT INTO "ProjectSettings" (
+                project_id, theme, default_language, custom_domain, search_enabled, comments_enabled, created_at, updated_at
+            )
+            VALUES ($1, NULL, 'en', NULL, TRUE, TRUE, $2, $2)
+            "#,
+        )
+        .bind(&project_id)
+        .bind(now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
 
         tx.commit().await?;
-        Ok(row.into())
+        Ok((row.into(), org))
+    }
+
+    /// Create a new project
+    pub async fn create(
+        pool: &PgPool,
+        organization_id: &str,
+        name: &str,
+        slug: &str,
+        description: Option<&str>,
+        icon: Option<&str>,
+        is_public: bool,
+    ) -> Result<Project, AppError> {
+        let (project, _) = Self::create_atomic(
+            pool,
+            None,
+            organization_id,
+            name,
+            slug,
+            description,
+            icon,
+            is_public,
+        )
+        .await?;
+        Ok(project)
     }
 
     /// Update a project

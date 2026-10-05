@@ -14,7 +14,7 @@ use tracing::{debug, error, info};
 pub async fn start_consumers(
     job_queue: Arc<dyn JobQueue>,
     state: Arc<WorkerState>,
-) -> Result<(), AppError> {
+) -> Result<Vec<tokio::task::JoinHandle<()>>, AppError> {
     let (_tx, rx) = tokio::sync::watch::channel(false);
     start_consumers_with_shutdown(job_queue, state, rx).await
 }
@@ -24,26 +24,28 @@ pub async fn start_consumers_with_shutdown(
     job_queue: Arc<dyn JobQueue>,
     state: Arc<WorkerState>,
     shutdown_rx: tokio::sync::watch::Receiver<bool>,
-) -> Result<(), AppError> {
+) -> Result<Vec<tokio::task::JoinHandle<()>>, AppError> {
     let config = &state.config.queue;
     let num_workers = config.workers;
 
     info!("Starting {} job consumer(s)", num_workers);
+    let mut handles = Vec::with_capacity(num_workers);
 
     for i in 0..num_workers {
         let queue = job_queue.clone();
         let state = state.clone();
         let mut worker_shutdown = shutdown_rx.clone();
 
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let consumer_name = format!("worker-{}", i);
             if let Err(e) = run_consumer(queue, state, consumer_name, &mut worker_shutdown).await {
                 error!("Consumer {} failed: {}", i, e);
             }
         });
+        handles.push(handle);
     }
 
-    Ok(())
+    Ok(handles)
 }
 
 /// Run a single job consumer with graceful shutdown handling

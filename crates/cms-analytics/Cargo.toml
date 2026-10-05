@@ -23,7 +23,6 @@ anyhow = { workspace = true }
 
 [features]
 default = []
-clickhouse = []
 
 [lints]
 workspace = true

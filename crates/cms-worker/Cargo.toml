@@ -30,7 +30,6 @@ anyhow = { workspace = true }
 
 [features]
 default = []
-redis = []
 
 [lints]
 workspace = true

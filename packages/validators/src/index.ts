@@ -927,14 +927,6 @@ export type ResolveCommentBody = z.infer<typeof resolveCommentBody>;
 export const listCommentsQuery = z.object({ pageId: z.string().optional() });
 export type ListCommentsQuery = z.infer<typeof listCommentsQuery>;
 
-// ─── AI drafting assistant ─────────────────────────────────────────────────—
-
-export const aiDraftBody = z.object({
-  mode: z.enum(['continue', 'rephrase', 'outline', 'summarize']),
-  content: z.string().default(''),
-  instruction: z.string().max(500).optional(),
-});
-export type AiDraftBody = z.infer<typeof aiDraftBody>;
 
 // ─── Workspace settings ────────────────────────────────────────────────────—
 

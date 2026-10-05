@@ -20,7 +20,6 @@ export type IntegrationProviderId =
   | 'zapier'
   | 'openrouter'
   | 'qdrant'
-  | 'clickhouse'
   | 'postmark'
   | 'smtp'
   | 'maxio'
@@ -41,7 +40,6 @@ export const INTEGRATION_PROVIDER_IDS = [
   'zapier',
   'openrouter',
   'qdrant',
-  'clickhouse',
   'postmark',
   'smtp',
   'maxio',
@@ -175,7 +173,6 @@ export const INTEGRATION_CATALOG: readonly IntegrationManifest[] = [
   webhook('zapier', true),
   managed('openrouter', 'ai', ['generation', 'search', 'health']),
   managed('qdrant', 'storage', ['search', 'health']),
-  managed('clickhouse', 'analytics', ['analytics', 'health']),
   managed('postmark', 'email', ['delivery', 'health']),
   managed('smtp', 'email', ['delivery']),
   managed('maxio', 'storage', ['assets', 'health']),
@@ -194,7 +191,6 @@ export type IntegrationPublicConfig =
   | { providerId: 'slack' | 'discord' | 'zapier'; label: string | null }
   | { providerId: 'openrouter'; draftModel: string; embeddingModel: string; answerModel: string }
   | { providerId: 'qdrant'; collectionAlias: string; searchRuntime: 'legacy' | 'shadow' | 'hybrid' }
-  | { providerId: 'clickhouse'; mode: 'disabled' | 'dual_write' | 'shadow_read' | 'clickhouse' }
   | { providerId: 'postmark'; messageStream: string | null }
   | { providerId: 'smtp' }
   | { providerId: 'maxio' | 'minio' | 'amazon-s3' | 'cloudflare-r2' | 'backblaze-b2' }

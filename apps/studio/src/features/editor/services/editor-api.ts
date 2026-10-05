@@ -1,5 +1,4 @@
 import type {
-  AiDraftBody,
   CreateBranchBody,
   CreateCommentBody,
   CreateLanguageBody,
@@ -245,8 +244,3 @@ export const useDeleteComment = (projectId: string) => {
   });
 };
 
-export const useAiDraft = (projectId: string) =>
-  useMutation({
-    mutationFn: async (body: AiDraftBody) =>
-      mutateData(await api.app.projects[':projectId'].ai.$post({ param: { projectId }, json: body }), 'Could not draft content.'),
-  });

@@ -2312,7 +2312,7 @@ async fn product_flow_creates_and_publishes_language_scoped_docs() -> anyhow::Re
     let state = Arc::new(AppState::from_config(&config).await?);
     let worker_state = Arc::new(cms_worker::app_state::WorkerState::from_app_state(&state).await?);
     let (worker_shutdown_tx, worker_shutdown_rx) = tokio::sync::watch::channel(false);
-    cms_worker::start_consumers_with_shutdown(
+    let worker_handles = cms_worker::start_consumers_with_shutdown(
         state.job_queue.clone(),
         worker_state,
         worker_shutdown_rx,
@@ -2322,7 +2322,9 @@ async fn product_flow_creates_and_publishes_language_scoped_docs() -> anyhow::Re
     let seed_data = seed(&state).await?;
     let result = run_flow(state.clone(), &seed_data).await;
     let _ = worker_shutdown_tx.send(true);
-    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    for handle in worker_handles {
+        let _ = handle.await;
+    }
     let cleanup_result = cleanup(&state, &seed_data).await;
     state.biz_context.pool.close().await;
     cleanup_result?;

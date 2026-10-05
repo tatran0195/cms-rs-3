@@ -1,7 +1,6 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { useConfirm } from '@cms/design-system/components/ui/confirm';
 import { SegmentedControl, SegmentedControlItem } from '@cms/design-system/components/ui/segmented-control';
-import { Tabs, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import { useDebouncedCallback } from '@tanstack/react-pacer';
@@ -33,7 +32,6 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState }
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { AddLanguageDialog } from '@/features/editor/components/add-language-dialog';
-import { AiAssist } from '@/features/editor/components/ai-assist';
 import { BranchSwitcher } from '@/features/editor/components/branch-switcher';
 import { CommentsPanel } from '@/features/editor/components/comments-panel';
 import { isDirty, nextHydration, type ServerSnapshot, shouldAutosave } from '@/features/editor/components/editor-draft';
@@ -185,8 +183,7 @@ export function EditorPage({ projectId, firstPublish, page: pageParam, publish: 
   const { data: page } = usePage(projectId, activeId ?? undefined);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [railTab, setRailTab] = useState<'comments' | 'ai'>('comments');
-  // The comments/AI rail starts closed (an empty "No comments yet" panel would
+  // The comments rail starts closed (an empty "No comments yet" panel would
   // otherwise claim 300px on the first visit); the author's toggle is persisted.
   const [railOpen, setRailOpen] = useState(false);
   useEffect(() => {
@@ -515,7 +512,6 @@ export function EditorPage({ projectId, firstPublish, page: pageParam, publish: 
     if (next) {
       setEditorMode('visual');
       setRailOpen(true);
-      setRailTab('comments');
     } else {
       setPendingAnchor(null);
     }
@@ -1019,7 +1015,6 @@ export function EditorPage({ projectId, firstPublish, page: pageParam, publish: 
                   onAddComment={(anchor) => {
                     setPendingAnchor(anchor);
                     setRailOpen(true);
-                    setRailTab('comments');
                   }}
                   titleSlot={effectiveMode === 'wysiwyg' ? pageTitleInput : undefined}
                   variant={effectiveMode === 'wysiwyg' ? 'wysiwyg' : 'visual'}
@@ -1052,30 +1047,20 @@ export function EditorPage({ projectId, firstPublish, page: pageParam, publish: 
           </section>
         )}
 
-        {/* Right rail: Figma-style tabbed panel — Comments / AI */}
+        {/* Right rail: Comments */}
         {showRail && activeId ? (
           <aside className="hidden min-h-0 flex-col overflow-hidden border-border border-s bg-sidebar/40 xl:flex">
-            <Tabs value={railTab} onValueChange={(value) => setRailTab(value === 'ai' ? 'ai' : 'comments')} className="flex min-h-0 flex-1 flex-col">
-              <TabsList className="m-2 self-start">
-                <TabsTrigger value="comments">{t('editor.comments')}</TabsTrigger>
-                <TabsTrigger value="ai">{t('editor.ai')}</TabsTrigger>
-              </TabsList>
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">
-                {railTab === 'comments' ? (
-                  <CommentsPanel
-                    pageId={activeId}
-                    projectId={projectId}
-                    pendingAnchor={pendingAnchor}
-                    onClearPending={() => setPendingAnchor(null)}
-                    activeCommentId={activeCommentId}
-                    onSelectComment={setActiveCommentId}
-                    commentMode={commentMode}
-                  />
-                ) : (
-                  <AiAssist content={content} onContentChange={setContent} projectId={projectId} />
-                )}
-              </div>
-            </Tabs>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <CommentsPanel
+                pageId={activeId}
+                projectId={projectId}
+                pendingAnchor={pendingAnchor}
+                onClearPending={() => setPendingAnchor(null)}
+                activeCommentId={activeCommentId}
+                onSelectComment={setActiveCommentId}
+                commentMode={commentMode}
+              />
+            </div>
           </aside>
         ) : null}
       </div>

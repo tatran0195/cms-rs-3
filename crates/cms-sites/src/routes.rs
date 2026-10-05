@@ -6,7 +6,7 @@ use crate::{
     handlers::{
         apple_touch_icon_handler, asset_handler, css_handler, favicon_16_handler,
         favicon_32_handler, favicon_handler, font_handler, image_handler, js_handler,
-        manifest_handler, pgp_key_handler, robots_txt_handler, root_handler, security_txt_handler,
+        manifest_handler, robots_txt_handler, root_handler, security_txt_handler,
         sitemap_xml_handler, wildcard_handler,
     },
     host_resolution::HostResolver,
@@ -79,7 +79,6 @@ pub fn create_router(state: Arc<SitesAppState>) -> Router {
         .route("/robots.txt", get(robots_txt_handler))
         .route("/sitemap.xml", get(sitemap_xml_handler))
         .route("/.well-known/security.txt", get(security_txt_handler))
-        .route("/.well-known/pgp-key.txt", get(pgp_key_handler))
         // Static assets for published sites / SPA
         .route("/assets/{*path}", get(asset_handler))
         .route("/css/{*path}", get(css_handler))

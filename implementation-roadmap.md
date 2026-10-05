@@ -217,7 +217,7 @@ Task:
 ---
 
 ### Session B-6 — Atomic Project Creation & Remove Repair Logic (P1)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — project initialization
 
@@ -237,7 +237,7 @@ Task:
 ---
 
 ### Session B-7 — Fix Nested Route ID Scoping (P1)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — application/data ownership (nested handlers ignoring path identity)
 
@@ -260,7 +260,7 @@ Task:
 ---
 
 ### Session B-8 — Consolidate to PostgreSQL Job Queue (P1)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — queue topology and reliability
 
@@ -282,7 +282,7 @@ Task:
 ---
 
 ### Session B-9 — Fix Runner SQL Version/Language Scoping (P1)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — portable version/language correctness
 
@@ -302,7 +302,7 @@ Task:
 ---
 
 ### Session B-10 — Remove Fabricated Export & Heuristic AI Surfaces (P1/P2)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P1 — export is not a working workflow; P2 — fake/dormant capability surfaces
 
