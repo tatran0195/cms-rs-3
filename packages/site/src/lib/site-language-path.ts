@@ -1,6 +1,3 @@
-import { siteBasePath } from './site-paths';
-
-
 export interface SiteLanguageCandidate {
   code: string;
   isDefault: boolean;
@@ -12,7 +9,9 @@ export interface LanguagePathRedirectInput {
   /** The site's published languages (the shell's `languages`). */
   languages: ReadonlyArray<SiteLanguageCandidate>;
   projectId: string;
-  isCustomDomain: boolean;
+  basePath?: string;
+  /** @deprecated use basePath */
+  isCustomDomain?: boolean;
   /** The current search string (with or without the leading `?`); other params survive. */
   search?: string;
 }
@@ -72,7 +71,12 @@ export function resolveLanguagePathRedirect(input: LanguagePathRedirectInput): s
   // Re-encode segment by segment so encoded and decoded (non-ASCII) slugs both
   // yield one valid Location.
   const path = rest.map((segment) => encodeURIComponent(safeDecode(segment))).join('/');
-  const pathname = `${siteBasePath(input.projectId, input.isCustomDomain)}${path ? `/${path}` : ''}` || '/';
+  const prefix = input.basePath !== undefined
+    ? input.basePath
+    : input.isCustomDomain
+      ? ''
+      : (input.projectId && input.projectId !== 'standalone' ? `/sites/${input.projectId}` : '');
+  const pathname = `${prefix}${path ? `/${path}` : ''}` || '/';
   const query = params.toString();
   return `${pathname}${query ? `?${query}` : ''}`;
 }

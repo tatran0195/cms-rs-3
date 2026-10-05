@@ -1,16 +1,12 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
 import {
-  customDomainOrigin,
-  isCustomDomainSite,
   pageHead,
   redirectIfConfigured,
   resolveLanguagePathRedirect,
   SitePageView,
 } from '@cms/site';
-import { getSiteFn, getSitePageFn } from '@/shared';
-import { ApiResponseError } from '@/hooks/api/client-helpers';
-import type { SitePage } from '@/hooks/api/types';
+import { ApiResponseError, siteService, type SitePage } from '@/shared';
 
 const OpenApiReferenceView = lazy(() =>
   import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })),
@@ -25,7 +21,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     const version = path ? path.split('/')[0] : undefined;
     let page: SitePage;
     try {
-      page = await getSitePageFn({ data: { projectId: params.projectId, path, language: deps.lang, version } });
+      page = await siteService.getPage(params.projectId, path, { language: deps.lang, version });
     } catch (error) {
       if (!(error instanceof ApiResponseError) || error.status !== 404) {
         throw error;
@@ -36,9 +32,9 @@ export const Route = createFileRoute('/sites/$projectId/$')({
       const requested = (params._splat ?? '').replace(/^\/+|\/+$/g, '');
       let languageRedirect: string | null = null;
       try {
-        const site = await getSiteFn({ data: { projectId: params.projectId, language: deps.lang } });
+        const site = await siteService.getSite(params.projectId, { language: deps.lang });
         if (site.openapi && requested === site.openapi.path) {
-          return { kind: 'openapi' as const, openapi: site.openapi, site, lang: deps.lang, siteOrigin: customDomainOrigin() };
+          return { kind: 'openapi' as const, openapi: site.openapi, site, lang: deps.lang };
         }
         // `/ar` or `/ar/guides` is a common guess on a multilingual site, but
         // the language lives in `?lang=`. Resolve the equivalent URL here and
@@ -47,7 +43,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
           splat: path,
           languages: site.languages,
           projectId: params.projectId,
-          isCustomDomain: isCustomDomainSite(params.projectId),
+          basePath: `/sites/${params.projectId}`,
           search: location.searchStr,
         });
       } catch {
@@ -57,7 +53,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
       // Page didn't resolve — honor a configured redirect (throws a 308) before
       // falling back to the not-found state. Mark the SSR response 404 so this
       // soft-404 returns the right status (the head also carries robots noindex).
-      await redirectIfConfigured(params.projectId, params._splat ?? '', deps.lang);
+      await redirectIfConfigured(params.projectId, params._splat ?? '', deps.lang, undefined, `/sites/${params.projectId}`);
       // A language-prefixed URL permanently redirects to the `?lang=` form (the
       // default language's clean URL) once no configured redirect claimed it.
       if (languageRedirect) {
@@ -88,10 +84,10 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     if (requestedContent && safeDecode(requestedContent) !== page.page.path) {
       const target = [prefix, page.page.path].filter(Boolean).join('/');
       const query = deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : '';
-      const href = isCustomDomainSite(params.projectId) ? `/${target}${query}` : `/sites/${params.projectId}/${target}${query}`;
+      const href = `/sites/${params.projectId}/${target}${query}`;
       throw redirect({ href, statusCode: 302 });
     }
-    return { kind: 'page' as const, page, lang: deps.lang, version, siteOrigin: customDomainOrigin() };
+    return { kind: 'page' as const, page, lang: deps.lang, version };
   },
   head: ({ loaderData, params }) => {
     if (loaderData?.kind === 'openapi') {
@@ -102,7 +98,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
         meta: [{ title }, { name: 'description', content: description }, ...(noindex ? [{ name: 'robots', content: 'noindex,nofollow' }] : [])],
       };
     }
-    return pageHead(loaderData?.kind === 'page' ? loaderData.page : null, params.projectId, loaderData?.lang, loaderData?.siteOrigin);
+    return pageHead(loaderData?.kind === 'page' ? loaderData.page : null, params.projectId, loaderData?.lang);
   },
 });
 
@@ -111,12 +107,14 @@ function SitePath() {
   // Active language comes from the parent route's ?lang= search param.
   const { lang } = Route.useSearch();
   const data = Route.useLoaderData();
+
   if (data.kind === 'openapi') {
     return (
-      <Suspense fallback={<div className="py-12 text-center text-muted-foreground">Loading API reference…</div>}>
+      <Suspense fallback={<div className="p-8 text-center text-muted-foreground text-sm">Loading API reference…</div>}>
         <OpenApiReferenceView projectId={projectId} />
       </Suspense>
     );
   }
+
   return <SitePageView projectId={projectId} lang={lang} data={data.page} />;
 }

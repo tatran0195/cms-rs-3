@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, Database, LoaderCircle, RefreshCw, ShieldChe
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useCreateProjectSearchReindex, useProjectSearchIndexDiagnostics } from '@/hooks/api';
-import { localeTag } from '@/lib/format';
+import { localeTag } from '@/shared';
 
 const healthVariant = (health: string) => {
   if (health === 'ready') return 'secondary' as const;

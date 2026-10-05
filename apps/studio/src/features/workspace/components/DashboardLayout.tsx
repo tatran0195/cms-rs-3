@@ -5,7 +5,7 @@ import { useT } from '@cms/i18n/react';
 import { useRouterState } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useState } from 'react';
-import { useSearchShortcutLabel } from '@/lib/shortcut';
+import { useSearchShortcutLabel } from '@/shared';
 import { AppSidebar } from './AppSidebar';
 import { CommandPalette } from './CommandPalette';
 import { NotificationsPopover } from './NotificationsPopover';

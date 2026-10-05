@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@/hooks/api';
 import type { ApiKey } from '@/hooks/api/types';
-import { localeTag, useFormatters } from '@/lib/format';
+import { localeTag, useFormatters } from '@/shared';
 import {
   AlertDialog,
   AlertDialogAction,

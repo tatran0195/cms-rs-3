@@ -1,5 +1,5 @@
 import type { MessageKey } from '@cms/i18n';
-import type { DeploymentStatus } from '@/hooks/api/types';
+import type { DeploymentStatus } from '../hooks/api';
 
 type Translate = (key: MessageKey) => string;
 

@@ -6,7 +6,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Mail } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { readPendingInvitation } from '@/lib/invitations';
+import { readPendingInvitation } from '@/shared';
 import { AuthLayout } from './components/AuthLayout';
 import { authClient, useSession } from './services/auth-client';
 

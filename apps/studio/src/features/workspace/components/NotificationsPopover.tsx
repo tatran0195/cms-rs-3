@@ -6,7 +6,7 @@ import { Bell } from 'lucide-react';
 import { useState } from 'react';
 import { useMarkNotificationsRead, useNotifications, useUnreadNotificationCount } from '@/hooks/api';
 import type { NotificationItem } from '@/hooks/api/types';
-import { useFormatters } from '@/lib/format';
+import { useFormatters } from '@/shared';
 
 /** One inbox row: unread dot, title/body, relative time. Clicking marks it read
  *  and follows its dashboard link (when it has one). */

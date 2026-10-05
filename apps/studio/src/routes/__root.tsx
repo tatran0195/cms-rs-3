@@ -1,7 +1,7 @@
 import { ThemeProvider } from '@cms/design-system/theme';
 import { createRootRoute, HeadContent, Outlet, useRouterState } from '@tanstack/react-router';
 import { type ReactNode, useEffect } from 'react';
-import type { SiteShell } from '@/hooks/api/types';
+import type { SiteShell } from '@/shared';
 import { siteThemeNoFlashScript } from '@cms/site';
 import appCss from '@/styles.css?url';
 

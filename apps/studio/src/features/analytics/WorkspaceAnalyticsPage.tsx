@@ -5,7 +5,7 @@ import { useT } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { Activity, AlertTriangle, BarChart3, Search, Sparkles, Users } from 'lucide-react';
 import { useWorkspaceAnalytics } from '@/hooks/api/analytics';
-import { useFormatters } from '@/lib/format';
+import { useFormatters } from '@/shared';
 import { BarRow } from './components/BarRow';
 import { ListCard } from './components/ListCard';
 import { RangeTabs } from './components/RangeTabs';

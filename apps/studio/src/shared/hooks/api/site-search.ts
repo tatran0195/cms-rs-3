@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { answerSiteFn, searchSiteFn } from '@/shared';
+import { siteService } from '@/shared';
 import { queryKeys } from './query-keys';
 
 const requireSiteId = (siteId: string | undefined) => {
@@ -11,19 +11,11 @@ export const useSiteSearch = (siteId: string | undefined, query: string, languag
   useQuery({
     queryKey: queryKeys.site.search(siteId ?? '', query, language, version, limit),
     enabled: Boolean(enabled && siteId && query.trim()),
-    queryFn: () =>
-      searchSiteFn({
-        data: {
-          projectId: requireSiteId(siteId),
-          query,
-          ...(language ? { language } : {}),
-          ...(version ? { version } : {}),
-          ...(limit ? { limit } : {}),
-        },
-      }),
+    queryFn: () => siteService.search(requireSiteId(siteId), query, { language, version, limit }),
   });
 
 export const useAnswerSite = () =>
   useMutation({
-    mutationFn: (input: { projectId: string; query: string; language?: string; version?: string }) => answerSiteFn({ data: input }),
+    mutationFn: (input: { projectId: string; query: string; language?: string; version?: string }) =>
+      siteService.answer(input.projectId, input.query, { language: input.language, version: input.version }),
   });

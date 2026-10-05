@@ -32,3 +32,4 @@ export { ImportTab } from './components/import-tab';
 export { IntegrationsTab } from './components/integrations-tab';
 export { NotificationsTab } from './components/notifications-tab';
 export { UsageTab } from './components/usage-tab';
+export * from './services/settings-api';

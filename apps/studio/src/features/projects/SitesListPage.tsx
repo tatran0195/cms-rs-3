@@ -7,8 +7,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { NewProjectDialog } from './components/NewProjectDialog';
-import { useProjects } from '@/hooks/api';
-import { useFormatters } from '@/lib/format';
+import { useFormatters, useProjects } from '@/shared';
 
 export interface SitesListPageProps {
   newSite?: boolean;

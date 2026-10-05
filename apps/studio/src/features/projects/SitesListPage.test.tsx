@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { Locale, MessageKey, MessageVariables } from '@cms/i18n';
-import { act, type ComponentType } from 'react';
+import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,33 +19,33 @@ vi.mock('@cms/i18n/react', async () => {
   });
   return { useLocale, useT: () => useLocale().t };
 });
+
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (options: Record<string, unknown>) => ({
-    options,
-    useSearch: () => ({}),
-  }),
   useNavigate: () => mocks.navigate,
 }));
-vi.mock('@/hooks/api', () => ({
-  useProjects: mocks.useProjects,
-  useCreateProject: () => ({ mutate: vi.fn(), isPending: false }),
-}));
-vi.mock('@/components/app/new-project-dialog', () => ({
+
+vi.mock('@/shared', async () => {
+  const actual = await vi.importActual<typeof import('@/shared')>('@/shared');
+  return {
+    ...actual,
+    useProjects: mocks.useProjects,
+  };
+});
+
+vi.mock('./components/NewProjectDialog', () => ({
   NewProjectDialog: () => null,
 }));
 
-import { Route } from './sites';
+import { SitesListPage } from './SitesListPage';
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 
-const SitesPage = Route.options.component as unknown as ComponentType;
-
-describe('SitesPage', () => {
+describe('SitesListPage', () => {
   let container: HTMLDivElement;
   let root: Root;
 
   const render = async () => {
-    await act(async () => root.render(<SitesPage />));
+    await act(async () => root.render(<SitesListPage />));
   };
 
   beforeEach(() => {

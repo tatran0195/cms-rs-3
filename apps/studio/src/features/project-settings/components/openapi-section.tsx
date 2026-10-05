@@ -10,7 +10,7 @@ import { AlertTriangle, Braces, FileUp, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useDeleteOpenApi, useOpenApiConfiguration, useSyncOpenApi, useUpsertOpenApi } from '@/hooks/api';
-import { localeTag } from '@/lib/format';
+import { localeTag } from '@/shared';
 import { FIELD_INPUT, FIELD_MONO, Field, SectionHeader, Segmented } from './shared';
 
 type SourceType = 'upload' | 'url' | 'repository';

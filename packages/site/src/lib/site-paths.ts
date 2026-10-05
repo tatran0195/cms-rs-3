@@ -1,6 +1,3 @@
-import { customDomainOrigin } from './site-origin';
-
-
 const cleanPath = (path = ''): string => path.replace(/^\/+|\/+$/g, '');
 
 const safeDecode = (value: string): string => {
@@ -30,36 +27,33 @@ const splitPath = (path: string): { pathname: string; query: string; fragment: s
   };
 };
 
-export function isCustomDomainSite(projectId?: string): boolean {
-  if (customDomainOrigin()) {
-    return true;
-  }
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  const pathname = window.location.pathname;
-  if (/^\/(app|sign-in|sign-up|forgot-password|reset-password|verify-email|accept-invite)\b/.test(pathname)) {
-    return false;
-  }
-  return projectId ? !pathname.startsWith(`/sites/${projectId}`) : !pathname.startsWith('/sites/');
-}
-
-/** The pathname a site's URLs hang off: the domain root on a custom domain,
- *  `/sites/:projectId` on the app origin. */
-export function siteBasePath(projectId: string, customDomain: boolean): string {
-  return customDomain ? '' : `/sites/${projectId}`;
-}
-
 /** Omit only a known default language; explicit authored query strings stay intact. */
 export function siteLanguageParam(code?: string, defaultCode?: string): string | undefined {
   return code === defaultCode ? undefined : code;
 }
 
-export function siteHref(projectId: string, path = '', options?: { lang?: string; version?: string }): string {
+export interface SiteHrefOptions {
+  lang?: string;
+  version?: string;
+  basePath?: string;
+}
+
+export function siteHref(projectId: string, path = '', options?: SiteHrefOptions): string {
   const { pathname, query, fragment } = splitPath(path);
-  const fullPath = [options?.version, cleanPath(pathname)].filter(Boolean).join('/').split('/').filter(Boolean).map(encodeSegment).join('/');
-  const prefix = siteBasePath(projectId, isCustomDomainSite(projectId));
-  const langParam = options?.lang && !new URLSearchParams(query).has('lang') ? `lang=${encodeURIComponent(options.lang)}` : '';
+  const fullPath = [options?.version, cleanPath(pathname)]
+    .filter(Boolean)
+    .join('/')
+    .split('/')
+    .filter(Boolean)
+    .map(encodeSegment)
+    .join('/');
+
+  const prefix = options?.basePath !== undefined
+    ? options.basePath
+    : (projectId && projectId !== 'standalone' ? `/sites/${projectId}` : '');
+  const langParam = options?.lang && !new URLSearchParams(query).has('lang')
+    ? `lang=${encodeURIComponent(options.lang)}`
+    : '';
   const search = langParam ? `${query ? `${query}&` : '?'}${langParam}` : query;
   const href = `${prefix}${fullPath ? `/${fullPath}` : ''}` || '/';
   return `${href}${search}${fragment}`;

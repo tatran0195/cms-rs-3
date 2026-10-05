@@ -10,7 +10,7 @@ import { SectionCard, ViewsAreaChart } from '@/features/analytics';
 import { NewProjectDialog } from './components/NewProjectDialog';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useProjects, useWorkspaceAnalytics } from '@/hooks/api';
-import { useFormatters, viewsTrend } from '@/lib/format';
+import { useFormatters, viewsTrend } from '@/shared';
 
 export interface ProjectsOverviewPageProps {
   firstPublish?: boolean;

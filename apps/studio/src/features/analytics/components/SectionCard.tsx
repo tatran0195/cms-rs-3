@@ -4,7 +4,7 @@ import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { cn } from '@cms/design-system/lib/utils';
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useFormatters } from '@/lib/format';
+import { useFormatters } from '@/shared';
 
 export type Trend = { pct: number; direction: 'up' | 'down' | 'flat' } | null;
 

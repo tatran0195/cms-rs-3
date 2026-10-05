@@ -12,7 +12,13 @@ vi.mock('@cms/i18n/react', () => ({
 vi.mock('@/features/auth', () => ({
   authClient: { admin: { stopImpersonating: mocks.stopImpersonating } },
 }));
-vi.mock('@/lib/links', () => ({ ADMIN_URL: 'https://admin.example.test' }));
+vi.mock('@/shared', async () => {
+  const actual = await vi.importActual<typeof import('@/shared')>('@/shared');
+  return {
+    ...actual,
+    ADMIN_URL: 'https://admin.example.test',
+  };
+});
 
 import { SupportAccessBanner } from './SupportAccessBanner';
 

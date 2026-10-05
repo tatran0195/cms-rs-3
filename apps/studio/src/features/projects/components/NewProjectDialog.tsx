@@ -7,7 +7,7 @@ import { useT } from '@cms/i18n/react';
 import { useForm } from '@tanstack/react-form';
 import { toast } from 'sonner';
 import { useCreateProject } from '@/hooks/api';
-import { required } from '@/lib/form';
+import { required } from '@/shared';
 
 export function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const create = useCreateProject();

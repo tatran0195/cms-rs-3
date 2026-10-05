@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
-import { getSiteFn, QueryProvider } from '@/shared';
-import { customDomainOrigin, siteHead, SiteLayout } from '@cms/site';
+import { QueryProvider, siteService } from '@/shared';
+import { siteHead, SiteLayout } from '@cms/site';
 
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,
@@ -12,19 +12,16 @@ export const Route = createFileRoute('/sites/$projectId')({
     try {
       const rest = location.pathname.replace(new RegExp(`^/sites/${params.projectId}/?`), '').replace(/\/+$/, '');
       const candidate = rest && rest !== 'changelog' ? decodeURIComponent(rest).split('/')[0] : undefined;
-      const site = await getSiteFn({
-        data: {
-          projectId: params.projectId,
-          language: deps.lang,
-          version: candidate,
-        },
+      const site = await siteService.getSite(params.projectId, {
+        language: deps.lang,
+        version: candidate,
       });
-      return { site, siteOrigin: customDomainOrigin() };
+      return { site };
     } catch {
-      return { site: null, siteOrigin: customDomainOrigin() };
+      return { site: null };
     }
   },
-  head: ({ loaderData }) => siteHead(loaderData?.site ?? null, loaderData?.siteOrigin),
+  head: ({ loaderData }) => siteHead(loaderData?.site ?? null),
 });
 
 function SiteRoute() {

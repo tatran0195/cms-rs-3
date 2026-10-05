@@ -1,6 +1,5 @@
 import { normalizeRedirectPath, resolveRedirectTarget } from '@cms/validators/redirects';
 import { redirect } from '@tanstack/react-router';
-import { isCustomDomainSite } from './site-paths';
 import { buildSiteRedirectHref } from './site-redirect-href';
 
 /**
@@ -13,6 +12,7 @@ export async function redirectIfConfigured(
   path: string,
   lang?: string,
   fetchSite?: (projectId: string, lang?: string) => Promise<{ project: { config: unknown } } | null>,
+  basePath?: string,
 ): Promise<void> {
   let from: string;
   try {
@@ -50,7 +50,7 @@ export async function redirectIfConfigured(
   }
   let href: string;
   try {
-    href = buildSiteRedirectHref({ projectId, target: to, lang, customDomain: isCustomDomainSite(projectId) });
+    href = buildSiteRedirectHref({ projectId, target: to, lang, basePath });
   } catch {
     return;
   }

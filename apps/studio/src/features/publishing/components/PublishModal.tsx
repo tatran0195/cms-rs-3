@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { usePendingChanges, usePublish } from '@/hooks/api';
 import type { Deployment, PendingChange, Project } from '@/hooks/api/types';
-import { siteHref } from '@/lib/links';
+import { siteHref } from '@/shared';
 
 export interface PublishModalProps {
   project: Project;

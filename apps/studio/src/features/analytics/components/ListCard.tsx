@@ -1,6 +1,6 @@
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { ReactNode } from 'react';
-import { useFormatters } from '@/lib/format';
+import { useFormatters } from '@/shared';
 
 export interface ListItem {
   key: string;

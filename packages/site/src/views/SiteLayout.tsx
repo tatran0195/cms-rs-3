@@ -234,6 +234,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
         siteHref(projectId, alternate.path, {
           lang: targetLanguage,
           version: activeVersionPrefix,
+          basePath: basePrefix,
         }),
       );
       return;
@@ -245,7 +246,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     const defaultVersion = versions.find((item) => item.isDefault);
     const targetPrefix = defaultVersion?.slug === slug ? '' : slug;
     const targetPath = [targetPrefix, isChangelog ? '' : contentPath].filter(Boolean).join('/');
-    window.location.assign(siteHref(projectId, targetPath, { lang: navigationLanguage }));
+    window.location.assign(siteHref(projectId, targetPath, { lang: navigationLanguage, basePath: basePrefix }));
   };
 
   const activeVersion = site?.activeVersion ?? versions.find((item) => item.isDefault)?.slug ?? '';
@@ -253,6 +254,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     siteHref(projectId, path, {
       lang: navigationLanguage,
       version: activeVersionPrefix,
+      basePath: basePrefix,
     });
 
   const resolveNavHref = (href: string): string =>
@@ -260,6 +262,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       ? siteHref(projectId, href, {
           lang: navigationLanguage,
           version: activeVersionPrefix,
+          basePath: basePrefix,
         })
       : href;
 
@@ -276,6 +279,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
             label: t('changelog'),
             href: siteHref(projectId, 'changelog', {
               lang: navigationLanguage,
+              basePath: basePrefix,
             }),
             active: isChangelog,
             external: false,

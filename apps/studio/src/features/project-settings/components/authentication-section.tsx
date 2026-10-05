@@ -23,7 +23,7 @@ import {
   useUpdateReaderAccessMode,
   useUpdateReaderJwt,
 } from '@/hooks/api';
-import { localeTag } from '@/lib/format';
+import { localeTag } from '@/shared';
 import { Field, SectionHeader, Segmented } from './shared';
 
 type AccessMode = 'PUBLIC' | 'WORKSPACE' | 'READERS';

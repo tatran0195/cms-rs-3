@@ -17,8 +17,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@/hooks': fileURLToPath(new URL('./src/shared/hooks', import.meta.url)),
-      '@/services': fileURLToPath(new URL('./src/shared/services', import.meta.url)),
-      '@/lib': fileURLToPath(new URL('./src/shared/lib', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

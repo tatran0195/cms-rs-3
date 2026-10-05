@@ -10,7 +10,7 @@ import { useForm } from '@tanstack/react-form';
 import { Mail, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '@/hooks/api';
-import { email as validateEmail } from '@/lib/form';
+import { email as validateEmail } from '@/shared';
 
 type AssignableRole = 'admin' | 'member';
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '@/lib/query-client';
+import { queryClient } from '@/shared';
 
 export interface User {
   id: string;
@@ -55,12 +55,7 @@ export const sessionQueryKey = ['auth', 'session'] as const;
 export function useSession() {
   const query = useQuery({
     queryKey: sessionQueryKey,
-    queryFn: async (): Promise<SessionData | null> => {
-      const res = await fetch('/api/auth/get-session', { credentials: 'include' });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json?.user ? json : null;
-    },
+    queryFn: async (): Promise<SessionData | null> => authClient.getSession(),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -74,6 +69,16 @@ export function useSession() {
 
 export const authClient = {
   useSession,
+  getSession: async (): Promise<SessionData | null> => {
+    try {
+      const res = await fetch('/api/auth/get-session', { credentials: 'include' });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json?.user ? json : null;
+    } catch {
+      return null;
+    }
+  },
   verifyEmail: async (args: { query: { token: string } }) =>
     authFetch<{ success?: boolean }>(`/api/auth/verify-email?token=${encodeURIComponent(args.query.token)}`, {
       method: 'GET',

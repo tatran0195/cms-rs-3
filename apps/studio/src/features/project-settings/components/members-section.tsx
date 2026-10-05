@@ -21,8 +21,8 @@ import {
   useTransferProjectOwnership,
   useUpdateProjectMemberRole,
 } from '@/hooks/api';
-import { email as validateEmail } from '@/lib/form';
-import { copyToClipboard, inviteAcceptUrl } from '@/lib/invitations';
+import { email as validateEmail } from '@/shared';
+import { copyToClipboard, inviteAcceptUrl } from '@/shared';
 import { useSession } from '@/features/auth';
 import { SectionHeader } from './shared';
 

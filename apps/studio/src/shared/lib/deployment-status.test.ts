@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DeploymentStatus } from '@/hooks/api/types';
+import type { DeploymentStatus } from '../hooks/api';
 import { deploymentStatusLabel, deploymentStatusVariant } from './deployment-status';
 
 const STATUSES: DeploymentStatus[] = ['PENDING', 'BUILDING', 'READY', 'FAILED'];

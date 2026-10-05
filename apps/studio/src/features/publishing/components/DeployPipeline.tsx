@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useDeployments, useRollback } from '@/hooks/api';
 import type { DeploymentStatus, Project } from '@/hooks/api/types';
-import { siteHref } from '@/lib/links';
+import { siteHref } from '@/shared';
 
 export interface DeployPipelineProps {
   project: Project;

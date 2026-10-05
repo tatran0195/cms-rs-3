@@ -38,12 +38,11 @@ export {
 export { SitePageAlternatesContext, useSitePageAlternates, type SiteLanguageAlternate } from './components/page-alternates-context';
 
 // Lib
-export { siteHref, siteLanguageParam, siteBasePath, isCustomDomainSite } from './lib/site-paths';
+export { siteHref, siteLanguageParam, type SiteHrefOptions } from './lib/site-paths';
 export { siteHead, pageHead, changelogFeedUrl, sitePageUrl } from './lib/site-seo';
 export { resolveProjectTheme, projectThemeCss, projectThemeStyle, projectThemeVariables, siteThemeNoFlashScript } from './lib/site-theme';
 export { publishedSiteLogo } from './lib/site-branding';
-export { customDomainOrigin } from './lib/site-origin';
-export { resolveLanguagePathRedirect } from './lib/site-language-path';
+export { resolveLanguagePathRedirect, type LanguagePathRedirectInput } from './lib/site-language-path';
 export { redirectIfConfigured } from './lib/site-redirects';
 export { buildSiteRedirectHref } from './lib/site-redirect-href';
 export { scalarOpenApiConfiguration } from './lib/openapi-reference';

@@ -76,6 +76,8 @@ describe('resolveLanguagePathRedirect', () => {
     expect(resolve('he/guides/intro', { isCustomDomain: true })).toBe('/guides/intro?lang=he');
     expect(resolve('en', { isCustomDomain: true })).toBe('/');
     expect(resolve('en/guides', { isCustomDomain: true })).toBe('/guides');
+    expect(resolve('he', { basePath: '' })).toBe('/?lang=he');
+    expect(resolve('he/guides/intro', { basePath: '' })).toBe('/guides/intro?lang=he');
   });
 
   it('redirects with the site language code, not the typed segment', () => {

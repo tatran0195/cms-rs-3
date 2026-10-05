@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { Language } from '@/hooks/api';
 import { useCreateLanguage, useLanguages } from '@/hooks/api';
-import { type CatalogLanguage, LANGUAGE_CATALOG } from '@/lib/languages';
+import { type CatalogLanguage, LANGUAGE_CATALOG } from '@/shared';
 
 interface AddLanguageDialogProps {
   projectId: string;

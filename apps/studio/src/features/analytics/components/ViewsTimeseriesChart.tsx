@@ -4,7 +4,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import { useId } from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { useFormatters } from '@/lib/format';
+import { useFormatters } from '@/shared';
 import { parseSeriesDate } from '../utils/chart-format';
 
 export interface ViewsPoint {

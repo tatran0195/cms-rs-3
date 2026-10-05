@@ -1,7 +1,6 @@
-import { changelogFeedUrl, customDomainOrigin, SiteChangelogView, sitePageUrl } from '@cms/site';
+import { changelogFeedUrl, SiteChangelogView, sitePageUrl } from '@cms/site';
 import { createFileRoute, useSearch } from '@tanstack/react-router';
-import { getSiteFn, listSiteChangelogFn } from '@/shared';
-import type { ChangelogEntry } from '@/hooks/api/types';
+import { type ChangelogEntry, siteService } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId/changelog')({
   component: SiteChangelog,
@@ -10,14 +9,10 @@ export const Route = createFileRoute('/sites/$projectId/changelog')({
   // and canonical (the changelog route renders no SitePageView to own the head).
   loader: async ({ params, deps }) => {
     try {
-      const site = await getSiteFn({
-        data: { projectId: params.projectId, language: deps.lang },
-      });
+      const site = await siteService.getSite(params.projectId, { language: deps.lang });
       let entries: ChangelogEntry[] = [];
       try {
-        entries = await listSiteChangelogFn({
-          data: { projectId: params.projectId },
-        });
+        entries = await siteService.listChangelog(params.projectId);
       } catch {
         // The shell still owns SEO/chrome when the optional feed is unavailable.
       }
@@ -25,14 +20,12 @@ export const Route = createFileRoute('/sites/$projectId/changelog')({
         site,
         entries,
         lang: deps.lang,
-        siteOrigin: customDomainOrigin(),
       };
     } catch {
       return {
         site: null,
         entries: [] as ChangelogEntry[],
         lang: deps.lang,
-        siteOrigin: customDomainOrigin(),
       };
     }
   },
@@ -56,7 +49,6 @@ export const Route = createFileRoute('/sites/$projectId/changelog')({
     const url = sitePageUrl(params.projectId, 'changelog', loaderData?.lang, {
       primaryDomain: project?.primaryDomain,
       slug: project?.slug,
-      requestOrigin: loaderData?.siteOrigin,
     });
     return {
       meta: [{ title: `Changelog — ${name}` }, { name: 'description', content: description }],
@@ -79,4 +71,3 @@ function SiteChangelog() {
 
   return <SiteChangelogView entries={entries} lang={lang} />;
 }
-

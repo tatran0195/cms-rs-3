@@ -1,10 +1,10 @@
 import { createFileRoute, Navigate, Outlet, redirect, useLocation } from '@tanstack/react-router';
-import { AuthProviders, getSessionFn, useSession } from '@/features/auth';
+import { authClient, AuthProviders, useSession } from '@/features/auth';
 import { QueryProvider } from '@/shared';
 
 export const Route = createFileRoute('/(auth)')({
   beforeLoad: async ({ location }) => {
-    if (await getSessionFn()) {
+    if (await authClient.getSession()) {
       const firstPublish = location.pathname.endsWith('/sign-up') && new URLSearchParams(location.searchStr).get('intent') === 'first-publish';
       throw redirect({ to: '/app', search: firstPublish ? { firstPublish: true } : {} });
     }

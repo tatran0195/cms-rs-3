@@ -24,7 +24,7 @@ import {
   useRunExportSchedule,
   useUpdateExportSchedule,
 } from '@/hooks/api/exports';
-import { localeTag, useFormatters } from '@/lib/format';
+import { localeTag, useFormatters } from '@/shared';
 import { SectionHeader } from './shared';
 
 const labelKeys: Record<ExportFormat, MessageKey> = {

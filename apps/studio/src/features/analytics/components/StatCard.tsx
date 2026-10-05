@@ -1,7 +1,7 @@
 import { Card, CardDescription, CardHeader, CardTitle } from '@cms/design-system/components/ui/card';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { ReactNode } from 'react';
-import { useFormatters } from '@/lib/format';
+import { useFormatters } from '@/shared';
 
 /**
  * Compact KPI tile: label, big value, optional leading icon. Same Card anatomy

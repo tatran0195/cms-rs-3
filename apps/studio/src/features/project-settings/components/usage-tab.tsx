@@ -38,8 +38,8 @@ import {
 } from 'lucide-react';
 import type { Project } from '@/hooks/api';
 import { useProjectUsage } from '@/hooks/api';
-import { useFormatters } from '@/lib/format';
-import { formatByteQuantity } from '@/lib/usage-format';
+import { useFormatters } from '@/shared';
+import { formatByteQuantity } from '@/shared';
 import { SettingsSection } from './section';
 
 const meterPresentation: Record<string, { icon: LucideIcon; label: MessageKey }> = {

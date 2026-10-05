@@ -1,4 +1,4 @@
-import { APP_URL } from '@/lib/links';
+import { APP_URL } from './links';
 
 /** localStorage key holding an invitation id captured before the user authenticated. */
 const PENDING_INVITE_KEY = 'cms.pendingInvitation';

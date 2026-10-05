@@ -32,7 +32,7 @@ import {
   useResolveGitConflict,
   useRotateGitWorkflowWebhookSecret,
 } from '@/hooks/api';
-import { localeTag } from '@/lib/format';
+import { localeTag } from '@/shared';
 
 type GitIdentity = { login: string; name: string | null };
 const statusTone = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' =>

@@ -6,3 +6,4 @@ export * from './components/ProjectAccessBoundary';
 export * from './components/ProjectLayout';
 export * from './ProjectPreviewPage';
 export * from './context/active-project-context';
+export * from './services/projects-api';

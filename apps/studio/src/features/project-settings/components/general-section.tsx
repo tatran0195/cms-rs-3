@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { env } from '@/env';
 import type { Language, Project } from '@/hooks/api';
 import { useLanguages, useUpdateLanguage, useUpdateProject } from '@/hooks/api';
-import { required } from '@/lib/form';
+import { required } from '@/shared';
 import {
   FIELD_INPUT,
   FIELD_TEXTAREA,
