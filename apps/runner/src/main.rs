@@ -32,9 +32,17 @@ struct Args {
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
 
-    /// Host address to bind to
-    #[arg(long, default_value = "0.0.0.0")]
-    host: String,
+    /// Host or IP address to bind to (defaults to 127.0.0.1 for local isolation)
+    #[arg(long, visible_alias = "host", default_value = "127.0.0.1")]
+    bind: String,
+
+    /// Expose the server to the local network (binds to 0.0.0.0 unless --bind is explicitly set)
+    #[arg(long)]
+    network: bool,
+
+    /// Allowed CORS origin when exposing over network (e.g. "https://docs.example.com")
+    #[arg(long, visible_alias = "allowed-origin")]
+    cors_origin: Option<String>,
 }
 
 #[derive(Clone)]
@@ -606,38 +614,7 @@ async fn healthz() -> impl IntoResponse {
     Json(serde_json::json!({ "ok": true }))
 }
 
-async fn api_bootstrap(
-    State(state): State<AppState>,
-    Query(query): Query<BootstrapQuery>,
-) -> Response {
-    let conn = state.db.lock();
-    match query_bootstrap(&conn, query.lang.as_deref()) {
-        Ok(shell) => Json(shell).into_response(),
-        Err(e) => {
-            tracing::error!("Failed to query bootstrap: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load site configuration").into_response()
-        }
-    }
-}
-
-async fn api_page(
-    State(state): State<AppState>,
-    Query(query): Query<PageQuery>,
-) -> Response {
-    let conn = state.db.lock();
-    let path = query.path.as_deref().unwrap_or("/");
-    match query_page(&conn, path, query.lang.as_deref()) {
-        Ok(Some(page)) => Json(page).into_response(),
-        Ok(None) => (StatusCode::NOT_FOUND, "Page not found").into_response(),
-        Err(e) => {
-            tracing::error!("Failed to query page {}: {}", path, e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load page").into_response()
-        }
-    }
-}
-
-async fn api_changelog(State(state): State<AppState>) -> Response {
-    let conn = state.db.lock();
+fn query_changelog(conn: &Connection) -> Vec<ChangelogEntry> {
     let mut entries = Vec::new();
     if let Ok(mut stmt) = conn.prepare("SELECT slug, title, published_at FROM changelog ORDER BY published_at DESC") {
         if let Ok(rows) = stmt.query_map([], |r| {
@@ -656,23 +633,10 @@ async fn api_changelog(State(state): State<AppState>) -> Response {
             }
         }
     }
-    Json(entries).into_response()
+    entries
 }
 
-async fn api_search(
-    State(state): State<AppState>,
-    Query(query): Query<SearchQuery>,
-) -> Response {
-    let raw_q = query.q.unwrap_or_default();
-    let clean_q = raw_q.trim();
-    if clean_q.is_empty() {
-        return Json(serde_json::json!({ "hits": [] })).into_response();
-    }
-
-    let conn = state.db.lock();
-    let limit = query.limit.unwrap_or(20).min(50);
-
-    // Escape query for FTS5 syntax
+fn execute_search(conn: &Connection, clean_q: &str, limit: usize) -> Vec<SiteSearchHit> {
     let fts_query = clean_q
         .split_whitespace()
         .map(|w| format!("\"{}\"*", w.replace('\"', "")))
@@ -695,7 +659,7 @@ async fn api_search(
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("FTS query prepare failed: {}", e);
-            return Json(serde_json::json!({ "hits": [] })).into_response();
+            return hits;
         }
     };
 
@@ -718,7 +682,120 @@ async fn api_search(
         }
     }
 
-    Json(serde_json::json!({ "hits": hits })).into_response()
+    hits
+}
+
+fn query_asset_from_db(conn: &Connection, clean_path: &str) -> Option<(String, Vec<u8>)> {
+    let candidates = [
+        clean_path.to_string(),
+        format!("assets/{}", clean_path),
+        format!("/{}", clean_path),
+    ];
+
+    for cand in &candidates {
+        if let Ok((mime, data)) = conn.query_row(
+            "SELECT mime_type, data FROM assets WHERE path = ?1 LIMIT 1",
+            [cand],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, Vec<u8>>(1)?)),
+        ) {
+            return Some((mime, data));
+        }
+    }
+
+    None
+}
+
+async fn api_bootstrap(
+    State(state): State<AppState>,
+    Query(query): Query<BootstrapQuery>,
+) -> Response {
+    let lang = query.lang;
+    let res = tokio::task::spawn_blocking(move || {
+        let conn = state.db.lock();
+        query_bootstrap(&conn, lang.as_deref())
+    })
+    .await;
+
+    match res {
+        Ok(Ok(shell)) => Json(shell).into_response(),
+        Ok(Err(e)) => {
+            tracing::error!("Failed to query bootstrap: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load site configuration").into_response()
+        }
+        Err(e) => {
+            tracing::error!("Spawn blocking task join error in api_bootstrap: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+        }
+    }
+}
+
+async fn api_page(
+    State(state): State<AppState>,
+    Query(query): Query<PageQuery>,
+) -> Response {
+    let path = query.path.unwrap_or_else(|| "/".to_string());
+    let lang = query.lang;
+    let path_clone = path.clone();
+    let res = tokio::task::spawn_blocking(move || {
+        let conn = state.db.lock();
+        query_page(&conn, &path_clone, lang.as_deref())
+    })
+    .await;
+
+    match res {
+        Ok(Ok(Some(page))) => Json(page).into_response(),
+        Ok(Ok(None)) => (StatusCode::NOT_FOUND, "Page not found").into_response(),
+        Ok(Err(e)) => {
+            tracing::error!("Failed to query page {}: {}", path, e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load page").into_response()
+        }
+        Err(e) => {
+            tracing::error!("Spawn blocking task join error in api_page: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+        }
+    }
+}
+
+async fn api_changelog(State(state): State<AppState>) -> Response {
+    let res = tokio::task::spawn_blocking(move || {
+        let conn = state.db.lock();
+        query_changelog(&conn)
+    })
+    .await;
+
+    match res {
+        Ok(entries) => Json(entries).into_response(),
+        Err(e) => {
+            tracing::error!("Spawn blocking task join error in api_changelog: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+        }
+    }
+}
+
+async fn api_search(
+    State(state): State<AppState>,
+    Query(query): Query<SearchQuery>,
+) -> Response {
+    let raw_q = query.q.unwrap_or_default();
+    let clean_q = raw_q.trim().to_string();
+    if clean_q.is_empty() {
+        return Json(serde_json::json!({ "hits": [] })).into_response();
+    }
+    let limit = query.limit.unwrap_or(20).min(50);
+
+    let res = tokio::task::spawn_blocking(move || {
+        let conn = state.db.lock();
+        execute_search(&conn, &clean_q, limit)
+    })
+    .await;
+
+    match res {
+        Ok(hits) => Json(serde_json::json!({ "hits": hits })).into_response(),
+        Err(e) => {
+            tracing::error!("Spawn blocking task join error in api_search: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
+        }
+    }
 }
 
 async fn serve_asset(
@@ -741,32 +818,29 @@ async fn serve_asset(
             .into_response();
     }
 
-    // 2. Query SQLite assets table for uploaded images/attachments
-    let conn = state.db.lock();
-    let candidates = [
-        clean_path.to_string(),
-        format!("assets/{}", clean_path),
-        format!("/{}", clean_path),
-    ];
+    // 2. Query SQLite assets table for uploaded images/attachments via blocking task
+    let clean_path_owned = clean_path.to_string();
+    let res = tokio::task::spawn_blocking(move || {
+        let conn = state.db.lock();
+        query_asset_from_db(&conn, &clean_path_owned)
+    })
+    .await;
 
-    for cand in &candidates {
-        if let Ok((mime, data)) = conn.query_row(
-            "SELECT mime_type, data FROM assets WHERE path = ?1 LIMIT 1",
-            [cand],
-            |r| Ok((r.get::<_, String>(0)?, r.get::<_, Vec<u8>>(1)?)),
-        ) {
-            return (
-                [
-                    (header::CONTENT_TYPE, mime),
-                    (header::CACHE_CONTROL, "public, max-age=86400".to_string()),
-                ],
-                data,
-            )
-                .into_response();
+    match res {
+        Ok(Some((mime, data))) => (
+            [
+                (header::CONTENT_TYPE, mime),
+                (header::CACHE_CONTROL, "public, max-age=86400".to_string()),
+            ],
+            data,
+        )
+            .into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "Asset not found").into_response(),
+        Err(e) => {
+            tracing::error!("Spawn blocking task join error in serve_asset: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
         }
     }
-
-    (StatusCode::NOT_FOUND, "Asset not found").into_response()
 }
 
 async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Response {
@@ -796,9 +870,20 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Invalid UTF-8 in index.html").into_response(),
     };
 
-    // Fast Bootstrap Injection into index.html
-    let conn = state.db.lock();
-    let shell = query_bootstrap(&conn, None).ok();
+    // Fast Bootstrap Injection into index.html via blocking task
+    let res = tokio::task::spawn_blocking(move || {
+        let conn = state.db.lock();
+        query_bootstrap(&conn, None).ok()
+    })
+    .await;
+
+    let shell = match res {
+        Ok(shell_opt) => shell_opt,
+        Err(e) => {
+            tracing::error!("Spawn blocking task join error in serve_spa: {}", e);
+            None
+        }
+    };
 
     let injected_html = inject_bootstrap_and_meta(raw_html, shell.as_ref());
     Html(injected_html).into_response()
@@ -991,20 +1076,20 @@ async fn main() -> anyhow::Result<()> {
         db_path: args.db.clone(),
     };
 
-    let app = Router::new()
-        .route("/healthz", get(healthz))
-        .route("/api/v1/bootstrap", get(api_bootstrap))
-        .route("/api/v1/page", get(api_page))
-        .route("/api/v1/changelog", get(api_changelog))
-        .route("/api/v1/search", get(api_search))
-        .route("/assets/{*path}", get(serve_asset))
-        .fallback(get(serve_spa))
-        .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
+    let bind_host = resolve_bind_host(&args.bind, args.network);
+    let maybe_cors = build_cors_layer(&bind_host, args.cors_origin.as_deref())?;
 
-    let addr: SocketAddr = format!("{}:{}", args.host, args.port).parse()?;
+    let addr_str = format!("{}:{}", bind_host, args.port);
+    let mut resolved_addrs = tokio::net::lookup_host(&addr_str)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to resolve bind address '{}': {}", addr_str, e))?;
+    let addr = resolved_addrs
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No socket addresses resolved for '{}'", addr_str))?;
+
     tracing::info!("Documentation site server listening on http://{}", addr);
+
+    let app = create_runner_router(state, maybe_cors);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app)
@@ -1013,6 +1098,99 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Server shut down gracefully.");
     Ok(())
+}
+
+pub(crate) fn is_loopback_host(host: &str) -> bool {
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        return ip.is_loopback();
+    }
+    false
+}
+
+pub(crate) fn resolve_bind_host(bind: &str, network: bool) -> String {
+    if network && (bind == "127.0.0.1" || bind.is_empty()) {
+        "0.0.0.0".to_string()
+    } else {
+        bind.to_string()
+    }
+}
+
+pub(crate) fn build_cors_layer(
+    bind_host: &str,
+    cors_origin: Option<&str>,
+) -> anyhow::Result<Option<CorsLayer>> {
+    let is_loopback = is_loopback_host(bind_host);
+
+    if is_loopback {
+        if cors_origin.is_some() {
+            tracing::warn!(
+                "CORS origin configured on loopback binding ({}); enforcing same-origin policy without Access-Control-Allow-Origin",
+                bind_host
+            );
+        }
+        return Ok(None);
+    }
+
+    match cors_origin {
+        Some(origin_str) if !origin_str.trim().is_empty() => {
+            let mut origins = Vec::new();
+            for part in origin_str.split(',') {
+                let trimmed = part.trim();
+                if !trimmed.is_empty() {
+                    let val = trimmed
+                        .parse::<axum::http::HeaderValue>()
+                        .map_err(|e| anyhow::anyhow!("Invalid CORS origin '{}': {}", trimmed, e))?;
+                    origins.push(val);
+                }
+            }
+            if origins.is_empty() {
+                Ok(None)
+            } else {
+                tracing::info!(
+                    "Configuring CORS for network exposure with allowed origin(s): {}",
+                    origin_str
+                );
+                let layer = CorsLayer::new()
+                    .allow_origin(origins)
+                    .allow_methods([
+                        axum::http::Method::GET,
+                        axum::http::Method::HEAD,
+                        axum::http::Method::OPTIONS,
+                    ])
+                    .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+                Ok(Some(layer))
+            }
+        }
+        _ => {
+            tracing::info!(
+                "Server exposed on network ({}) without explicit CORS origin; enforcing same-origin policy",
+                bind_host
+            );
+            Ok(None)
+        }
+    }
+}
+
+pub(crate) fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer>) -> Router {
+    let mut app = Router::new()
+        .route("/healthz", get(healthz))
+        .route("/api/v1/bootstrap", get(api_bootstrap))
+        .route("/api/v1/page", get(api_page))
+        .route("/api/v1/changelog", get(api_changelog))
+        .route("/api/v1/search", get(api_search))
+        .route("/assets/{*path}", get(serve_asset))
+        .fallback(get(serve_spa))
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    if let Some(cors) = maybe_cors {
+        app = app.layer(cors);
+    }
+
+    app
 }
 
 async fn shutdown_signal() {
@@ -1166,6 +1344,265 @@ mod tests {
         assert!(result_legacy.contains(r#"<script type="application/json" id="__bootstrap__">"#));
         assert!(!result_legacy.contains("window.__SITE__"));
         assert!(!result_legacy.contains("Injected by standalone server at runtime"));
+    }
+
+    #[test]
+    fn test_resolve_bind_host() {
+        assert_eq!(resolve_bind_host("127.0.0.1", false), "127.0.0.1");
+        assert_eq!(resolve_bind_host("127.0.0.1", true), "0.0.0.0");
+        assert_eq!(resolve_bind_host("", true), "0.0.0.0");
+        assert_eq!(resolve_bind_host("0.0.0.0", false), "0.0.0.0");
+        assert_eq!(resolve_bind_host("192.168.1.10", false), "192.168.1.10");
+        assert_eq!(resolve_bind_host("192.168.1.10", true), "192.168.1.10");
+    }
+
+    #[test]
+    fn test_is_loopback_host() {
+        assert!(is_loopback_host("127.0.0.1"));
+        assert!(is_loopback_host("127.0.0.2"));
+        assert!(is_loopback_host("::1"));
+        assert!(is_loopback_host("localhost"));
+        assert!(is_loopback_host("LOCALHOST"));
+        assert!(!is_loopback_host("0.0.0.0"));
+        assert!(!is_loopback_host("::"));
+        assert!(!is_loopback_host("192.168.1.1"));
+        assert!(!is_loopback_host("example.com"));
+    }
+
+    #[test]
+    fn test_build_cors_layer() {
+        // Loopback should return None (same-origin policy enforced)
+        let loopback_default = build_cors_layer("127.0.0.1", None).unwrap();
+        assert!(loopback_default.is_none());
+
+        let loopback_with_origin = build_cors_layer("127.0.0.1", Some("https://example.com")).unwrap();
+        assert!(loopback_with_origin.is_none());
+
+        let localhost = build_cors_layer("localhost", None).unwrap();
+        assert!(localhost.is_none());
+
+        // Network binding without origin returns None (same-origin policy enforced)
+        let network_no_origin = build_cors_layer("0.0.0.0", None).unwrap();
+        assert!(network_no_origin.is_none());
+
+        let network_empty_origin = build_cors_layer("0.0.0.0", Some("   ")).unwrap();
+        assert!(network_empty_origin.is_none());
+
+        // Network binding with explicit origin returns Some(CorsLayer)
+        let network_with_origin = build_cors_layer("0.0.0.0", Some("https://docs.company.com")).unwrap();
+        assert!(network_with_origin.is_some());
+
+        // Multiple origins separated by comma
+        let multi_origin = build_cors_layer("0.0.0.0", Some("https://docs.company.com, https://site.company.com")).unwrap();
+        assert!(multi_origin.is_some());
+
+        // Invalid origin header value should error
+        let invalid_origin = build_cors_layer("0.0.0.0", Some("invalid\norigin"));
+        assert!(invalid_origin.is_err());
+    }
+
+    fn setup_test_db() -> Connection {
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE export_meta (
+                schema_version INTEGER NOT NULL,
+                project_id TEXT NOT NULL,
+                project_name TEXT NOT NULL,
+                project_slug TEXT NOT NULL,
+                exported_at TEXT NOT NULL
+            );
+            INSERT INTO export_meta VALUES (1, 'p1', 'Test Project', 'test-proj', '2026-10-05T00:00:00Z');
+
+            CREATE TABLE project_config (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            INSERT INTO project_config VALUES ('description', '"Test project description"');
+
+            CREATE TABLE languages (
+                code TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                is_default INTEGER NOT NULL,
+                is_rtl INTEGER NOT NULL
+            );
+            INSERT INTO languages VALUES ('en', 'English', 1, 0);
+
+            CREATE TABLE versions (
+                id TEXT PRIMARY KEY,
+                slug TEXT NOT NULL,
+                label TEXT NOT NULL,
+                sort_order INTEGER NOT NULL,
+                is_default INTEGER NOT NULL
+            );
+            INSERT INTO versions VALUES ('v1', 'latest', 'v1.0', 1, 1);
+
+            CREATE TABLE pages (
+                id TEXT PRIMARY KEY,
+                version_id TEXT NOT NULL,
+                parent_id TEXT,
+                kind TEXT NOT NULL,
+                slug TEXT NOT NULL,
+                title TEXT NOT NULL,
+                path TEXT NOT NULL,
+                icon TEXT,
+                sort_order INTEGER NOT NULL
+            );
+            INSERT INTO pages VALUES ('page1', 'v1', NULL, 'document', 'getting-started', 'Getting Started', '/getting-started', NULL, 1);
+
+            CREATE TABLE page_content (
+                page_id TEXT NOT NULL,
+                language TEXT NOT NULL,
+                markdown TEXT NOT NULL,
+                description TEXT,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (page_id, language)
+            );
+            INSERT INTO page_content VALUES ('page1', 'en', '# Getting Started\n\nWelcome to documentation.', 'Intro page', '2026-10-05T00:00:00Z');
+
+            CREATE VIRTUAL TABLE page_fts USING fts5(page_id UNINDEXED, language UNINDEXED, title, description, content);
+            INSERT INTO page_fts VALUES ('page1', 'en', 'Getting Started', 'Intro page', 'Welcome to documentation.');
+
+            CREATE TABLE changelog (
+                slug TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                published_at TEXT NOT NULL
+            );
+            INSERT INTO changelog VALUES ('v1.0.0', 'Initial Release', '2026-10-05');
+
+            CREATE TABLE assets (
+                path TEXT PRIMARY KEY,
+                mime_type TEXT NOT NULL,
+                data BLOB NOT NULL
+            );
+            INSERT INTO assets VALUES ('logo.png', 'image/png', X'89504E47');
+            "#,
+        )
+        .expect("setup tables");
+        conn
+    }
+
+    #[tokio::test]
+    async fn test_same_origin_policy_on_loopback() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+
+        // Loopback binding with no cors
+        let cors = build_cors_layer("127.0.0.1", None).unwrap();
+        let app = create_runner_router(state, cors);
+
+        let req = axum::http::Request::builder()
+            .uri("/healthz")
+            .header("Origin", "https://evil.com")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        // Ensure NO Access-Control-Allow-Origin header is present
+        assert!(
+            response.headers().get("access-control-allow-origin").is_none(),
+            "Loopback must enforce same-origin policy without Access-Control-Allow-Origin"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cors_allowed_origin_on_network_binding() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+
+        // Network binding with explicit origin
+        let cors = build_cors_layer("0.0.0.0", Some("https://docs.company.com")).unwrap();
+        assert!(cors.is_some());
+        let app = create_runner_router(state, cors);
+
+        let req = axum::http::Request::builder()
+            .uri("/healthz")
+            .header("Origin", "https://docs.company.com")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let allow_origin = response.headers().get("access-control-allow-origin");
+        assert_eq!(
+            allow_origin.and_then(|v| v.to_str().ok()),
+            Some("https://docs.company.com")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_spawn_blocking_handlers_work_with_db() {
+        use tower::ServiceExt;
+        let conn = setup_test_db();
+        let state = AppState {
+            db: Arc::new(Mutex::new(conn)),
+            db_path: PathBuf::from("test.sqlite"),
+        };
+
+        let app = create_runner_router(state, None);
+
+        // 1. Test bootstrap
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/bootstrap")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let shell: SiteShell = serde_json::from_slice(&body).unwrap();
+        assert_eq!(shell.project.name, "Test Project");
+        assert_eq!(shell.active_language, "en");
+        assert_eq!(shell.nav.len(), 1);
+        assert_eq!(shell.nav[0].title, "Getting Started");
+
+        // 2. Test page
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/getting-started")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let page_resp: SitePageResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(page_resp.page.title, "Getting Started");
+        assert!(page_resp.page.content.contains("Welcome to documentation"));
+
+        // 3. Test changelog
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/changelog")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // 4. Test search
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/search?q=documentation")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(!val["hits"].as_array().unwrap().is_empty());
+
+        // 5. Test asset
+        let req = axum::http::Request::builder()
+            .uri("/assets/logo.png")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get("content-type").unwrap(), "image/png");
     }
 }
 

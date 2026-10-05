@@ -197,7 +197,7 @@ Task:
 ---
 
 ### Session B-5 — Narrow Runner Network Binding (P0)
-**Status:** 🔲 Not started
+**Status:** ✅ Done
 
 **Audit ref:** P0 — portable Runner exposure (`apps/runner/src/main.rs`)
 
