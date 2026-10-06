@@ -26,7 +26,7 @@ chrono = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
 ipnet = { workspace = true }
-parking_lot = { workspace = true }
+moka = { workspace = true }
 
 # Markdown rendering
 pulldown-cmark = { workspace = true }

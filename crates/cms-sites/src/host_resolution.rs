@@ -5,13 +5,12 @@
 //! canonical domains.
 
 use std::{
-    collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use axum::{
@@ -22,10 +21,10 @@ use cms_db::{deployment::DeploymentQueries, domain::DomainQueries, project::Proj
 use cms_entity::common::Id;
 use cms_error::AppError;
 use ipnet::IpNet;
-use parking_lot::RwLock;
+use moka::future::Cache;
 use sqlx::PgPool;
 
-const HOST_CACHE_MAX_ENTRIES: usize = 4096;
+const HOST_CACHE_MAX_ENTRIES: u64 = 4096;
 
 /// Extractor for remote client IP address from Axum connection info or request extensions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -170,11 +169,10 @@ pub struct HostResolutionResult {
     pub hostname: String,
 }
 
-/// Cache entry for host resolution
+/// Cache entry for host resolution with generation tracking
 #[derive(Debug, Clone)]
-struct HostCacheEntry {
+struct CachedResolution {
     pub result: Option<HostResolutionResult>,
-    pub expires_at: Instant,
     pub generation: u64,
 }
 
@@ -184,9 +182,9 @@ pub struct HostResolver {
     default_host: String,
     canonical_domains: Vec<String>,
     trusted_proxies: Vec<IpNet>,
-    cache: RwLock<HashMap<String, HostCacheEntry>>,
-    cache_ttl: Duration,
+    cache: Cache<String, CachedResolution>,
     generation: Arc<AtomicU64>,
+    last_generation: AtomicU64,
 }
 
 impl HostResolver {
@@ -239,14 +237,21 @@ impl HostResolver {
             })
             .collect();
 
+        let cache_ttl = Duration::from_secs(30);
+        let cache = Cache::builder()
+            .max_capacity(HOST_CACHE_MAX_ENTRIES)
+            .time_to_live(cache_ttl)
+            .build();
+        let initial_gen = generation.load(Ordering::Acquire);
+
         Self {
             pool,
             default_host,
             canonical_domains: normalized_canonical,
             trusted_proxies: parse_trusted_proxies(&trusted_proxies),
-            cache: RwLock::new(HashMap::new()),
-            cache_ttl: Duration::from_secs(30),
+            cache,
             generation,
+            last_generation: AtomicU64::new(initial_gen),
         }
     }
 
@@ -269,6 +274,28 @@ impl HostResolver {
         self
     }
 
+    /// Synchronize generation changes by invalidating the Moka cache atomically.
+    fn sync_generation(&self) {
+        let current = self.generation.load(Ordering::Acquire);
+        let mut last = self.last_generation.load(Ordering::Acquire);
+        while current > last {
+            match self.last_generation.compare_exchange_weak(
+                last,
+                current,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => {
+                    self.cache.invalidate_all();
+                    break;
+                }
+                Err(actual) => {
+                    last = actual;
+                }
+            }
+        }
+    }
+
     /// Returns true if the client IP is in the configured trusted proxy networks.
     pub fn is_trusted_proxy(&self, client_ip: Option<IpAddr>) -> bool {
         let Some(ip) = client_ip else {
@@ -286,7 +313,7 @@ impl HostResolver {
         let host = self.get_host(headers, client_ip)?;
         let generation = self.generation.load(Ordering::Acquire);
 
-        if let Some(cached) = self.cached_result(&host, generation) {
+        if let Some(cached) = self.cached_result(&host, generation).await {
             if self.generation.load(Ordering::Acquire) == generation {
                 return Ok(cached);
             }
@@ -295,26 +322,15 @@ impl HostResolver {
         let result = self.resolve_from_database(&host).await?;
 
         if self.generation.load(Ordering::Acquire) == generation {
-            let now = Instant::now();
-            let mut cache = self.cache.write();
-            cache.retain(|_, entry| entry.generation == generation && entry.expires_at > now);
-            if cache.len() >= HOST_CACHE_MAX_ENTRIES {
-                if let Some(oldest_host) = cache
-                    .iter()
-                    .min_by_key(|(_, entry)| entry.expires_at)
-                    .map(|(host, _)| host.clone())
-                {
-                    cache.remove(&oldest_host);
-                }
-            }
-            cache.insert(
-                host,
-                HostCacheEntry {
-                    result: result.clone(),
-                    expires_at: now + self.cache_ttl,
-                    generation,
-                },
-            );
+            self.cache
+                .insert(
+                    host,
+                    CachedResolution {
+                        result: result.clone(),
+                        generation,
+                    },
+                )
+                .await;
         }
 
         Ok(result)
@@ -328,12 +344,21 @@ impl HostResolver {
         self.resolve(headers, None).await
     }
 
-    fn cached_result(&self, host: &str, generation: u64) -> Option<Option<HostResolutionResult>> {
-        self.cache
-            .read()
-            .get(host)
-            .filter(|entry| entry.generation == generation && entry.expires_at > Instant::now())
-            .map(|entry| entry.result.clone())
+    async fn cached_result(
+        &self,
+        host: &str,
+        generation: u64,
+    ) -> Option<Option<HostResolutionResult>> {
+        self.sync_generation();
+        if self.generation.load(Ordering::Acquire) != generation {
+            return None;
+        }
+        let entry = self.cache.get(host).await?;
+        if entry.generation == generation {
+            Some(entry.result)
+        } else {
+            None
+        }
     }
 
     /// Get host from headers, honoring X-Forwarded-Host ONLY when request originates
@@ -469,18 +494,27 @@ impl HostResolver {
 
     /// Clear cache
     pub fn clear_cache(&self) {
-        self.cache.write().clear();
+        self.cache.invalidate_all();
     }
 
     /// Get the number of unexpired entries in the current cache generation.
-    pub fn cache_size(&self) -> usize {
-        let generation = self.generation.load(Ordering::Acquire);
-        let now = Instant::now();
+    pub async fn cache_size(&self) -> usize {
+        self.sync_generation();
+        self.cache.run_pending_tasks().await;
+        self.cache.entry_count() as usize
+    }
+
+    #[cfg(test)]
+    async fn insert_for_test(
+        &self,
+        host: String,
+        result: Option<HostResolutionResult>,
+        generation: u64,
+    ) {
         self.cache
-            .read()
-            .values()
-            .filter(|entry| entry.generation == generation && entry.expires_at > now)
-            .count()
+            .insert(host, CachedResolution { result, generation })
+            .await;
+        self.cache.run_pending_tasks().await;
     }
 }
 
@@ -629,37 +663,76 @@ mod tests {
             is_custom_domain: true,
             hostname: "docs.example.com".to_string(),
         };
-        let now = Instant::now();
-        {
-            let mut cache = resolver.cache.write();
-            cache.insert(
-                "docs.example.com".to_string(),
-                HostCacheEntry {
-                    result: Some(resolved.clone()),
-                    expires_at: now + Duration::from_secs(10),
-                    generation: 7,
-                },
-            );
-            cache.insert(
-                "missing.example.com".to_string(),
-                HostCacheEntry {
-                    result: None,
-                    expires_at: now + Duration::from_secs(10),
-                    generation: 7,
-                },
-            );
-        }
+
+        resolver
+            .insert_for_test("docs.example.com".to_string(), Some(resolved.clone()), 7)
+            .await;
+        resolver
+            .insert_for_test("missing.example.com".to_string(), None, 7)
+            .await;
 
         assert_eq!(
-            resolver.cached_result("docs.example.com", 7),
+            resolver.cached_result("docs.example.com", 7).await,
             Some(Some(resolved))
         );
-        assert_eq!(resolver.cached_result("missing.example.com", 7), Some(None));
-        assert_eq!(resolver.cache_size(), 2);
+        assert_eq!(
+            resolver.cached_result("missing.example.com", 7).await,
+            Some(None)
+        );
+        assert_eq!(resolver.cache_size().await, 2);
 
         generation.fetch_add(1, Ordering::AcqRel);
-        assert_eq!(resolver.cached_result("docs.example.com", 8), None);
-        assert_eq!(resolver.cached_result("missing.example.com", 8), None);
-        assert_eq!(resolver.cache_size(), 0);
+        assert_eq!(resolver.cached_result("docs.example.com", 8).await, None);
+        assert_eq!(resolver.cached_result("missing.example.com", 8).await, None);
+        assert_eq!(resolver.cache_size().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_host_resolution_cache() {
+        let generation = Arc::new(AtomicU64::new(1));
+        let resolver = Arc::new(HostResolver::with_generation(
+            sqlx::PgPool::connect_lazy("postgres://user:pass@localhost/db").unwrap(),
+            "example.com".to_string(),
+            generation.clone(),
+        ));
+
+        // Concurrently populate and query 50 tasks across 10 virtual hosts
+        let mut handles = Vec::new();
+        for i in 0..50 {
+            let res = resolver.clone();
+            let handle = tokio::spawn(async move {
+                let host = format!("tenant-{}.example.com", i % 10);
+                res.insert_for_test(
+                    host.clone(),
+                    Some(HostResolutionResult {
+                        project_id: format!("project-{}", i % 10),
+                        deployment_id: None,
+                        domain_id: None,
+                        is_custom_domain: false,
+                        hostname: host.clone(),
+                    }),
+                    1,
+                )
+                .await;
+
+                let lookup = res.cached_result(&host, 1).await;
+                assert!(lookup.is_some());
+            });
+            handles.push(handle);
+        }
+
+        for h in handles {
+            h.await.unwrap();
+        }
+
+        assert!(resolver.cache_size().await <= 10);
+
+        // Bump generation to invalidate entire cache concurrently
+        generation.fetch_add(1, Ordering::AcqRel);
+        assert_eq!(
+            resolver.cached_result("tenant-0.example.com", 2).await,
+            None
+        );
+        assert_eq!(resolver.cache_size().await, 0);
     }
 }

@@ -123,6 +123,7 @@ rand = "0.8.8"
 
 # Production-ready infrastructure
 governor = "0.10.4"
+moka = { version = "0.12", features = ["future"] }
 metrics = "0.24.6"
 metrics-exporter-prometheus = "0.18.3"
 
