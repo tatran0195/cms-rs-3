@@ -24,7 +24,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 
@@ -53,6 +53,9 @@ pub enum AppError {
 
     #[error("Conflict: {0}")]
     Conflict(String),
+
+    #[error("Precondition Failed: {0}")]
+    PreconditionFailed(String),
 
     #[error("Too Many Requests")]
     TooManyRequests,
@@ -92,6 +95,12 @@ pub enum AppError {
     // === Validation Errors ===
     #[error("Validation failed: {0}")]
     Validation(String),
+
+    #[error("Validation failed: {message}")]
+    ValidationFields {
+        message: String,
+        fields: std::collections::HashMap<String, Vec<String>>,
+    },
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
@@ -184,19 +193,27 @@ pub enum AppError {
     Custom { status: StatusCode, message: String },
 }
 
-/// Error response structure for JSON API responses
-#[derive(Serialize)]
-struct ErrorResponse {
-    error: ErrorDetails,
+/// Standard error response envelope for JSON API error payloads
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiErrorResponse {
+    pub error: ApiError,
 }
 
-#[derive(Serialize)]
-struct ErrorDetails {
-    code: String,
-    message: String,
+/// Details of an API error including code, message, optional details, and correlation request_id
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiError {
+    pub code: String,
+    pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    details: Option<serde_json::Value>,
+    pub details: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "requestId")]
+    pub request_id: Option<String>,
 }
+
+/// Backward compatibility alias
+pub type ErrorResponse = ApiErrorResponse;
+/// Backward compatibility alias
+pub type ErrorDetails = ApiError;
 
 impl AppError {
     /// Create a new custom error with a specific status code
@@ -217,6 +234,7 @@ impl AppError {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
             AppError::Conflict(_) => StatusCode::CONFLICT,
+            AppError::PreconditionFailed(_) => StatusCode::PRECONDITION_FAILED,
             AppError::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
             AppError::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
 
@@ -235,6 +253,7 @@ impl AppError {
 
             // Validation Errors
             AppError::Validation(_) => StatusCode::BAD_REQUEST,
+            AppError::ValidationFields { .. } => StatusCode::BAD_REQUEST,
             AppError::InvalidInput(_) => StatusCode::BAD_REQUEST,
 
             // Database Errors
@@ -297,6 +316,7 @@ impl AppError {
             AppError::NotFound(_) => "http:not_found".to_string(),
             AppError::MethodNotAllowed => "http:method_not_allowed".to_string(),
             AppError::Conflict(_) => "http:conflict".to_string(),
+            AppError::PreconditionFailed(_) => "http:precondition_failed".to_string(),
             AppError::TooManyRequests => "http:too_many_requests".to_string(),
             AppError::PayloadTooLarge => "http:payload_too_large".to_string(),
 
@@ -312,6 +332,7 @@ impl AppError {
             AppError::ResourceAccessForbidden => "auth:resource_access_forbidden".to_string(),
 
             AppError::Validation(_) => "validation:failed".to_string(),
+            AppError::ValidationFields { .. } => "validation:failed".to_string(),
             AppError::InvalidInput(_) => "validation:invalid_input".to_string(),
 
             AppError::Database(_) => "database:error".to_string(),
@@ -358,7 +379,18 @@ impl AppError {
         match self {
             AppError::NotFound(path) => Some(json!({ "path": path })),
             AppError::Conflict(details) => Some(json!({ "details": details })),
+            AppError::PreconditionFailed(details) => Some(json!({ "details": details })),
             AppError::Validation(details) => Some(json!({ "details": details })),
+            AppError::ValidationFields { fields, .. } => {
+                let field_errors: Vec<String> = fields
+                    .iter()
+                    .flat_map(|(k, v)| v.iter().map(move |msg| format!("{k}: {msg}")))
+                    .collect();
+                Some(json!({
+                    "fields": fields,
+                    "errors": field_errors,
+                }))
+            }
             AppError::InvalidInput(details) => Some(json!({ "details": details })),
             AppError::Storage(details) => Some(json!({ "details": details })),
             AppError::SearchError(details) => Some(json!({ "details": details })),
@@ -423,11 +455,12 @@ impl IntoResponse for AppError {
             (raw_message, raw_details, None)
         };
 
-        let body = ErrorResponse {
-            error: ErrorDetails {
+        let body = ApiErrorResponse {
+            error: ApiError {
                 code: error_code,
                 message,
                 details,
+                request_id: error_id.clone(),
             },
         };
 

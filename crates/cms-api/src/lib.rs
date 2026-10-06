@@ -37,7 +37,7 @@ pub mod workspace;
 use std::sync::Arc;
 
 use axum::Router;
-use cms_error::AppError;
+pub use extractors::RequestContext;
 pub use openapi::docs as openapi_docs;
 
 /// AppState type - this will be provided by the binary crate
@@ -153,9 +153,15 @@ pub fn api_router(state: Arc<AppState>) -> Router {
 /// Health check handler
 async fn get_health(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
-) -> Result<axum::Json<serde_json::Value>, AppError> {
-    let health =
+) -> Result<axum::Json<cms_entity::common::SystemHealthResponse>, cms_error::AppError> {
+    let health_val =
         cms_biz::platform_event::PlatformEventService::get_system_health(&state.biz_context)
             .await?;
+    let health: cms_entity::common::SystemHealthResponse = serde_json::from_value(health_val)
+        .map_err(|e| {
+            cms_error::AppError::Internal(anyhow::anyhow!(
+                "Failed to deserialize system health response: {e}"
+            ))
+        })?;
     Ok(axum::Json(health))
 }

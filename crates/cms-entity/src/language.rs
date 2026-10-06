@@ -239,6 +239,12 @@ pub struct SetDefaultLanguageRequest {
     pub language_id: Id,
 }
 
+/// Delete language response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeleteLanguageResponse {
+    pub success: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

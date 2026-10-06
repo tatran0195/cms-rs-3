@@ -4,6 +4,9 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    auth::ProjectApiKeyResponse, common::ApiResponse, org::WorkspaceMutationResponse,
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -12,7 +15,10 @@ use crate::auth::AuthExtractor;
 
 /// Render a stored API key as the SPA's `ApiKey` shape. `secret` is only supplied
 /// on create/rotate, when the plaintext key is still known.
-fn api_key_to_json(key: &cms_entity::auth::ApiKey, secret: Option<&str>) -> serde_json::Value {
+fn api_key_to_response(
+    key: &cms_entity::auth::ApiKey,
+    secret: Option<&str>,
+) -> ProjectApiKeyResponse {
     let last_four = match secret {
         Some(s) => {
             let chars: Vec<char> = s.chars().collect();
@@ -26,23 +32,24 @@ fn api_key_to_json(key: &cms_entity::auth::ApiKey, secret: Option<&str>) -> serd
         }
     };
 
-    let mut obj = serde_json::json!({
-        "id": key.id,
-        "name": key.name,
-        "lastFour": last_four,
-        "scopes": ["mcp:connect", "projects:read", "pages:read"],
-        "createdAt": key.created_at.to_rfc3339(),
-        "lastUsedAt": key.last_used_at.map(|d| d.to_rfc3339()),
-        "expiresAt": null,
-        "revokedAt": null,
-        "rotatedFromId": null,
-        "legacy": false,
-        "state": "active",
-    });
-    if let Some(s) = secret {
-        obj["secret"] = serde_json::json!(s);
+    ProjectApiKeyResponse {
+        id: key.id.clone(),
+        name: key.name.clone(),
+        last_four,
+        scopes: vec![
+            "mcp:connect".to_string(),
+            "projects:read".to_string(),
+            "pages:read".to_string(),
+        ],
+        created_at: key.created_at.to_rfc3339(),
+        last_used_at: key.last_used_at.map(|d| d.to_rfc3339()),
+        expires_at: None,
+        revoked_at: None,
+        rotated_from_id: None,
+        legacy: false,
+        state: "active".to_string(),
+        secret: secret.map(|s| s.to_string()),
     }
-    obj
 }
 
 /// Project API keys list
@@ -53,13 +60,14 @@ pub async fn list_project_api_keys_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Vec<ProjectApiKeyResponse>>>, AppError> {
     let _org_id = project_org_id(&state, &auth, &project_id).await?;
     let keys =
         cms_db::auth::ApiKeyQueries::get_all_for_user_raw(&state.biz_context.pool, &auth.user.id)
             .await?;
-    let items: Vec<serde_json::Value> = keys.iter().map(|k| api_key_to_json(k, None)).collect();
-    Ok(Json(serde_json::json!({ "data": items })))
+    let items: Vec<ProjectApiKeyResponse> =
+        keys.iter().map(|k| api_key_to_response(k, None)).collect();
+    Ok(Json(ApiResponse::new(items)))
 }
 
 /// Project API key create
@@ -70,7 +78,7 @@ pub async fn create_project_api_key_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectApiKeyResponse>>, AppError> {
     let _org_id = project_org_id(&state, &auth, &project_id).await?;
     let name = body
         .get("name")
@@ -85,9 +93,10 @@ pub async fn create_project_api_key_handler(
         cms_db::auth::ApiKeyQueries::create(&state.biz_context.pool, &auth.user.id, &name, &hashed)
             .await?;
 
-    Ok(Json(
-        serde_json::json!({ "data": api_key_to_json(&key, Some(&raw_key)) }),
-    ))
+    Ok(Json(ApiResponse::new(api_key_to_response(
+        &key,
+        Some(&raw_key),
+    ))))
 }
 
 /// Project API key delete
@@ -97,12 +106,13 @@ pub async fn delete_project_api_key_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     let _org_id = project_org_id(&state, &auth, &project_id).await?;
     cms_biz::auth::AuthService::delete_api_key(&state.biz_context, &auth.user.id, &id).await?;
-    Ok(Json(
-        serde_json::json!({ "data": { "success": true, "id": id } }),
-    ))
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id,
+    })))
 }
 
 /// Project API key rotate
@@ -114,7 +124,7 @@ pub async fn rotate_project_api_key_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
     Json(_body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectApiKeyResponse>>, AppError> {
     let _org_id = project_org_id(&state, &auth, &project_id).await?;
 
     let existing = cms_db::auth::ApiKeyQueries::get_by_id(&state.biz_context.pool, &id)
@@ -136,7 +146,8 @@ pub async fn rotate_project_api_key_handler(
             .await?;
     let _ = cms_db::auth::ApiKeyQueries::delete(&state.biz_context.pool, &id).await;
 
-    Ok(Json(
-        serde_json::json!({ "data": api_key_to_json(&new_key, Some(&raw_key)) }),
-    ))
+    Ok(Json(ApiResponse::new(api_key_to_response(
+        &new_key,
+        Some(&raw_key),
+    ))))
 }

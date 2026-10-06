@@ -99,6 +99,14 @@ pub struct SetDefaultBranchRequest {
     pub branch_id: Id,
 }
 
+/// Delete branch response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeleteBranchResponse {
+    pub id: Id,
+    pub name: String,
+    pub deleted: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

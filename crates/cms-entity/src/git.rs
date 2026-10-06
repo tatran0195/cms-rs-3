@@ -394,3 +394,34 @@ pub struct ListGitSyncOperationsQuery {
     #[serde(default)]
     pub offset: Option<i64>,
 }
+
+/// Webhook secret rotation response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookSecretRotateResponse {
+    pub success: bool,
+    pub webhook_secret: String,
+}
+
+/// Project git workflow status response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectGitWorkflowStatus {
+    pub id: String,
+    pub repository: String,
+    pub base_branch: String,
+    pub head_branch: String,
+    pub content_path: String,
+    pub credential_configured: bool,
+    pub webhook_configured: bool,
+    pub webhook_secret: String,
+    pub last_sync_status: String,
+    pub last_sync_error: Option<String>,
+    pub last_synced_at: Option<String>,
+    pub operations: Vec<serde_json::Value>,
+    pub pull_requests: Vec<serde_json::Value>,
+    pub files: Vec<serde_json::Value>,
+    pub conflicts: Vec<serde_json::Value>,
+    #[serde(rename = "_syncStatus")]
+    pub sync_status: serde_json::Value,
+}

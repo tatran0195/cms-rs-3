@@ -4,6 +4,11 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_entity::{
+    branch::{BranchResponse, CreateBranchRequest, DeleteBranchResponse, ListBranchesQuery},
+    common::ApiResponse,
+    deployment::DeploymentListItem,
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -14,8 +19,8 @@ pub async fn list_project_branches_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Query(mut query): Query<cms_entity::branch::ListBranchesQuery>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Query(mut query): Query<ListBranchesQuery>,
+) -> Result<Json<ApiResponse<Vec<BranchResponse>>>, AppError> {
     query.project_id = project_id.clone();
     let result = cms_biz::branch::BranchService::list_branches(
         &state.biz_context,
@@ -26,7 +31,7 @@ pub async fn list_project_branches_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({ "data": result.data })))
+    Ok(Json(ApiResponse::new(result.data)))
 }
 
 /// Create a branch for a project
@@ -34,8 +39,8 @@ pub async fn create_project_branch_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Json(mut request): Json<cms_entity::branch::CreateBranchRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Json(mut request): Json<CreateBranchRequest>,
+) -> Result<Json<ApiResponse<BranchResponse>>, AppError> {
     request.project_id = project_id.clone();
     let branch = cms_biz::branch::BranchService::create_branch(
         &state.biz_context,
@@ -44,7 +49,7 @@ pub async fn create_project_branch_handler(
         request,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": branch.branch })))
+    Ok(Json(ApiResponse::new(branch.branch)))
 }
 
 /// Delete a project branch
@@ -55,7 +60,7 @@ pub async fn delete_project_branch_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, branch_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeleteBranchResponse>>, AppError> {
     use cms_db::branch::BranchQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -79,12 +84,10 @@ pub async fn delete_project_branch_handler(
 
     BranchQueries::delete(&state.biz_context.pool, &branch_id).await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": branch.id,
-            "name": branch.name,
-            "deleted": true,
-        }
+    Ok(Json(ApiResponse::new(DeleteBranchResponse {
+        id: branch.id,
+        name: branch.name,
+        deleted: true,
     })))
 }
 
@@ -94,7 +97,7 @@ pub async fn merge_project_branch_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, branch_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeploymentListItem>>, AppError> {
     state
         .biz_context
         .authz
@@ -121,17 +124,17 @@ pub async fn merge_project_branch_handler(
     )
     .await?;
 
-    let res = serde_json::json!({
-        "id": deployment.id,
-        "version": null,
-        "status": "PENDING",
-        "pagesCount": 0,
-        "commitMessage": commit_message,
-        "error": null,
-        "errorDetails": null,
-        "createdAt": deployment.created_at.to_rfc3339(),
-        "completedAt": null
-    });
+    let res = DeploymentListItem {
+        id: deployment.id,
+        version: None,
+        status: "PENDING".to_string(),
+        pages_count: 0,
+        commit_message,
+        error: None,
+        error_details: None,
+        created_at: deployment.created_at.to_rfc3339(),
+        completed_at: None,
+    };
 
-    Ok(Json(serde_json::json!({ "data": res })))
+    Ok(Json(ApiResponse::new(res)))
 }

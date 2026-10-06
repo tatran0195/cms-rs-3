@@ -4,6 +4,13 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::ApiResponse,
+    language::{
+        CreateLanguageRequest, DeleteLanguageResponse, LanguageResponse, ListLanguagesQuery,
+        UpdateLanguageRequest,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -14,8 +21,8 @@ pub async fn list_project_languages_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let query = cms_entity::language::ListLanguagesQuery { project_id };
+) -> Result<Json<ApiResponse<Vec<LanguageResponse>>>, AppError> {
+    let query = ListLanguagesQuery { project_id };
     let result = cms_biz::language::LanguageService::list_languages(
         &state.biz_context,
         &auth.user.id,
@@ -24,7 +31,7 @@ pub async fn list_project_languages_handler(
         100,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": result.data })))
+    Ok(Json(ApiResponse::new(result.data)))
 }
 
 /// Create a language for a project
@@ -32,8 +39,8 @@ pub async fn create_project_language_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Json(mut request): Json<cms_entity::language::CreateLanguageRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Json(mut request): Json<CreateLanguageRequest>,
+) -> Result<Json<ApiResponse<LanguageResponse>>, AppError> {
     request.project_id = project_id.clone();
     let lang = cms_biz::language::LanguageService::create_language(
         &state.biz_context,
@@ -41,7 +48,7 @@ pub async fn create_project_language_handler(
         request,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": lang })))
+    Ok(Json(ApiResponse::new(lang)))
 }
 
 /// Update a language for a project
@@ -49,8 +56,8 @@ pub async fn update_project_language_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, language_id)): Path<(String, String)>,
-    Json(request): Json<cms_entity::language::UpdateLanguageRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Json(request): Json<UpdateLanguageRequest>,
+) -> Result<Json<ApiResponse<LanguageResponse>>, AppError> {
     let existing =
         cms_db::language::LanguageQueries::get_by_id(&state.biz_context.pool, &language_id)
             .await?
@@ -67,7 +74,7 @@ pub async fn update_project_language_handler(
         request,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": lang })))
+    Ok(Json(ApiResponse::new(lang)))
 }
 
 /// Delete a language for a project
@@ -75,7 +82,7 @@ pub async fn delete_project_language_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, language_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeleteLanguageResponse>>, AppError> {
     let language =
         cms_db::language::LanguageQueries::get_by_id(&state.biz_context.pool, &language_id)
             .await?
@@ -91,5 +98,7 @@ pub async fn delete_project_language_handler(
         &language_id,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    Ok(Json(ApiResponse::new(DeleteLanguageResponse {
+        success: true,
+    })))
 }

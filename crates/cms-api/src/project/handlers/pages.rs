@@ -176,7 +176,13 @@ pub async fn get_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, page_id)): Path<(ProjectId, PageId)>,
-) -> Result<Json<ApiResponse<PageResponse>>, AppError> {
+) -> Result<
+    (
+        [(axum::http::HeaderName, String); 1],
+        Json<ApiResponse<PageResponse>>,
+    ),
+    AppError,
+> {
     let mut page =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
             .await?;
@@ -198,7 +204,11 @@ pub async fn get_project_page_handler(
         }
     }
 
-    Ok(Json(ApiResponse::new(page)))
+    let etag = format!("\"{}\"", page.updated_at.timestamp_millis());
+    Ok((
+        [(axum::http::header::ETAG, etag)],
+        Json(ApiResponse::new(page)),
+    ))
 }
 
 /// Update a page for a project
@@ -216,14 +226,22 @@ pub async fn get_project_page_handler(
         (status = 400, description = "Validation error"),
         (status = 401, description = "Unauthorized"),
         (status = 404, description = "Page not found"),
+        (status = 412, description = "Precondition failed - concurrent modification"),
     )
 )]
 pub async fn update_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
+    headers: axum::http::HeaderMap,
     Path((project_id, page_id)): Path<(ProjectId, PageId)>,
     ValidatedJson(request): ValidatedJson<cms_entity::page::UpdatePageRequest>,
-) -> Result<Json<ApiResponse<PageResponse>>, AppError> {
+) -> Result<
+    (
+        [(axum::http::HeaderName, String); 1],
+        Json<ApiResponse<PageResponse>>,
+    ),
+    AppError,
+> {
     let existing =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
             .await?;
@@ -231,6 +249,19 @@ pub async fn update_project_page_handler(
         return Err(AppError::NotFound(
             "Page not found for this project".to_string(),
         ));
+    }
+
+    // Optimistic concurrency check via If-Match
+    let current_etag = format!("\"{}\"", existing.updated_at.timestamp_millis());
+    if let Some(if_match) = headers.get(axum::http::header::IF_MATCH) {
+        if let Ok(if_match_str) = if_match.to_str() {
+            let trimmed = if_match_str.trim();
+            if trimmed != "*" && trimmed != current_etag {
+                return Err(AppError::PreconditionFailed(
+                    "Page has been modified concurrently. Please reload before saving.".to_string(),
+                ));
+            }
+        }
     }
 
     let mut page = cms_biz::page::PageService::update_page(
@@ -252,7 +283,11 @@ pub async fn update_project_page_handler(
         }
     }
 
-    Ok(Json(ApiResponse::new(page)))
+    let new_etag = format!("\"{}\"", page.updated_at.timestamp_millis());
+    Ok((
+        [(axum::http::header::ETAG, new_etag)],
+        Json(ApiResponse::new(page)),
+    ))
 }
 
 /// Delete a page for a project

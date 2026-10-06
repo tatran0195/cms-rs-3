@@ -236,3 +236,68 @@ pub struct IndexPageRequest {
     #[serde(default)]
     pub language_id: Option<Id>,
 }
+
+/// Project search configuration item
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchConfiguration {
+    pub max_results: i64,
+    pub filters_enabled: bool,
+    pub version_filter_enabled: bool,
+    pub ai_answers: bool,
+    pub hotkey: String,
+    pub placeholder: Option<String>,
+    pub suggested_questions: serde_json::Value,
+    pub popular_searches: serde_json::Value,
+}
+
+/// Constraints on search configuration
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchConstraints {
+    pub max_results: serde_json::Value,
+}
+
+/// Project search settings response for GET /api/app/projects/:id/search/settings
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchSettingsResponse {
+    pub configuration: SearchConfiguration,
+    pub constraints: SearchConstraints,
+}
+
+/// Update project search settings request for PATCH /api/app/projects/:id/search/settings
+#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSearchSettingsRequest {
+    pub enabled: Option<bool>,
+    pub ai_answers: Option<bool>,
+    pub placeholder: Option<String>,
+    pub max_results: Option<i64>,
+    pub filters_enabled: Option<bool>,
+    pub version_filter_enabled: Option<bool>,
+    pub hotkey: Option<String>,
+    pub suggested_questions: Option<serde_json::Value>,
+    pub popular_searches: Option<serde_json::Value>,
+}
+
+/// Search index diagnostics response for GET /api/app/projects/:id/search/diagnostics
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchDiagnosticsResponse {
+    pub availability: serde_json::Value,
+    pub health: String,
+    pub runtime: String,
+    pub index: serde_json::Value,
+    pub corpus: serde_json::Value,
+    pub latest_run: Option<serde_json::Value>,
+    pub samples: serde_json::Value,
+    pub issues: serde_json::Value,
+}
+
+/// Reindex response for POST /api/app/projects/:id/search/reindex
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct SearchReindexResponse {
+    pub id: String,
+    pub status: String,
+}

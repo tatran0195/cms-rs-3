@@ -111,3 +111,50 @@ pub struct DeploymentSnapshotContent {
     pub openapi: Option<String>,
     pub pages: Vec<crate::page::Page>,
 }
+
+/// Typed deployment list item for /api/app/projects/:id/deployments
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DeploymentListItem {
+    pub id: String,
+    pub version: Option<i64>,
+    pub status: String,
+    pub pages_count: i64,
+    pub commit_message: String,
+    pub error: Option<String>,
+    pub error_details: Option<serde_json::Value>,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
+/// Request body for triggering site publish
+#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct TriggerPublishRequest {
+    pub message: Option<String>,
+}
+
+/// Single page change item for /api/app/projects/:id/deployments/changes
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DeploymentChangeItem {
+    pub id: String,
+    pub title: String,
+    pub path: String,
+    pub language_code: String,
+    pub kind: String,
+    pub status: String,
+    pub fields: Vec<String>,
+    pub additions: i64,
+    pub deletions: i64,
+    pub lines: Vec<String>,
+    pub truncated: bool,
+}
+
+/// Deployment changes response for /api/app/projects/:id/deployments/changes
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DeploymentChangesResponse {
+    pub changes: Vec<DeploymentChangeItem>,
+    pub redirect_issues: Vec<String>,
+    pub has_baseline: bool,
+}

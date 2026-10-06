@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, Query, State},
+    http::StatusCode,
     Json,
 };
 use cms_biz::project::ProjectService;
@@ -70,7 +71,7 @@ pub async fn list_projects_handler(
     ),
     request_body = CreateProjectRequest,
     responses(
-        (status = 200, description = "Project created successfully", body = ApiResponse<ProjectWithOrgResponse>),
+        (status = 201, description = "Project created successfully", body = ApiResponse<ProjectWithOrgResponse>),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - user may not have permission"),
@@ -81,7 +82,7 @@ pub async fn create_project_handler(
     auth: AuthExtractor,
     tenant: OptionalTenantContext,
     ValidatedJson(request): ValidatedJson<CreateProjectRequest>,
-) -> Result<Json<ApiResponse<ProjectWithOrgResponse>>, AppError> {
+) -> Result<(StatusCode, Json<ApiResponse<ProjectWithOrgResponse>>), AppError> {
     let org_id = tenant
         .as_ref()
         .map(|t| t.org_id.to_string())
@@ -90,7 +91,7 @@ pub async fn create_project_handler(
     let project =
         ProjectService::create_project(&state.biz_context, &auth.user.id, &org_id, request).await?;
 
-    Ok(Json(ApiResponse::new(project)))
+    Ok((StatusCode::CREATED, Json(ApiResponse::new(project))))
 }
 
 /// Get project handler

@@ -217,6 +217,81 @@ where
     }
 }
 
+/// Unified Request Context representing request-scoped identity and telemetry metadata
+#[derive(Debug, Clone)]
+pub struct RequestContext {
+    pub request_id: String,
+    pub user_id: Option<EntityUserId>,
+    pub org_id: Option<EntityOrgId>,
+    pub role: Option<MemberRole>,
+}
+
+impl RequestContext {
+    pub fn new(
+        request_id: impl Into<String>,
+        user_id: Option<EntityUserId>,
+        org_id: Option<EntityOrgId>,
+        role: Option<MemberRole>,
+    ) -> Self {
+        Self {
+            request_id: request_id.into(),
+            user_id,
+            org_id,
+            role,
+        }
+    }
+}
+
+impl<S> FromRequestParts<S> for RequestContext
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let request_id = parts
+            .headers
+            .get("X-Request-ID")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+        let app_state = parts.extensions.get::<Arc<AppState>>().cloned();
+        let pool = app_state.as_ref().map(|s| &s.biz_context.pool);
+
+        let user_id = if let Ok(auth) = AuthExtractor::from_request_parts(parts, state).await {
+            Some(EntityUserId::from(auth.user.id))
+        } else {
+            None
+        };
+
+        let org_id_opt = if let Ok(Some(oid)) = resolve_org_id(parts, pool).await {
+            Some(EntityOrgId::from(oid))
+        } else {
+            None
+        };
+
+        let mut role = None;
+        if let (Some(ref uid), Some(ref oid), Some(ref s)) = (&user_id, &org_id_opt, &app_state) {
+            if let Ok(tenant_ctx) = s
+                .biz_context
+                .authz
+                .get_tenant_context(uid.as_str(), oid.as_str())
+                .await
+            {
+                role = Some(tenant_ctx.role);
+            }
+        }
+
+        Ok(RequestContext {
+            request_id,
+            user_id,
+            org_id: org_id_opt,
+            role,
+        })
+    }
+}
+
 async fn resolve_org_id(
     parts: &Parts,
     pool: Option<&cms_db::PgPool>,

@@ -264,3 +264,49 @@ pub struct ListIntegrationsQuery {
     #[serde(default)]
     pub is_active: Option<bool>,
 }
+
+/// Project integration catalog health
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ProjectIntegrationHealth {
+    pub status: String,
+    pub checked_at: Option<String>,
+    pub code: Option<String>,
+}
+
+/// Project integration credential status
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ProjectIntegrationCredential {
+    pub configured: bool,
+}
+
+/// Project integration catalog item (for SPA)
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectIntegrationCatalogItem {
+    pub id: String,
+    pub provider_id: String,
+    pub category: String,
+    pub ownership: String,
+    pub status: String,
+    pub health: ProjectIntegrationHealth,
+    pub credential: ProjectIntegrationCredential,
+    pub config: serde_json::Value,
+    pub revision: u32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Delete project integration response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteProjectIntegrationResponse {
+    pub provider_id: String,
+    pub deleted: bool,
+}
+
+/// Delete project integration confirmation response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectIntegrationConfirmationResponse {
+    pub confirmation_token: String,
+}

@@ -4,6 +4,13 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::{ApiResponse, SuccessResponse},
+    org::{
+        MemberResponse, WorkspaceInvitationResponse, WorkspaceMemberItem, WorkspaceMemberUser,
+        WorkspaceMembersResponse, WorkspaceMutationResponse,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -26,7 +33,7 @@ pub async fn list_project_members_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMembersResponse>>, AppError> {
     let project =
         cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id).await?;
     if let Some(p) = project {
@@ -47,7 +54,7 @@ pub async fn list_project_members_handler(
         let user_map: std::collections::HashMap<String, cms_entity::auth::User> =
             users.into_iter().map(|u| (u.id.clone(), u)).collect();
 
-        let items: Vec<serde_json::Value> = members
+        let items: Vec<WorkspaceMemberItem> = members
             .into_iter()
             .map(|m| {
                 let (user_name, user_email, user_image) = if let Some(u) = user_map.get(&m.user_id)
@@ -60,41 +67,40 @@ pub async fn list_project_members_handler(
                         auth.user.image.clone(),
                     )
                 };
-                serde_json::json!({
-                    "id": m.id,
-                    "organizationId": m.organization_id,
-                    "userId": m.user_id,
-                    "role": format!("{:?}", m.role).to_lowercase(),
-                    "createdAt": m.created_at,
-                    "user": {
-                        "id": m.user_id,
-                        "name": user_name,
-                        "email": user_email,
-                        "image": user_image,
-                    }
-                })
+                WorkspaceMemberItem {
+                    id: m.id,
+                    organization_id: m.organization_id,
+                    user_id: m.user_id.clone(),
+                    role: format!("{:?}", m.role).to_lowercase(),
+                    created_at: m.created_at,
+                    user: WorkspaceMemberUser {
+                        id: m.user_id,
+                        name: user_name,
+                        email: user_email,
+                        image: user_image,
+                    },
+                }
             })
             .collect();
 
-        let invitations = cms_db::org::InvitationQueries::list_by_org(
+        let raw_invitations = cms_db::org::InvitationQueries::list_by_org(
             &state.biz_context.pool,
             &p.organization_id,
         )
         .await
         .unwrap_or_default();
 
-        return Ok(Json(serde_json::json!({
-            "data": {
-                "members": items,
-                "invitations": invitations
-            }
+        let invitations = raw_invitations;
+
+        return Ok(Json(ApiResponse::new(WorkspaceMembersResponse {
+            members: items,
+            invitations,
         })));
     }
-    Ok(Json(serde_json::json!({
-        "data": {
-            "members": [],
-            "invitations": []
-        }
+
+    Ok(Json(ApiResponse::new(WorkspaceMembersResponse {
+        members: Vec::new(),
+        invitations: Vec::new(),
     })))
 }
 
@@ -107,7 +113,7 @@ pub async fn invite_project_member_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceInvitationResponse>>, AppError> {
     use cms_entity::org::CreateInvitationRequest;
 
     let org_id = project_org_id(&state, &auth, &project_id).await?;
@@ -129,15 +135,13 @@ pub async fn invite_project_member_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": invitation.id,
-            "organizationId": invitation.organization_id,
-            "email": invitation.email,
-            "role": format!("{:?}", invitation.role).to_lowercase(),
-            "expiresAt": invitation.expires_at.to_rfc3339(),
-            "createdAt": invitation.created_at.to_rfc3339(),
-        }
+    Ok(Json(ApiResponse::new(WorkspaceInvitationResponse {
+        id: invitation.id,
+        organization_id: invitation.organization_id,
+        email: invitation.email,
+        role: format!("{:?}", invitation.role).to_lowercase(),
+        expires_at: invitation.expires_at.to_rfc3339(),
+        created_at: invitation.created_at.to_rfc3339(),
     })))
 }
 
@@ -149,7 +153,7 @@ pub async fn update_project_member_role_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<MemberResponse>>, AppError> {
     let org_id = project_org_id(&state, &auth, &project_id).await?;
     let role = parse_member_role(body.get("role").and_then(|v| v.as_str()))?;
 
@@ -162,7 +166,7 @@ pub async fn update_project_member_role_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({ "data": member })))
+    Ok(Json(ApiResponse::new(member)))
 }
 
 /// Project member remove
@@ -172,13 +176,14 @@ pub async fn remove_project_member_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     let org_id = project_org_id(&state, &auth, &project_id).await?;
     cms_biz::org::OrgService::remove_member(&state.biz_context, &auth.user.id, &org_id, &id)
         .await?;
-    Ok(Json(
-        serde_json::json!({ "data": { "success": true, "id": id } }),
-    ))
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id,
+    })))
 }
 
 /// Project ownership transfer
@@ -190,7 +195,7 @@ pub async fn transfer_project_ownership_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     use cms_db::org::MemberQueries;
 
     let org_id = project_org_id(&state, &auth, &project_id).await?;
@@ -233,7 +238,7 @@ pub async fn transfer_project_ownership_handler(
         }
     }
 
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    Ok(Json(ApiResponse::new(SuccessResponse::ok())))
 }
 
 /// Project invitation revoke
@@ -243,11 +248,12 @@ pub async fn cancel_project_invitation_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     let org_id = project_org_id(&state, &auth, &project_id).await?;
     cms_biz::org::OrgService::revoke_invitation(&state.biz_context, &auth.user.id, &org_id, &id)
         .await?;
-    Ok(Json(
-        serde_json::json!({ "data": { "success": true, "id": id } }),
-    ))
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id,
+    })))
 }

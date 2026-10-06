@@ -165,3 +165,75 @@ pub struct AnalyticsDashboardResponse {
     pub events_by_type: std::collections::HashMap<String, i64>,
     pub time_series: Vec<TimeSeriesAnalytics>,
 }
+
+/// Point in timeseries for ProjectAnalytics
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAnalyticsTimeseriesPoint {
+    pub date: String,
+    pub views: i64,
+    pub visitors: i64,
+}
+
+/// Project analytics matching SPA contract
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAnalyticsResponse {
+    pub availability: String,
+    pub total_views: i64,
+    pub unique_visitors: Option<i64>,
+    pub views_previous_period: Option<i64>,
+    pub visitors_previous_period: Option<i64>,
+    pub views_change_pct: Option<f64>,
+    pub visitors_change_pct: Option<f64>,
+    pub avg_duration_seconds: Option<i64>,
+    pub timeseries: Vec<ProjectAnalyticsTimeseriesPoint>,
+    pub top_pages: Vec<serde_json::Value>,
+    pub top_referrers: Vec<serde_json::Value>,
+    pub top_countries: Vec<serde_json::Value>,
+    pub top_searches: Vec<serde_json::Value>,
+    pub referrers: Vec<serde_json::Value>,
+    pub languages: Vec<serde_json::Value>,
+    pub devices: Vec<serde_json::Value>,
+    pub engagement: serde_json::Value,
+    pub searches: serde_json::Value,
+    pub ai: serde_json::Value,
+    pub no_answer_reasons: Vec<serde_json::Value>,
+}
+
+/// Project operational telemetry response (ADR 001 compliant, zero billing/plan concepts)
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectUsageTelemetryResponse {
+    pub availability: String,
+    pub period: ProjectUsagePeriod,
+    pub meters: Vec<ProjectUsageMeter>,
+    #[serde(rename = "_assetCount")]
+    pub asset_count: i64,
+}
+
+/// Period window for project operational usage
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectUsagePeriod {
+    pub start: String,
+    pub end_exclusive: String,
+}
+
+/// Meter item for internal resource usage tracking
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectUsageMeter {
+    pub key: String,
+    pub quantity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ratio: Option<f64>,
+    pub unit: String,
+    pub state: String,
+    pub availability: String,
+    pub capability: String,
+    pub enforcement: String,
+    pub behavior: String,
+}

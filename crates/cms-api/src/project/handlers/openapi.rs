@@ -4,26 +4,30 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::{ApiResponse, SuccessResponse},
+    openapi::{OpenApiDocument, ProjectOpenApiConfigurationResponse, ProjectOpenApiSourceResponse},
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
 use crate::auth::AuthExtractor;
 
 /// Map an `OpenApiDocument` row to the SPA `OpenApiConfiguration` shape.
-fn openapi_to_json(doc: &cms_entity::openapi::OpenApiDocument) -> serde_json::Value {
+fn openapi_to_response(doc: &OpenApiDocument) -> ProjectOpenApiConfigurationResponse {
     use sha2::Digest;
     let content = doc.content.as_deref().unwrap_or("");
     let hash = sha2::Sha256::digest(content.as_bytes());
-    serde_json::json!({
-        "title": doc.name,
-        "path": doc.url,
-        "contentHash": hex::encode(hash),
-        "updatedAt": doc.updated_at.to_rfc3339(),
-        "source": {
-            "type": "url",
-            "url": doc.url,
+    ProjectOpenApiConfigurationResponse {
+        title: doc.name.clone(),
+        path: doc.url.clone(),
+        content_hash: hex::encode(hash),
+        updated_at: doc.updated_at.to_rfc3339(),
+        source: ProjectOpenApiSourceResponse {
+            source_type: "url".to_string(),
+            url: Some(doc.url.clone()),
         },
-    })
+    }
 }
 
 /// Project openapi get
@@ -34,16 +38,16 @@ pub async fn get_project_openapi_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Option<ProjectOpenApiConfigurationResponse>>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
         .await?;
 
     let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
-    Ok(Json(serde_json::json!({
-        "data": docs.first().map(openapi_to_json)
-    })))
+    Ok(Json(ApiResponse::new(
+        docs.first().map(openapi_to_response),
+    )))
 }
 
 /// Project openapi save (upsert)
@@ -56,7 +60,7 @@ pub async fn save_project_openapi_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectOpenApiConfigurationResponse>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -108,7 +112,7 @@ pub async fn save_project_openapi_handler(
         .await;
     }
 
-    Ok(Json(serde_json::json!({ "data": openapi_to_json(&doc) })))
+    Ok(Json(ApiResponse::new(openapi_to_response(&doc))))
 }
 
 /// Project openapi sync
@@ -118,16 +122,16 @@ pub async fn sync_project_openapi_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Option<ProjectOpenApiConfigurationResponse>>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
         .await?;
 
     let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
-    Ok(Json(serde_json::json!({
-        "data": docs.first().map(openapi_to_json)
-    })))
+    Ok(Json(ApiResponse::new(
+        docs.first().map(openapi_to_response),
+    )))
 }
 
 /// Project openapi delete
@@ -137,7 +141,7 @@ pub async fn delete_project_openapi_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -148,5 +152,5 @@ pub async fn delete_project_openapi_handler(
         let _ = OpenApiDocumentQueries::delete(&state.biz_context.pool, &d.id).await;
     }
 
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    Ok(Json(ApiResponse::new(SuccessResponse::ok())))
 }

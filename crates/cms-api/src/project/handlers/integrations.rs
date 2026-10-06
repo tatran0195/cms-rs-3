@@ -4,26 +4,46 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::ApiResponse,
+    integration::{
+        DeleteProjectIntegrationResponse, ProjectIntegrationCatalogItem,
+        ProjectIntegrationConfirmationResponse, ProjectIntegrationCredential,
+        ProjectIntegrationHealth,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
 use crate::auth::AuthExtractor;
 
-fn integration_to_si(i: &cms_entity::integration::ProjectIntegrationResponse) -> serde_json::Value {
+fn integration_to_si(
+    i: &cms_entity::integration::ProjectIntegrationResponse,
+) -> ProjectIntegrationCatalogItem {
     let provider = format!("{:?}", i.provider).to_lowercase();
-    serde_json::json!({
-        "id": i.id,
-        "providerId": provider,
-        "category": "webhook",
-        "ownership": "project",
-        "status": if i.is_active { "active" } else { "inactive" },
-        "health": { "status": "unverified", "checkedAt": null, "code": null },
-        "credential": { "configured": i.config != serde_json::Value::Null },
-        "config": i.config,
-        "revision": 1,
-        "createdAt": i.created_at.to_rfc3339(),
-        "updatedAt": i.updated_at.to_rfc3339(),
-    })
+    ProjectIntegrationCatalogItem {
+        id: i.id.clone(),
+        provider_id: provider,
+        category: "webhook".to_string(),
+        ownership: "project".to_string(),
+        status: if i.is_active {
+            "active".to_string()
+        } else {
+            "inactive".to_string()
+        },
+        health: ProjectIntegrationHealth {
+            status: "unverified".to_string(),
+            checked_at: None,
+            code: None,
+        },
+        credential: ProjectIntegrationCredential {
+            configured: i.config != serde_json::Value::Null,
+        },
+        config: i.config.clone(),
+        revision: 1,
+        created_at: i.created_at.to_rfc3339(),
+        updated_at: i.updated_at.to_rfc3339(),
+    }
 }
 
 /// Project integrations list
@@ -34,14 +54,15 @@ pub async fn list_project_integrations_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Vec<ProjectIntegrationCatalogItem>>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
-    let items: Vec<serde_json::Value> = integrations.iter().map(integration_to_si).collect();
-    Ok(Json(serde_json::json!({ "data": items })))
+    let items: Vec<ProjectIntegrationCatalogItem> =
+        integrations.iter().map(integration_to_si).collect();
+    Ok(Json(ApiResponse::new(items)))
 }
 
 /// Project integration create
@@ -50,7 +71,7 @@ pub async fn create_project_integration_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectIntegrationCatalogItem>>, AppError> {
     use cms_biz::integration::IntegrationService;
     use cms_entity::integration::{CreateProjectIntegrationRequest, IntegrationProvider};
 
@@ -89,9 +110,7 @@ pub async fn create_project_integration_handler(
     )
     .await?;
 
-    Ok(Json(
-        serde_json::json!({ "data": integration_to_si(&integration) }),
-    ))
+    Ok(Json(ApiResponse::new(integration_to_si(&integration))))
 }
 
 /// Project integration update (provider-scoped)
@@ -100,7 +119,7 @@ pub async fn update_project_integration_handler(
     auth: AuthExtractor,
     Path((project_id, provider_id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectIntegrationCatalogItem>>, AppError> {
     use cms_biz::integration::IntegrationService;
     use cms_entity::integration::UpdateProjectIntegrationRequest;
 
@@ -135,9 +154,7 @@ pub async fn update_project_integration_handler(
     )
     .await?;
 
-    Ok(Json(
-        serde_json::json!({ "data": integration_to_si(&updated) }),
-    ))
+    Ok(Json(ApiResponse::new(integration_to_si(&updated))))
 }
 
 /// Project integration delete (provider-scoped)
@@ -145,7 +162,7 @@ pub async fn delete_project_integration_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, provider_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeleteProjectIntegrationResponse>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
     let integrations =
@@ -164,8 +181,9 @@ pub async fn delete_project_integration_handler(
         })?;
     IntegrationService::delete_integration(&state.biz_context, &auth.user.id, &target.id).await?;
 
-    Ok(Json(serde_json::json!({
-        "data": { "providerId": provider_id, "deleted": true }
+    Ok(Json(ApiResponse::new(DeleteProjectIntegrationResponse {
+        provider_id,
+        deleted: true,
     })))
 }
 
@@ -174,7 +192,7 @@ pub async fn verify_project_integration_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, provider_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<serde_json::Value>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
     let integrations =
@@ -194,7 +212,7 @@ pub async fn verify_project_integration_handler(
     let result =
         IntegrationService::test_integration(&state.biz_context, &auth.user.id, &target.id).await?;
 
-    Ok(Json(serde_json::json!({ "data": result })))
+    Ok(Json(ApiResponse::new(result)))
 }
 
 /// Project integration delete-confirmation
@@ -203,7 +221,7 @@ pub async fn delete_project_integration_confirmation_handler(
     auth: AuthExtractor,
     Path((project_id, provider_id)): Path<(String, String)>,
     Json(_body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectIntegrationConfirmationResponse>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
     let integrations =
@@ -221,7 +239,9 @@ pub async fn delete_project_integration_confirmation_handler(
             ))
         })?;
 
-    Ok(Json(serde_json::json!({
-        "data": { "confirmationToken": "confirmed" }
-    })))
+    Ok(Json(ApiResponse::new(
+        ProjectIntegrationConfirmationResponse {
+            confirmation_token: "confirmed".to_string(),
+        },
+    )))
 }

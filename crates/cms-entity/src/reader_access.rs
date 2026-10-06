@@ -369,3 +369,90 @@ pub struct AcceptInvitationRequest {
     #[serde(default)]
     pub name: Option<String>,
 }
+
+/// Project reader item
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectReaderItem {
+    pub id: String,
+    pub email: String,
+    pub name: Option<String>,
+    pub status: String,
+    pub audiences: Vec<serde_json::Value>,
+    #[serde(rename = "_count")]
+    pub count: serde_json::Value,
+}
+
+/// Project audience item
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectAudienceItem {
+    pub id: String,
+    pub name: String,
+    pub grants: Vec<serde_json::Value>,
+    #[serde(rename = "_count")]
+    pub count: serde_json::Value,
+}
+
+/// Project JWT provider item
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectJwtProviderItem {
+    pub enabled: bool,
+    pub issuer: String,
+    pub audience: String,
+    pub jwks_url: Option<String>,
+    pub public_jwks: Option<String>,
+    pub groups_claim: String,
+    pub claim_mapping: serde_json::Value,
+    pub session_ttl_minutes: i64,
+    pub max_token_age_seconds: i64,
+    pub clock_tolerance_secs: i64,
+}
+
+/// Project reader access response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectReaderAccessResponse {
+    pub access_mode: String,
+    pub readers: Vec<ProjectReaderItem>,
+    pub audiences: Vec<ProjectAudienceItem>,
+    pub jwt: Option<ProjectJwtProviderItem>,
+    pub audit: Vec<serde_json::Value>,
+}
+
+/// Project reader invitation response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectReaderInvitationResponse {
+    pub id: String,
+    pub email: String,
+    pub audience_id: String,
+    pub token: String,
+    pub expires_at: String,
+    pub created_at: String,
+}
+
+/// Project JWT test response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectJwtTestResponse {
+    pub configured: bool,
+    pub success: bool,
+    pub valid: bool,
+}
+
+/// Project reader emergency revoke response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectReaderEmergencyRevokeResponse {
+    pub revoked: bool,
+    pub success: bool,
+}
+
+/// Delete audience or grant response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeleteAudienceResponse {
+    pub success: bool,
+    pub id: Id,
+}

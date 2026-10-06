@@ -135,6 +135,14 @@ define_id!(PageId, "Nominal identifier for a page");
 define_id!(CommentId, "Nominal identifier for a comment");
 define_id!(AssetId, "Nominal identifier for an asset");
 define_id!(DeploymentId, "Nominal identifier for a deployment");
+define_id!(DomainId, "Nominal identifier for a custom domain");
+define_id!(LanguageId, "Nominal identifier for a project language");
+define_id!(
+    IntegrationId,
+    "Nominal identifier for an external integration"
+);
+define_id!(ApiKeyId, "Nominal identifier for an API key");
+define_id!(AudienceId, "Nominal identifier for reader access audience");
 
 #[cfg(test)]
 mod tests {

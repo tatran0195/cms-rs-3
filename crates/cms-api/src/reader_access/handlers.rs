@@ -10,11 +10,11 @@ use axum::{
 };
 use cms_biz::reader_access::ReaderAccessService;
 use cms_entity::{
-    common::Id,
+    common::{ApiResponse, Id},
     reader_access::{
         AudienceGrantResponse, AudienceResponse, CreateAudienceGrantRequest, CreateAudienceRequest,
-        CreateReaderInvitationRequest, ReaderInvitationResponse, ReaderSessionResponse,
-        UpdateAudienceRequest,
+        CreateReaderInvitationRequest, DeleteAudienceResponse, ReaderInvitationResponse,
+        ReaderSessionResponse, UpdateAudienceRequest,
     },
 };
 use cms_error::AppError;
@@ -191,12 +191,13 @@ pub async fn delete_audience_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(audience_id): Path<Id>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeleteAudienceResponse>>, AppError> {
     ReaderAccessService::delete_audience(&state.biz_context, &auth.user.id, &audience_id).await?;
 
-    Ok(Json(
-        serde_json::json!({"success": true, "id": audience_id}),
-    ))
+    Ok(Json(ApiResponse::new(DeleteAudienceResponse {
+        success: true,
+        id: audience_id,
+    })))
 }
 
 /// Create an audience grant
@@ -296,11 +297,14 @@ pub async fn delete_audience_grant_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(grant_id): Path<Id>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeleteAudienceResponse>>, AppError> {
     ReaderAccessService::delete_audience_grant(&state.biz_context, &auth.user.id, &grant_id)
         .await?;
 
-    Ok(Json(serde_json::json!({"success": true, "id": grant_id})))
+    Ok(Json(ApiResponse::new(DeleteAudienceResponse {
+        success: true,
+        id: grant_id,
+    })))
 }
 
 /// Create a reader invitation

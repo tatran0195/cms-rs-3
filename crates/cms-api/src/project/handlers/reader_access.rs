@@ -4,6 +4,15 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::ApiResponse,
+    org::WorkspaceMutationResponse,
+    reader_access::{
+        ProjectAudienceItem, ProjectJwtProviderItem, ProjectJwtTestResponse,
+        ProjectReaderAccessResponse, ProjectReaderEmergencyRevokeResponse,
+        ProjectReaderInvitationResponse, ProjectReaderItem,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -16,65 +25,50 @@ fn reader_access_to_spa(
     audiences: &[cms_entity::reader_access::Audience],
     provider: &Option<cms_entity::reader_access::JwtAccessProvider>,
     audit: &[serde_json::Value],
-) -> serde_json::Value {
-    let readers_json: Vec<serde_json::Value> = readers
+) -> ProjectReaderAccessResponse {
+    let readers_items: Vec<ProjectReaderItem> = readers
         .iter()
-        .map(|r| {
-            serde_json::json!({
-                "id": r.id,
-                "email": r.email,
-                "name": r.name,
-                "status": "active",
-                "audiences": [],
-                "_count": { "sessions": 0 },
-            })
+        .map(|r| ProjectReaderItem {
+            id: r.id.clone(),
+            email: r.email.clone(),
+            name: r.name.clone(),
+            status: "active".to_string(),
+            audiences: vec![],
+            count: serde_json::json!({ "sessions": 0 }),
         })
         .collect();
 
-    let audiences_json: Vec<serde_json::Value> = audiences
-        .iter()
-        .map(|a| {
-            serde_json::json!({
-                "id": a.id,
-                "name": a.name,
-                "grants": [],
-                "_count": { "readers": 0 },
-            })
-        })
-        .collect();
+    let audiences_items: Vec<ProjectAudienceItem> = audiences.iter().map(audience_to_spa).collect();
 
-    let jwt_json = provider.as_ref().map(|p| {
-        serde_json::json!({
-            "enabled": true,
-            "issuer": p.issuer,
-            "audience": p.audience,
-            "jwksUrl": null,
-            "publicJwks": null,
-            "groupsClaim": "groups",
-            "claimMapping": {},
-            "sessionTtlMinutes": 60,
-            "maxTokenAgeSeconds": 86400,
-            "clockToleranceSecs": 60,
-        })
+    let jwt_item = provider.as_ref().map(|p| ProjectJwtProviderItem {
+        enabled: true,
+        issuer: p.issuer.clone(),
+        audience: p.audience.clone(),
+        jwks_url: None,
+        public_jwks: None,
+        groups_claim: "groups".to_string(),
+        claim_mapping: serde_json::json!({}),
+        session_ttl_minutes: 60,
+        max_token_age_seconds: 86400,
+        clock_tolerance_secs: 60,
     });
 
-    serde_json::json!({
-        "accessMode": r_access_mode,
-        "readers": readers_json,
-        "audiences": audiences_json,
-        "jwt": jwt_json,
-        "audit": audit,
-    })
+    ProjectReaderAccessResponse {
+        access_mode: r_access_mode.to_string(),
+        readers: readers_items,
+        audiences: audiences_items,
+        jwt: jwt_item,
+        audit: audit.to_vec(),
+    }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn audience_to_spa(a: &cms_entity::reader_access::Audience) -> serde_json::Value {
-    serde_json::json!({
-        "id": a.id,
-        "name": a.name,
-        "grants": [],
-        "_count": { "readers": 0 },
-    })
+fn audience_to_spa(a: &cms_entity::reader_access::Audience) -> ProjectAudienceItem {
+    ProjectAudienceItem {
+        id: a.id.clone(),
+        name: a.name.clone(),
+        grants: vec![],
+        count: serde_json::json!({ "readers": 0 }),
+    }
 }
 
 /// Project reader access get
@@ -85,7 +79,7 @@ pub async fn get_project_reader_access_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectReaderAccessResponse>>, AppError> {
     use cms_db::reader_access::{AudienceQueries, JwtAccessProviderQueries, ReaderQueries};
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -112,7 +106,7 @@ pub async fn get_project_reader_access_handler(
     };
 
     let data = reader_access_to_spa(access_mode, &readers, &audiences, &provider, &[]);
-    Ok(Json(serde_json::json!({ "data": data })))
+    Ok(Json(ApiResponse::new(data)))
 }
 
 /// Project reader access update
@@ -121,7 +115,7 @@ pub async fn update_project_reader_access_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectReaderAccessResponse>>, AppError> {
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
         .await?;
 
@@ -130,15 +124,15 @@ pub async fn update_project_reader_access_handler(
         .and_then(|v| v.as_str())
         .unwrap_or("READERS");
 
-    let data = serde_json::json!({
-        "accessMode": mode,
-        "readers": [],
-        "audiences": [],
-        "jwt": null,
-        "audit": [],
-    });
+    let data = ProjectReaderAccessResponse {
+        access_mode: mode.to_string(),
+        readers: vec![],
+        audiences: vec![],
+        jwt: None,
+        audit: vec![],
+    };
 
-    Ok(Json(serde_json::json!({ "data": data })))
+    Ok(Json(ApiResponse::new(data)))
 }
 
 /// Project reader-access audience create
@@ -147,7 +141,7 @@ pub async fn create_reader_audience_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectAudienceItem>>, AppError> {
     use cms_db::reader_access::AudienceQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -161,9 +155,7 @@ pub async fn create_reader_audience_handler(
 
     let audience =
         AudienceQueries::create(&state.biz_context.pool, &project_id, name, description).await?;
-    Ok(Json(
-        serde_json::json!({ "data": audience_to_spa(&audience) }),
-    ))
+    Ok(Json(ApiResponse::new(audience_to_spa(&audience))))
 }
 
 /// Project reader-access audience delete
@@ -171,16 +163,17 @@ pub async fn delete_reader_audience_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, audience_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     use cms_db::reader_access::AudienceQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
         .await?;
     let _ = AudienceQueries::delete(&state.biz_context.pool, &audience_id).await;
 
-    Ok(Json(
-        serde_json::json!({ "data": { "success": true, "id": audience_id } }),
-    ))
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id: audience_id,
+    })))
 }
 
 /// Project reader invite
@@ -189,7 +182,7 @@ pub async fn invite_project_reader_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectReaderInvitationResponse>>, AppError> {
     use cms_db::reader_access::ReaderInvitationQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -219,15 +212,13 @@ pub async fn invite_project_reader_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": invitation.id,
-            "email": invitation.email,
-            "audienceId": invitation.audience_id,
-            "token": invitation.token,
-            "expiresAt": invitation.expires_at.to_rfc3339(),
-            "createdAt": invitation.created_at.to_rfc3339(),
-        }
+    Ok(Json(ApiResponse::new(ProjectReaderInvitationResponse {
+        id: invitation.id,
+        email: invitation.email,
+        audience_id: invitation.audience_id,
+        token: invitation.token,
+        expires_at: invitation.expires_at.to_rfc3339(),
+        created_at: invitation.created_at.to_rfc3339(),
     })))
 }
 
@@ -237,7 +228,7 @@ pub async fn revoke_project_reader_handler(
     auth: AuthExtractor,
     Path((project_id, reader_id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     use cms_db::reader_access::ReaderAudienceQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -249,9 +240,10 @@ pub async fn revoke_project_reader_handler(
         .ok_or_else(|| AppError::InvalidInput("audienceId is required".to_string()))?;
     let _ = ReaderAudienceQueries::delete(&state.biz_context.pool, &reader_id, audience_id).await;
 
-    Ok(Json(
-        serde_json::json!({ "data": { "success": true, "id": reader_id } }),
-    ))
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id: reader_id,
+    })))
 }
 
 /// Project reader-access JWT provider configure
@@ -260,7 +252,7 @@ pub async fn configure_reader_jwt_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectJwtProviderItem>>, AppError> {
     use cms_db::reader_access::JwtAccessProviderQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -292,17 +284,17 @@ pub async fn configure_reader_jwt_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "enabled": true,
-            "issuer": provider.issuer,
-            "audience": provider.audience,
-            "groupsClaim": "groups",
-            "claimMapping": {},
-            "sessionTtlMinutes": 60,
-            "maxTokenAgeSeconds": 86400,
-            "clockToleranceSecs": 60,
-        }
+    Ok(Json(ApiResponse::new(ProjectJwtProviderItem {
+        enabled: true,
+        issuer: provider.issuer,
+        audience: provider.audience,
+        jwks_url: None,
+        public_jwks: None,
+        groups_claim: "groups".to_string(),
+        claim_mapping: serde_json::json!({}),
+        session_ttl_minutes: 60,
+        max_token_age_seconds: 86400,
+        clock_tolerance_secs: 60,
     })))
 }
 
@@ -312,7 +304,7 @@ pub async fn test_reader_jwt_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(_body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectJwtTestResponse>>, AppError> {
     use cms_db::reader_access::JwtAccessProviderQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -326,12 +318,10 @@ pub async fn test_reader_jwt_handler(
     .await?
     .is_some();
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "configured": provider,
-            "success": provider,
-            "valid": provider,
-        }
+    Ok(Json(ApiResponse::new(ProjectJwtTestResponse {
+        configured: provider,
+        success: provider,
+        valid: provider,
     })))
 }
 
@@ -340,7 +330,7 @@ pub async fn emergency_revoke_reader_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectReaderEmergencyRevokeResponse>>, AppError> {
     use cms_db::reader_access::JwtAccessProviderQueries;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
@@ -360,7 +350,10 @@ pub async fn emergency_revoke_reader_handler(
         false
     };
 
-    Ok(Json(
-        serde_json::json!({ "data": { "revoked": revoked, "success": true } }),
-    ))
+    Ok(Json(ApiResponse::new(
+        ProjectReaderEmergencyRevokeResponse {
+            revoked,
+            success: true,
+        },
+    )))
 }

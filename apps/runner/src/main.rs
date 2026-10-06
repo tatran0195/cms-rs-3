@@ -1049,10 +1049,10 @@ fn inject_bootstrap_script(html: &str, safe_json: &str) -> String {
 
 fn inject_meta(html: &str, site_title: &str, site_desc: &str) -> String {
     let meta_tags = format!(
-            "<title>{site_title}</title>\n    <meta name=\"description\" content=\"{site_desc}\" \
+        "<title>{site_title}</title>\n    <meta name=\"description\" content=\"{site_desc}\" \
              />\n    <meta property=\"og:title\" content=\"{site_title}\" />\n    <meta \
              property=\"og:description\" content=\"{site_desc}\" />"
-        );
+    );
 
     let mut working = html.to_string();
 

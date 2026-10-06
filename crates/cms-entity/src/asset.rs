@@ -119,3 +119,41 @@ pub struct DeleteAssetResponse {
 
 /// Create asset request (alias for UploadAssetRequest for API compatibility)
 pub type CreateAssetRequest = UploadAssetRequest;
+
+/// Presign asset request
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct PresignAssetRequest {
+    pub filename: Option<String>,
+}
+
+/// Presign asset response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PresignAssetResponse {
+    pub upload_url: String,
+    pub asset_url: String,
+    pub key: String,
+}
+
+/// Confirm asset request
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmAssetRequest {
+    pub key: String,
+    #[serde(default)]
+    pub content_type: Option<String>,
+    #[serde(default)]
+    pub size: Option<i64>,
+}
+
+/// Confirm asset response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmAssetResponse {
+    pub id: String,
+    pub key: String,
+    pub url: String,
+    pub content_type: String,
+    pub size: i64,
+    pub created_at: String,
+}

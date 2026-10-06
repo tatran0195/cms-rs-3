@@ -2,7 +2,15 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, Query, State},
+    http::StatusCode,
     Json,
+};
+use cms_entity::{
+    common::ApiResponse,
+    search::{
+        SearchConfiguration, SearchConstraints, SearchDiagnosticsResponse, SearchReindexResponse,
+        SearchSettingsResponse, UpdateSearchSettingsRequest,
+    },
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
@@ -37,7 +45,7 @@ pub async fn get_project_search_settings_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SearchSettingsResponse>>, AppError> {
     use cms_biz::project::ProjectService;
     let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
@@ -70,8 +78,12 @@ pub async fn get_project_search_settings_handler(
     let hotkey = search_config
         .get("hotkey")
         .and_then(|v| v.as_str())
-        .unwrap_or("cmdk");
-    let placeholder = search_config.get("placeholder").and_then(|v| v.as_str());
+        .unwrap_or("cmdk")
+        .to_string();
+    let placeholder = search_config
+        .get("placeholder")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     let suggested_questions = search_config
         .get("suggestedQuestions")
         .cloned()
@@ -81,25 +93,25 @@ pub async fn get_project_search_settings_handler(
         .cloned()
         .unwrap_or(serde_json::Value::Null);
 
-    let configuration = serde_json::json!({
-        "maxResults": max_results,
-        "filtersEnabled": filters_enabled,
-        "versionFilterEnabled": version_filter_enabled,
-        "aiAnswers": ai_answers,
-        "hotkey": hotkey,
-        "placeholder": placeholder,
-        "suggestedQuestions": suggested_questions,
-        "popularSearches": popular_searches,
-    });
+    let configuration = SearchConfiguration {
+        max_results,
+        filters_enabled,
+        version_filter_enabled,
+        ai_answers,
+        hotkey,
+        placeholder,
+        suggested_questions,
+        popular_searches,
+    };
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "configuration": configuration,
-            "constraints": {
-                "maxResults": { "default": 10, "min": 1, "max": 50 }
-            }
-        }
-    })))
+    let response = SearchSettingsResponse {
+        configuration,
+        constraints: SearchConstraints {
+            max_results: serde_json::json!({ "default": 10, "min": 1, "max": 50 }),
+        },
+    };
+
+    Ok(Json(ApiResponse::new(response)))
 }
 
 /// Update project search settings — persists the enabled/disabled switch via the
@@ -108,21 +120,15 @@ pub async fn update_project_search_settings_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Json(body): Json<UpdateSearchSettingsRequest>,
+) -> Result<Json<ApiResponse<SearchSettingsResponse>>, AppError> {
     use cms_biz::project::ProjectService;
     let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
     let settings = ensure_project_settings(&state, &project_id).await?;
 
-    let ai_answers = body
-        .get("aiAnswers")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-    let enabled = body
-        .get("enabled")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
+    let ai_answers = body.ai_answers.unwrap_or(true);
+    let enabled = body.enabled.unwrap_or(true);
 
     cms_db::project::ProjectSettingsQueries::upsert(
         &state.biz_context.pool,
@@ -142,28 +148,37 @@ pub async fn update_project_search_settings_handler(
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     if let serde_json::Value::Object(ref mut map) = search_obj {
-        if let Some(v) = body.get("placeholder") {
-            map.insert("placeholder".to_string(), v.clone());
+        if let Some(ref v) = body.placeholder {
+            map.insert(
+                "placeholder".to_string(),
+                serde_json::Value::String(v.clone()),
+            );
         }
-        if let Some(v) = body.get("maxResults") {
-            map.insert("maxResults".to_string(), v.clone());
+        if let Some(v) = body.max_results {
+            map.insert(
+                "maxResults".to_string(),
+                serde_json::Value::Number(v.into()),
+            );
         }
-        if let Some(v) = body.get("filtersEnabled") {
-            map.insert("filtersEnabled".to_string(), v.clone());
+        if let Some(v) = body.filters_enabled {
+            map.insert("filtersEnabled".to_string(), serde_json::Value::Bool(v));
         }
-        if let Some(v) = body.get("versionFilterEnabled") {
-            map.insert("versionFilterEnabled".to_string(), v.clone());
+        if let Some(v) = body.version_filter_enabled {
+            map.insert(
+                "versionFilterEnabled".to_string(),
+                serde_json::Value::Bool(v),
+            );
         }
-        if let Some(v) = body.get("aiAnswers") {
-            map.insert("aiAnswers".to_string(), v.clone());
+        if let Some(v) = body.ai_answers {
+            map.insert("aiAnswers".to_string(), serde_json::Value::Bool(v));
         }
-        if let Some(v) = body.get("hotkey") {
-            map.insert("hotkey".to_string(), v.clone());
+        if let Some(ref v) = body.hotkey {
+            map.insert("hotkey".to_string(), serde_json::Value::String(v.clone()));
         }
-        if let Some(v) = body.get("suggestedQuestions") {
+        if let Some(ref v) = body.suggested_questions {
             map.insert("suggestedQuestions".to_string(), v.clone());
         }
-        if let Some(v) = body.get("popularSearches") {
+        if let Some(ref v) = body.popular_searches {
             map.insert("popularSearches".to_string(), v.clone());
         }
     }
@@ -198,8 +213,12 @@ pub async fn update_project_search_settings_handler(
     let hotkey = search_obj
         .get("hotkey")
         .and_then(|v| v.as_str())
-        .unwrap_or("cmdk");
-    let placeholder = search_obj.get("placeholder").and_then(|v| v.as_str());
+        .unwrap_or("cmdk")
+        .to_string();
+    let placeholder = search_obj
+        .get("placeholder")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     let suggested_questions = search_obj
         .get("suggestedQuestions")
         .cloned()
@@ -209,40 +228,40 @@ pub async fn update_project_search_settings_handler(
         .cloned()
         .unwrap_or(serde_json::Value::Null);
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "configuration": {
-                "maxResults": max_results,
-                "filtersEnabled": filters_enabled,
-                "versionFilterEnabled": version_filter_enabled,
-                "aiAnswers": ai_answers,
-                "hotkey": hotkey,
-                "placeholder": placeholder,
-                "suggestedQuestions": suggested_questions,
-                "popularSearches": popular_searches,
-            },
-            "constraints": {
-                "maxResults": { "default": 10, "min": 1, "max": 50 }
-            }
-        }
-    })))
+    let configuration = SearchConfiguration {
+        max_results,
+        filters_enabled,
+        version_filter_enabled,
+        ai_answers,
+        hotkey,
+        placeholder,
+        suggested_questions,
+        popular_searches,
+    };
+
+    let response = SearchSettingsResponse {
+        configuration,
+        constraints: SearchConstraints {
+            max_results: serde_json::json!({ "default": 10, "min": 1, "max": 50 }),
+        },
+    };
+
+    Ok(Json(ApiResponse::new(response)))
 }
 
 /// Project search diagnostics
 ///
 /// Returns the `SearchIndexDiagnosticsResult` shape populated from the **live Tantivy index**
-/// for the project.  All chunk and page counts are sourced directly from the on-disk segments
-/// via `SearchEngine::index_stats()`; languages and branch/version metadata are still fetched
-/// from the database since that information is not stored inside the search index itself.
+/// for the project.
 pub async fn get_project_search_diagnostics_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Query(_query): Query<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SearchDiagnosticsResponse>>, AppError> {
     use cms_biz::search::SearchService;
 
-    // Permission / availability check (keeps the same guard as before)
+    // Permission / availability check
     SearchService::get_search_status(&state.biz_context, &auth.user.id, &project_id).await?;
 
     // --- Live Tantivy stats ---------------------------------------------------
@@ -268,9 +287,6 @@ pub async fn get_project_search_diagnostics_handler(
     .await
     .unwrap_or_default();
 
-    // --- Corpus language / version distribution breakdown --------------------
-    // Each language / branch gets the project-wide page count as its chunk count
-    // since Tantivy does not store per-language/per-branch breakdowns.
     let corpus_languages: Vec<serde_json::Value> = if langs.is_empty() {
         vec![serde_json::json!({ "code": "en", "count": stats.page_count })]
     } else {
@@ -289,7 +305,6 @@ pub async fn get_project_search_diagnostics_handler(
             .collect()
     };
 
-    // --- Samples: real page IDs from the live index --------------------------
     let samples: Vec<serde_json::Value> = stats
         .sample_page_ids
         .iter()
@@ -306,40 +321,37 @@ pub async fn get_project_search_diagnostics_handler(
         })
         .collect();
 
-    // --- Health: derived purely from live Tantivy data -----------------------
     let health = if stats.chunk_count > 0 {
         "ready"
     } else {
         "empty"
     };
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "availability": { "configured": stats.chunk_count > 0, "reason": null },
-            "health": health,
-            "runtime": "tantivy",
-            "index": {
-                "logicalId": format!("tantivy:project:{}", project_id),
-                "schemaVersion": "2",
-                "revisionId": null,
-                "deploymentVersion": null,
-                "embeddingModel": stats.embedding_model.as_deref().unwrap_or("lindera-sudachi"),
-                "vectorSize": stats.vector_dim,
-            },
-            "corpus": {
-                "chunks": stats.chunk_count,
-                "pages": stats.page_count,
-                "languages": corpus_languages,
-                "versions": corpus_versions,
-                "distributionTruncated": { "languages": false, "versions": false },
-            },
-            // latestRun is omitted for Tantivy: there is no async run concept.
-            // The UI already handles a null latestRun gracefully.
-            "latestRun": null,
-            "samples": { "items": samples, "nextCursor": null, "hasMore": false },
-            "issues": { "staleCount": 0, "failedCount": 0, "items": [] },
-        }
-    })))
+    let diagnostics = SearchDiagnosticsResponse {
+        availability: serde_json::json!({ "configured": stats.chunk_count > 0, "reason": null }),
+        health: health.to_string(),
+        runtime: "tantivy".to_string(),
+        index: serde_json::json!({
+            "logicalId": format!("tantivy:project:{}", project_id),
+            "schemaVersion": "2",
+            "revisionId": null,
+            "deploymentVersion": null,
+            "embeddingModel": stats.embedding_model.as_deref().unwrap_or("lindera-sudachi"),
+            "vectorSize": stats.vector_dim,
+        }),
+        corpus: serde_json::json!({
+            "chunks": stats.chunk_count,
+            "pages": stats.page_count,
+            "languages": corpus_languages,
+            "versions": corpus_versions,
+            "distributionTruncated": { "languages": false, "versions": false },
+        }),
+        latest_run: None,
+        samples: serde_json::json!({ "items": samples, "nextCursor": null, "hasMore": false }),
+        issues: serde_json::json!({ "staleCount": 0, "failedCount": 0, "items": [] }),
+    };
+
+    Ok(Json(ApiResponse::new(diagnostics)))
 }
 
 /// Reindex project search
@@ -347,7 +359,7 @@ pub async fn reindex_project_search_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<(StatusCode, Json<ApiResponse<SearchReindexResponse>>), AppError> {
     use cms_biz::search::SearchService;
     use cms_entity::search::ReindexRequest;
 
@@ -364,10 +376,10 @@ pub async fn reindex_project_search_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": run.id,
-            "status": format!("{:?}", run.status).to_uppercase(),
-        }
-    })))
+    let response = SearchReindexResponse {
+        id: run.id,
+        status: format!("{:?}", run.status).to_uppercase(),
+    };
+
+    Ok((StatusCode::ACCEPTED, Json(ApiResponse::new(response))))
 }

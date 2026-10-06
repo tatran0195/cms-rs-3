@@ -4,6 +4,14 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::ApiResponse,
+    project::ProjectAddonResponse,
+    theme::{
+        ImportProjectThemeTemplateResponse, ProjectThemeStyles, ProjectThemeTemplateDetails,
+        ProjectThemeTemplateResponse,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -13,37 +21,35 @@ pub async fn get_project_theme_template_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Option<ProjectThemeTemplateResponse>>>, AppError> {
     use cms_biz::theme::ThemeService;
 
     let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, &project_id).await?;
     let theme = themes.first();
 
-    let template = theme.map(|t| {
-        serde_json::json!({
-            "id": t.id,
-            "name": t.name,
-            "primary_color": t.primary_color,
-            "secondary_color": t.secondary_color,
-            "background_color": t.background_color,
-            "text_color": t.text_color,
-            "font_family": t.font_family,
-            "logo_url": t.logo_url,
-            "favicon_url": t.favicon_url,
-            "template": {
-                "styles": {
-                    "primary_color": t.primary_color,
-                    "secondary_color": t.secondary_color,
-                    "background_color": t.background_color,
-                    "text_color": t.text_color,
-                },
+    let template = theme.map(|t| ProjectThemeTemplateResponse {
+        id: t.id.clone(),
+        name: t.name.clone(),
+        primary_color: t.primary_color.clone(),
+        secondary_color: t.secondary_color.clone(),
+        background_color: t.background_color.clone(),
+        text_color: t.text_color.clone(),
+        font_family: t.font_family.clone(),
+        logo_url: t.logo_url.clone(),
+        favicon_url: t.favicon_url.clone(),
+        template: ProjectThemeTemplateDetails {
+            styles: ProjectThemeStyles {
+                primary_color: t.primary_color.clone(),
+                secondary_color: t.secondary_color.clone(),
+                background_color: t.background_color.clone(),
+                text_color: t.text_color.clone(),
             },
-            "changes": [],
-            "publishedChangesPending": false,
-        })
+        },
+        changes: vec![],
+        published_changes_pending: false,
     });
 
-    Ok(Json(serde_json::json!({ "data": template })))
+    Ok(Json(ApiResponse::new(template)))
 }
 
 /// Download the project theme repository as a JSON bundle (legacy `theme-repository` link).
@@ -92,7 +98,7 @@ pub async fn import_project_theme_template_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ImportProjectThemeTemplateResponse>>, AppError> {
     use cms_biz::theme::ThemeService;
     use cms_entity::theme::CreateThemeRequest;
 
@@ -152,13 +158,11 @@ pub async fn import_project_theme_template_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": theme.id,
-            "name": theme.name,
-            "changes": [],
-            "migratedFrom": 0,
-        }
+    Ok(Json(ApiResponse::new(ImportProjectThemeTemplateResponse {
+        id: theme.id,
+        name: theme.name,
+        changes: vec![],
+        migrated_from: 0,
     })))
 }
 
@@ -168,7 +172,7 @@ pub async fn update_project_addon_handler(
     auth: AuthExtractor,
     Path((project_id, addon_id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectAddonResponse>>, AppError> {
     use cms_biz::project::ProjectService;
 
     let addon = ProjectService::update_project_addon(
@@ -180,7 +184,7 @@ pub async fn update_project_addon_handler(
         None,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": addon })))
+    Ok(Json(ApiResponse::new(addon)))
 }
 
 /// Project addon activate
@@ -188,7 +192,7 @@ pub async fn activate_project_addon_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, addon_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectAddonResponse>>, AppError> {
     use cms_biz::project::ProjectService;
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
@@ -199,7 +203,7 @@ pub async fn activate_project_addon_handler(
         Some(true),
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": addon })))
+    Ok(Json(ApiResponse::new(addon)))
 }
 
 /// Project addon deactivate
@@ -207,7 +211,7 @@ pub async fn deactivate_project_addon_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, addon_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectAddonResponse>>, AppError> {
     use cms_biz::project::ProjectService;
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
@@ -218,5 +222,5 @@ pub async fn deactivate_project_addon_handler(
         Some(false),
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": addon })))
+    Ok(Json(ApiResponse::new(addon)))
 }

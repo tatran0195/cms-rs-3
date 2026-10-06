@@ -10,9 +10,10 @@ use axum::{
 };
 use cms_biz::theme::ThemeService;
 use cms_entity::{
-    common::Id,
+    common::{ApiResponse, Id},
     theme::{
-        CreateThemeRequest, ListThemesQuery, ThemeCssVariables, ThemeResponse, UpdateThemeRequest,
+        CreateThemeRequest, DeleteThemeResponse, ListThemesQuery, ThemeCssVariables, ThemeResponse,
+        UpdateThemeRequest,
     },
 };
 use cms_error::AppError;
@@ -179,10 +180,13 @@ pub async fn delete_theme_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(theme_id): Path<Id>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeleteThemeResponse>>, AppError> {
     ThemeService::delete_theme(&state.biz_context, &auth.user.id, &theme_id).await?;
 
-    Ok(Json(serde_json::json!({"success": true, "id": theme_id})))
+    Ok(Json(ApiResponse::new(DeleteThemeResponse {
+        success: true,
+        id: theme_id,
+    })))
 }
 
 /// Get theme CSS variables

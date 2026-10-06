@@ -166,3 +166,53 @@ pub struct ListThemesQuery {
     #[serde(default)]
     pub offset: Option<i64>,
 }
+
+/// Project theme styles
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ProjectThemeStyles {
+    pub primary_color: String,
+    pub secondary_color: String,
+    pub background_color: String,
+    pub text_color: String,
+}
+
+/// Project theme template details
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ProjectThemeTemplateDetails {
+    pub styles: ProjectThemeStyles,
+}
+
+/// Project theme template response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectThemeTemplateResponse {
+    pub id: String,
+    pub name: String,
+    pub primary_color: String,
+    pub secondary_color: String,
+    pub background_color: String,
+    pub text_color: String,
+    pub font_family: Option<String>,
+    pub logo_url: Option<String>,
+    pub favicon_url: Option<String>,
+    pub template: ProjectThemeTemplateDetails,
+    pub changes: Vec<serde_json::Value>,
+    pub published_changes_pending: bool,
+}
+
+/// Import project theme template response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportProjectThemeTemplateResponse {
+    pub id: String,
+    pub name: String,
+    pub changes: Vec<serde_json::Value>,
+    pub migrated_from: i64,
+}
+
+/// Delete theme response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeleteThemeResponse {
+    pub success: bool,
+    pub id: Id,
+}

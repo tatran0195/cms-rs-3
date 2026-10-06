@@ -2,9 +2,16 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
+    http::StatusCode,
     Json,
 };
 use cms_biz::platform_event::{FunnelEventType, PlatformEventService};
+use cms_entity::{
+    common::ApiResponse,
+    deployment::{
+        DeploymentChangeItem, DeploymentChangesResponse, DeploymentListItem, TriggerPublishRequest,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -97,7 +104,7 @@ pub async fn list_project_deployments_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Vec<DeploymentListItem>>>, AppError> {
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
         &auth.user.id,
@@ -114,7 +121,7 @@ pub async fn list_project_deployments_handler(
             .map(|p| p.len() as i64)
             .unwrap_or(0);
 
-    let items: Vec<serde_json::Value> = result
+    let items: Vec<DeploymentListItem> = result
         .data
         .into_iter()
         .enumerate()
@@ -128,21 +135,25 @@ pub async fn list_project_deployments_handler(
                 cms_entity::deployment::DeploymentStatus::Failed
                 | cms_entity::deployment::DeploymentStatus::Deleted => "FAILED",
             };
-            serde_json::json!({
-                "id": d.id,
-                "version": version,
-                "status": status_str,
-                "pagesCount": pages_count,
-                "commitMessage": d.build_logs.as_deref().unwrap_or("Publish site"),
-                "error": d.error_message,
-                "errorDetails": null,
-                "createdAt": d.created_at.to_rfc3339(),
-                "completedAt": d.deployed_at.map(|t| t.to_rfc3339()).unwrap_or_else(|| d.created_at.to_rfc3339()),
-            })
+            DeploymentListItem {
+                id: d.id,
+                version: Some(version),
+                status: status_str.to_string(),
+                pages_count,
+                commit_message: d.build_logs.unwrap_or_else(|| "Publish site".to_string()),
+                error: d.error_message,
+                error_details: None,
+                created_at: d.created_at.to_rfc3339(),
+                completed_at: Some(
+                    d.deployed_at
+                        .map(|t| t.to_rfc3339())
+                        .unwrap_or_else(|| d.created_at.to_rfc3339()),
+                ),
+            }
         })
         .collect();
 
-    Ok(Json(serde_json::json!({ "data": items })))
+    Ok(Json(ApiResponse::new(items)))
 }
 
 /// Get latest READY deployment for a project
@@ -150,7 +161,7 @@ pub async fn get_latest_project_deployment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Option<DeploymentListItem>>>, AppError> {
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
         &auth.user.id,
@@ -178,23 +189,27 @@ pub async fn get_latest_project_deployment_handler(
             | cms_entity::deployment::DeploymentStatus::Deleted => "FAILED",
         };
         if status_str == "READY" {
-            Some(serde_json::json!({
-                "id": d.id,
-                "version": version,
-                "status": status_str,
-                "pagesCount": pages_count,
-                "commitMessage": d.build_logs.as_deref().unwrap_or("Publish site"),
-                "error": d.error_message,
-                "errorDetails": null,
-                "createdAt": d.created_at.to_rfc3339(),
-                "completedAt": d.deployed_at.map(|t| t.to_rfc3339()).unwrap_or_else(|| d.created_at.to_rfc3339()),
-            }))
+            Some(DeploymentListItem {
+                id: d.id,
+                version: Some(version),
+                status: status_str.to_string(),
+                pages_count,
+                commit_message: d.build_logs.unwrap_or_else(|| "Publish site".to_string()),
+                error: d.error_message,
+                error_details: None,
+                created_at: d.created_at.to_rfc3339(),
+                completed_at: Some(
+                    d.deployed_at
+                        .map(|t| t.to_rfc3339())
+                        .unwrap_or_else(|| d.created_at.to_rfc3339()),
+                ),
+            })
         } else {
             None
         }
     });
 
-    Ok(Json(serde_json::json!({ "data": latest_ready })))
+    Ok(Json(ApiResponse::new(latest_ready)))
 }
 
 /// Deployment changes
@@ -206,7 +221,7 @@ pub async fn get_deployment_changes_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<DeploymentChangesResponse>>, AppError> {
     use cms_biz::deployment::DeploymentService;
 
     let deployments =
@@ -222,7 +237,7 @@ pub async fn get_deployment_changes_handler(
         .await
         .unwrap_or_default();
 
-    let changes: Vec<serde_json::Value> = pages
+    let changes: Vec<DeploymentChangeItem> = pages
         .iter()
         .map(|p| {
             let status = if baseline.is_some() {
@@ -230,28 +245,26 @@ pub async fn get_deployment_changes_handler(
             } else {
                 "added"
             };
-            serde_json::json!({
-                "id": p.id,
-                "title": p.title.clone(),
-                "path": p.path.clone(),
-                "languageCode": "en",
-                "kind": "PAGE",
-                "status": status,
-                "fields": ["title", "content"],
-                "additions": 1,
-                "deletions": 0,
-                "lines": [],
-                "truncated": false,
-            })
+            DeploymentChangeItem {
+                id: p.id.clone(),
+                title: p.title.clone(),
+                path: p.path.clone(),
+                language_code: "en".to_string(),
+                kind: "PAGE".to_string(),
+                status: status.to_string(),
+                fields: vec!["title".to_string(), "content".to_string()],
+                additions: 1,
+                deletions: 0,
+                lines: Vec::new(),
+                truncated: false,
+            }
         })
         .collect();
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "changes": changes,
-            "redirectIssues": [],
-            "hasBaseline": baseline.is_some()
-        }
+    Ok(Json(ApiResponse::new(DeploymentChangesResponse {
+        changes,
+        redirect_issues: Vec::new(),
+        has_baseline: baseline.is_some(),
     })))
 }
 
@@ -260,8 +273,8 @@ pub async fn create_project_deployment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Json(body): Json<TriggerPublishRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
     // 1. Verify project exists
     let _project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id)
         .await?
@@ -291,12 +304,10 @@ pub async fn create_project_deployment_handler(
     let branch_id = default_branch.id;
 
     let display_message = body
-        .get("message")
-        .and_then(serde_json::Value::as_str)
-        .map(str::trim)
-        .filter(|message| !message.is_empty())
-        .unwrap_or("Publish site")
-        .to_string();
+        .message
+        .map(|m| m.trim().to_string())
+        .filter(|m| !m.is_empty())
+        .unwrap_or_else(|| "Publish site".to_string());
     let deployment = create_publish_deployment(
         &state,
         &project_id,
@@ -307,21 +318,20 @@ pub async fn create_project_deployment_handler(
     )
     .await?;
 
-    // The response is explicitly asynchronous. Clients follow up via the
-    // deployments list/latest API while the worker renders the immutable branch snapshot.
-    let res = serde_json::json!({
-        "id": deployment.id,
-        "version": null,
-        "status": "PENDING",
-        "pagesCount": 0,
-        "commitMessage": display_message,
-        "error": null,
-        "errorDetails": null,
-        "createdAt": deployment.created_at.to_rfc3339(),
-        "completedAt": null
-    });
+    // The response is explicitly asynchronous (202 Accepted).
+    let res = DeploymentListItem {
+        id: deployment.id,
+        version: None,
+        status: "PENDING".to_string(),
+        pages_count: 0,
+        commit_message: display_message,
+        error: None,
+        error_details: None,
+        created_at: deployment.created_at.to_rfc3339(),
+        completed_at: None,
+    };
 
-    Ok(Json(serde_json::json!({ "data": res })))
+    Ok((StatusCode::ACCEPTED, Json(ApiResponse::new(res))))
 }
 
 /// Rollback deployment
@@ -329,7 +339,7 @@ pub async fn rollback_deployment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, target_deployment_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
     state
         .biz_context
         .authz
@@ -376,17 +386,17 @@ pub async fn rollback_deployment_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": deployment.id,
-            "version": null,
-            "status": "PENDING",
-            "pagesCount": 0,
-            "commitMessage": message,
-            "error": null,
-            "errorDetails": null,
-            "createdAt": deployment.created_at.to_rfc3339(),
-            "completedAt": null
-        }
-    })))
+    let res = DeploymentListItem {
+        id: deployment.id,
+        version: None,
+        status: "PENDING".to_string(),
+        pages_count: 0,
+        commit_message: message,
+        error: None,
+        error_details: None,
+        created_at: deployment.created_at.to_rfc3339(),
+        completed_at: None,
+    };
+
+    Ok((StatusCode::ACCEPTED, Json(ApiResponse::new(res))))
 }

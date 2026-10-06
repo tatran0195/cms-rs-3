@@ -111,3 +111,32 @@ pub struct OpenApiDocumentWithPaths {
     pub document: OpenApiDocumentResponse,
     pub paths: Vec<OpenApiPathInfo>,
 }
+
+/// OpenAPI source configuration for SPA
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ProjectOpenApiSourceResponse {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+/// Project OpenAPI configuration response matching SPA OpenApiConfiguration
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectOpenApiConfigurationResponse {
+    pub title: String,
+    pub path: String,
+    pub content_hash: String,
+    pub updated_at: String,
+    pub source: ProjectOpenApiSourceResponse,
+}
+
+/// Project OpenAPI validation response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ProjectOpenApiValidationResponse {
+    pub valid: bool,
+    pub version: String,
+    pub endpoints: usize,
+    pub schemas: usize,
+}

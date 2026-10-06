@@ -4,6 +4,11 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_entity::{
+    comment::{CommentUserResponse, ProjectCommentResponse},
+    common::ApiResponse,
+    org::WorkspaceMutationResponse,
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -11,10 +16,10 @@ use crate::auth::AuthExtractor;
 
 /// Map a DB comment row to the SPA comment shape, resolving the author's
 /// display name/image. Anchors are not yet persisted, so they render as null.
-async fn comment_to_json(
+async fn comment_to_response(
     state: &Arc<AppState>,
     comment: &cms_entity::comment::Comment,
-) -> Result<serde_json::Value, AppError> {
+) -> Result<ProjectCommentResponse, AppError> {
     let user = match comment.user_id.as_deref() {
         Some(uid) => cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, uid).await?,
         None => None,
@@ -23,14 +28,18 @@ async fn comment_to_json(
         Some(u) => (u.id, u.name.unwrap_or_else(|| u.email.clone()), u.image),
         None => ("anonymous".to_string(), "Anonymous".to_string(), None),
     };
-    Ok(serde_json::json!({
-        "id": comment.id,
-        "body": comment.content,
-        "resolved": comment.resolved,
-        "createdAt": comment.created_at.to_rfc3339(),
-        "anchor": null,
-        "user": { "id": uid, "name": name, "image": image }
-    }))
+    Ok(ProjectCommentResponse {
+        id: comment.id.clone(),
+        body: comment.content.clone(),
+        resolved: comment.resolved,
+        created_at: comment.created_at.to_rfc3339(),
+        anchor: None,
+        user: CommentUserResponse {
+            id: uid,
+            name,
+            image,
+        },
+    })
 }
 
 /// Project comments list
@@ -43,7 +52,7 @@ pub async fn list_project_comments_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Query(query): Query<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Vec<ProjectCommentResponse>>>, AppError> {
     use cms_db::comment::CommentQueries;
 
     // Enforce project membership first.
@@ -109,17 +118,21 @@ pub async fn list_project_comments_handler(
             }
             None => ("anonymous".to_string(), "Anonymous".to_string(), None),
         };
-        vec.push(serde_json::json!({
-            "id": c.id,
-            "body": c.content,
-            "resolved": c.resolved,
-            "createdAt": c.created_at.to_rfc3339(),
-            "anchor": null,
-            "user": { "id": uid, "name": name, "image": image }
-        }));
+        vec.push(ProjectCommentResponse {
+            id: c.id.clone(),
+            body: c.content.clone(),
+            resolved: c.resolved,
+            created_at: c.created_at.to_rfc3339(),
+            anchor: None,
+            user: CommentUserResponse {
+                id: uid,
+                name,
+                image,
+            },
+        });
     }
 
-    Ok(Json(serde_json::json!({ "data": vec })))
+    Ok(Json(ApiResponse::new(vec)))
 }
 
 /// Project comment create
@@ -131,7 +144,7 @@ pub async fn create_project_comment_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectCommentResponse>>, AppError> {
     use cms_entity::comment::CreateCommentRequest;
 
     let page_id = body
@@ -172,9 +185,9 @@ pub async fn create_project_comment_handler(
 
     let entity: cms_entity::comment::Comment = comment.into();
 
-    Ok(Json(
-        serde_json::json!({ "data": comment_to_json(&state, &entity).await? }),
-    ))
+    Ok(Json(ApiResponse::new(
+        comment_to_response(&state, &entity).await?,
+    )))
 }
 
 /// Project comment update
@@ -186,7 +199,7 @@ pub async fn update_project_comment_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<ProjectCommentResponse>>, AppError> {
     use cms_entity::comment::UpdateCommentRequest;
 
     let request = UpdateCommentRequest {
@@ -205,9 +218,9 @@ pub async fn update_project_comment_handler(
 
     let entity: cms_entity::comment::Comment = updated.into();
 
-    Ok(Json(
-        serde_json::json!({ "data": comment_to_json(&state, &entity).await? }),
-    ))
+    Ok(Json(ApiResponse::new(
+        comment_to_response(&state, &entity).await?,
+    )))
 }
 
 /// Project comment delete
@@ -217,7 +230,7 @@ pub async fn delete_project_comment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     cms_biz::comment::CommentService::delete_comment(
         &state.biz_context,
         &auth.user.id,
@@ -225,7 +238,8 @@ pub async fn delete_project_comment_handler(
         Some(&project_id),
     )
     .await?;
-    Ok(Json(
-        serde_json::json!({ "data": { "success": true, "id": id } }),
-    ))
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id,
+    })))
 }

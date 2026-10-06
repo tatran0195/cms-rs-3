@@ -265,6 +265,25 @@ pub struct JwtReplay {
     pub created_at: DateTime<Utc>,
 }
 
+/// Project API key response matching SPA ApiKey shape
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectApiKeyResponse {
+    pub id: Id,
+    pub name: String,
+    pub last_four: String,
+    pub scopes: Vec<String>,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+    pub expires_at: Option<String>,
+    pub revoked_at: Option<String>,
+    pub rotated_from_id: Option<String>,
+    pub legacy: bool,
+    pub state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
 

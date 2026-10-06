@@ -10,7 +10,7 @@ use axum::{
 };
 use cms_biz::usage::UsageService;
 use cms_entity::{
-    common::Id,
+    common::{ApiResponse, Id, SuccessResponse},
     usage::{
         OrganizationUsagePlanResponse, TrackAnalyticsEventRequest, UsageEntitlementResponse,
         UsageMeterResponse, UsagePlanResponse,
@@ -261,10 +261,10 @@ pub async fn update_organization_usage_plan_handler(
 pub async fn track_usage_event_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<TrackAnalyticsEventRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     UsageService::track_usage_event(&state.biz_context, request).await?;
 
-    Ok(Json(serde_json::json!({"success": true})))
+    Ok(Json(ApiResponse::new(SuccessResponse::ok())))
 }
 
 /// Get usage summary for an organization

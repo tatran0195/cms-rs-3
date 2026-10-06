@@ -10,7 +10,7 @@ use axum::{
 };
 use cms_biz::search::SearchService;
 use cms_entity::{
-    common::{Id, PaginatedResponse},
+    common::{ApiResponse, Id, PaginatedResponse, SuccessResponse},
     search::{
         ListSearchIndexRunsQuery, ReindexRequest, SearchIndexRunResponse, SearchRequest,
         SearchResponse,
@@ -87,7 +87,7 @@ pub async fn reindex_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Json(request): Json<ReindexRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     SearchService::reindex(
         &state.biz_context,
         state.search_engine.clone(),
@@ -96,9 +96,10 @@ pub async fn reindex_handler(
     )
     .await?;
 
-    Ok(Json(
-        serde_json::json!({"success": true, "message": "Reindexing started"}),
-    ))
+    Ok(Json(ApiResponse::new(SuccessResponse {
+        success: true,
+        message: Some("Reindexing started".to_string()),
+    })))
 }
 
 /// List search index runs

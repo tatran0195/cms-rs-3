@@ -28,6 +28,98 @@ fn default_page_size() -> u64 {
     20
 }
 
+/// Unified bounded pagination query for offset-based endpoints
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct PaginationQuery {
+    #[serde(default = "default_page")]
+    pub page: u64,
+    #[serde(default = "default_page_size")]
+    pub limit: u64,
+}
+
+impl Default for PaginationQuery {
+    fn default() -> Self {
+        Self {
+            page: default_page(),
+            limit: default_page_size(),
+        }
+    }
+}
+
+impl PaginationQuery {
+    pub const MAX_LIMIT: u64 = 100;
+    pub const DEFAULT_LIMIT: u64 = 20;
+
+    pub fn safe_limit(&self) -> u64 {
+        if self.limit == 0 {
+            Self::DEFAULT_LIMIT
+        } else {
+            self.limit.min(Self::MAX_LIMIT)
+        }
+    }
+
+    pub fn safe_page(&self) -> u64 {
+        self.page.max(1)
+    }
+
+    pub fn offset(&self) -> u64 {
+        (self.safe_page() - 1) * self.safe_limit()
+    }
+}
+
+/// Unified cursor-based pagination query
+#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema)]
+pub struct CursorQuery {
+    pub after: Option<String>,
+    pub before: Option<String>,
+    #[serde(default = "default_page_size")]
+    pub limit: u64,
+}
+
+impl CursorQuery {
+    pub const MAX_LIMIT: u64 = 100;
+    pub const DEFAULT_LIMIT: u64 = 20;
+
+    pub fn safe_limit(&self) -> u64 {
+        if self.limit == 0 {
+            Self::DEFAULT_LIMIT
+        } else {
+            self.limit.min(Self::MAX_LIMIT)
+        }
+    }
+
+    /// Encode a cursor from timestamp and unique ID
+    pub fn encode_cursor(timestamp: &DateTime<Utc>, id: &str) -> String {
+        format!("{}_{}", timestamp.timestamp_millis(), id)
+    }
+
+    /// Decode a cursor into (timestamp_millis, id)
+    pub fn decode_cursor(cursor: &str) -> Option<(i64, &str)> {
+        let (ts_str, id) = cursor.split_once('_')?;
+        let ts_millis = ts_str.parse::<i64>().ok()?;
+        Some((ts_millis, id))
+    }
+}
+
+/// Cursor-based pagination metadata
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CursorMeta {
+    pub next_cursor: Option<String>,
+    pub prev_cursor: Option<String>,
+    pub has_more: bool,
+}
+
+impl CursorMeta {
+    pub fn new(next_cursor: Option<String>, has_more: bool) -> Self {
+        Self {
+            next_cursor,
+            prev_cursor: None,
+            has_more,
+        }
+    }
+}
+
 /// Paginated response wrapper
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PaginatedResponse<T> {
@@ -91,6 +183,15 @@ impl HealthResponse {
     }
 }
 
+/// Detailed system health response for GET /health
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct SystemHealthResponse {
+    pub status: String,
+    pub database: String,
+    pub database_latency_ms: u128,
+    pub timestamp: String,
+}
+
 /// Standard API response envelope.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ApiResponse<T> {
@@ -141,12 +242,21 @@ pub struct ResponseMeta {
     pub timestamp: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pagination: Option<PaginationMeta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<CursorMeta>,
 }
 
 impl ResponseMeta {
     pub fn with_pagination(pagination: PaginationMeta) -> Self {
         Self {
             pagination: Some(pagination),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_cursor(cursor: CursorMeta) -> Self {
+        Self {
+            cursor: Some(cursor),
             ..Default::default()
         }
     }
@@ -180,6 +290,14 @@ impl<T> ApiResponse<T> {
             meta: Some(ResponseMeta::with_pagination(PaginationMeta::new(
                 page, page_size, total,
             ))),
+        }
+    }
+
+    /// Create a cursor-paginated response with standardized cursor metadata.
+    pub fn cursor(data: T, cursor: CursorMeta) -> Self {
+        Self {
+            data,
+            meta: Some(ResponseMeta::with_cursor(cursor)),
         }
     }
 }
@@ -405,5 +523,36 @@ mod tests {
         assert_eq!(meta.total_pages, 5);
         assert!(meta.has_next);
         assert!(meta.has_prev);
+    }
+
+    #[test]
+    fn test_pagination_query_bounds() {
+        let q = PaginationQuery {
+            page: 0,
+            limit: 500,
+        };
+        assert_eq!(q.safe_page(), 1);
+        assert_eq!(q.safe_limit(), PaginationQuery::MAX_LIMIT);
+        assert_eq!(q.offset(), 0);
+
+        let q2 = PaginationQuery { page: 3, limit: 15 };
+        assert_eq!(q2.safe_page(), 3);
+        assert_eq!(q2.safe_limit(), 15);
+        assert_eq!(q2.offset(), 30);
+    }
+
+    #[test]
+    fn test_cursor_query_and_meta() {
+        let now = Utc::now();
+        let cursor = CursorQuery::encode_cursor(&now, "item_123");
+        let decoded = CursorQuery::decode_cursor(&cursor).unwrap();
+        assert_eq!(decoded.0, now.timestamp_millis());
+        assert_eq!(decoded.1, "item_123");
+
+        let meta = CursorMeta::new(Some(cursor.clone()), true);
+        let resp = ApiResponse::cursor(vec!["hello"], meta);
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains(&cursor));
+        assert!(json.contains(r#""hasMore":true"#));
     }
 }

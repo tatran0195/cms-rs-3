@@ -165,6 +165,26 @@ impl CommentWithAuth {
     }
 }
 
+/// Comment user information for SPA comment thread
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct CommentUserResponse {
+    pub id: String,
+    pub name: String,
+    pub image: Option<String>,
+}
+
+/// Project comment response matching SPA Comment interface
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectCommentResponse {
+    pub id: Id,
+    pub body: String,
+    pub resolved: bool,
+    pub created_at: String,
+    pub anchor: Option<serde_json::Value>,
+    pub user: CommentUserResponse,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

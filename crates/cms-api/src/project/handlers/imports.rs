@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::common::{ApiResponse, SuccessResponse};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -14,7 +15,7 @@ pub async fn import_mintlify_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     state
         .biz_context
         .authz
@@ -36,7 +37,7 @@ pub async fn import_ghost_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     state
         .biz_context
         .authz

@@ -4,6 +4,10 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    common::{ApiResponse, SuccessResponse},
+    git::{GitConflict, ProjectGitWorkflowStatus},
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -18,7 +22,7 @@ pub async fn get_project_git_status_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Option<ProjectGitWorkflowStatus>>>, AppError> {
     use cms_biz::git::GitService;
     use cms_db::git::{
         GitConflictQueries, GitConnectionQueries, GitFileStateQueries, GitPreviewQueries,
@@ -36,7 +40,7 @@ pub async fn get_project_git_status_handler(
         GitConnectionQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
 
     let Some(conn) = connection else {
-        return Ok(Json(serde_json::json!({ "data": null })));
+        return Ok(Json(ApiResponse::new(None)));
     };
 
     // Webhook secret retrieval or generation & persistence
@@ -154,26 +158,32 @@ pub async fn get_project_git_status_handler(
 
     let last_sync = operations.last().and_then(|o| o.completed_at);
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": conn.id,
-            "repository": conn.repository,
-            "baseBranch": conn.branch,
-            "headBranch": conn.branch,
-            "contentPath": ".",
-            "credentialConfigured": true,
-            "webhookConfigured": true,
-            "webhookSecret": webhook_secret,
-            "lastSyncStatus": operations.last().map(|o| format!("{:?}", o.status).to_lowercase()).unwrap_or_else(|| "idle".to_string()),
-            "lastSyncError": operations.last().and_then(|o| o.error_message.clone()),
-            "lastSyncedAt": last_sync.map(|t| t.to_rfc3339()),
-            "operations": operations_json,
-            "pullRequests": pr_json,
-            "files": files.iter().map(|f| serde_json::json!({ "path": f.path })).collect::<Vec<_>>(),
-            "conflicts": conflicts_json,
-            "_syncStatus": GitService::get_sync_status(&state.biz_context, &auth.user.id, &project_id).await.unwrap_or_else(|_| serde_json::json!({})),
-        }
-    })))
+    Ok(Json(ApiResponse::new(Some(ProjectGitWorkflowStatus {
+        id: conn.id,
+        repository: conn.repository,
+        base_branch: conn.branch.clone(),
+        head_branch: conn.branch,
+        content_path: ".".to_string(),
+        credential_configured: true,
+        webhook_configured: true,
+        webhook_secret,
+        last_sync_status: operations
+            .last()
+            .map(|o| format!("{:?}", o.status).to_lowercase())
+            .unwrap_or_else(|| "idle".to_string()),
+        last_sync_error: operations.last().and_then(|o| o.error_message.clone()),
+        last_synced_at: last_sync.map(|t| t.to_rfc3339()),
+        operations: operations_json,
+        pull_requests: pr_json,
+        files: files
+            .into_iter()
+            .map(|f| serde_json::json!({ "path": f.path }))
+            .collect(),
+        conflicts: conflicts_json,
+        sync_status: GitService::get_sync_status(&state.biz_context, &auth.user.id, &project_id)
+            .await
+            .unwrap_or_else(|_| serde_json::json!({})),
+    }))))
 }
 
 /// Project git action
@@ -187,7 +197,7 @@ pub async fn action_project_git_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<serde_json::Value>>, AppError> {
     use cms_biz::git::GitService;
     use cms_entity::git::{
         CreateGitConnectionRequest, GitSyncOperationType, UpdateGitConnectionRequest,
@@ -295,7 +305,7 @@ pub async fn action_project_git_handler(
                 serde_json::Value::String(secret),
             );
         }
-        return Ok(Json(serde_json::json!({ "data": conn_json })));
+        return Ok(Json(ApiResponse::new(conn_json)));
     }
 
     // Trigger a manual sync (operations).
@@ -307,7 +317,8 @@ pub async fn action_project_git_handler(
             GitSyncOperationType::Manual,
         )
         .await?;
-        return Ok(Json(serde_json::json!({ "data": op })));
+        let val = serde_json::to_value(&op).unwrap_or_default();
+        return Ok(Json(ApiResponse::new(val)));
     }
 
     // Webhook secret regeneration / rotation:
@@ -342,12 +353,10 @@ pub async fn action_project_git_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "success": true,
-            "webhookSecret": secret
-        }
-    })))
+    Ok(Json(ApiResponse::new(serde_json::json!({
+        "success": true,
+        "webhookSecret": secret
+    }))))
 }
 
 /// Project git connection delete
@@ -355,7 +364,7 @@ pub async fn delete_project_git_connection_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     use cms_biz::git::GitService;
 
     let proj = cms_biz::project::ProjectService::get_project(
@@ -388,7 +397,7 @@ pub async fn delete_project_git_connection_handler(
             }
         }
     }
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    Ok(Json(ApiResponse::new(SuccessResponse::ok())))
 }
 
 /// Project git conflict resolve
@@ -397,7 +406,7 @@ pub async fn resolve_project_git_conflict_handler(
     auth: AuthExtractor,
     Path((project_id, conflict_id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<GitConflict>>, AppError> {
     use cms_biz::git::GitService;
 
     let resolved = body
@@ -415,5 +424,5 @@ pub async fn resolve_project_git_conflict_handler(
     )
     .await?;
 
-    Ok(Json(serde_json::json!({ "data": conflict })))
+    Ok(Json(ApiResponse::new(conflict)))
 }

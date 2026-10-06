@@ -4,6 +4,13 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_entity::{
+    asset::{
+        AssetResponse, ConfirmAssetRequest, ConfirmAssetResponse, PresignAssetRequest,
+        PresignAssetResponse,
+    },
+    common::ApiResponse,
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
@@ -14,7 +21,7 @@ pub async fn list_project_assets_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-) -> Result<Json<serde_json::Value>, AppError> {
+) -> Result<Json<ApiResponse<Vec<AssetResponse>>>, AppError> {
     let result = cms_biz::asset::AssetService::list_assets(
         &state.biz_context,
         &auth.user.id,
@@ -23,7 +30,7 @@ pub async fn list_project_assets_handler(
         50,
     )
     .await?;
-    Ok(Json(serde_json::json!({ "data": result.data })))
+    Ok(Json(ApiResponse::new(result.data)))
 }
 
 /// Presign asset
@@ -35,17 +42,15 @@ pub async fn presign_project_asset_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Json(body): Json<PresignAssetRequest>,
+) -> Result<Json<ApiResponse<PresignAssetResponse>>, AppError> {
     use std::time::Duration;
 
     cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
         .await?;
 
     let file_name = body
-        .get("filename")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+        .filename
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "asset".to_string());
 
@@ -68,12 +73,10 @@ pub async fn presign_project_asset_handler(
 
     let asset_url = format!("/api/app/assets/{}", storage_key);
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "uploadUrl": upload_url,
-            "assetUrl": asset_url,
-            "key": storage_key,
-        }
+    Ok(Json(ApiResponse::new(PresignAssetResponse {
+        upload_url,
+        asset_url,
+        key: storage_key,
     })))
 }
 
@@ -87,19 +90,16 @@ pub async fn confirm_project_asset_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<String>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let key = body
-        .get("key")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| AppError::InvalidInput("key is required".to_string()))?
-        .to_string();
+    Json(body): Json<ConfirmAssetRequest>,
+) -> Result<Json<ApiResponse<ConfirmAssetResponse>>, AppError> {
+    let key = body.key;
+    if key.trim().is_empty() {
+        return Err(AppError::InvalidInput("key is required".to_string()));
+    }
     let content_type = body
-        .get("contentType")
-        .and_then(|v| v.as_str())
-        .unwrap_or("application/octet-stream")
-        .to_string();
-    let file_size = body.get("size").and_then(|v| v.as_i64()).unwrap_or(0);
+        .content_type
+        .unwrap_or_else(|| "application/octet-stream".to_string());
+    let file_size = body.size.unwrap_or(0);
     let file_name = key.rsplit('/').next().unwrap_or("asset").to_string();
 
     // Authorize and normalize.
@@ -120,14 +120,12 @@ pub async fn confirm_project_asset_handler(
 
     let _ = file_size;
 
-    Ok(Json(serde_json::json!({
-        "data": {
-            "id": asset.id,
-            "key": asset.download_url,
-            "url": asset.download_url,
-            "contentType": asset.content_type,
-            "size": asset.file_size,
-            "createdAt": asset.created_at.to_rfc3339(),
-        }
+    Ok(Json(ApiResponse::new(ConfirmAssetResponse {
+        id: asset.id,
+        key: asset.download_url.clone(),
+        url: asset.download_url,
+        content_type: asset.content_type,
+        size: asset.file_size,
+        created_at: asset.created_at.to_rfc3339(),
     })))
 }
