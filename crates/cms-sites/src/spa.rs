@@ -162,7 +162,7 @@ fn fallback_html_response() -> Response {
 
 /// Serve static file or SPA index.html fallback from a specified root directory,
 /// verifying that the canonical target strictly remains inside the asset root.
-pub fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
+pub async fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
     let trimmed = path.trim_start_matches('/');
     if trimmed.starts_with("api/") || trimmed == "api" {
         let json = serde_json::json!({
@@ -225,7 +225,7 @@ pub fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
             }
 
             if canonical_file.is_file() {
-                if let Ok(bytes) = tokio::task::block_in_place(|| std::fs::read(&canonical_file)) {
+                if let Ok(bytes) = tokio::fs::read(&canonical_file).await {
                     let ext = canonical_file
                         .extension()
                         .and_then(|s| s.to_str())
@@ -252,7 +252,7 @@ pub fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
     let index_path = canonical_root.join("index.html");
     if let Ok(canonical_index) = index_path.canonicalize() {
         if canonical_index.starts_with(&canonical_root) && canonical_index.is_file() {
-            if let Ok(bytes) = tokio::task::block_in_place(|| std::fs::read(&canonical_index)) {
+            if let Ok(bytes) = tokio::fs::read(&canonical_index).await {
                 let mut res = Response::new(Body::from(bytes));
                 res.headers_mut().insert(
                     header::CONTENT_TYPE,
@@ -272,8 +272,8 @@ pub fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
 }
 
 /// Serve static file or SPA index.html fallback from the configured frontend root.
-pub fn serve_spa_file(path: &str) -> Response {
-    serve_spa_file_from_root(path, &get_asset_root())
+pub async fn serve_spa_file(path: &str) -> Response {
+    serve_spa_file_from_root(path, &get_asset_root()).await
 }
 
 #[cfg(test)]
@@ -284,50 +284,50 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_plain_traversal_rejected() {
+    #[tokio::test]
+    async fn test_plain_traversal_rejected() {
         let dir = tempdir().unwrap();
-        let res = serve_spa_file_from_root("../../etc/passwd", dir.path());
+        let res = serve_spa_file_from_root("../../etc/passwd", dir.path()).await;
         assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
-        let res2 = serve_spa_file_from_root("..\\..\\etc\\passwd", dir.path());
+        let res2 = serve_spa_file_from_root("..\\..\\etc\\passwd", dir.path()).await;
         assert_eq!(res2.status(), StatusCode::BAD_REQUEST);
 
-        let res3 = serve_spa_file_from_root("subdir/../secret.txt", dir.path());
+        let res3 = serve_spa_file_from_root("subdir/../secret.txt", dir.path()).await;
         assert_eq!(res3.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[test]
-    fn test_encoded_traversal_rejected() {
+    #[tokio::test]
+    async fn test_encoded_traversal_rejected() {
         let dir = tempdir().unwrap();
-        let res1 = serve_spa_file_from_root("%2e%2e/etc/passwd", dir.path());
+        let res1 = serve_spa_file_from_root("%2e%2e/etc/passwd", dir.path()).await;
         assert_eq!(res1.status(), StatusCode::BAD_REQUEST);
 
-        let res2 = serve_spa_file_from_root("%2e%2e%2fetc%2fpasswd", dir.path());
+        let res2 = serve_spa_file_from_root("%2e%2e%2fetc%2fpasswd", dir.path()).await;
         assert_eq!(res2.status(), StatusCode::BAD_REQUEST);
 
-        let res3 = serve_spa_file_from_root("..%2f..%2f", dir.path());
+        let res3 = serve_spa_file_from_root("..%2f..%2f", dir.path()).await;
         assert_eq!(res3.status(), StatusCode::BAD_REQUEST);
 
-        let res4 = serve_spa_file_from_root("%252e%252e/etc/passwd", dir.path());
+        let res4 = serve_spa_file_from_root("%252e%252e/etc/passwd", dir.path()).await;
         assert_eq!(res4.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[test]
-    fn test_double_slash_rejected() {
+    #[tokio::test]
+    async fn test_double_slash_rejected() {
         let dir = tempdir().unwrap();
-        let res1 = serve_spa_file_from_root("//etc/passwd", dir.path());
+        let res1 = serve_spa_file_from_root("//etc/passwd", dir.path()).await;
         assert_eq!(res1.status(), StatusCode::BAD_REQUEST);
 
-        let res2 = serve_spa_file_from_root("assets//app.js", dir.path());
+        let res2 = serve_spa_file_from_root("assets//app.js", dir.path()).await;
         assert_eq!(res2.status(), StatusCode::BAD_REQUEST);
 
-        let res3 = serve_spa_file_from_root("///", dir.path());
+        let res3 = serve_spa_file_from_root("///", dir.path()).await;
         assert_eq!(res3.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[test]
-    fn test_valid_path_served_and_confined() {
+    #[tokio::test]
+    async fn test_valid_path_served_and_confined() {
         let dir = tempdir().unwrap();
         let root = dir.path();
 
@@ -338,7 +338,7 @@ mod tests {
         fs::write(assets_dir.join("app.js"), "console.log('cms');").unwrap();
 
         // 1. Valid static file
-        let res_js = serve_spa_file_from_root("assets/app.js", root);
+        let res_js = serve_spa_file_from_root("assets/app.js", root).await;
         assert_eq!(res_js.status(), StatusCode::OK);
         assert_eq!(
             res_js.headers().get(header::CONTENT_TYPE).unwrap(),
@@ -346,11 +346,11 @@ mod tests {
         );
 
         // 2. Valid static file with single leading slash
-        let res_js_slash = serve_spa_file_from_root("/assets/app.js", root);
+        let res_js_slash = serve_spa_file_from_root("/assets/app.js", root).await;
         assert_eq!(res_js_slash.status(), StatusCode::OK);
 
         // 3. Valid index.html
-        let res_index = serve_spa_file_from_root("index.html", root);
+        let res_index = serve_spa_file_from_root("index.html", root).await;
         assert_eq!(res_index.status(), StatusCode::OK);
         assert_eq!(
             res_index.headers().get(header::CONTENT_TYPE).unwrap(),
@@ -358,7 +358,7 @@ mod tests {
         );
 
         // 4. SPA route fallback
-        let res_spa = serve_spa_file_from_root("dashboard/settings", root);
+        let res_spa = serve_spa_file_from_root("dashboard/settings", root).await;
         assert_eq!(res_spa.status(), StatusCode::OK);
         assert_eq!(
             res_spa.headers().get(header::CONTENT_TYPE).unwrap(),
@@ -366,18 +366,18 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_api_route_not_found() {
+    #[tokio::test]
+    async fn test_api_route_not_found() {
         let dir = tempdir().unwrap();
-        let res = serve_spa_file_from_root("api/v1/unknown", dir.path());
+        let res = serve_spa_file_from_root("api/v1/unknown", dir.path()).await;
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
     }
 
-    #[test]
-    fn test_missing_assets_returns_500_not_200() {
+    #[tokio::test]
+    async fn test_missing_assets_returns_500_not_200() {
         let dir = tempdir().unwrap();
         // Empty directory has no index.html and no assets
-        let res = serve_spa_file_from_root("some/spa/route", dir.path());
+        let res = serve_spa_file_from_root("some/spa/route", dir.path()).await;
         assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 

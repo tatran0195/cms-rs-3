@@ -74,8 +74,10 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     router = router.nest("/platform-events", platform_event::router(state.clone()));
     router = router.nest("/mcp", mcp::router(state.clone()));
 
-    // App subrouter (mirrors original TypeScript /api/app/* routes)
+    // App and canonical v1 subrouters
     let app_router = Router::new()
+        .nest("/auth", auth::router(state.clone()))
+        .nest("/orgs", org::router(state.clone()))
         .nest("/projects", project::router(state.clone()))
         .nest("/pages", page::router(state.clone()))
         .nest("/branches", branch::router(state.clone()))
@@ -98,7 +100,8 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
         .nest("/mcp", mcp::router(state.clone()))
         .nest("/members", workspace::members_router(state.clone()))
         .nest("/workspace", workspace::workspace_router(state.clone()));
-    router = router.nest("/app", app_router);
+    router = router.nest("/app", app_router.clone());
+    router = router.nest("/v1", app_router);
 
     // Admin routes (platform-admin-only)
     router = router.nest("/admin", admin::router(state.clone()));

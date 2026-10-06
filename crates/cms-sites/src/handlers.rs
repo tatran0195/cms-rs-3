@@ -213,7 +213,7 @@ pub async fn root_handler(
         Some(result) => serve_project_index(&state, &result)
             .await
             .map(|html| html.into_response()),
-        None => Ok(serve_spa_file("index.html")),
+        None => Ok(serve_spa_file("index.html").await),
     }
 }
 
@@ -235,7 +235,7 @@ pub async fn wildcard_handler(
         Some(result) => serve_page(&state, &result, &path)
             .await
             .map(|html| html.into_response()),
-        None => Ok(serve_spa_file(&path)),
+        None => Ok(serve_spa_file(&path).await),
     }
 }
 
@@ -612,7 +612,7 @@ pub async fn asset_handler(
     Path(path): Path<String>,
 ) -> Result<Response, StatusCode> {
     let candidate = format!("assets/{}", path);
-    let spa_res = serve_spa_file(&candidate);
+    let spa_res = serve_spa_file(&candidate).await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -632,7 +632,7 @@ pub async fn css_handler(
     Path(path): Path<String>,
 ) -> Result<Response, StatusCode> {
     let candidate = format!("css/{}", path);
-    let spa_res = serve_spa_file(&candidate);
+    let spa_res = serve_spa_file(&candidate).await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -652,7 +652,7 @@ pub async fn js_handler(
     Path(path): Path<String>,
 ) -> Result<Response, StatusCode> {
     let candidate = format!("js/{}", path);
-    let spa_res = serve_spa_file(&candidate);
+    let spa_res = serve_spa_file(&candidate).await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -672,7 +672,7 @@ pub async fn font_handler(
     Path(path): Path<String>,
 ) -> Result<Response, StatusCode> {
     let candidate = format!("fonts/{}", path);
-    let spa_res = serve_spa_file(&candidate);
+    let spa_res = serve_spa_file(&candidate).await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -692,7 +692,7 @@ pub async fn image_handler(
     Path(path): Path<String>,
 ) -> Result<Response, StatusCode> {
     let candidate = format!("images/{}", path);
-    let spa_res = serve_spa_file(&candidate);
+    let spa_res = serve_spa_file(&candidate).await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -710,7 +710,7 @@ pub async fn image_handler(
 pub async fn favicon_handler(
     State(state): State<Arc<SitesAppState>>,
 ) -> Result<Response, StatusCode> {
-    let spa_res = serve_spa_file("favicon.ico");
+    let spa_res = serve_spa_file("favicon.ico").await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -728,7 +728,7 @@ pub async fn favicon_handler(
 pub async fn favicon_32_handler(
     State(state): State<Arc<SitesAppState>>,
 ) -> Result<Response, StatusCode> {
-    let spa_res = serve_spa_file("favicon-32x32.png");
+    let spa_res = serve_spa_file("favicon-32x32.png").await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -746,7 +746,7 @@ pub async fn favicon_32_handler(
 pub async fn favicon_16_handler(
     State(state): State<Arc<SitesAppState>>,
 ) -> Result<Response, StatusCode> {
-    let spa_res = serve_spa_file("favicon-16x16.png");
+    let spa_res = serve_spa_file("favicon-16x16.png").await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -764,7 +764,7 @@ pub async fn favicon_16_handler(
 pub async fn apple_touch_icon_handler(
     State(state): State<Arc<SitesAppState>>,
 ) -> Result<Response, StatusCode> {
-    let spa_res = serve_spa_file("apple-touch-icon.png");
+    let spa_res = serve_spa_file("apple-touch-icon.png").await;
     if spa_res.status() == StatusCode::OK
         && spa_res
             .headers()
@@ -811,7 +811,7 @@ pub async fn manifest_handler(
             })
         }
         None => {
-            let spa_res = serve_spa_file("site.webmanifest");
+            let spa_res = serve_spa_file("site.webmanifest").await;
             if spa_res.status() == StatusCode::OK {
                 return Ok(spa_res);
             }

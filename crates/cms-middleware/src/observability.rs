@@ -24,7 +24,10 @@
 //! - Future extensibility (can add Prometheus backend without code changes)
 //! - Battle-tested implementation
 
-use std::time::{Duration, Instant};
+use std::{
+    sync::OnceLock,
+    time::{Duration, Instant},
+};
 
 use axum::{
     extract::FromRequestParts,
@@ -32,11 +35,12 @@ use axum::{
     response::Response,
 };
 use metrics::{counter, histogram};
-#[cfg(feature = "prometheus")]
-use metrics_exporter_prometheus::PrometheusBuilder;
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use tower::Service;
 use tracing::{debug, error, info, warn, Instrument, Span};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+static PROMETHEUS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
 
 /// Request ID header name
 pub const REQUEST_ID_HEADER: &str = "X-Request-ID";
@@ -64,6 +68,18 @@ pub fn init_observability() {
             )
             .try_init()
             .ok();
+
+        // Install Prometheus recorder if not already registered
+        if PROMETHEUS_HANDLE.get().is_none() {
+            match PrometheusBuilder::new().install_recorder() {
+                Ok(handle) => {
+                    let _ = PROMETHEUS_HANDLE.set(handle);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to install Prometheus recorder: {e}");
+                }
+            }
+        }
 
         info!("Observability initialized");
 
@@ -448,36 +464,30 @@ pub fn add_request_id_to_error<B>(mut response: Response<B>, request_id: &str) -
     response
 }
 
-/// Start a Prometheus metrics exporter (optional, requires prometheus feature)
-///
-/// This is useful for production deployments with Prometheus monitoring.
-///
-/// # Example
-/// ```rust,ignore
-/// #[cfg(feature = "prometheus")]
-/// observability::start_prometheus_exporter("0.0.0.0:9090").await?;
-/// ```
-#[cfg(feature = "prometheus")]
-pub async fn start_prometheus_exporter(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use std::net::SocketAddr;
+/// Render the current Prometheus metrics scrape output.
+pub fn render_prometheus_metrics() -> String {
+    // Ensure initialized
+    init_observability();
 
-    let addr: SocketAddr = addr.parse()?;
-    let builder = PrometheusBuilder::new().with_http_listener(addr);
-
-    // Install the recorder
-    builder.install()?;
-
-    info!("Prometheus metrics exporter started on {}", addr);
-    Ok(())
+    PROMETHEUS_HANDLE
+        .get()
+        .map(|h| h.render())
+        .unwrap_or_else(|| "# Prometheus recorder not initialized\n".to_string())
 }
 
-#[cfg(not(feature = "prometheus"))]
-pub async fn start_prometheus_exporter(_addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-    warn!(
-        "Prometheus exporter requested but prometheus feature is not enabled. Add `prometheus` \
-         feature to cms-middleware in Cargo.toml"
-    );
-    Ok(())
+/// Axum HTTP handler for GET /metrics endpoint.
+///
+/// Returns Prometheus metrics text with Content-Type `text/plain; version=0.0.4; charset=utf-8`.
+pub async fn metrics_handler() -> impl axum::response::IntoResponse {
+    let output = render_prometheus_metrics();
+    (
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
+        output,
+    )
 }
 
 #[cfg(test)]
@@ -561,5 +571,26 @@ mod tests {
         assert!(config.enable_request_logging);
         assert!(config.enable_response_logging);
         assert!(config.enable_metrics);
+    }
+
+    #[tokio::test]
+    async fn test_render_prometheus_metrics() {
+        let metrics = render_prometheus_metrics();
+        assert!(!metrics.is_empty());
+        assert!(metrics.contains("http_requests_total") || metrics.contains("# TYPE"));
+    }
+
+    #[tokio::test]
+    async fn test_metrics_handler() {
+        use axum::response::IntoResponse;
+        let response = metrics_handler().await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::CONTENT_TYPE)
+                .unwrap(),
+            "text/plain; version=0.0.4; charset=utf-8"
+        );
     }
 }

@@ -9,7 +9,10 @@ use axum::{http::StatusCode, Router};
 use cms_api::api_router;
 use cms_config::Config;
 use cms_error::AppError;
-use cms_middleware::{app_state::AppState, observability::init_tracing};
+use cms_middleware::{
+    app_state::AppState,
+    observability::{init_observability, metrics_handler},
+};
 use cms_sites::sites_router;
 use cms_worker::app_state::WorkerState;
 use tokio::net::TcpListener;
@@ -83,7 +86,7 @@ fn build_cors(config: &cms_config::Config) -> tower_http::cors::CorsLayer {
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     // Initialize observability (logging, tracing, metrics)
-    init_tracing();
+    init_observability();
 
     info!("Starting CMS Server...");
 
@@ -137,6 +140,7 @@ async fn main() -> Result<(), AppError> {
     let cors = build_cors(&config);
 
     let app = Router::new()
+        .route("/metrics", axum::routing::get(metrics_handler))
         .nest("/api", api_router)
         .merge(sites_router)
         .layer(axum::Extension(state.clone()))
