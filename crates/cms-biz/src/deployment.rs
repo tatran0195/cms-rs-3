@@ -39,9 +39,14 @@ impl DeploymentService {
 
         // Verify branch exists
         let branch_id = request.branch_id.as_deref().unwrap_or("");
-        let _branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
+        let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
+        if branch.project_id != project_id {
+            return Err(AppError::Conflict(
+                "Branch does not belong to this project".to_string(),
+            ));
+        }
 
         // Check if user has admin role in the project
         ctx.authz

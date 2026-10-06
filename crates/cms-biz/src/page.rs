@@ -309,9 +309,14 @@ impl PageService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        let _branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
+        let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
+        if branch.project_id != project_id {
+            return Err(AppError::Conflict(
+                "Branch does not belong to this project".to_string(),
+            ));
+        }
 
         // Check if user has access to the project
         ctx.authz
@@ -338,9 +343,14 @@ impl PageService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        let _branch = BranchQueries::get_by_id(&ctx.pool, &query.branch_id)
+        let branch = BranchQueries::get_by_id(&ctx.pool, &query.branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
+        if branch.project_id != query.project_id {
+            return Err(AppError::Conflict(
+                "Branch does not belong to this project".to_string(),
+            ));
+        }
 
         // Check if user has access to the project
         ctx.authz
@@ -392,9 +402,14 @@ impl PageService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        let _branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
+        let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
+        if branch.project_id != project_id {
+            return Err(AppError::Conflict(
+                "Branch does not belong to this project".to_string(),
+            ));
+        }
 
         // Check if user has access to the project
         ctx.authz

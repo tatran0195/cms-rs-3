@@ -68,6 +68,15 @@ pub async fn list_project_comments_handler(
         )
         .await?
     } else {
+        let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, page_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+        if page.project_id != project_id {
+            return Err(AppError::NotFound(
+                "Page not found for this project".to_string(),
+            ));
+        }
+
         CommentQueries::get_by_page(
             &state.biz_context.pool,
             page_id,
@@ -94,7 +103,7 @@ pub async fn list_project_comments_handler(
 pub async fn create_project_comment_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(_project_id): Path<String>,
+    Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_entity::comment::CreateCommentRequest;
@@ -104,6 +113,15 @@ pub async fn create_project_comment_handler(
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .ok_or_else(|| AppError::InvalidInput("pageId is required".to_string()))?;
+
+    let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, page_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+    if page.project_id != project_id {
+        return Err(AppError::NotFound(
+            "Page not found for this project".to_string(),
+        ));
+    }
 
     let request = CreateCommentRequest {
         page_id: page_id.to_string(),

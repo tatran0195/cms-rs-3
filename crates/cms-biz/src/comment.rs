@@ -31,11 +31,16 @@ impl CommentService {
             .require_project_role(user_id, &page.project_id, MemberRole::Viewer)
             .await?;
 
-        // Verify parent comment exists (if specified)
+        // Verify parent comment exists and belongs to the same page
         if let Some(parent_id) = &request.parent_id {
-            let _parent = CommentQueries::get_by_id(&ctx.pool, parent_id)
+            let parent = CommentQueries::get_by_id(&ctx.pool, parent_id)
                 .await?
                 .ok_or_else(|| AppError::NotFound("Parent comment not found".to_string()))?;
+            if parent.page_id != page_id {
+                return Err(AppError::Conflict(
+                    "Parent comment does not belong to this page".to_string(),
+                ));
+            }
         }
 
         let comment = CommentQueries::create(

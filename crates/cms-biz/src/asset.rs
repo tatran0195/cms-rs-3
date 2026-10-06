@@ -34,11 +34,16 @@ impl AssetService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        // Verify page exists (if specified)
+        // Verify page exists (if specified) and belongs to the project
         if let Some(page_id) = page_id {
-            let _page = PageQueries::get_by_id(&ctx.pool, page_id)
+            let page = PageQueries::get_by_id(&ctx.pool, page_id)
                 .await?
                 .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+            if page.project_id != project_id {
+                return Err(AppError::Conflict(
+                    "Page does not belong to this project".to_string(),
+                ));
+            }
         }
 
         // Check if user has access to the project

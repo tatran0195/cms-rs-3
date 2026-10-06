@@ -201,6 +201,70 @@ impl OrganizationQueries {
         Ok(row.into())
     }
 
+    /// Create an organization atomically with an owner member in a single SQL transaction.
+    pub async fn create_with_owner_atomic(
+        pool: &PgPool,
+        user_id: &str,
+        name: &str,
+        slug: &str,
+        description: Option<&str>,
+    ) -> Result<Organization, AppError> {
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
+        let org_id = Uuid::new_v4().to_string();
+        let now = Utc::now();
+
+        let org_row = sqlx::query_as::<_, OrganizationRow>(
+            r#"
+            INSERT INTO "Organization" (id, name, slug, description, logo, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            "#,
+        )
+        .bind(&org_id)
+        .bind(name)
+        .bind(slug)
+        .bind(description)
+        .bind::<Option<String>>(None)
+        .bind(now)
+        .bind(now)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| {
+            if matches!(&e, sqlx::Error::Database(db) if db.code().as_deref() == Some("23505"))
+                || e.to_string().contains("duplicate key")
+            {
+                AppError::Conflict("Organization with this slug already exists".to_string())
+            } else {
+                AppError::Database(e.into())
+            }
+        })?;
+
+        let member_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            r#"
+            INSERT INTO "Member" (id, user_id, organization_id, role, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(&member_id)
+        .bind(user_id)
+        .bind(&org_id)
+        .bind(MemberRole::Owner)
+        .bind(now)
+        .bind(now)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
+        Ok(org_row.into())
+    }
+
     /// Update an organization
     pub async fn update(
         pool: &PgPool,

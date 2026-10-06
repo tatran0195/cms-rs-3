@@ -469,6 +469,21 @@ impl ProjectService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        asset::AssetService, branch::BranchService, comment::CommentService,
+        deployment::DeploymentService, integration::IntegrationService, page::PageService,
+    };
+    use bytes::Bytes;
+    use cms_db::{branch::BranchQueries, comment::CommentQueries, page::PageQueries};
+    use cms_entity::{
+        asset::CreateAssetRequest,
+        branch::CreateBranchRequest,
+        comment::CreateCommentRequest,
+        deployment::CreateDeploymentRequest,
+        integration::{CreateProjectIntegrationRequest, IntegrationProvider},
+    };
+    use cms_storage::LocalFsStorage;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_atomic_project_creation_seeds_branch_language_settings() {
@@ -765,6 +780,791 @@ mod tests {
             .await;
         let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
             .bind(&org_id)
+            .execute(&pool)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_cross_project_branch_access_fails() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let user_email = format!("test-{}@internal.company", Uuid::new_v4());
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Test Cross User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&user_id)
+        .bind(&user_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let org_id_1 = Uuid::new_v4().to_string();
+        let org_name_1 = format!("Org 1 {}", Uuid::new_v4());
+        let org_slug_1 = format!("org-1-{}", Uuid::new_v4());
+        let proj_name_1 = format!("Proj 1 {}", Uuid::new_v4());
+        let proj_slug_1 = format!("proj-1-{}", Uuid::new_v4());
+
+        let (project1, org1) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name_1, &org_slug_1, &user_id)),
+            &org_id_1,
+            &proj_name_1,
+            &proj_slug_1,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        let org_id_2 = Uuid::new_v4().to_string();
+        let org_name_2 = format!("Org 2 {}", Uuid::new_v4());
+        let org_slug_2 = format!("org-2-{}", Uuid::new_v4());
+        let proj_name_2 = format!("Proj 2 {}", Uuid::new_v4());
+        let proj_slug_2 = format!("proj-2-{}", Uuid::new_v4());
+
+        let (project2, org2) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name_2, &org_slug_2, &user_id)),
+            &org_id_2,
+            &proj_name_2,
+            &proj_slug_2,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        let branch2 = BranchQueries::get_default(&pool, &project2.id)
+            .await
+            .expect("Failed to get default branch")
+            .expect("Default branch missing");
+
+        // 1. PageService::get_page_by_path with project 1 and branch from project 2
+        let res1 =
+            PageService::get_page_by_path(&ctx, &user_id, &project1.id, &branch2.id, "/index")
+                .await;
+        assert!(
+            res1.is_err(),
+            "Accessing foreign branch via get_page_by_path must fail"
+        );
+        match res1.unwrap_err() {
+            AppError::Conflict(msg) => {
+                assert!(msg.contains("Branch does not belong to this project"))
+            }
+            err => panic!("Expected Conflict, got {:?}", err),
+        }
+
+        // 2. PageService::get_page_tree with project 1 and branch from project 2
+        let res2 =
+            PageService::get_page_tree(&ctx, &user_id, &project1.id, &branch2.id, None).await;
+        assert!(
+            res2.is_err(),
+            "Accessing foreign branch via get_page_tree must fail"
+        );
+        match res2.unwrap_err() {
+            AppError::Conflict(msg) => {
+                assert!(msg.contains("Branch does not belong to this project"))
+            }
+            err => panic!("Expected Conflict, got {:?}", err),
+        }
+
+        // 3. DeploymentService::create_deployment with project 1 and branch from project 2
+        let res3 = DeploymentService::create_deployment(
+            &ctx,
+            &user_id,
+            &project1.id,
+            CreateDeploymentRequest {
+                project_id: project1.id.clone(),
+                branch_id: Some(branch2.id.clone()),
+            },
+        )
+        .await;
+        assert!(res3.is_err(), "Deploying foreign branch must fail");
+        match res3.unwrap_err() {
+            AppError::Conflict(msg) => {
+                assert!(msg.contains("Branch does not belong to this project"))
+            }
+            err => panic!("Expected Conflict, got {:?}", err),
+        }
+
+        // Cleanup
+        for pid in [&project1.id, &project2.id] {
+            let _ = cms_db::sqlx::query("DELETE FROM \"ProjectSettings\" WHERE project_id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Language\" WHERE project_id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Branch\" WHERE project_id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+        }
+        for oid in [&org1.id, &org2.id] {
+            let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+                .bind(oid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+                .bind(oid)
+                .execute(&pool)
+                .await;
+        }
+        let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+            .bind(&user_id)
+            .execute(&pool)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_cross_page_comment_parent_idor_fails() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let user_email = format!("test-{}@internal.company", Uuid::new_v4());
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Comment Test User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&user_id)
+        .bind(&user_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let org_id = Uuid::new_v4().to_string();
+        let org_name = format!("Comment Org {}", Uuid::new_v4());
+        let org_slug = format!("comment-org-{}", Uuid::new_v4());
+        let proj_name = format!("Comment Proj {}", Uuid::new_v4());
+        let proj_slug = format!("comment-proj-{}", Uuid::new_v4());
+
+        let (project, org) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name, &org_slug, &user_id)),
+            &org_id,
+            &proj_name,
+            &proj_slug,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        let branch = BranchQueries::get_default(&pool, &project.id)
+            .await
+            .expect("Failed to get default branch")
+            .expect("Default branch missing");
+
+        let page1 = PageQueries::create(
+            &pool,
+            &project.id,
+            &branch.id,
+            None,
+            None,
+            Some("doc"),
+            "page-1",
+            "Page 1",
+            None,
+            Some("Content 1"),
+            None,
+            None,
+            None,
+            0,
+            true,
+        )
+        .await
+        .expect("Failed to create page 1");
+
+        let page2 = PageQueries::create(
+            &pool,
+            &project.id,
+            &branch.id,
+            None,
+            None,
+            Some("doc"),
+            "page-2",
+            "Page 2",
+            None,
+            Some("Content 2"),
+            None,
+            None,
+            None,
+            1,
+            true,
+        )
+        .await
+        .expect("Failed to create page 2");
+
+        let comment1 = CommentQueries::create(
+            &pool,
+            &page1.id,
+            Some(&user_id),
+            None,
+            None,
+            "Parent comment on page 1",
+        )
+        .await
+        .expect("Failed to create comment 1");
+
+        let res = CommentService::create_comment(
+            &ctx,
+            &user_id,
+            &page2.id,
+            CreateCommentRequest {
+                page_id: page2.id.clone(),
+                content: "Cross-page child comment attempt".to_string(),
+                parent_id: Some(comment1.id.clone()),
+            },
+        )
+        .await;
+
+        assert!(res.is_err(), "Cross-page comment parent must fail");
+        match res.unwrap_err() {
+            AppError::Conflict(msg) => {
+                assert!(msg.contains("Parent comment does not belong to this page"))
+            }
+            err => panic!("Expected Conflict, got {:?}", err),
+        }
+
+        // Cleanup
+        let _ = cms_db::sqlx::query("DELETE FROM \"Comment\" WHERE page_id IN ($1, $2)")
+            .bind(&page1.id)
+            .bind(&page2.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Page\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectSettings\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Language\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Branch\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+            .bind(&org.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+            .bind(&user_id)
+            .execute(&pool)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_cross_project_asset_upload_fails() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let user_email = format!("test-{}@internal.company", Uuid::new_v4());
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Asset Test User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&user_id)
+        .bind(&user_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let org_id_1 = Uuid::new_v4().to_string();
+        let org_name_1 = format!("Asset Org 1 {}", Uuid::new_v4());
+        let org_slug_1 = format!("asset-org-1-{}", Uuid::new_v4());
+        let proj_name_1 = format!("Asset Proj 1 {}", Uuid::new_v4());
+        let proj_slug_1 = format!("asset-proj-1-{}", Uuid::new_v4());
+
+        let (project1, org1) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name_1, &org_slug_1, &user_id)),
+            &org_id_1,
+            &proj_name_1,
+            &proj_slug_1,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        let org_id_2 = Uuid::new_v4().to_string();
+        let org_name_2 = format!("Asset Org 2 {}", Uuid::new_v4());
+        let org_slug_2 = format!("asset-org-2-{}", Uuid::new_v4());
+        let proj_name_2 = format!("Asset Proj 2 {}", Uuid::new_v4());
+        let proj_slug_2 = format!("asset-proj-2-{}", Uuid::new_v4());
+
+        let (project2, org2) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name_2, &org_slug_2, &user_id)),
+            &org_id_2,
+            &proj_name_2,
+            &proj_slug_2,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        let branch2 = BranchQueries::get_default(&pool, &project2.id)
+            .await
+            .expect("Failed to get default branch")
+            .expect("Default branch missing");
+
+        let page2 = PageQueries::create(
+            &pool,
+            &project2.id,
+            &branch2.id,
+            None,
+            None,
+            Some("doc"),
+            "page-2",
+            "Page 2",
+            None,
+            Some("Content 2"),
+            None,
+            None,
+            None,
+            0,
+            true,
+        )
+        .await
+        .expect("Failed to create page 2");
+
+        let storage = Arc::new(LocalFsStorage::new(
+            std::env::temp_dir().to_string_lossy().to_string(),
+        ));
+        let res = AssetService::upload_asset(
+            &ctx,
+            &user_id,
+            storage,
+            &project1.id,
+            Some(&page2.id),
+            CreateAssetRequest {
+                project_id: project1.id.clone(),
+                page_id: Some(page2.id.clone()),
+                file_name: "test.png".to_string(),
+                content_type: "image/png".to_string(),
+                file_size: Some(10),
+                width: None,
+                height: None,
+                alt_text: None,
+            },
+            Bytes::from_static(b"fakebytes"),
+        )
+        .await;
+
+        assert!(res.is_err(), "Asset upload with foreign page must fail");
+        match res.unwrap_err() {
+            AppError::Conflict(msg) => {
+                assert!(msg.contains("Page does not belong to this project"))
+            }
+            err => panic!("Expected Conflict, got {:?}", err),
+        }
+
+        // Cleanup
+        let _ = cms_db::sqlx::query("DELETE FROM \"Page\" WHERE id = $1")
+            .bind(&page2.id)
+            .execute(&pool)
+            .await;
+        for pid in [&project1.id, &project2.id] {
+            let _ = cms_db::sqlx::query("DELETE FROM \"ProjectSettings\" WHERE project_id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Language\" WHERE project_id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Branch\" WHERE project_id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+                .bind(pid)
+                .execute(&pool)
+                .await;
+        }
+        for oid in [&org1.id, &org2.id] {
+            let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+                .bind(oid)
+                .execute(&pool)
+                .await;
+            let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+                .bind(oid)
+                .execute(&pool)
+                .await;
+        }
+        let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+            .bind(&user_id)
+            .execute(&pool)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn test_integration_rbac_enforcement() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let owner_id = format!("owner-{}", Uuid::new_v4());
+        let guest_id = format!("guest-{}", Uuid::new_v4());
+        let admin_id = format!("admin-{}", Uuid::new_v4());
+        let now = chrono::Utc::now();
+
+        for (uid, name) in [
+            (&owner_id, "Owner User"),
+            (&guest_id, "Guest User"),
+            (&admin_id, "Admin User"),
+        ] {
+            let email = format!(
+                "{}-{}@internal.company",
+                name.replace(' ', "-").to_lowercase(),
+                Uuid::new_v4()
+            );
+            let _ = cms_db::sqlx::query(
+                r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+                   VALUES ($1, $2, $3, TRUE, 'user', $4, $4)"#,
+            )
+            .bind(uid)
+            .bind(email)
+            .bind(name)
+            .bind(now)
+            .execute(&pool)
+            .await;
+        }
+
+        let org_id = Uuid::new_v4().to_string();
+        let org_name = format!("RBAC Org {}", Uuid::new_v4());
+        let org_slug = format!("rbac-org-{}", Uuid::new_v4());
+        let proj_name = format!("RBAC Proj {}", Uuid::new_v4());
+        let proj_slug = format!("rbac-proj-{}", Uuid::new_v4());
+
+        let (project, org) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name, &org_slug, &owner_id)),
+            &org_id,
+            &proj_name,
+            &proj_slug,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        // Add guest with Guest role
+        let _ = MemberQueries::create(&pool, &guest_id, &org.id, MemberRole::Guest).await;
+        // Add admin with Admin role
+        let _ = MemberQueries::create(&pool, &admin_id, &org.id, MemberRole::Admin).await;
+
+        let authz = Arc::new(cms_authz::ProductionAuthz::new(pool.clone()));
+        let ctx = BizContext::new(pool.clone(), authz);
+
+        // 1. Guest user attempts to create integration -> InsufficientRole (Admin required)
+        let guest_req = CreateProjectIntegrationRequest {
+            project_id: project.id.clone(),
+            provider: IntegrationProvider::Webhook,
+            name: "Webhook Integration".to_string(),
+            config: serde_json::json!({}),
+            webhook_url: Some("https://example.com/webhook".to_string()),
+            is_active: true,
+        };
+        let res_guest = IntegrationService::create_integration(&ctx, &guest_id, guest_req).await;
+        assert!(
+            res_guest.is_err(),
+            "Guest role must not be permitted to create integration"
+        );
+        match res_guest.unwrap_err() {
+            AppError::InsufficientRole(msg) => assert!(msg.contains("Admin")),
+            err => panic!("Expected InsufficientRole, got {:?}", err),
+        }
+
+        // 2. Admin user creates integration -> Ok
+        let admin_req = CreateProjectIntegrationRequest {
+            project_id: project.id.clone(),
+            provider: IntegrationProvider::Webhook,
+            name: "Webhook Integration Admin".to_string(),
+            config: serde_json::json!({}),
+            webhook_url: Some("https://example.com/webhook".to_string()),
+            is_active: true,
+        };
+        let res_admin = IntegrationService::create_integration(&ctx, &admin_id, admin_req).await;
+        assert!(
+            res_admin.is_ok(),
+            "Admin role must be permitted to create integration"
+        );
+        let integration = res_admin.unwrap();
+
+        // 3. Guest user attempts to get integration -> InsufficientRole (Viewer required)
+        let res_guest_get =
+            IntegrationService::get_integration(&ctx, &guest_id, &integration.id).await;
+        assert!(
+            res_guest_get.is_err(),
+            "Guest role must not be permitted to read integration"
+        );
+        match res_guest_get.unwrap_err() {
+            AppError::InsufficientRole(msg) => assert!(msg.contains("Viewer")),
+            err => panic!("Expected InsufficientRole, got {:?}", err),
+        }
+
+        // 4. Admin user reads integration -> Ok
+        let res_admin_get =
+            IntegrationService::get_integration(&ctx, &admin_id, &integration.id).await;
+        assert!(
+            res_admin_get.is_ok(),
+            "Admin role must be permitted to read integration"
+        );
+
+        // Cleanup
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectIntegration\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectSettings\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Language\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Branch\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+            .bind(&org.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org.id)
+            .execute(&pool)
+            .await;
+        for uid in [&owner_id, &guest_id, &admin_id] {
+            let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+                .bind(uid)
+                .execute(&pool)
+                .await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_branch_slug_creation_atomic() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let user_id = format!("test-user-{}", Uuid::new_v4());
+        let user_email = format!("test-{}@internal.company", Uuid::new_v4());
+        let now = chrono::Utc::now();
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Concurrent Test User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&user_id)
+        .bind(&user_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let org_id = Uuid::new_v4().to_string();
+        let org_name = format!("Concurrent Org {}", Uuid::new_v4());
+        let org_slug = format!("concurrent-org-{}", Uuid::new_v4());
+        let proj_name = format!("Concurrent Proj {}", Uuid::new_v4());
+        let proj_slug = format!("concurrent-proj-{}", Uuid::new_v4());
+
+        let (project, org) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name, &org_slug, &user_id)),
+            &org_id,
+            &proj_name,
+            &proj_slug,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        let mut handles = Vec::new();
+        for _ in 0..5 {
+            let ctx_c = ctx.clone();
+            let uid_c = user_id.clone();
+            let pid_c = project.id.clone();
+            handles.push(tokio::spawn(async move {
+                BranchService::create_branch(
+                    &ctx_c,
+                    &uid_c,
+                    &pid_c,
+                    CreateBranchRequest {
+                        project_id: pid_c.clone(),
+                        name: "concurrent-feature".to_string(),
+                        description: None,
+                        is_protected: false,
+                    },
+                )
+                .await
+            }));
+        }
+
+        let mut slugs = std::collections::HashSet::new();
+        for handle in handles {
+            let res = handle.await.expect("Task join failed");
+            assert!(
+                res.is_ok(),
+                "Concurrent branch creation failed: {:?}",
+                res.err()
+            );
+            let branch = res.unwrap();
+            slugs.insert(branch.branch.slug);
+        }
+
+        assert_eq!(
+            slugs.len(),
+            5,
+            "All 5 concurrent branches must receive distinct slugs without collisions"
+        );
+        assert!(
+            slugs.contains("concurrent-feature"),
+            "Primary slug must be allocated to one task"
+        );
+
+        // Cleanup
+        let _ = cms_db::sqlx::query("DELETE FROM \"Branch\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectSettings\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Language\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+            .bind(&org.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+            .bind(&user_id)
             .execute(&pool)
             .await;
     }

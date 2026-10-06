@@ -155,17 +155,17 @@ impl BranchQueries {
         Ok(row.map(Into::into))
     }
 
-    /// Create a new branch
-    pub async fn create(
+    /// Create a new branch with a specified slug
+    pub async fn create_with_slug(
         pool: &PgPool,
         project_id: &str,
         name: &str,
+        slug: &str,
         description: Option<&str>,
         is_default: bool,
         is_protected: bool,
     ) -> Result<Branch, AppError> {
         let id = Uuid::new_v4().to_string();
-        let slug = name.to_lowercase().replace(' ', "-");
         let now = Utc::now();
 
         // If this is the default branch, make sure no other branch is default
@@ -187,7 +187,7 @@ impl BranchQueries {
         .bind(&id)
         .bind(project_id)
         .bind(name)
-        .bind(&slug)
+        .bind(slug)
         .bind(description)
         .bind(is_default)
         .bind(is_protected)
@@ -196,14 +196,38 @@ impl BranchQueries {
         .fetch_one(pool)
         .await
         .map_err(|e| {
-            if e.to_string().contains("duplicate key") {
-                AppError::Conflict("Branch with this name already exists in this project".to_string())
+            if matches!(&e, sqlx::Error::Database(db) if db.code().as_deref() == Some("23505"))
+                || e.to_string().contains("duplicate key")
+            {
+                AppError::Conflict("Branch with this slug already exists in this project".to_string())
             } else {
                 AppError::Database(e.into())
             }
         })?;
 
         Ok(row.into())
+    }
+
+    /// Create a new branch
+    pub async fn create(
+        pool: &PgPool,
+        project_id: &str,
+        name: &str,
+        description: Option<&str>,
+        is_default: bool,
+        is_protected: bool,
+    ) -> Result<Branch, AppError> {
+        let slug = name.to_lowercase().replace(' ', "-");
+        Self::create_with_slug(
+            pool,
+            project_id,
+            name,
+            &slug,
+            description,
+            is_default,
+            is_protected,
+        )
+        .await
     }
 
     /// Update a branch

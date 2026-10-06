@@ -25,34 +25,40 @@ impl OrgService {
         user_id: &str,
         request: CreateOrganizationRequest,
     ) -> Result<OrganizationResponse, AppError> {
-        // Generate a unique slug
-        let mut slug = request.name.to_lowercase().replace(' ', "-");
-        let original_slug = slug.clone();
+        // Generate a unique slug atomically with unique constraint retry and atomic owner attachment
+        let base_slug = request.name.trim().to_lowercase().replace(' ', "-");
+        let base_slug = if base_slug.is_empty() {
+            "org".to_string()
+        } else {
+            base_slug
+        };
+        let mut slug = base_slug.clone();
         let mut counter = 1;
 
-        loop {
-            let is_available =
-                OrganizationQueries::is_slug_available(&ctx.pool, &slug, None).await?;
-
-            if is_available {
-                break;
+        let org = loop {
+            match OrganizationQueries::create_with_owner_atomic(
+                &ctx.pool,
+                user_id,
+                &request.name,
+                &slug,
+                request.description.as_deref(),
+            )
+            .await
+            {
+                Ok(org) => break org,
+                Err(AppError::Conflict(_)) => {
+                    slug = format!("{}-{}", base_slug, counter);
+                    counter += 1;
+                    if counter > 50 {
+                        return Err(AppError::Conflict(
+                            "Failed to allocate a unique organization slug under concurrency"
+                                .to_string(),
+                        ));
+                    }
+                }
+                Err(e) => return Err(e),
             }
-
-            slug = format!("{}-{}", original_slug, counter);
-            counter += 1;
-        }
-
-        // Create the organization
-        let org = OrganizationQueries::create(
-            &ctx.pool,
-            &request.name,
-            &slug,
-            request.description.as_deref(),
-        )
-        .await?;
-
-        // Make the creating user the owner
-        MemberQueries::create(&ctx.pool, user_id, &org.id, MemberRole::Owner).await?;
+        };
 
         Ok(org.into())
     }

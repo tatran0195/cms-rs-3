@@ -34,33 +34,41 @@ impl BranchService {
             .require_project_role(user_id, project_id, MemberRole::Editor)
             .await?;
 
-        // Generate a unique slug
-        let mut slug = request.name.to_lowercase().replace(' ', "-");
-        let original_slug = slug.clone();
+        // Generate a unique slug atomically with unique constraint retry
+        let base_slug = request.name.trim().to_lowercase().replace(' ', "-");
+        let base_slug = if base_slug.is_empty() {
+            "branch".to_string()
+        } else {
+            base_slug
+        };
+        let mut slug = base_slug.clone();
         let mut counter = 1;
 
-        loop {
-            let is_available =
-                BranchQueries::is_slug_available(&ctx.pool, project_id, &slug, None).await?;
-
-            if is_available {
-                break;
+        let branch = loop {
+            match BranchQueries::create_with_slug(
+                &ctx.pool,
+                project_id,
+                &request.name,
+                &slug,
+                request.description.as_deref(),
+                false,                 // Not default (unless it's the first branch)
+                !request.is_protected, // is_public = !is_protected
+            )
+            .await
+            {
+                Ok(b) => break b,
+                Err(AppError::Conflict(_)) => {
+                    slug = format!("{}-{}", base_slug, counter);
+                    counter += 1;
+                    if counter > 50 {
+                        return Err(AppError::Conflict(
+                            "Failed to allocate a unique branch slug under concurrency".to_string(),
+                        ));
+                    }
+                }
+                Err(e) => return Err(e),
             }
-
-            slug = format!("{}-{}", original_slug, counter);
-            counter += 1;
-        }
-
-        // Create the branch
-        let branch = BranchQueries::create(
-            &ctx.pool,
-            project_id,
-            &request.name,
-            request.description.as_deref(),
-            false,                 // Not default (unless it's the first branch)
-            !request.is_protected, // is_public = !is_protected
-        )
-        .await?;
+        };
 
         // If this is the first branch, make it the default
         let branch_count = BranchQueries::count_by_project(&ctx.pool, project_id, None).await?;
@@ -306,34 +314,42 @@ impl BranchService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        // Generate a unique slug
-        let mut slug = name.to_lowercase().replace(' ', "-");
-        let original_slug = slug.clone();
+        // Generate a unique slug atomically with unique constraint retry
+        let base_slug = name.trim().to_lowercase().replace(' ', "-");
+        let base_slug = if base_slug.is_empty() {
+            format!("{}-copy", source_branch.slug)
+        } else {
+            base_slug
+        };
+        let mut slug = base_slug.clone();
         let mut counter = 1;
 
-        loop {
-            let is_available =
-                BranchQueries::is_slug_available(&ctx.pool, &source_branch.project_id, &slug, None)
-                    .await?;
-
-            if is_available {
-                break;
+        let new_branch = loop {
+            match BranchQueries::create_with_slug(
+                &ctx.pool,
+                &source_branch.project_id,
+                name,
+                &slug,
+                source_branch.description.as_deref(),
+                false,
+                false,
+            )
+            .await
+            {
+                Ok(b) => break b,
+                Err(AppError::Conflict(_)) => {
+                    slug = format!("{}-{}", base_slug, counter);
+                    counter += 1;
+                    if counter > 50 {
+                        return Err(AppError::Conflict(
+                            "Failed to allocate a unique duplicated branch slug under concurrency"
+                                .to_string(),
+                        ));
+                    }
+                }
+                Err(e) => return Err(e),
             }
-
-            slug = format!("{}-{}", original_slug, counter);
-            counter += 1;
-        }
-
-        // Create the new branch
-        let new_branch = BranchQueries::create(
-            &ctx.pool,
-            &source_branch.project_id,
-            name,
-            source_branch.description.as_deref(),
-            false,
-            false,
-        )
-        .await?;
+        };
 
         // Copy all pages from the source branch preserving parent hierarchy
         let all_pages = PageQueries::get_by_project(&ctx.pool, &source_branch.project_id).await?;

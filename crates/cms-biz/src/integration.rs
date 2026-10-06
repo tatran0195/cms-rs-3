@@ -5,9 +5,12 @@
 use cms_db::integration::{
     IntegrationAuditEventQueries, IntegrationIdempotencyRecordQueries, ProjectIntegrationQueries,
 };
-use cms_entity::integration::{
-    CreateProjectIntegrationRequest, IntegrationProvider, ProjectIntegrationResponse,
-    UpdateProjectIntegrationRequest,
+use cms_entity::{
+    common::MemberRole,
+    integration::{
+        CreateProjectIntegrationRequest, IntegrationProvider, ProjectIntegrationResponse,
+        UpdateProjectIntegrationRequest,
+    },
 };
 
 use crate::{AppError, BizContext};
@@ -22,9 +25,9 @@ impl IntegrationService {
         user_id: &str,
         request: CreateProjectIntegrationRequest,
     ) -> Result<ProjectIntegrationResponse, AppError> {
-        // Check if user has access to the project
+        // Enforce Admin role for creating integrations
         ctx.authz
-            .require_project_access(user_id, &request.project_id)
+            .require_project_role(user_id, &request.project_id, MemberRole::Admin)
             .await?;
 
         let integration = ProjectIntegrationQueries::create(
@@ -64,9 +67,9 @@ impl IntegrationService {
             .await?
             .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
 
-        // Check if user has access to the project
+        // Enforce Viewer role for reading integration
         ctx.authz
-            .require_project_access(user_id, &integration.project_id)
+            .require_project_role(user_id, &integration.project_id, MemberRole::Viewer)
             .await?;
 
         Ok(integration.into())
@@ -78,9 +81,9 @@ impl IntegrationService {
         user_id: &str,
         project_id: &str,
     ) -> Result<Vec<ProjectIntegrationResponse>, AppError> {
-        // Check if user has access to the project
+        // Enforce Viewer role for reading integrations
         ctx.authz
-            .require_project_access(user_id, project_id)
+            .require_project_role(user_id, project_id, MemberRole::Viewer)
             .await?;
 
         let integrations = ProjectIntegrationQueries::get_by_project(&ctx.pool, project_id).await?;
@@ -99,9 +102,9 @@ impl IntegrationService {
             .await?
             .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
 
-        // Check if user has access to the project
+        // Enforce Admin role for updating integrations
         ctx.authz
-            .require_project_access(user_id, &integration.project_id)
+            .require_project_role(user_id, &integration.project_id, MemberRole::Admin)
             .await?;
 
         let changes_json = serde_json::to_value(&request).unwrap_or_default();
@@ -142,9 +145,9 @@ impl IntegrationService {
             .await?
             .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
 
-        // Check if user has access to the project
+        // Enforce Admin role for deleting integrations
         ctx.authz
-            .require_project_access(user_id, &integration.project_id)
+            .require_project_role(user_id, &integration.project_id, MemberRole::Admin)
             .await?;
 
         let deleted = ProjectIntegrationQueries::delete(&ctx.pool, integration_id).await?;
@@ -174,9 +177,9 @@ impl IntegrationService {
         project_id: &str,
         provider: IntegrationProvider,
     ) -> Result<Vec<ProjectIntegrationResponse>, AppError> {
-        // Check if user has access to the project
+        // Enforce Viewer role for reading integrations
         ctx.authz
-            .require_project_access(user_id, project_id)
+            .require_project_role(user_id, project_id, MemberRole::Viewer)
             .await?;
 
         let integrations =
@@ -260,6 +263,9 @@ impl IntegrationService {
         integration_id: &str,
     ) -> Result<serde_json::Value, AppError> {
         let integration = Self::get_integration(ctx, user_id, integration_id).await?;
+        ctx.authz
+            .require_project_role(user_id, &integration.project_id, MemberRole::Admin)
+            .await?;
 
         // Extract candidate webhook target URL
         let target_url = integration
