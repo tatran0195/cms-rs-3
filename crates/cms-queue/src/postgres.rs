@@ -77,30 +77,16 @@ impl PostgresJobQueue {
 
         let max_retries = self.max_retries.max(1).min(i32::MAX as usize) as i32;
         sqlx::query(
-            r#"WITH expired_jobs AS (
-                   UPDATE "CmsJob"
-                   SET status = CASE WHEN retry_count + 1 >= $1 THEN 'failed' ELSE 'retrying' END,
-                       retry_count = retry_count + 1,
-                       error_message = 'Worker lease expired; job will be retried',
-                       available_at = NOW(),
-                       completed_at = CASE WHEN retry_count + 1 >= $1 THEN NOW() ELSE NULL END,
-                       locked_by = NULL,
-                       locked_at = NULL
-                   WHERE status = 'processing'
-                     AND locked_at < NOW() - INTERVAL '15 minutes'
-                   RETURNING payload, status
-               )
-               UPDATE "Deployment" AS deployment
-               SET status = CASE WHEN expired_jobs.status = 'failed'
-                                 THEN 'FAILED'::"DeploymentStatus"
-                                 ELSE 'PENDING'::"DeploymentStatus" END,
-                   error_message = CASE WHEN expired_jobs.status = 'failed'
-                                        THEN 'Worker lease expired after maximum retries'
-                                        ELSE NULL END,
-                   updated_at = NOW()
-               FROM expired_jobs
-               WHERE deployment.id = expired_jobs.payload->>'deployment_id'
-                 AND deployment.status IN ('BUILDING', 'DEPLOYING')"#,
+            r#"UPDATE "CmsJob"
+               SET status = CASE WHEN retry_count + 1 >= $1 THEN 'failed' ELSE 'retrying' END,
+                   retry_count = retry_count + 1,
+                   error_message = 'Worker lease expired; job will be retried',
+                   available_at = NOW(),
+                   completed_at = CASE WHEN retry_count + 1 >= $1 THEN NOW() ELSE NULL END,
+                   locked_by = NULL,
+                   locked_at = NULL
+               WHERE status = 'processing'
+                 AND locked_at < NOW() - INTERVAL '15 minutes'"#,
         )
         .bind(max_retries)
         .execute(&self.pool)

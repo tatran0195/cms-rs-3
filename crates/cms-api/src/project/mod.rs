@@ -128,11 +128,11 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route(
             "/{project_id}/settings/import/mintlify",
-            post(action_project_git_handler),
+            post(import_mintlify_handler),
         )
         .route(
             "/{project_id}/settings/import/ghost",
-            post(action_project_git_handler),
+            post(import_ghost_handler),
         )
         // Branch merge
         .route(

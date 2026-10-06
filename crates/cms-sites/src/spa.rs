@@ -223,7 +223,7 @@ pub fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
             }
 
             if canonical_file.is_file() {
-                if let Ok(bytes) = std::fs::read(&canonical_file) {
+                if let Ok(bytes) = tokio::task::block_in_place(|| std::fs::read(&canonical_file)) {
                     let ext = canonical_file
                         .extension()
                         .and_then(|s| s.to_str())
@@ -250,7 +250,7 @@ pub fn serve_spa_file_from_root(path: &str, asset_root: &Path) -> Response {
     let index_path = canonical_root.join("index.html");
     if let Ok(canonical_index) = index_path.canonicalize() {
         if canonical_index.starts_with(&canonical_root) && canonical_index.is_file() {
-            if let Ok(bytes) = std::fs::read(&canonical_index) {
+            if let Ok(bytes) = tokio::task::block_in_place(|| std::fs::read(&canonical_index)) {
                 let mut res = Response::new(Body::from(bytes));
                 res.headers_mut().insert(
                     header::CONTENT_TYPE,

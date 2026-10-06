@@ -159,7 +159,7 @@ fn fallback_answer(project_id: &str, question: &str, hits: &[SearchHit]) -> RagA
         .join("\n\n");
 
     let answer = format!(
-        "Based on documentation in project '{}':\n\n{}",
+        "Documentation search results for project '{}' (AI summarization is not configured):\n\n{}",
         project_id, context
     );
 

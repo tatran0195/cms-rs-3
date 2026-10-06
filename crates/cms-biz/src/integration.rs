@@ -255,13 +255,123 @@ impl IntegrationService {
         .await
     }
 
-    /// Test an integration
+    /// Test an integration by pinging its configured webhook endpoint with SSRF protection
     pub async fn test_integration(
         ctx: &BizContext,
         user_id: &str,
         integration_id: &str,
     ) -> Result<serde_json::Value, AppError> {
-        let _ = Self::get_integration(ctx, user_id, integration_id).await?;
-        Ok(serde_json::json!({ "success": true, "message": "Integration test successful" }))
+        let integration = Self::get_integration(ctx, user_id, integration_id).await?;
+
+        // Extract candidate webhook target URL
+        let target_url = integration
+            .webhook_url
+            .as_deref()
+            .or_else(|| integration.config.get("url").and_then(|v| v.as_str()))
+            .or_else(|| integration.config.get("webhook_url").and_then(|v| v.as_str()));
+
+        let target_url = match target_url {
+            Some(u) if !u.trim().is_empty() => u.trim(),
+            _ => {
+                return Ok(serde_json::json!({
+                    "success": true,
+                    "message": "Integration configuration validated (no webhook endpoint configured to test)"
+                }));
+            }
+        };
+
+        // Parse and validate URL
+        let parsed_url = reqwest::Url::parse(target_url)
+            .map_err(|e| AppError::InvalidInput(format!("Invalid webhook URL '{target_url}': {e}")))?;
+
+        let scheme = parsed_url.scheme();
+        if scheme != "http" && scheme != "https" {
+            return Err(AppError::InvalidInput(
+                "Only HTTP and HTTPS URLs are allowed for webhook integrations".to_string(),
+            ));
+        }
+
+        let host = parsed_url
+            .host_str()
+            .ok_or_else(|| AppError::InvalidInput("Webhook URL has no valid host".to_string()))?;
+        let port = parsed_url.port_or_known_default().unwrap_or(80);
+
+        // Resolve DNS and perform SSRF validation
+        let addrs = tokio::net::lookup_host((host, port))
+            .await
+            .map_err(|e| AppError::InvalidInput(format!("DNS resolution failed for '{host}': {e}")))?;
+
+        let mut resolved_any = false;
+        for addr in addrs {
+            resolved_any = true;
+            if crate::openapi::is_private_or_restricted_ip(addr.ip()) {
+                return Err(AppError::InvalidInput(format!(
+                    "Integration webhook URL targets a private or restricted network address ({})",
+                    addr.ip()
+                )));
+            }
+        }
+
+        if !resolved_any {
+            return Err(AppError::InvalidInput(format!(
+                "Host '{host}' could not be resolved to any network address"
+            )));
+        }
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to build HTTP client: {e}")))?;
+
+        let ping_payload = serde_json::json!({
+            "event": "test.ping",
+            "integration_id": &integration.id,
+            "project_id": &integration.project_id,
+            "provider": &integration.provider,
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+        });
+
+        let send_res = client
+            .post(parsed_url)
+            .header("User-Agent", "cms-CMS-Integration/1.0")
+            .json(&ping_payload)
+            .send()
+            .await;
+
+        let (success, status_code, message) = match send_res {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                if resp.status().is_success() {
+                    (true, Some(status), "Integration test webhook delivered successfully".to_string())
+                } else {
+                    (false, Some(status), format!("Webhook endpoint returned HTTP error status {}", status))
+                }
+            }
+            Err(e) => (false, None, format!("Failed to reach webhook endpoint: {e}")),
+        };
+
+        // Audit log test execution
+        let _ = IntegrationAuditEventQueries::create(
+            &ctx.pool,
+            integration_id,
+            "integration.tested",
+            serde_json::json!({
+                "user_id": user_id,
+                "url": target_url,
+                "success": success,
+                "status_code": status_code,
+                "message": &message,
+            }),
+            if success { "COMPLETED" } else { "FAILED" },
+            None,
+        )
+        .await;
+
+        Ok(serde_json::json!({
+            "success": success,
+            "status_code": status_code,
+            "message": message,
+        }))
     }
 }

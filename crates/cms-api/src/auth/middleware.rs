@@ -11,7 +11,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use axum_extra::extract::cookie::Cookie;
-use base64::prelude::*;
 use cms_biz::auth::AuthService;
 use cms_entity::auth::UserResponse;
 use cms_error::AppError;
@@ -23,7 +22,6 @@ use cms_middleware::app_state::AppState;
 /// 1. Session cookie (session_token)
 /// 2. Bearer token (JWT)
 /// 3. API key (X-API-Key header)
-/// 4. Basic auth (for development)
 #[derive(Debug, Clone)]
 pub struct AuthExtractor {
     pub user: UserResponse,
@@ -36,7 +34,6 @@ pub enum AuthMethod {
     Session,
     Jwt,
     ApiKey,
-    Basic,
     None,
 }
 
@@ -75,14 +72,6 @@ where
             return Ok(AuthExtractor {
                 user,
                 auth_method: AuthMethod::ApiKey,
-            });
-        }
-
-        // Try Basic auth (for development)
-        if let Ok(user) = extract_from_basic_auth(parts, &state).await {
-            return Ok(AuthExtractor {
-                user,
-                auth_method: AuthMethod::Basic,
             });
         }
 
@@ -157,44 +146,6 @@ async fn extract_from_api_key(
     AuthService::get_user_by_api_key(&state.biz_context, api_key).await
 }
 
-/// Extract user from Basic auth
-async fn extract_from_basic_auth(
-    parts: &mut Parts,
-    state: &Arc<AppState>,
-) -> Result<UserResponse, AppError> {
-    // Get Authorization header
-    let auth_header = parts
-        .headers
-        .get(header::AUTHORIZATION)
-        .ok_or(AppError::Unauthorized)?;
-
-    let auth_value = auth_header.to_str().map_err(|_| AppError::Unauthorized)?;
-
-    // Check for Basic scheme
-    if !auth_value.starts_with("Basic ") {
-        return Err(AppError::Unauthorized);
-    }
-
-    // Decode base64 credentials
-    let encoded = &auth_value[6..];
-    let decoded = BASE64_STANDARD
-        .decode(encoded.trim().as_bytes())
-        .map_err(|_| AppError::Unauthorized)?;
-
-    let credentials = String::from_utf8(decoded).map_err(|_| AppError::Unauthorized)?;
-
-    // Split into username:password
-    let parts: Vec<&str> = credentials.splitn(2, ':').collect();
-    if parts.len() != 2 {
-        return Err(AppError::Unauthorized);
-    }
-
-    let email = parts[0];
-    let password = parts[1];
-
-    // Authenticate user
-    AuthService::login(&state.biz_context, email, password).await
-}
 
 /// Optional authentication extractor
 ///
@@ -243,14 +194,6 @@ where
             return Ok(OptionalAuthExtractor {
                 user: Some(user),
                 auth_method: Some(AuthMethod::ApiKey),
-            });
-        }
-
-        // Try Basic auth
-        if let Ok(user) = extract_from_basic_auth(parts, &state).await {
-            return Ok(OptionalAuthExtractor {
-                user: Some(user),
-                auth_method: Some(AuthMethod::Basic),
             });
         }
 
@@ -388,5 +331,6 @@ mod tests {
     fn test_auth_method_equality() {
         assert_eq!(AuthMethod::Session, AuthMethod::Session);
         assert_ne!(AuthMethod::Session, AuthMethod::Jwt);
+        assert_ne!(AuthMethod::ApiKey, AuthMethod::None);
     }
 }

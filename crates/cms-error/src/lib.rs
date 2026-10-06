@@ -154,9 +154,6 @@ pub enum AppError {
     #[error("Usage limit exceeded: {0}")]
     UsageLimitExceeded(String),
 
-    #[error("Feature not available on plan")]
-    FeatureNotAvailable,
-
     // === MCP Errors ===
     #[error("MCP disabled")]
     McpDisabled,
@@ -271,8 +268,7 @@ impl AppError {
 
             // Usage/Entitlement Errors
             AppError::EntitlementDisabled(_) => StatusCode::FORBIDDEN,
-            AppError::UsageLimitExceeded(_) => StatusCode::PAYMENT_REQUIRED,
-            AppError::FeatureNotAvailable => StatusCode::FORBIDDEN,
+            AppError::UsageLimitExceeded(_) => StatusCode::TOO_MANY_REQUESTS,
 
             // MCP Errors
             AppError::McpDisabled => StatusCode::SERVICE_UNAVAILABLE,
@@ -345,7 +341,6 @@ impl AppError {
 
             AppError::EntitlementDisabled(_) => "entitlement:disabled".to_string(),
             AppError::UsageLimitExceeded(_) => "usage:limit_exceeded".to_string(),
-            AppError::FeatureNotAvailable => "entitlement:feature_not_available".to_string(),
 
             AppError::McpDisabled => "mcp:disabled".to_string(),
             AppError::McpError(_) => "mcp:error".to_string(),
@@ -398,25 +393,40 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response<Body> {
         let status = self.status_code();
         let error_code = self.error_code();
-        let message = self.to_string();
-        let details = self.details();
+        let raw_message = self.to_string();
+        let raw_details = self.details();
 
         if status.is_server_error() {
             tracing::error!(
                 status = %status,
                 error_code = %error_code,
-                error = %message,
-                details = ?details,
+                error = %raw_message,
+                details = ?raw_details,
                 "AppError Server Error"
             );
         } else if status.is_client_error() {
             tracing::warn!(
                 status = %status,
                 error_code = %error_code,
-                error = %message,
+                error = %raw_message,
                 "AppError Client Error"
             );
         }
+
+        // Never leak raw SQL, internal paths, or unvetted infrastructure errors to clients
+        let (message, details) = if status.is_server_error() {
+            let safe_msg = match &self {
+                AppError::Database(_)
+                | AppError::DatabaseConnectionFailed
+                | AppError::TransactionFailed => {
+                    "An internal database error occurred".to_string()
+                }
+                _ => "An internal server error occurred".to_string(),
+            };
+            (safe_msg, None)
+        } else {
+            (raw_message, raw_details)
+        };
 
         let body = ErrorResponse {
             error: ErrorDetails {
@@ -501,5 +511,22 @@ mod tests {
 
         assert!(body_str.contains("http:not_found"));
         assert!(body_str.contains("page not found"));
+    }
+
+    #[tokio::test]
+    async fn test_database_error_does_not_leak_sql_message() {
+        let sql_err = AppError::Database(sqlx::Error::RowNotFound);
+        let response = sql_err.into_response();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+
+        // Must NOT leak raw database error details or "RowNotFound"
+        assert!(!body_str.contains("RowNotFound"), "Leaked raw SQL error: {body_str}");
+        assert!(body_str.contains("An internal database error occurred"), "Expected safe message: {body_str}");
     }
 }

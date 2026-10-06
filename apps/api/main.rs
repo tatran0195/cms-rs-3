@@ -160,13 +160,15 @@ async fn main() -> Result<(), AppError> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-        .with_graceful_shutdown(async move {
-            shutdown_signal().await;
-            let _ = worker_shutdown_tx.send(true);
-            for handle in worker_handles {
-                let _ = handle.await;
-            }
-        })
-        .await
-        .map_err(|e| AppError::Internal(e.into()))
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .map_err(|e| AppError::Internal(e.into()))?;
+
+    info!("HTTP server drained; signaling background workers to terminate...");
+    let _ = worker_shutdown_tx.send(true);
+    for handle in worker_handles {
+        let _ = handle.await;
+    }
+    info!("All background workers terminated cleanly.");
+    Ok(())
 }

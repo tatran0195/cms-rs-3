@@ -9,10 +9,11 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, RwLock,
+        Arc,
     },
     time::{Duration, Instant},
 };
+use parking_lot::RwLock;
 
 use axum::{
     extract::{ConnectInfo, FromRequestParts},
@@ -291,7 +292,7 @@ impl HostResolver {
 
         if self.generation.load(Ordering::Acquire) == generation {
             let now = Instant::now();
-            let mut cache = self.cache.write().unwrap();
+            let mut cache = self.cache.write();
             cache.retain(|_, entry| entry.generation == generation && entry.expires_at > now);
             if cache.len() >= HOST_CACHE_MAX_ENTRIES {
                 if let Some(oldest_host) = cache
@@ -326,7 +327,6 @@ impl HostResolver {
     fn cached_result(&self, host: &str, generation: u64) -> Option<Option<HostResolutionResult>> {
         self.cache
             .read()
-            .unwrap()
             .get(host)
             .filter(|entry| entry.generation == generation && entry.expires_at > Instant::now())
             .map(|entry| entry.result.clone())
@@ -458,7 +458,7 @@ impl HostResolver {
 
     /// Clear cache
     pub fn clear_cache(&self) {
-        self.cache.write().unwrap().clear();
+        self.cache.write().clear();
     }
 
     /// Get the number of unexpired entries in the current cache generation.
@@ -467,7 +467,6 @@ impl HostResolver {
         let now = Instant::now();
         self.cache
             .read()
-            .unwrap()
             .values()
             .filter(|entry| entry.generation == generation && entry.expires_at > now)
             .count()
@@ -621,7 +620,7 @@ mod tests {
         };
         let now = Instant::now();
         {
-            let mut cache = resolver.cache.write().unwrap();
+            let mut cache = resolver.cache.write();
             cache.insert(
                 "docs.example.com".to_string(),
                 HostCacheEntry {

@@ -123,9 +123,8 @@ impl ProductionAuthz {
         user_id: &str,
         project_id: &str,
     ) -> Result<Option<MemberRole>, AppError> {
-        // This would query the project membership
-        // For now, we'll use organization membership as a proxy
-        // In practice, CMS has project-specific roles
+        // In this internal platform deployment, access control is scoped hierarchically
+        // through the project's owning organization membership.
         use cms_db::project::ProjectQueries;
 
         let project = ProjectQueries::get_by_id(&self.pool, project_id)

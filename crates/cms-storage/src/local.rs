@@ -69,7 +69,7 @@ impl Storage for LocalFsStorage {
     async fn get(&self, key: &str) -> Result<Bytes, AppError> {
         let path = self.get_path(key)?;
         let bytes = tokio::fs::read(&path).await.map_err(|e| {
-            if e.to_string().contains("No such file") {
+            if e.kind() == std::io::ErrorKind::NotFound {
                 AppError::ObjectNotFound(key.to_string())
             } else {
                 AppError::Storage(format!("Failed to read file: {}", e))
@@ -83,14 +83,8 @@ impl Storage for LocalFsStorage {
         let path = self.get_path(key)?;
         match tokio::fs::remove_file(&path).await {
             Ok(_) => Ok(()),
-            Err(e) => {
-                if e.to_string().contains("No such file") {
-                    // It's okay if the file doesn't exist
-                    Ok(())
-                } else {
-                    Err(AppError::Storage(format!("Failed to delete file: {}", e)))
-                }
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(AppError::Storage(format!("Failed to delete file: {}", e))),
         }
     }
 
@@ -298,5 +292,16 @@ mod tests {
             .put("/root/file.txt", Bytes::from("payload"), "text/plain")
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_file_returns_object_not_found() {
+        let dir = tempdir().unwrap();
+        let storage = LocalFsStorage::new(dir.path().to_string_lossy().into_owned());
+        let res = storage.get("nonexistent_key_12345.txt").await;
+        match res {
+            Err(AppError::ObjectNotFound(k)) => assert_eq!(k, "nonexistent_key_12345.txt"),
+            other => panic!("Expected ObjectNotFound, got {:?}", other),
+        }
     }
 }

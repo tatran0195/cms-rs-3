@@ -115,6 +115,9 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     // Health check endpoint
     router = router.route("/health", get(get_health).with_state(state.clone()));
 
+    // Prometheus metrics scrape endpoint
+    router = router.route("/metrics", get(admin::handlers::get_system_metrics_handler).with_state(state.clone()));
+
     // Caddy on-demand TLS check internal endpoint: /api/v1/internal/domains/check
     let internal_domain_router = Router::new()
         .route(

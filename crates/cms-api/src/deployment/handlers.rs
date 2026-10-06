@@ -88,16 +88,40 @@ pub async fn create_deployment_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
-    let project_id = request.project_id.clone();
-    let deployment = DeploymentService::create_deployment(
-        &state.biz_context,
+    state
+        .biz_context
+        .authz
+        .require_project_role(
+            &auth.user.id,
+            &request.project_id,
+            cms_entity::common::MemberRole::Admin,
+        )
+        .await?;
+
+    let branch_id = if let Some(ref bid) = request.branch_id {
+        let branch = cms_db::branch::BranchQueries::get_by_id(&state.biz_context.pool, bid)
+            .await?
+            .filter(|b| b.project_id == request.project_id)
+            .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
+        branch.id
+    } else {
+        cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &request.project_id)
+            .await?
+            .map(|b| b.id)
+            .unwrap_or_default()
+    };
+
+    let deployment = crate::project::handlers::create_publish_deployment(
+        &state,
+        &request.project_id,
+        &branch_id,
         &auth.user.id,
-        &project_id,
-        request,
+        "Manual deployment trigger",
+        serde_json::json!({}),
     )
     .await?;
 
-    Ok(Json(deployment))
+    Ok(Json(deployment.into()))
 }
 
 /// Get a specific deployment by ID

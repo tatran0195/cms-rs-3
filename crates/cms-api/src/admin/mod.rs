@@ -44,6 +44,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/orgs/{id}/stats", get(get_organization_stats_handler))
         .route("/stats", get(get_system_stats_handler))
         .route("/health", get(get_system_health_handler))
+        .route("/metrics", get(get_system_metrics_handler))
         .route("/overview", get(parity::overview_handler))
         .route("/funnel", get(parity::funnel_handler))
         .route("/users", get(parity::users_handler))

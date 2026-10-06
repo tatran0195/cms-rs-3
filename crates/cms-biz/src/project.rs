@@ -48,41 +48,62 @@ impl ProjectService {
             (org_id.to_string(), None)
         };
 
-        // Generate a unique slug
-        let mut slug = request.name.to_lowercase().replace(' ', "-");
-        let original_slug = slug.clone();
+        // Generate a base slug from the request name
+        let sanitized = request
+            .name
+            .trim()
+            .chars()
+            .flat_map(char::to_lowercase)
+            .filter_map(|c| {
+                if c.is_ascii_alphanumeric() {
+                    Some(c)
+                } else if c == ' ' || c == '-' || c == '_' {
+                    Some('-')
+                } else {
+                    None
+                }
+            })
+            .collect::<String>();
+        let base_slug = if sanitized.trim_matches('-').is_empty() {
+            "project".to_string()
+        } else {
+            sanitized.trim_matches('-').to_string()
+        };
+
+        let mut slug = base_slug.clone();
         let mut counter = 1;
 
-        loop {
-            let is_available =
-                ProjectQueries::is_slug_available(&ctx.pool, &effective_org_id, &slug, None)
-                    .await?;
+        // Atomically insert with collision retry on PostgreSQL unique constraint conflict (23505)
+        let (project, org) = loop {
+            let new_org_tuple = new_org_info
+                .as_ref()
+                .map(|(name, slug, uid)| (name.as_str(), slug.as_str(), uid.as_str()));
 
-            if is_available {
-                break;
+            match ProjectQueries::create_atomic(
+                &ctx.pool,
+                new_org_tuple,
+                &effective_org_id,
+                &request.name,
+                &slug,
+                request.description.as_deref(),
+                request.icon.as_deref(),
+                request.is_public,
+            )
+            .await
+            {
+                Ok(res) => break res,
+                Err(AppError::Conflict(_)) => {
+                    slug = format!("{}-{}", base_slug, counter);
+                    counter += 1;
+                    if counter > 50 {
+                        return Err(AppError::Conflict(
+                            "Unable to allocate unique project slug after multiple attempts".to_string(),
+                        ));
+                    }
+                }
+                Err(err) => return Err(err),
             }
-
-            slug = format!("{}-{}", original_slug, counter);
-            counter += 1;
-        }
-
-        let new_org_tuple = new_org_info
-            .as_ref()
-            .map(|(name, slug, uid)| (name.as_str(), slug.as_str(), uid.as_str()));
-
-        // Create the project atomically in one transaction:
-        // (organization + membership if minted), project, default branch, default language, required settings
-        let (project, org) = ProjectQueries::create_atomic(
-            &ctx.pool,
-            new_org_tuple,
-            &effective_org_id,
-            &request.name,
-            &slug,
-            request.description.as_deref(),
-            request.icon.as_deref(),
-            request.is_public,
-        )
-        .await?;
+        };
 
         Ok(ProjectWithOrgResponse {
             project: project.into(),

@@ -224,34 +224,97 @@ impl OpenApiService {
     }
 }
 
-/// Fetch OpenAPI content from a URL via HTTP
-async fn fetch_openapi_content(url: &str) -> Result<String, String> {
+pub(crate) fn is_private_or_restricted_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(ipv4) => {
+            ipv4.is_loopback()
+                || ipv4.is_private()
+                || ipv4.is_link_local()
+                || ipv4.is_broadcast()
+                || ipv4.is_documentation()
+                || ipv4.octets()[0] == 0 // 0.0.0.0/8
+                || (ipv4.octets()[0] == 100 && (ipv4.octets()[1] & 0xc0) == 64) // CGNAT 100.64.0.0/10
+                || (ipv4.octets()[0] == 192 && ipv4.octets()[1] == 0 && ipv4.octets()[2] == 0) // 192.0.0.0/24
+                || (ipv4.octets()[0] == 198 && (ipv4.octets()[1] == 18 || ipv4.octets()[1] == 19)) // Benchmark 198.18.0.0/15
+        }
+        std::net::IpAddr::V6(ipv6) => {
+            ipv6.is_loopback()
+                || ipv6.is_multicast()
+                || ((ipv6.segments()[0] & 0xfe00) == 0xfc00) // Unique local (fc00::/7)
+                || ((ipv6.segments()[0] & 0xffc0) == 0xfe80) // Link-local (fe80::/10)
+                || ipv6.to_ipv4_mapped().map(|v4| is_private_or_restricted_ip(std::net::IpAddr::V4(v4))).unwrap_or(false)
+        }
+    }
+}
+
+/// Fetch OpenAPI content from a URL via HTTP with SSRF protection and bounded streaming
+async fn fetch_openapi_content(url_str: &str) -> Result<String, String> {
+    let parsed_url = reqwest::Url::parse(url_str)
+        .map_err(|e| format!("Invalid URL: {e}"))?;
+
+    let scheme = parsed_url.scheme();
+    if scheme != "http" && scheme != "https" {
+        return Err("Only HTTP and HTTPS URLs are allowed".to_string());
+    }
+
+    let host = parsed_url
+        .host_str()
+        .ok_or_else(|| "URL has no valid host".to_string())?;
+
+    let port = parsed_url.port_or_known_default().unwrap_or(80);
+
+    // Resolve domain and check for private / restricted IPs
+    let addrs = tokio::net::lookup_host((host, port))
+        .await
+        .map_err(|e| format!("DNS resolution failed for '{host}': {e}"))?;
+
+    let mut resolved_any = false;
+    for addr in addrs {
+        resolved_any = true;
+        if is_private_or_restricted_ip(addr.ip()) {
+            return Err(format!("Access to private or restricted IP ({}) is forbidden", addr.ip()));
+        }
+    }
+
+    if !resolved_any {
+        return Err(format!("Host '{host}' could not be resolved to any IP address"));
+    }
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::none()) // Prevent redirect-based SSRF bypass
         .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
 
-    let response = client
-        .get(url)
+    let mut response = client
+        .get(parsed_url)
         .header("User-Agent", "cms-CMS/1.0")
         .send()
         .await
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
+        .map_err(|e| format!("HTTP request failed: {e}"))?;
 
     if !response.status().is_success() {
         return Err(format!("HTTP error status: {}", response.status()));
     }
 
-    let text = response
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read response body: {}", e))?;
+    const MAX_SIZE: usize = 5 * 1024 * 1024; // 5MB
+    let mut total_bytes = 0usize;
+    let mut body_bytes = Vec::new();
 
-    if text.len() > 5 * 1024 * 1024 {
-        return Err("OpenAPI document exceeds maximum size limit (5MB)".to_string());
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Failed to stream response chunk: {e}"))?
+    {
+        total_bytes += chunk.len();
+        if total_bytes > MAX_SIZE {
+            return Err("OpenAPI document exceeds maximum size limit (5MB)".to_string());
+        }
+        body_bytes.extend_from_slice(&chunk);
     }
 
-    Ok(text)
+    String::from_utf8(body_bytes)
+        .map_err(|e| format!("OpenAPI document is not valid UTF-8: {e}"))
 }
 
 /// Parse OpenAPI content to count endpoints defined in `paths` (supports both JSON and YAML)
@@ -306,5 +369,23 @@ paths:
 "#;
 
         assert_eq!(count_openapi_paths(yaml_spec), 2);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_openapi_rejects_restricted_ips() {
+        let err = fetch_openapi_content("http://127.0.0.1:8080/openapi.json").await.unwrap_err();
+        assert!(err.contains("restricted IP") || err.contains("private"), "Unexpected error: {err}");
+
+        let err = fetch_openapi_content("http://localhost:8080/openapi.json").await.unwrap_err();
+        assert!(err.contains("restricted IP") || err.contains("private"), "Unexpected error: {err}");
+
+        let err = fetch_openapi_content("http://169.254.169.254/latest/meta-data").await.unwrap_err();
+        assert!(err.contains("restricted IP") || err.contains("private"), "Unexpected error: {err}");
+
+        let err = fetch_openapi_content("http://10.0.0.1/spec.json").await.unwrap_err();
+        assert!(err.contains("restricted IP") || err.contains("private"), "Unexpected error: {err}");
+
+        let err = fetch_openapi_content("ftp://example.com/spec.json").await.unwrap_err();
+        assert!(err.contains("Only HTTP and HTTPS"), "Unexpected error: {err}");
     }
 }

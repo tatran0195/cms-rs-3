@@ -1428,7 +1428,7 @@ pub async fn reindex_project_search_handler(
 /// Create a publish record and durably enqueue its render job. When PostgreSQL
 /// is the queue backend, the deployment row and queue row share one transaction
 /// (an outbox) so a server crash cannot strand a pending deployment.
-async fn create_publish_deployment(
+pub async fn create_publish_deployment(
     state: &AppState,
     project_id: &str,
     branch_id: &str,
@@ -3098,9 +3098,14 @@ pub async fn action_project_git_handler(
 
         let mut conn_json = serde_json::to_value(&conn).unwrap_or_default();
         if let Some(obj) = conn_json.as_object_mut() {
+            let secret = format!(
+                "whsec_{}{}",
+                uuid::Uuid::new_v4().simple(),
+                uuid::Uuid::new_v4().simple()
+            );
             obj.insert(
                 "webhookSecret".to_string(),
-                serde_json::Value::String(format!("whsec_{}", &conn.id)),
+                serde_json::Value::String(secret),
             );
         }
         return Ok(Json(serde_json::json!({ "data": conn_json })));
@@ -3118,7 +3123,11 @@ pub async fn action_project_git_handler(
         return Ok(Json(serde_json::json!({ "data": op })));
     }
 
-    let secret = format!("whsec_{}", uuid::Uuid::new_v4().simple());
+    let secret = format!(
+        "whsec_{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    );
     Ok(Json(serde_json::json!({
         "data": {
             "success": true,
@@ -3586,5 +3595,49 @@ pub async fn deactivate_project_addon_handler(
     )
     .await?;
     Ok(Json(serde_json::json!({ "data": addon })))
+}
+
+/// Import from Mintlify (Not implemented in internal CMS deployment)
+pub async fn import_mintlify_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Path(project_id): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    state
+        .biz_context
+        .authz
+        .require_project_role(
+            &auth.user.id,
+            &project_id,
+            cms_entity::common::MemberRole::Admin,
+        )
+        .await?;
+
+    Err(AppError::custom(
+        axum::http::StatusCode::NOT_IMPLEMENTED,
+        "Mintlify import is not supported in this deployment",
+    ))
+}
+
+/// Import from Ghost (Not implemented in internal CMS deployment)
+pub async fn import_ghost_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Path(project_id): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    state
+        .biz_context
+        .authz
+        .require_project_role(
+            &auth.user.id,
+            &project_id,
+            cms_entity::common::MemberRole::Admin,
+        )
+        .await?;
+
+    Err(AppError::custom(
+        axum::http::StatusCode::NOT_IMPLEMENTED,
+        "Ghost import is not supported in this deployment",
+    ))
 }
 

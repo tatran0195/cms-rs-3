@@ -36,7 +36,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -136,7 +136,23 @@ impl RateLimitClient {
 
         // Try to get IP from ConnectInfo extension
         if let Some(addr) = parts.extensions.get::<SocketAddr>() {
-            return Self::Ip(addr.ip());
+            let ip = addr.ip();
+            // If connection originates from loopback (reverse proxy/ingress), inspect forwarded headers
+            if ip.is_loopback() {
+                if let Some(forwarded) = parts.headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()) {
+                    if let Some(first_ip) = forwarded.split(',').next() {
+                        if let Ok(client_ip) = first_ip.trim().parse::<IpAddr>() {
+                            return Self::Ip(client_ip);
+                        }
+                    }
+                }
+                if let Some(real_ip) = parts.headers.get("x-real-ip").and_then(|h| h.to_str().ok()) {
+                    if let Ok(client_ip) = real_ip.trim().parse::<IpAddr>() {
+                        return Self::Ip(client_ip);
+                    }
+                }
+            }
+            return Self::Ip(ip);
         }
 
         // Fall back to anonymous
@@ -189,8 +205,8 @@ struct ClientState {
     /// The governor rate limiter for this client
     limiter:
         Arc<GovernorRateLimiter<NotKeyed, governor::state::InMemoryState, clock::DefaultClock>>,
-    /// Last access time for TTL eviction
-    last_access: Instant,
+    /// Last access time in epoch seconds for lock-free TTL tracking
+    last_access: Arc<AtomicU64>,
 }
 
 /// Production-ready rate limiter using governor crate
@@ -230,25 +246,50 @@ impl RateLimiter {
             return RateLimitResult::Allowed;
         }
 
-        // Evict old clients if we're approaching the limit
-        self.evict_old_clients();
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
 
-        let mut clients = self.clients.write();
-
-        // Get or create client state
-        let client_state = clients.entry(client.clone()).or_insert_with(|| {
-            let limiter = Arc::new(GovernorRateLimiter::direct(self.config.to_quota()));
-            ClientState {
-                limiter,
-                last_access: Instant::now(),
+        // Fast path: try read lock first to avoid contending write locks across threads
+        let maybe_limiter = {
+            let clients = self.clients.read();
+            if let Some(client_state) = clients.get(&client) {
+                client_state.last_access.store(now_secs, Ordering::Relaxed);
+                Some(client_state.limiter.clone())
+            } else {
+                None
             }
-        });
+        };
 
-        // Update last access time
-        client_state.last_access = Instant::now();
+        let limiter = match maybe_limiter {
+            Some(l) => l,
+            None => {
+                // Slow path: insert new client with write lock
+                let mut clients = self.clients.write();
+                if let Some(client_state) = clients.get(&client) {
+                    client_state.last_access.store(now_secs, Ordering::Relaxed);
+                    client_state.limiter.clone()
+                } else {
+                    if clients.len() >= self.config.max_tracked_clients {
+                        self.evict_expired_clients(&mut clients, now_secs);
+                    }
 
-        // Check rate limit using governor
-        let allowed = client_state.limiter.check().is_ok();
+                    let limiter = Arc::new(GovernorRateLimiter::direct(self.config.to_quota()));
+                    clients.insert(
+                        client.clone(),
+                        ClientState {
+                            limiter: limiter.clone(),
+                            last_access: Arc::new(AtomicU64::new(now_secs)),
+                        },
+                    );
+                    limiter
+                }
+            }
+        };
+
+        // Check rate limit using governor (atomic, non-blocking check)
+        let allowed = limiter.check().is_ok();
 
         // Update metrics
         self.total_requests.fetch_add(1, Ordering::Relaxed);
@@ -257,8 +298,6 @@ impl RateLimiter {
             RateLimitResult::Allowed
         } else {
             self.rejected_requests.fetch_add(1, Ordering::Relaxed);
-            // Get retry after from governor's state
-            // governor doesn't directly expose retry_after, so we estimate based on quota
             let retry_after = self.estimate_retry_after(&client);
             RateLimitResult::Rejected { retry_after }
         }
@@ -270,49 +309,29 @@ impl RateLimiter {
     /// we estimate based on the quota. For token bucket, this is approximately
     /// 1 / rate tokens per second.
     fn estimate_retry_after(&self, _client: &RateLimitClient) -> Duration {
-        // For a more accurate estimate, we could track the last check time
-        // but for simplicity, we use the quota settings
-        // In practice, governor's rate limiting means we need to wait for
-        // tokens to replenish, which happens at the rate specified
-
-        // Use burst size to calculate: if we've exceeded burst, we need to wait
-        // for tokens to replenish. At rps rate, each token takes 1/rps seconds
         Duration::from_secs_f64(1.0 / self.config.requests_per_second as f64)
     }
 
     /// Evict old clients based on TTL to prevent memory exhaustion
-    fn evict_old_clients(&self) {
-        let mut clients = self.clients.write();
-        let now = Instant::now();
-        let ttl = self.config.client_ttl;
+    fn evict_expired_clients(&self, clients: &mut HashMap<RateLimitClient, ClientState>, now_secs: u64) {
+        let ttl_secs = self.config.client_ttl.as_secs();
 
-        // If we have too many clients, remove the oldest ones
-        if clients.len() > self.config.max_tracked_clients {
-            let mut to_remove: Vec<RateLimitClient> = Vec::new();
+        // Remove expired clients
+        clients.retain(|_, state| {
+            now_secs.saturating_sub(state.last_access.load(Ordering::Relaxed)) < ttl_secs
+        });
 
-            for (client, state) in clients.iter() {
-                if now.duration_since(state.last_access) > ttl {
-                    to_remove.push(client.clone());
-                }
-            }
+        // If still over capacity, remove oldest by last_access
+        if clients.len() >= self.config.max_tracked_clients {
+            let mut entries: Vec<(RateLimitClient, u64)> = clients
+                .iter()
+                .map(|(k, v)| (k.clone(), v.last_access.load(Ordering::Relaxed)))
+                .collect();
+            entries.sort_by_key(|a| a.1);
 
-            // Remove expired clients
-            for client in to_remove {
-                clients.remove(&client);
-            }
-
-            // If still too many, remove oldest by last_access
-            if clients.len() > self.config.max_tracked_clients {
-                let mut entries: Vec<(RateLimitClient, Instant)> = clients
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.last_access))
-                    .collect();
-                entries.sort_by_key(|a| a.1);
-
-                let to_remove_count = entries.len() - self.config.max_tracked_clients;
-                for (key, _) in entries.into_iter().take(to_remove_count) {
-                    clients.remove(&key);
-                }
+            let to_remove_count = entries.len().saturating_sub(self.config.max_tracked_clients.saturating_sub(1));
+            for (key, _) in entries.into_iter().take(to_remove_count) {
+                clients.remove(&key);
             }
         }
     }

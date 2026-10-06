@@ -1553,6 +1553,7 @@ dependencies = [
  "cms-middleware",
  "cms-storage",
  "ipnet",
+ "parking_lot",
  "pulldown-cmark",
  "serde",
  "serde_json",
