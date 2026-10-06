@@ -1,7 +1,10 @@
 //! Comment database queries
 
 use chrono::{DateTime, Utc};
-use cms_entity::comment::Comment;
+use cms_entity::{
+    comment::{Comment, CommentWithAuth},
+    common::MemberRole,
+};
 use cms_error::AppError;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
 use uuid::Uuid;
@@ -40,10 +43,92 @@ impl From<CommentRow> for Comment {
     }
 }
 
+/// Database representation of a consolidated comment row with auth context and author metadata
+#[derive(Debug, FromRow)]
+struct CommentAuthRow {
+    id: String,
+    page_id: String,
+    user_id: Option<String>,
+    reader_id: Option<String>,
+    parent_id: Option<String>,
+    content: String,
+    resolved: bool,
+    resolved_at: Option<DateTime<Utc>>,
+    resolved_by: Option<String>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    project_id: String,
+    organization_id: String,
+    member_role: Option<MemberRole>,
+    author_name: Option<String>,
+    author_email: Option<String>,
+    author_image: Option<String>,
+}
+
+impl From<CommentAuthRow> for CommentWithAuth {
+    fn from(row: CommentAuthRow) -> Self {
+        Self {
+            comment: Comment {
+                id: row.id,
+                page_id: row.page_id,
+                user_id: row.user_id,
+                reader_id: row.reader_id,
+                parent_id: row.parent_id,
+                content: row.content,
+                resolved: row.resolved,
+                resolved_at: row.resolved_at,
+                resolved_by: row.resolved_by,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            },
+            project_id: row.project_id,
+            organization_id: row.organization_id,
+            member_role: row.member_role,
+            author_name: row.author_name,
+            author_email: row.author_email,
+            author_image: row.author_image,
+        }
+    }
+}
+
 /// Comment queries
 pub struct CommentQueries;
 
 impl CommentQueries {
+    /// Get a comment with relational authorization context and author metadata in a single query
+    pub async fn get_with_auth(
+        pool: &PgPool,
+        comment_id: &str,
+        user_id: &str,
+    ) -> Result<Option<CommentWithAuth>, AppError> {
+        let row = sqlx::query_as::<_, CommentAuthRow>(
+            r#"
+            SELECT 
+                c.id, c.page_id, c.user_id, c.reader_id, c.parent_id, c.content,
+                c.resolved, c.resolved_at, c.resolved_by, c.created_at, c.updated_at,
+                p.project_id,
+                pr.organization_id,
+                m.role as member_role,
+                u.name as author_name,
+                u.email as author_email,
+                u.image as author_image
+            FROM "Comment" c
+            JOIN "Page" p ON c.page_id = p.id
+            JOIN "Project" pr ON p.project_id = pr.id
+            LEFT JOIN "Member" m ON pr.organization_id = m.organization_id AND m.user_id = $2
+            LEFT JOIN "User" u ON c.user_id = u.id
+            WHERE c.id = $1
+            "#,
+        )
+        .bind(comment_id)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(row.map(|r| r.into()))
+    }
+
     /// Get a comment by ID
     pub async fn get_by_id(pool: &PgPool, comment_id: &str) -> Result<Option<Comment>, AppError> {
         let row = sqlx::query_as::<_, CommentRow>("SELECT * FROM \"Comment\" WHERE id = $1")

@@ -56,26 +56,45 @@ impl CommentService {
         Ok(comment.into())
     }
 
+    /// Helper to enforce required role using in-memory member role or falling back to authz
+    async fn require_role(
+        ctx: &BizContext,
+        user_id: &str,
+        project_id: &str,
+        member_role: Option<MemberRole>,
+        min_role: MemberRole,
+    ) -> Result<(), AppError> {
+        if let Some(role) = member_role {
+            if role >= min_role {
+                return Ok(());
+            }
+        }
+        // Fall back to ctx.authz (handles NoopAuthz in test suites and potential system admin overrides)
+        ctx.authz
+            .require_project_role(user_id, project_id, min_role)
+            .await
+    }
+
     /// Get a comment by ID
     pub async fn get_comment(
         ctx: &BizContext,
         user_id: &str,
         comment_id: &str,
     ) -> Result<CommentResponse, AppError> {
-        let comment = CommentQueries::get_by_id(&ctx.pool, comment_id)
+        let auth_record = CommentQueries::get_with_auth(&ctx.pool, comment_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        // Check if user has access to the page
-        let page = PageQueries::get_by_id(&ctx.pool, &comment.page_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+        Self::require_role(
+            ctx,
+            user_id,
+            &auth_record.project_id,
+            auth_record.member_role,
+            MemberRole::Viewer,
+        )
+        .await?;
 
-        ctx.authz
-            .require_project_role(user_id, &page.project_id, MemberRole::Viewer)
-            .await?;
-
-        Ok(comment.into())
+        Ok(auth_record.comment.into())
     }
 
     /// List comments for a page
@@ -125,22 +144,40 @@ impl CommentService {
         ctx: &BizContext,
         user_id: &str,
         comment_id: &str,
+        expected_project_id: Option<&str>,
         request: UpdateCommentRequest,
     ) -> Result<CommentResponse, AppError> {
-        let comment = CommentQueries::get_by_id(&ctx.pool, comment_id)
+        let auth_record = CommentQueries::get_with_auth(&ctx.pool, comment_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        // Check if user is the author or has admin rights
-        if comment.user_id.as_deref() != Some(user_id) {
-            // Check if user has admin role in the project
-            let page = PageQueries::get_by_id(&ctx.pool, &comment.page_id)
-                .await?
-                .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+        if let Some(expected_pid) = expected_project_id {
+            if !auth_record.belongs_to_project(expected_pid) {
+                return Err(AppError::NotFound(
+                    "Comment not found for this project".to_string(),
+                ));
+            }
+        }
 
-            ctx.authz
-                .require_project_role(user_id, &page.project_id, MemberRole::Admin)
-                .await?;
+        // Author can update if they have Viewer access; non-author requires Admin
+        if !auth_record.is_author(user_id) {
+            Self::require_role(
+                ctx,
+                user_id,
+                &auth_record.project_id,
+                auth_record.member_role,
+                MemberRole::Admin,
+            )
+            .await?;
+        } else {
+            Self::require_role(
+                ctx,
+                user_id,
+                &auth_record.project_id,
+                auth_record.member_role,
+                MemberRole::Viewer,
+            )
+            .await?;
         }
 
         let updated = CommentQueries::update(
@@ -159,21 +196,39 @@ impl CommentService {
         ctx: &BizContext,
         user_id: &str,
         comment_id: &str,
+        expected_project_id: Option<&str>,
     ) -> Result<bool, AppError> {
-        let comment = CommentQueries::get_by_id(&ctx.pool, comment_id)
+        let auth_record = CommentQueries::get_with_auth(&ctx.pool, comment_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        // Check if user is the author or has admin rights
-        if comment.user_id.as_deref() != Some(user_id) {
-            // Check if user has admin role in the project
-            let page = PageQueries::get_by_id(&ctx.pool, &comment.page_id)
-                .await?
-                .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+        if let Some(expected_pid) = expected_project_id {
+            if !auth_record.belongs_to_project(expected_pid) {
+                return Err(AppError::NotFound(
+                    "Comment not found for this project".to_string(),
+                ));
+            }
+        }
 
-            ctx.authz
-                .require_project_role(user_id, &page.project_id, MemberRole::Admin)
-                .await?;
+        // Author can delete if they have Viewer access; non-author requires Admin
+        if !auth_record.is_author(user_id) {
+            Self::require_role(
+                ctx,
+                user_id,
+                &auth_record.project_id,
+                auth_record.member_role,
+                MemberRole::Admin,
+            )
+            .await?;
+        } else {
+            Self::require_role(
+                ctx,
+                user_id,
+                &auth_record.project_id,
+                auth_record.member_role,
+                MemberRole::Viewer,
+            )
+            .await?;
         }
 
         CommentQueries::delete(&ctx.pool, comment_id).await
@@ -185,18 +240,18 @@ impl CommentService {
         user_id: &str,
         comment_id: &str,
     ) -> Result<CommentResponse, AppError> {
-        let comment = CommentQueries::get_by_id(&ctx.pool, comment_id)
+        let auth_record = CommentQueries::get_with_auth(&ctx.pool, comment_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        // Check if user has admin role in the project
-        let page = PageQueries::get_by_id(&ctx.pool, &comment.page_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        ctx.authz
-            .require_project_role(user_id, &page.project_id, MemberRole::Admin)
-            .await?;
+        Self::require_role(
+            ctx,
+            user_id,
+            &auth_record.project_id,
+            auth_record.member_role,
+            MemberRole::Admin,
+        )
+        .await?;
 
         let updated = CommentQueries::update(&ctx.pool, comment_id, None, Some(true)).await?;
 
@@ -209,18 +264,18 @@ impl CommentService {
         user_id: &str,
         comment_id: &str,
     ) -> Result<CommentResponse, AppError> {
-        let comment = CommentQueries::get_by_id(&ctx.pool, comment_id)
+        let auth_record = CommentQueries::get_with_auth(&ctx.pool, comment_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        // Check if user has admin role in the project
-        let page = PageQueries::get_by_id(&ctx.pool, &comment.page_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        ctx.authz
-            .require_project_role(user_id, &page.project_id, MemberRole::Admin)
-            .await?;
+        Self::require_role(
+            ctx,
+            user_id,
+            &auth_record.project_id,
+            auth_record.member_role,
+            MemberRole::Admin,
+        )
+        .await?;
 
         let updated = CommentQueries::update(&ctx.pool, comment_id, None, Some(false)).await?;
 
@@ -233,19 +288,280 @@ impl CommentService {
         user_id: &str,
         comment_id: &str,
     ) -> Result<cms_entity::comment::CommentWithReplies, AppError> {
-        let comment = Self::get_comment(ctx, user_id, comment_id).await?;
+        let auth_record = CommentQueries::get_with_auth(&ctx.pool, comment_id, user_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
+
+        Self::require_role(
+            ctx,
+            user_id,
+            &auth_record.project_id,
+            auth_record.member_role,
+            MemberRole::Viewer,
+        )
+        .await?;
+
         let replies = CommentQueries::get_by_page(
             &ctx.pool,
-            &comment.page_id,
+            &auth_record.comment.page_id,
             Some(comment_id),
             None,
             None,
             None,
         )
         .await?;
+
         Ok(cms_entity::comment::CommentWithReplies {
-            comment,
+            comment: auth_record.comment.into(),
             replies: replies.into_iter().map(|r| r.into()).collect(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cms_authz::ProductionAuthz;
+    use cms_db::{branch::BranchQueries, org::MemberQueries, project::ProjectQueries};
+    use uuid::Uuid;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_relational_comment_single_trip_auth_lookup() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let now = chrono::Utc::now();
+        let author_id = format!("user-author-{}", Uuid::new_v4());
+        let author_email = format!("author-{}@internal.company", Uuid::new_v4());
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Author User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&author_id)
+        .bind(&author_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let other_id = format!("user-other-{}", Uuid::new_v4());
+        let other_email = format!("other-{}@internal.company", Uuid::new_v4());
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Other User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&other_id)
+        .bind(&other_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let unauth_id = format!("user-unauth-{}", Uuid::new_v4());
+        let unauth_email = format!("unauth-{}@internal.company", Uuid::new_v4());
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Unauth User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&unauth_id)
+        .bind(&unauth_email)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let org_id = Uuid::new_v4().to_string();
+        let org_name = format!("Comment Test Org {}", Uuid::new_v4());
+        let org_slug = format!("comment-org-{}", Uuid::new_v4());
+        let proj_name = format!("Comment Test Proj {}", Uuid::new_v4());
+        let proj_slug = format!("comment-proj-{}", Uuid::new_v4());
+
+        let (project, _org) = match ProjectQueries::create_atomic(
+            &pool,
+            Some((&org_name, &org_slug, &author_id)),
+            &org_id,
+            &proj_name,
+            &proj_slug,
+            None,
+            None,
+            false,
+        )
+        .await
+        {
+            Ok(res) => res,
+            Err(_) => return,
+        };
+
+        // Add other_id as Admin in org
+        let _ = MemberQueries::create(&pool, &other_id, &org_id, MemberRole::Admin)
+            .await
+            .expect("Failed to add other user as admin");
+
+        let default_branch = BranchQueries::get_default(&pool, &project.id)
+            .await
+            .expect("branch query")
+            .expect("default branch");
+
+        let page = PageQueries::create(
+            &pool,
+            &project.id,
+            &default_branch.id,
+            None,
+            None,
+            Some("doc"),
+            "comment-test",
+            "Comment Test Page",
+            None,
+            Some("Page content blob"),
+            None,
+            None,
+            None,
+            0,
+            true,
+        )
+        .await
+        .expect("page create");
+
+        let comment = CommentQueries::create(
+            &pool,
+            &page.id,
+            Some(&author_id),
+            None,
+            None,
+            "Test single-trip relational comment content",
+        )
+        .await
+        .expect("comment create");
+
+        // 1. Single-trip lookup with authorized author (Owner/Member role from create_atomic)
+        let auth_res = CommentQueries::get_with_auth(&pool, &comment.id, &author_id)
+            .await
+            .expect("get_with_auth failed");
+        assert!(auth_res.is_some(), "Comment auth record must be found");
+        let auth_record = auth_res.unwrap();
+        assert_eq!(auth_record.comment.id, comment.id);
+        assert_eq!(auth_record.project_id, project.id);
+        assert_eq!(auth_record.organization_id, org_id);
+        assert!(auth_record.member_role.is_some());
+        assert_eq!(auth_record.author_name.as_deref(), Some("Author User"));
+        assert!(auth_record.is_author(&author_id));
+        assert!(auth_record.has_min_role(MemberRole::Viewer));
+
+        // 2. Single-trip lookup with other admin user
+        let other_auth = CommentQueries::get_with_auth(&pool, &comment.id, &other_id)
+            .await
+            .expect("get_with_auth failed")
+            .expect("record found");
+        assert_eq!(other_auth.member_role, Some(MemberRole::Admin));
+        assert!(!other_auth.is_author(&other_id));
+        assert!(other_auth.has_min_role(MemberRole::Admin));
+
+        // 3. Single-trip lookup with unauthorized user (no member row)
+        let unauth_record = CommentQueries::get_with_auth(&pool, &comment.id, &unauth_id)
+            .await
+            .expect("get_with_auth failed")
+            .expect("record found");
+        assert_eq!(unauth_record.member_role, None);
+        assert!(!unauth_record.has_min_role(MemberRole::Viewer));
+
+        // 4. Test CommentService RBAC with ProductionAuthz
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(ProductionAuthz::new(pool.clone())),
+        );
+
+        // Author can get comment
+        let fetched = CommentService::get_comment(&ctx, &author_id, &comment.id)
+            .await
+            .expect("Author get comment");
+        assert_eq!(fetched.id, comment.id);
+
+        // Admin can get comment
+        let admin_fetched = CommentService::get_comment(&ctx, &other_id, &comment.id)
+            .await
+            .expect("Admin get comment");
+        assert_eq!(admin_fetched.id, comment.id);
+
+        // Unauthorized user cannot get comment
+        let unauth_err = CommentService::get_comment(&ctx, &unauth_id, &comment.id).await;
+        assert!(unauth_err.is_err(), "Unauthorized user must be denied");
+
+        // Author can update own comment
+        let update_res = CommentService::update_comment(
+            &ctx,
+            &author_id,
+            &comment.id,
+            Some(&project.id),
+            UpdateCommentRequest {
+                content: Some("Updated by author".to_string()),
+                resolved: None,
+            },
+        )
+        .await
+        .expect("Author update");
+        assert_eq!(update_res.content, "Updated by author");
+
+        // Mismatched project isolation check
+        let iso_err = CommentService::update_comment(
+            &ctx,
+            &author_id,
+            &comment.id,
+            Some("foreign-project-id"),
+            UpdateCommentRequest {
+                content: Some("Should fail".to_string()),
+                resolved: None,
+            },
+        )
+        .await;
+        assert!(iso_err.is_err(), "Cross-project comment update must fail");
+
+        // Admin can resolve comment
+        let resolved = CommentService::resolve_comment(&ctx, &other_id, &comment.id)
+            .await
+            .expect("Admin resolve");
+        assert!(resolved.resolved);
+
+        // Author can delete comment
+        let deleted =
+            CommentService::delete_comment(&ctx, &author_id, &comment.id, Some(&project.id))
+                .await
+                .expect("Author delete");
+        assert!(deleted);
+
+        // Cleanup
+        let _ = cms_db::sqlx::query("DELETE FROM \"Comment\" WHERE page_id = $1")
+            .bind(&page.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Page\" WHERE id = $1")
+            .bind(&page.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
+            .bind(&org_id)
+            .execute(&pool)
+            .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
+            .bind(&org_id)
+            .execute(&pool)
+            .await;
+        for uid in [&author_id, &other_id, &unauth_id] {
+            let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
+                .bind(uid)
+                .execute(&pool)
+                .await;
+        }
     }
 }

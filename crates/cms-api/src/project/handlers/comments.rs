@@ -88,9 +88,35 @@ pub async fn list_project_comments_handler(
         .await?
     };
 
+    let mut user_cache = std::collections::HashMap::new();
     let mut vec = Vec::with_capacity(comments.len());
-    for c in comments {
-        vec.push(comment_to_json(&state, &c).await?);
+    for c in &comments {
+        let (uid, name, image) = match c.user_id.as_deref() {
+            Some(uid) => {
+                if !user_cache.contains_key(uid) {
+                    let u =
+                        cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, uid).await?;
+                    user_cache.insert(uid.to_string(), u);
+                }
+                match user_cache.get(uid).and_then(|opt| opt.as_ref()) {
+                    Some(u) => (
+                        u.id.clone(),
+                        u.name.clone().unwrap_or_else(|| u.email.clone()),
+                        u.image.clone(),
+                    ),
+                    None => ("anonymous".to_string(), "Anonymous".to_string(), None),
+                }
+            }
+            None => ("anonymous".to_string(), "Anonymous".to_string(), None),
+        };
+        vec.push(serde_json::json!({
+            "id": c.id,
+            "body": c.content,
+            "resolved": c.resolved,
+            "createdAt": c.created_at.to_rfc3339(),
+            "anchor": null,
+            "user": { "id": uid, "name": name, "image": image }
+        }));
     }
 
     Ok(Json(serde_json::json!({ "data": vec })))
@@ -144,10 +170,7 @@ pub async fn create_project_comment_handler(
     )
     .await?;
 
-    // Re-read as the full entity so the user join is populated.
-    let entity = cms_db::comment::CommentQueries::get_by_id(&state.biz_context.pool, &comment.id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
+    let entity: cms_entity::comment::Comment = comment.into();
 
     Ok(Json(
         serde_json::json!({ "data": comment_to_json(&state, &entity).await? }),
@@ -166,19 +189,6 @@ pub async fn update_project_comment_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_entity::comment::UpdateCommentRequest;
 
-    let existing = cms_db::comment::CommentQueries::get_by_id(&state.biz_context.pool, &id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
-
-    let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, &existing.page_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Page not found for comment".to_string()))?;
-    if page.project_id != project_id {
-        return Err(AppError::NotFound(
-            "Comment not found for this project".to_string(),
-        ));
-    }
-
     let request = UpdateCommentRequest {
         content: body.get("body").and_then(|v| v.as_str()).map(String::from),
         resolved: body.get("resolved").and_then(|v| v.as_bool()),
@@ -188,13 +198,12 @@ pub async fn update_project_comment_handler(
         &state.biz_context,
         &auth.user.id,
         &id,
+        Some(&project_id),
         request,
     )
     .await?;
 
-    let entity = cms_db::comment::CommentQueries::get_by_id(&state.biz_context.pool, &updated.id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
+    let entity: cms_entity::comment::Comment = updated.into();
 
     Ok(Json(
         serde_json::json!({ "data": comment_to_json(&state, &entity).await? }),
@@ -209,21 +218,13 @@ pub async fn delete_project_comment_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let existing = cms_db::comment::CommentQueries::get_by_id(&state.biz_context.pool, &id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
-
-    let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, &existing.page_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Page not found for comment".to_string()))?;
-    if page.project_id != project_id {
-        return Err(AppError::NotFound(
-            "Comment not found for this project".to_string(),
-        ));
-    }
-
-    cms_biz::comment::CommentService::delete_comment(&state.biz_context, &auth.user.id, &id)
-        .await?;
+    cms_biz::comment::CommentService::delete_comment(
+        &state.biz_context,
+        &auth.user.id,
+        &id,
+        Some(&project_id),
+    )
+    .await?;
     Ok(Json(
         serde_json::json!({ "data": { "success": true, "id": id } }),
     ))

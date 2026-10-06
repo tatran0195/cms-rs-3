@@ -165,9 +165,14 @@ pub async fn update_comment_handler(
     Path(comment_id): Path<Id>,
     Json(request): Json<UpdateCommentRequest>,
 ) -> Result<Json<CommentResponse>, AppError> {
-    let comment =
-        CommentService::update_comment(&state.biz_context, &auth.user.id, &comment_id, request)
-            .await?;
+    let comment = CommentService::update_comment(
+        &state.biz_context,
+        &auth.user.id,
+        &comment_id,
+        None,
+        request,
+    )
+    .await?;
 
     Ok(Json(comment))
 }
@@ -199,7 +204,7 @@ pub async fn delete_comment_handler(
     auth: AuthExtractor,
     Path(comment_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    CommentService::delete_comment(&state.biz_context, &auth.user.id, &comment_id).await?;
+    CommentService::delete_comment(&state.biz_context, &auth.user.id, &comment_id, None).await?;
 
     Ok(Json(serde_json::json!({"success": true, "id": comment_id})))
 }
