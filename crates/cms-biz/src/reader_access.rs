@@ -21,9 +21,8 @@ use cms_db::{
 use cms_entity::{
     common::{MemberRole, PaginatedResponse},
     reader_access::{
-        AudienceGrantResponse, AudienceResponse,
-        CreateAudienceRequest, CreateInvitationRequest, CreateReaderRequest, JwtAccessProvider,
-        ReaderAudienceResponse, ReaderAuditLog,
+        AudienceGrantResponse, AudienceResponse, CreateAudienceRequest, CreateInvitationRequest,
+        CreateReaderRequest, JwtAccessProvider, ReaderAudienceResponse, ReaderAuditLog,
         ReaderInvitationResponse, ReaderResponse,
     },
 };

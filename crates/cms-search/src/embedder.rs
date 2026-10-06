@@ -132,10 +132,7 @@ impl Embedder {
 
     /// Embed multiple passages in batch with the "passage: " prefix.
     pub async fn embed_passages(&self, texts: &[String]) -> Result<Vec<Vec<f32>>, AppError> {
-        let prefixed: Vec<String> = texts
-            .iter()
-            .map(|t| format!("passage: {}", t))
-            .collect();
+        let prefixed: Vec<String> = texts.iter().map(|t| format!("passage: {}", t)).collect();
         self.embed_batch(&prefixed).await
     }
 }

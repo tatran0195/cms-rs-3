@@ -22,7 +22,14 @@ async fn test_15_page_comments_lifecycle_and_resolution() -> anyhow::Result<()> 
     let project_id = required_string(&project, "id", "comment project")?;
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
@@ -86,11 +93,20 @@ async fn test_15_page_comments_lifecycle_and_resolution() -> anyhow::Result<()> 
 
     // Get comment with replies
     let comment_with_replies = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/comments/{comment_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/comments/{comment_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "get comment with replies",
     )?;
-    let replies = comment_with_replies["replies"].as_array().ok_or_else(|| anyhow::anyhow!("replies array missing"))?;
+    let replies = comment_with_replies["replies"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("replies array missing"))?;
     anyhow::ensure!(replies.iter().any(|r| r["id"] == reply_id));
 
     // Resolve parent comment
@@ -110,16 +126,32 @@ async fn test_15_page_comments_lifecycle_and_resolution() -> anyhow::Result<()> 
 
     // List page comments filtering by resolved status
     let page_comments = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/comments/pages/{page_id}?resolved=true"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/comments/pages/{page_id}?resolved=true"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list resolved page comments",
     )?;
-    let resolved_list = page_comments["data"].as_array().ok_or_else(|| anyhow::anyhow!("comments data not array"))?;
+    let resolved_list = page_comments["data"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("comments data not array"))?;
     anyhow::ensure!(resolved_list.iter().any(|c| c["id"] == comment_id));
 
     // Delete comment
     let del_resp = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/comments/{reply_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/comments/{reply_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete reply comment",
     )?;

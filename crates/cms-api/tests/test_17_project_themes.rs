@@ -47,7 +47,14 @@ async fn test_17_project_themes_lifecycle_and_css_variables() -> anyhow::Result<
 
     // Retrieve theme by id
     let fetched_theme = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/themes/{theme_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/themes/{theme_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "get theme by id",
     )?;
@@ -55,7 +62,14 @@ async fn test_17_project_themes_lifecycle_and_css_variables() -> anyhow::Result<
 
     // Get theme CSS variables
     let css_vars = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/themes/{theme_id}/css"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/themes/{theme_id}/css"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "get theme CSS variables",
     )?;
@@ -96,7 +110,14 @@ async fn test_17_project_themes_lifecycle_and_css_variables() -> anyhow::Result<
 
     // Delete theme
     let del_theme = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/themes/{theme_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/themes/{theme_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete theme",
     )?;

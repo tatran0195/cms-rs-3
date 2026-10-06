@@ -15,7 +15,6 @@ pub mod parity;
 
 use handlers::*;
 
-
 /// Create the admin router
 pub fn router(state: Arc<AppState>) -> Router {
     let admin_origin_config =

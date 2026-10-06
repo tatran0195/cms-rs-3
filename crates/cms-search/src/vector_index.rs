@@ -206,7 +206,10 @@ impl ProjectVectorIndex {
 
     /// Number of stored vectors
     pub fn len(&self) -> usize {
-        self.entries.iter().filter(|e| !e.page_id.is_empty()).count()
+        self.entries
+            .iter()
+            .filter(|e| !e.page_id.is_empty())
+            .count()
     }
 
     /// Whether the index is empty
@@ -450,8 +453,7 @@ mod tests {
         }
 
         // Reload from disk
-        let idx =
-            ProjectVectorIndex::open_or_create(tmp.path(), "proj1", 3, "test-model").unwrap();
+        let idx = ProjectVectorIndex::open_or_create(tmp.path(), "proj1", 3, "test-model").unwrap();
         assert_eq!(idx.len(), 2);
 
         let results = idx.search(&[1.0, 0.0, 0.0], 1);
@@ -472,8 +474,7 @@ mod tests {
             idx.save().unwrap();
         }
 
-        let idx =
-            ProjectVectorIndex::open_or_create(tmp.path(), "proj1", 3, "test-model").unwrap();
+        let idx = ProjectVectorIndex::open_or_create(tmp.path(), "proj1", 3, "test-model").unwrap();
         assert_eq!(idx.len(), 2); // p2 was compacted away
     }
 }

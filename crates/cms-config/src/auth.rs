@@ -109,11 +109,7 @@ impl AuthConfig {
     }
 
     /// Build a Set-Cookie header value string to clear the session cookie.
-    pub fn clear_session_cookie_value(
-        &self,
-        is_production: bool,
-        https: bool,
-    ) -> String {
+    pub fn clear_session_cookie_value(&self, is_production: bool, https: bool) -> String {
         let secure_suffix = if self.is_cookie_secure(is_production, https) {
             "; Secure"
         } else {
@@ -157,7 +153,10 @@ mod tests {
     #[test]
     fn test_auth_config_defaults() {
         let auth = AuthConfig::default();
-        assert_eq!(auth.session_secret, "dev_session_secret_change_in_production");
+        assert_eq!(
+            auth.session_secret,
+            "dev_session_secret_change_in_production"
+        );
         assert_eq!(auth.jwt_secret, "dev_jwt_secret_change_in_production");
         assert_eq!(auth.session_cookie_same_site, "Lax");
         assert!(!auth.session_cookie_secure);

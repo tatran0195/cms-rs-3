@@ -22,7 +22,14 @@ async fn test_06_public_search_and_grounded_qa() -> anyhow::Result<()> {
     let project_id = required_string(&project, "id", "project")?;
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
@@ -90,18 +97,36 @@ async fn test_06_public_search_and_grounded_qa() -> anyhow::Result<()> {
     wait_for_deployment_ready(&ctx.state, deployment_id).await?;
 
     let en_search = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/search?q=Quantum&lang=en&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/search?q=Quantum&lang=en&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "en search",
     )?;
-    anyhow::ensure!(en_search["data"]["hits"].as_array().is_some_and(|h| h.iter().any(|hit| hit["id"] == en_page_id)));
+    anyhow::ensure!(en_search["data"]["hits"]
+        .as_array()
+        .is_some_and(|h| h.iter().any(|hit| hit["id"] == en_page_id)));
 
     let rtl_search = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/search?q=Quantum&lang=he-IL&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/search?q=Quantum&lang=he-IL&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "rtl search isolation",
     )?;
-    anyhow::ensure!(rtl_search["data"]["hits"].as_array().is_some_and(Vec::is_empty));
+    anyhow::ensure!(rtl_search["data"]["hits"]
+        .as_array()
+        .is_some_and(Vec::is_empty));
 
     let qa = expect_status(
         request(
@@ -116,7 +141,9 @@ async fn test_06_public_search_and_grounded_qa() -> anyhow::Result<()> {
         "grounded qa",
     )?;
     anyhow::ensure!(qa["data"]["mode"] == "extractive");
-    anyhow::ensure!(qa["data"]["sources"].as_array().is_some_and(|s| s.iter().any(|src| src["id"] == rtl_page_id)));
+    anyhow::ensure!(qa["data"]["sources"]
+        .as_array()
+        .is_some_and(|s| s.iter().any(|src| src["id"] == rtl_page_id)));
 
     expect_status(
         request(

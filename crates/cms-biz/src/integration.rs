@@ -3,13 +3,11 @@
 //! This module contains business logic for project integrations.
 
 use cms_db::integration::{
-    IntegrationAuditEventQueries,
-    IntegrationIdempotencyRecordQueries,
-    ProjectIntegrationQueries,
+    IntegrationAuditEventQueries, IntegrationIdempotencyRecordQueries, ProjectIntegrationQueries,
 };
 use cms_entity::integration::{
-    CreateProjectIntegrationRequest, IntegrationProvider,
-    ProjectIntegrationResponse, UpdateProjectIntegrationRequest,
+    CreateProjectIntegrationRequest, IntegrationProvider, ProjectIntegrationResponse,
+    UpdateProjectIntegrationRequest,
 };
 
 use crate::{AppError, BizContext};
@@ -268,7 +266,12 @@ impl IntegrationService {
             .webhook_url
             .as_deref()
             .or_else(|| integration.config.get("url").and_then(|v| v.as_str()))
-            .or_else(|| integration.config.get("webhook_url").and_then(|v| v.as_str()));
+            .or_else(|| {
+                integration
+                    .config
+                    .get("webhook_url")
+                    .and_then(|v| v.as_str())
+            });
 
         let target_url = match target_url {
             Some(u) if !u.trim().is_empty() => u.trim(),
@@ -281,8 +284,9 @@ impl IntegrationService {
         };
 
         // Parse and validate URL
-        let parsed_url = reqwest::Url::parse(target_url)
-            .map_err(|e| AppError::InvalidInput(format!("Invalid webhook URL '{target_url}': {e}")))?;
+        let parsed_url = reqwest::Url::parse(target_url).map_err(|e| {
+            AppError::InvalidInput(format!("Invalid webhook URL '{target_url}': {e}"))
+        })?;
 
         let scheme = parsed_url.scheme();
         if scheme != "http" && scheme != "https" {
@@ -297,30 +301,33 @@ impl IntegrationService {
         let port = parsed_url.port_or_known_default().unwrap_or(80);
 
         // Resolve DNS and perform SSRF validation
-        let addrs = tokio::net::lookup_host((host, port))
-            .await
-            .map_err(|e| AppError::InvalidInput(format!("DNS resolution failed for '{host}': {e}")))?;
+        let addrs = tokio::net::lookup_host((host, port)).await.map_err(|e| {
+            AppError::InvalidInput(format!("DNS resolution failed for '{host}': {e}"))
+        })?;
 
-        let mut resolved_any = false;
+        let mut chosen_ip = None;
         for addr in addrs {
-            resolved_any = true;
             if crate::openapi::is_private_or_restricted_ip(addr.ip()) {
                 return Err(AppError::InvalidInput(format!(
                     "Integration webhook URL targets a private or restricted network address ({})",
                     addr.ip()
                 )));
             }
+            if chosen_ip.is_none() {
+                chosen_ip = Some(addr.ip());
+            }
         }
 
-        if !resolved_any {
-            return Err(AppError::InvalidInput(format!(
+        let valid_ip = chosen_ip.ok_or_else(|| {
+            AppError::InvalidInput(format!(
                 "Host '{host}' could not be resolved to any network address"
-            )));
-        }
+            ))
+        })?;
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .redirect(reqwest::redirect::Policy::none())
+            .resolve(host, std::net::SocketAddr::new(valid_ip, port))
             .build()
             .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to build HTTP client: {e}")))?;
 
@@ -343,12 +350,24 @@ impl IntegrationService {
             Ok(resp) => {
                 let status = resp.status().as_u16();
                 if resp.status().is_success() {
-                    (true, Some(status), "Integration test webhook delivered successfully".to_string())
+                    (
+                        true,
+                        Some(status),
+                        "Integration test webhook delivered successfully".to_string(),
+                    )
                 } else {
-                    (false, Some(status), format!("Webhook endpoint returned HTTP error status {}", status))
+                    (
+                        false,
+                        Some(status),
+                        format!("Webhook endpoint returned HTTP error status {}", status),
+                    )
                 }
             }
-            Err(e) => (false, None, format!("Failed to reach webhook endpoint: {e}")),
+            Err(e) => (
+                false,
+                None,
+                format!("Failed to reach webhook endpoint: {e}"),
+            ),
         };
 
         // Audit log test execution

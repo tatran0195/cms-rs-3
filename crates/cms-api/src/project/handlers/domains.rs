@@ -7,8 +7,8 @@ use axum::{
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
-use crate::auth::AuthExtractor;
 use super::common::{project_deployments, project_org_id};
+use crate::auth::AuthExtractor;
 
 /// Render a stored domain as the SPA's `Domain` shape, including the stable DNS
 /// TXT challenge that an authorized project member must publish before routing is enabled.

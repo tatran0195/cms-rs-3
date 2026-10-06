@@ -4,6 +4,7 @@
 //! with trusted proxy enforcement, host syntax validation, and configurable
 //! canonical domains.
 
+use parking_lot::RwLock;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -13,7 +14,6 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use parking_lot::RwLock;
 
 use axum::{
     extract::{ConnectInfo, FromRequestParts},
@@ -231,7 +231,9 @@ impl HostResolver {
         let normalized_canonical = canonical_domains
             .into_iter()
             .filter_map(|d| {
-                let clean = d.trim_start_matches("https://").trim_start_matches("http://");
+                let clean = d
+                    .trim_start_matches("https://")
+                    .trim_start_matches("http://");
                 let bare = clean.split(':').next().unwrap_or(clean);
                 sanitize_and_validate_host(bare)
             })
@@ -252,7 +254,9 @@ impl HostResolver {
         self.canonical_domains = domains
             .into_iter()
             .filter_map(|d| {
-                let clean = d.trim_start_matches("https://").trim_start_matches("http://");
+                let clean = d
+                    .trim_start_matches("https://")
+                    .trim_start_matches("http://");
                 let bare = clean.split(':').next().unwrap_or(clean);
                 sanitize_and_validate_host(bare)
             })
@@ -334,7 +338,11 @@ impl HostResolver {
 
     /// Get host from headers, honoring X-Forwarded-Host ONLY when request originates
     /// from a configured trusted proxy. Validates host syntax strictly.
-    pub fn get_host(&self, headers: &HeaderMap, client_ip: Option<IpAddr>) -> Result<String, AppError> {
+    pub fn get_host(
+        &self,
+        headers: &HeaderMap,
+        client_ip: Option<IpAddr>,
+    ) -> Result<String, AppError> {
         // Accept X-Forwarded-Host only from configured trusted proxies
         if self.is_trusted_proxy(client_ip) {
             if let Some(forwarded_host) = headers.get("X-Forwarded-Host") {
@@ -424,7 +432,10 @@ impl HostResolver {
     /// are not accepted.
     pub fn extract_subdomain(&self, host: &str) -> Option<String> {
         let host_without_port = host.strip_suffix(':').unwrap_or(host);
-        let host_clean = host_without_port.split(':').next().unwrap_or(host_without_port);
+        let host_clean = host_without_port
+            .split(':')
+            .next()
+            .unwrap_or(host_without_port);
 
         for canonical in &self.canonical_domains {
             let bare_canonical = canonical

@@ -25,14 +25,61 @@ pub async fn get_project_git_status_handler(
         GitPullRequestQueries, GitSyncOperationQueries,
     };
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    let proj = cms_biz::project::ProjectService::get_project(
+        &state.biz_context,
+        &auth.user.id,
+        &project_id,
+    )
+    .await?;
 
     let connection =
         GitConnectionQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
 
     let Some(conn) = connection else {
         return Ok(Json(serde_json::json!({ "data": null })));
+    };
+
+    // Webhook secret retrieval or generation & persistence
+    let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+    let existing_secret = config
+        .get("git")
+        .and_then(|g| g.get("webhookSecret"))
+        .and_then(|s| s.as_str())
+        .map(String::from);
+
+    let webhook_secret = match existing_secret {
+        Some(s) if !s.is_empty() => s,
+        _ => {
+            let secret = cms_auth::generate_webhook_secret();
+            let mut git_obj = config
+                .get("git")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({}));
+            if !git_obj.is_object() {
+                git_obj = serde_json::json!({});
+            }
+            if let Some(git_map) = git_obj.as_object_mut() {
+                git_map.insert(
+                    "webhookSecret".to_string(),
+                    serde_json::Value::String(secret.clone()),
+                );
+            }
+            if let Some(cfg_map) = config.as_object_mut() {
+                cfg_map.insert("git".to_string(), git_obj);
+            }
+            cms_db::project::ProjectQueries::update(
+                &state.biz_context.pool,
+                &project_id,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(&config),
+            )
+            .await?;
+            secret
+        }
     };
 
     let operations =
@@ -116,7 +163,7 @@ pub async fn get_project_git_status_handler(
             "contentPath": ".",
             "credentialConfigured": true,
             "webhookConfigured": true,
-            "webhookSecret": format!("whsec_{}", &conn.id),
+            "webhookSecret": webhook_secret,
             "lastSyncStatus": operations.last().map(|o| format!("{:?}", o.status).to_lowercase()).unwrap_or_else(|| "idle".to_string()),
             "lastSyncError": operations.last().and_then(|o| o.error_message.clone()),
             "lastSyncedAt": last_sync.map(|t| t.to_rfc3339()),
@@ -146,8 +193,12 @@ pub async fn action_project_git_handler(
         CreateGitConnectionRequest, GitSyncOperationType, UpdateGitConnectionRequest,
     };
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    let proj = cms_biz::project::ProjectService::get_project(
+        &state.biz_context,
+        &auth.user.id,
+        &project_id,
+    )
+    .await?;
 
     // Determine operation by presence of body fields.
     let is_upsert = body.get("repository").is_some() || body.get("branch").is_some();
@@ -195,13 +246,50 @@ pub async fn action_project_git_handler(
             .await?
         };
 
+        let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+        let existing_secret = config
+            .get("git")
+            .and_then(|g| g.get("webhookSecret"))
+            .and_then(|s| s.as_str())
+            .map(String::from);
+
+        let secret = match existing_secret {
+            Some(s) if !s.is_empty() => s,
+            _ => {
+                let s = cms_auth::generate_webhook_secret();
+                let mut git_obj = config
+                    .get("git")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
+                if !git_obj.is_object() {
+                    git_obj = serde_json::json!({});
+                }
+                if let Some(git_map) = git_obj.as_object_mut() {
+                    git_map.insert(
+                        "webhookSecret".to_string(),
+                        serde_json::Value::String(s.clone()),
+                    );
+                }
+                if let Some(cfg_map) = config.as_object_mut() {
+                    cfg_map.insert("git".to_string(), git_obj);
+                }
+                cms_db::project::ProjectQueries::update(
+                    &state.biz_context.pool,
+                    &project_id,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(&config),
+                )
+                .await?;
+                s
+            }
+        };
+
         let mut conn_json = serde_json::to_value(&conn).unwrap_or_default();
         if let Some(obj) = conn_json.as_object_mut() {
-            let secret = format!(
-                "whsec_{}{}",
-                uuid::Uuid::new_v4().simple(),
-                uuid::Uuid::new_v4().simple()
-            );
             obj.insert(
                 "webhookSecret".to_string(),
                 serde_json::Value::String(secret),
@@ -222,11 +310,38 @@ pub async fn action_project_git_handler(
         return Ok(Json(serde_json::json!({ "data": op })));
     }
 
-    let secret = format!(
-        "whsec_{}{}",
-        uuid::Uuid::new_v4().simple(),
-        uuid::Uuid::new_v4().simple()
-    );
+    // Webhook secret regeneration / rotation:
+    // Generate fresh CSPRNG secret, update Project.config (invalidating old secret), return new secret
+    let secret = cms_auth::generate_webhook_secret();
+    let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+    let mut git_obj = config
+        .get("git")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    if !git_obj.is_object() {
+        git_obj = serde_json::json!({});
+    }
+    if let Some(git_map) = git_obj.as_object_mut() {
+        git_map.insert(
+            "webhookSecret".to_string(),
+            serde_json::Value::String(secret.clone()),
+        );
+    }
+    if let Some(cfg_map) = config.as_object_mut() {
+        cfg_map.insert("git".to_string(), git_obj);
+    }
+    cms_db::project::ProjectQueries::update(
+        &state.biz_context.pool,
+        &project_id,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(&config),
+    )
+    .await?;
+
     Ok(Json(serde_json::json!({
         "data": {
             "success": true,
@@ -243,11 +358,35 @@ pub async fn delete_project_git_connection_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::git::GitService;
 
+    let proj = cms_biz::project::ProjectService::get_project(
+        &state.biz_context,
+        &auth.user.id,
+        &project_id,
+    )
+    .await?;
+
     let conn =
         cms_db::git::GitConnectionQueries::get_by_project(&state.biz_context.pool, &project_id)
             .await?;
     if let Some(conn) = conn {
         GitService::delete_connection(&state.biz_context, &auth.user.id, &conn.id).await?;
+        if let Some(mut config) = proj.project.config {
+            if let Some(cfg_map) = config.as_object_mut() {
+                if cfg_map.remove("git").is_some() {
+                    cms_db::project::ProjectQueries::update(
+                        &state.biz_context.pool,
+                        &project_id,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(&config),
+                    )
+                    .await?;
+                }
+            }
+        }
     }
     Ok(Json(serde_json::json!({ "data": { "success": true } })))
 }

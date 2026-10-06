@@ -95,7 +95,6 @@ pub fn get_security_headers(config: &SiteSecurityConfig) -> HeaderMap {
         );
     }
 
-
     // Content Security Policy
     if config.enable_csp {
         if let Ok(val) = HeaderValue::from_str(&config.csp) {

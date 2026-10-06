@@ -70,7 +70,11 @@ pub async fn request(
     request_with_headers(app, method, uri, &headers, body).await
 }
 
-pub async fn site_request(app: &Router, host: &str, uri: &str) -> anyhow::Result<(StatusCode, String)> {
+pub async fn site_request(
+    app: &Router,
+    host: &str,
+    uri: &str,
+) -> anyhow::Result<(StatusCode, String)> {
     let response = app
         .clone()
         .oneshot(
@@ -376,7 +380,8 @@ impl TestContext {
         config.storage.local_root = Some(storage_root.to_string_lossy().into_owned());
 
         let state = Arc::new(AppState::from_config(&config).await?);
-        let worker_state = Arc::new(cms_worker::app_state::WorkerState::from_app_state(&state).await?);
+        let worker_state =
+            Arc::new(cms_worker::app_state::WorkerState::from_app_state(&state).await?);
         let (worker_shutdown_tx, worker_shutdown_rx) = tokio::sync::watch::channel(false);
         let worker_handles = cms_worker::start_consumers_with_shutdown(
             state.job_queue.clone(),

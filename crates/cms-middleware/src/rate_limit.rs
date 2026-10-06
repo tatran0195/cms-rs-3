@@ -139,14 +139,19 @@ impl RateLimitClient {
             let ip = addr.ip();
             // If connection originates from loopback (reverse proxy/ingress), inspect forwarded headers
             if ip.is_loopback() {
-                if let Some(forwarded) = parts.headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()) {
+                if let Some(forwarded) = parts
+                    .headers
+                    .get("x-forwarded-for")
+                    .and_then(|h| h.to_str().ok())
+                {
                     if let Some(first_ip) = forwarded.split(',').next() {
                         if let Ok(client_ip) = first_ip.trim().parse::<IpAddr>() {
                             return Self::Ip(client_ip);
                         }
                     }
                 }
-                if let Some(real_ip) = parts.headers.get("x-real-ip").and_then(|h| h.to_str().ok()) {
+                if let Some(real_ip) = parts.headers.get("x-real-ip").and_then(|h| h.to_str().ok())
+                {
                     if let Ok(client_ip) = real_ip.trim().parse::<IpAddr>() {
                         return Self::Ip(client_ip);
                     }
@@ -313,7 +318,11 @@ impl RateLimiter {
     }
 
     /// Evict old clients based on TTL to prevent memory exhaustion
-    fn evict_expired_clients(&self, clients: &mut HashMap<RateLimitClient, ClientState>, now_secs: u64) {
+    fn evict_expired_clients(
+        &self,
+        clients: &mut HashMap<RateLimitClient, ClientState>,
+        now_secs: u64,
+    ) {
         let ttl_secs = self.config.client_ttl.as_secs();
 
         // Remove expired clients
@@ -329,7 +338,9 @@ impl RateLimiter {
                 .collect();
             entries.sort_by_key(|a| a.1);
 
-            let to_remove_count = entries.len().saturating_sub(self.config.max_tracked_clients.saturating_sub(1));
+            let to_remove_count = entries
+                .len()
+                .saturating_sub(self.config.max_tracked_clients.saturating_sub(1));
             for (key, _) in entries.into_iter().take(to_remove_count) {
                 clients.remove(&key);
             }

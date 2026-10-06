@@ -32,11 +32,24 @@ async fn test_14_atomic_project_creation_invariants() -> anyhow::Result<()> {
     .await?;
     anyhow::ensure!(project_count == 1, "project must exist");
     anyhow::ensure!(branch_count == 1, "default branch must exist atomically");
-    anyhow::ensure!(language_count == 1, "default english language must exist atomically");
-    anyhow::ensure!(settings_count == 1, "project settings must exist atomically");
+    anyhow::ensure!(
+        language_count == 1,
+        "default english language must exist atomically"
+    );
+    anyhow::ensure!(
+        settings_count == 1,
+        "project settings must exist atomically"
+    );
 
     let pages_resp = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/pages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/pages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "read empty pages",
     )?;

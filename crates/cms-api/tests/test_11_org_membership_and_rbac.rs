@@ -31,11 +31,20 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
     let second_user_id = required_string(&second_user, "id", "second user")?;
 
     let initial_members = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/orgs/{}/members", ctx.seed.organization_id), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list org members",
     )?;
-    let members_arr = initial_members.as_array().ok_or_else(|| anyhow::anyhow!("members not array"))?;
+    let members_arr = initial_members
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("members not array"))?;
     anyhow::ensure!(members_arr.len() == 1, "initial member count is 1 (owner)");
 
     let add_member = expect_status(
@@ -53,7 +62,14 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
     let membership_id = required_string(&add_member, "id", "membership id")?;
 
     let members_after_add = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/orgs/{}/members", ctx.seed.organization_id), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list members after add",
     )?;
@@ -63,7 +79,10 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
         request(
             &ctx.app,
             Method::PUT,
-            &format!("/api/orgs/{}/members/{membership_id}", ctx.seed.organization_id),
+            &format!(
+                "/api/orgs/{}/members/{membership_id}",
+                ctx.seed.organization_id
+            ),
             Some(&cookie),
             Some(json!({ "role": "ADMIN" })),
         )
@@ -77,7 +96,10 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
         request(
             &ctx.app,
             Method::DELETE,
-            &format!("/api/orgs/{}/members/{membership_id}", ctx.seed.organization_id),
+            &format!(
+                "/api/orgs/{}/members/{membership_id}",
+                ctx.seed.organization_id
+            ),
             Some(&cookie),
             None,
         )
@@ -88,7 +110,14 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
     anyhow::ensure!(remove_member["success"] == true);
 
     let members_after_remove = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/orgs/{}/members", ctx.seed.organization_id), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list members after remove",
     )?;

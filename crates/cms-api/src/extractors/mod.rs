@@ -1,9 +1,6 @@
 //! Common extractors for API handlers
 
-use axum::{
-    extract::FromRequestParts,
-    http::request::Parts,
-};
+use axum::{extract::FromRequestParts, http::request::Parts};
 use cms_error::AppError;
 
 /// User ID extractor from session or header

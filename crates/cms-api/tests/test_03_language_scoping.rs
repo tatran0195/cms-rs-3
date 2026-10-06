@@ -22,12 +22,24 @@ async fn test_03_language_scoping_and_bcp47_validation() -> anyhow::Result<()> {
     let project_id = required_string(&project, "id", "project")?;
 
     let language_list = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list project languages",
     )?;
-    let languages = language_list["data"].as_array().ok_or_else(|| anyhow::anyhow!("not array"))?;
-    let english = languages.iter().find(|l| l["isDefault"] == true).ok_or_else(|| anyhow::anyhow!("missing default language"))?;
+    let languages = language_list["data"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("not array"))?;
+    let english = languages
+        .iter()
+        .find(|l| l["isDefault"] == true)
+        .ok_or_else(|| anyhow::anyhow!("missing default language"))?;
     let english_id = required_string(english, "id", "english id")?;
     anyhow::ensure!(english["code"] == "en");
 
@@ -125,7 +137,14 @@ async fn test_03_language_scoping_and_bcp47_validation() -> anyhow::Result<()> {
     .await?;
 
     let refreshed_languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "read translation coverage",
     )?;

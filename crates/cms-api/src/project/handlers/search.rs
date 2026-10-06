@@ -51,14 +51,35 @@ pub async fn get_project_search_settings_handler(
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
 
-    let max_results = search_config.get("maxResults").and_then(|v| v.as_i64()).unwrap_or(10);
-    let filters_enabled = search_config.get("filtersEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
-    let version_filter_enabled = search_config.get("versionFilterEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
-    let ai_answers = search_config.get("aiAnswers").and_then(|v| v.as_bool()).unwrap_or(true);
-    let hotkey = search_config.get("hotkey").and_then(|v| v.as_str()).unwrap_or("cmdk");
+    let max_results = search_config
+        .get("maxResults")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(10);
+    let filters_enabled = search_config
+        .get("filtersEnabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let version_filter_enabled = search_config
+        .get("versionFilterEnabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let ai_answers = search_config
+        .get("aiAnswers")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let hotkey = search_config
+        .get("hotkey")
+        .and_then(|v| v.as_str())
+        .unwrap_or("cmdk");
     let placeholder = search_config.get("placeholder").and_then(|v| v.as_str());
-    let suggested_questions = search_config.get("suggestedQuestions").cloned().unwrap_or(serde_json::Value::Null);
-    let popular_searches = search_config.get("popularSearches").cloned().unwrap_or(serde_json::Value::Null);
+    let suggested_questions = search_config
+        .get("suggestedQuestions")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let popular_searches = search_config
+        .get("popularSearches")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
 
     let configuration = serde_json::json!({
         "maxResults": max_results,
@@ -116,16 +137,35 @@ pub async fn update_project_search_settings_handler(
 
     // Deep merge search settings into Project.config
     let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
-    let mut search_obj = config.get("search").cloned().unwrap_or_else(|| serde_json::json!({}));
+    let mut search_obj = config
+        .get("search")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
     if let serde_json::Value::Object(ref mut map) = search_obj {
-        if let Some(v) = body.get("placeholder") { map.insert("placeholder".to_string(), v.clone()); }
-        if let Some(v) = body.get("maxResults") { map.insert("maxResults".to_string(), v.clone()); }
-        if let Some(v) = body.get("filtersEnabled") { map.insert("filtersEnabled".to_string(), v.clone()); }
-        if let Some(v) = body.get("versionFilterEnabled") { map.insert("versionFilterEnabled".to_string(), v.clone()); }
-        if let Some(v) = body.get("aiAnswers") { map.insert("aiAnswers".to_string(), v.clone()); }
-        if let Some(v) = body.get("hotkey") { map.insert("hotkey".to_string(), v.clone()); }
-        if let Some(v) = body.get("suggestedQuestions") { map.insert("suggestedQuestions".to_string(), v.clone()); }
-        if let Some(v) = body.get("popularSearches") { map.insert("popularSearches".to_string(), v.clone()); }
+        if let Some(v) = body.get("placeholder") {
+            map.insert("placeholder".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("maxResults") {
+            map.insert("maxResults".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("filtersEnabled") {
+            map.insert("filtersEnabled".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("versionFilterEnabled") {
+            map.insert("versionFilterEnabled".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("aiAnswers") {
+            map.insert("aiAnswers".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("hotkey") {
+            map.insert("hotkey".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("suggestedQuestions") {
+            map.insert("suggestedQuestions".to_string(), v.clone());
+        }
+        if let Some(v) = body.get("popularSearches") {
+            map.insert("popularSearches".to_string(), v.clone());
+        }
     }
     if let serde_json::Value::Object(ref mut cfg_map) = config {
         cfg_map.insert("search".to_string(), search_obj.clone());
@@ -143,13 +183,31 @@ pub async fn update_project_search_settings_handler(
     )
     .await?;
 
-    let max_results = search_obj.get("maxResults").and_then(|v| v.as_i64()).unwrap_or(10);
-    let filters_enabled = search_obj.get("filtersEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
-    let version_filter_enabled = search_obj.get("versionFilterEnabled").and_then(|v| v.as_bool()).unwrap_or(true);
-    let hotkey = search_obj.get("hotkey").and_then(|v| v.as_str()).unwrap_or("cmdk");
+    let max_results = search_obj
+        .get("maxResults")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(10);
+    let filters_enabled = search_obj
+        .get("filtersEnabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let version_filter_enabled = search_obj
+        .get("versionFilterEnabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let hotkey = search_obj
+        .get("hotkey")
+        .and_then(|v| v.as_str())
+        .unwrap_or("cmdk");
     let placeholder = search_obj.get("placeholder").and_then(|v| v.as_str());
-    let suggested_questions = search_obj.get("suggestedQuestions").cloned().unwrap_or(serde_json::Value::Null);
-    let popular_searches = search_obj.get("popularSearches").cloned().unwrap_or(serde_json::Value::Null);
+    let suggested_questions = search_obj
+        .get("suggestedQuestions")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let popular_searches = search_obj
+        .get("popularSearches")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
 
     Ok(Json(serde_json::json!({
         "data": {

@@ -45,11 +45,21 @@ async fn test_12_api_tokens_lifecycle_and_authentication() -> anyhow::Result<()>
         None,
     )
     .await?;
-    anyhow::ensure!(auth_status == StatusCode::OK, "api token authenticates request");
+    anyhow::ensure!(
+        auth_status == StatusCode::OK,
+        "api token authenticates request"
+    );
     anyhow::ensure!(pages_val["data"].is_array());
 
     let del_key = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/projects/{project_id}/api-keys/{key_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/projects/{project_id}/api-keys/{key_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete api key",
     )?;
@@ -63,7 +73,10 @@ async fn test_12_api_tokens_lifecycle_and_authentication() -> anyhow::Result<()>
         None,
     )
     .await?;
-    anyhow::ensure!(revoked_status == StatusCode::UNAUTHORIZED, "revoked api token is rejected");
+    anyhow::ensure!(
+        revoked_status == StatusCode::UNAUTHORIZED,
+        "revoked api token is rejected"
+    );
 
     ctx.teardown().await
 }

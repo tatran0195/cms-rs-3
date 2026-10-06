@@ -117,10 +117,10 @@ pub async fn logout_handler(
     }
 
     let mut res_headers = HeaderMap::new();
-    let cookie_val = state.config.auth.clear_session_cookie_value(
-        state.config.is_production(),
-        state.config.server.https,
-    );
+    let cookie_val = state
+        .config
+        .auth
+        .clear_session_cookie_value(state.config.is_production(), state.config.server.https);
     if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
         res_headers.insert(axum::http::header::SET_COOKIE, val);
     }
@@ -444,10 +444,10 @@ pub async fn sign_out_better_auth_handler(
     }
 
     let mut res_headers = HeaderMap::new();
-    let cookie_val = state.config.auth.clear_session_cookie_value(
-        state.config.is_production(),
-        state.config.server.https,
-    );
+    let cookie_val = state
+        .config
+        .auth
+        .clear_session_cookie_value(state.config.is_production(), state.config.server.https);
     if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
         res_headers.insert(axum::http::header::SET_COOKIE, val);
     }

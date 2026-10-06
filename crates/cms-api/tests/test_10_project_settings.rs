@@ -22,7 +22,14 @@ async fn test_10_project_settings_and_site_features() -> anyhow::Result<()> {
     let project_id = required_string(&project, "id", "project")?;
 
     let initial_settings = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/settings"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/settings"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "get settings",
     )?;
@@ -49,7 +56,14 @@ async fn test_10_project_settings_and_site_features() -> anyhow::Result<()> {
     anyhow::ensure!(updated_settings["data"]["comments_enabled"] == true);
 
     let fetched = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/settings"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/settings"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "fetch updated settings",
     )?;

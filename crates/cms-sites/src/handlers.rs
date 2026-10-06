@@ -39,7 +39,8 @@ pub async fn record_trusted_tls_observation(
         crate::host_resolution::parse_trusted_proxies(&state.config.server.trusted_proxies)
     };
     if !trusted_proxies.is_empty() {
-        let is_trusted = client_ip.is_some_and(|ip| trusted_proxies.iter().any(|net| net.contains(&ip)));
+        let is_trusted =
+            client_ip.is_some_and(|ip| trusted_proxies.iter().any(|net| net.contains(&ip)));
         if !is_trusted {
             return;
         }

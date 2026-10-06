@@ -209,7 +209,8 @@ mod tests {
         Config {
             environment: "deploy".to_string(),
             auth: cms_config::AuthConfig {
-                session_secret: "a_very_secure_and_long_session_secret_for_production_32chars".to_string(),
+                session_secret: "a_very_secure_and_long_session_secret_for_production_32chars"
+                    .to_string(),
                 jwt_secret: "a_very_secure_and_long_jwt_secret_for_production_32chars".to_string(),
                 ..Default::default()
             },
@@ -263,7 +264,10 @@ mod tests {
         config.database.url = "postgres://postgres:postgres@localhost:5432/cms".to_string();
         let result = AppState::validate_config(&config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("default 'postgres'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("default 'postgres'"));
     }
 
     #[test]
@@ -272,7 +276,10 @@ mod tests {
         config.database.url = "postgres://cms_user@localhost:5432/cms".to_string();
         let result = AppState::validate_config(&config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("password cannot be empty"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("password cannot be empty"));
     }
 
     #[test]
@@ -281,6 +288,9 @@ mod tests {
         config.queue.backend = "memory".to_string();
         let result = AppState::validate_config(&config);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Queue backend cannot be in-memory"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Queue backend cannot be in-memory"));
     }
 }

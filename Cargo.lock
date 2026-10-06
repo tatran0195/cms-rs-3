@@ -1219,6 +1219,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "uuid",
 ]
@@ -1249,6 +1250,7 @@ dependencies = [
  "hex",
  "http 1.5.0",
  "hyper 1.11.1",
+ "rand 0.8.8",
  "reqwest",
  "schemars",
  "serde",
@@ -1284,6 +1286,7 @@ dependencies = [
  "cms-error",
  "hex",
  "jsonwebtoken",
+ "rand 0.8.8",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1604,10 +1607,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
 ]
-
-[[package]]
-name = "cms-xtask"
-version = "0.1.0"
 
 [[package]]
 name = "color_quant"

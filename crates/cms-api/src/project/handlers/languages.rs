@@ -56,7 +56,9 @@ pub async fn update_project_language_handler(
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
     if existing.project_id != project_id {
-        return Err(AppError::NotFound("Language not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Language not found for this project".to_string(),
+        ));
     }
     let lang = cms_biz::language::LanguageService::update_language(
         &state.biz_context,
@@ -79,7 +81,9 @@ pub async fn delete_project_language_handler(
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
     if language.project_id != project_id {
-        return Err(AppError::NotFound("Language not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Language not found for this project".to_string(),
+        ));
     }
     cms_biz::language::LanguageService::delete_language(
         &state.biz_context,

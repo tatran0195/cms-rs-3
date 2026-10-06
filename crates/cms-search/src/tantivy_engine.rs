@@ -442,12 +442,7 @@ impl TantivySearchEngine {
             return Ok(idx.clone());
         }
 
-        let vec_idx = ProjectVectorIndex::open_or_create(
-            &self.base_dir,
-            project_id,
-            dim,
-            model,
-        )?;
+        let vec_idx = ProjectVectorIndex::open_or_create(&self.base_dir, project_id, dim, model)?;
 
         let arc = Arc::new(tokio::sync::Mutex::new(vec_idx));
         write.insert(project_id.to_string(), arc.clone());
@@ -537,7 +532,10 @@ impl SearchEngine for TantivySearchEngine {
 
                 for chunk in chunks_for_fts {
                     let mut doc = TantivyDocument::new();
-                    doc.add_text(fields.id, format!("{}:{}", page_clone.id, chunk.chunk_index));
+                    doc.add_text(
+                        fields.id,
+                        format!("{}:{}", page_clone.id, chunk.chunk_index),
+                    );
                     doc.add_text(fields.page_id, &page_clone.id);
                     doc.add_text(fields.project_id, &page_clone.project_id);
                     doc.add_text(fields.branch_id, &page_clone.branch_id);
@@ -554,7 +552,10 @@ impl SearchEngine for TantivySearchEngine {
                     );
                     doc.add_text(fields.body, &chunk.text);
                     doc.add_i64(fields.chunk_index, chunk.chunk_index as i64);
-                    doc.add_u64(fields.is_published, if page_clone.is_published { 1 } else { 0 });
+                    doc.add_u64(
+                        fields.is_published,
+                        if page_clone.is_published { 1 } else { 0 },
+                    );
                     doc.add_i64(fields.updated_at, page_clone.updated_at.timestamp());
 
                     writer.add_document(doc).map_err(|e| {
@@ -626,7 +627,8 @@ impl SearchEngine for TantivySearchEngine {
                 // Page is unpublished/unindexed — remove from vector index
                 let dim = embedder.dimension();
                 let model = embedder.model_name().to_string();
-                if let Ok(vec_idx) = self.get_or_create_vector_index(&page.project_id, dim, &model) {
+                if let Ok(vec_idx) = self.get_or_create_vector_index(&page.project_id, dim, &model)
+                {
                     let mut vec_guard = vec_idx.lock().await;
                     let _ = vec_guard.reload_if_stale();
                     vec_guard.remove_page(&page.id);
@@ -788,13 +790,8 @@ impl SearchEngine for TantivySearchEngine {
         // Use the RAG module for LLM-powered answers when configured
         #[cfg(feature = "vector")]
         {
-            return crate::rag::generate_rag_answer(
-                &self.rag_config,
-                project_id,
-                question,
-                &hits,
-            )
-            .await;
+            return crate::rag::generate_rag_answer(&self.rag_config, project_id, question, &hits)
+                .await;
         }
 
         // Fallback when vector feature is disabled
@@ -1101,10 +1098,7 @@ fn rrf_merge(
 
     // Sort by RRF score descending
     let mut merged: Vec<(SearchHit, f32)> = scores.into_values().collect();
-    merged.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    merged.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     merged.truncate(limit);
 
     // Set the final score to the RRF score

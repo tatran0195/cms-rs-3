@@ -24,14 +24,28 @@ async fn test_09_preview_branches_and_isolation() -> anyhow::Result<()> {
     let public_host = format!("{project_slug}.cms.app");
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
     let english_id = languages["data"][0]["id"].as_str().unwrap();
 
     let main_dep = expect_status(
-        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "main" }))).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments"),
+            Some(&cookie),
+            Some(json!({ "message": "main" })),
+        )
+        .await?,
         StatusCode::OK,
         "main dep",
     )?;
@@ -50,7 +64,8 @@ async fn test_09_preview_branches_and_isolation() -> anyhow::Result<()> {
         StatusCode::OK,
         "create preview branch",
     )?;
-    let preview_branch_id = required_string(&preview_branch_resp["data"], "id", "preview branch id")?;
+    let preview_branch_id =
+        required_string(&preview_branch_resp["data"], "id", "preview branch id")?;
 
     let _preview_page = create_page(
         &ctx.app,
@@ -84,20 +99,42 @@ async fn test_09_preview_branches_and_isolation() -> anyhow::Result<()> {
     wait_for_deployment_ready(&ctx.state, preview_dep_id).await?;
 
     let preview_read = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=preview"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!(
+                "/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=preview"
+            ),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "read preview page explicitly",
     )?;
-    anyhow::ensure!(preview_read["data"]["page"]["content"].as_str().unwrap().contains("Secret preview content"));
+    anyhow::ensure!(preview_read["data"]["page"]["content"]
+        .as_str()
+        .unwrap()
+        .contains("Secret preview content"));
 
     expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/page?path=preview-only&lang=en&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::NOT_FOUND,
         "preview page hidden on main branch",
     )?;
 
     let (preview_host_status, _) = site_request(&ctx.app, &public_host, "/preview-only").await?;
-    anyhow::ensure!(preview_host_status == StatusCode::NOT_FOUND, "preview content not served on default host");
+    anyhow::ensure!(
+        preview_host_status == StatusCode::NOT_FOUND,
+        "preview content not served on default host"
+    );
 
     ctx.teardown().await
 }

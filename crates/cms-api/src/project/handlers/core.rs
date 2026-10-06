@@ -8,8 +8,8 @@ use cms_biz::project::ProjectService;
 use cms_entity::{
     common::Id,
     project::{
-        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectWithOrgResponse, UpdateProjectRequest,
-        UpdateProjectSettingsRequest,
+        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectWithOrgResponse,
+        UpdateProjectRequest, UpdateProjectSettingsRequest,
     },
 };
 use cms_error::AppError;

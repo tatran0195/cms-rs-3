@@ -121,8 +121,10 @@ impl AnalyticsStore for SqliteAnalyticsStore {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<cms_entity::analytics::AnalyticsEvent>, AppError> {
+        let org_id_str = org_id.map(String::from).ok_or_else(|| {
+            AppError::Validation("organization_id is required for analytics queries".to_string())
+        })?;
         let conn = self.conn.clone();
-        let org_id = org_id.map(String::from);
         let project_id = project_id.map(String::from);
         let user_id = user_id.map(String::from);
         let event_type = event_type.map(String::from);
@@ -139,14 +141,10 @@ impl AnalyticsStore for SqliteAnalyticsStore {
 
                 let mut query = String::from(
                     "SELECT id, organization_id, project_id, user_id, event_type, metadata, \
-                     ip_address, user_agent, created_at FROM analytics_events WHERE 1=1",
+                     ip_address, user_agent, created_at FROM analytics_events WHERE organization_id = ?",
                 );
-                let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+                let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(org_id_str)];
 
-                if let Some(ref org) = org_id {
-                    query.push_str(" AND organization_id = ?");
-                    params.push(Box::new(org.clone()));
-                }
                 if let Some(ref proj) = project_id {
                     query.push_str(" AND project_id = ?");
                     params.push(Box::new(proj.clone()));
@@ -381,5 +379,169 @@ mod tests {
         assert_eq!(summary["unique_users"], 2);
         assert_eq!(summary["page_views"], 2);
         assert_eq!(summary["searches"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_cross_tenant_analytics_isolation() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db_path = tmp.path().join("isolation.db");
+        let store = SqliteAnalyticsStore::new(&db_path.to_string_lossy()).unwrap();
+
+        // 1. Seed events for Organization A
+        store
+            .record_event(
+                Some("org_a"),
+                Some("proj_a"),
+                Some("user_a1"),
+                "page_view",
+                serde_json::json!({"path": "/docs/a1"}),
+                Some("1.1.1.1"),
+                None,
+            )
+            .await
+            .unwrap();
+        store
+            .record_event(
+                Some("org_a"),
+                Some("proj_a"),
+                Some("user_a2"),
+                "page_view",
+                serde_json::json!({"path": "/docs/a2"}),
+                Some("1.1.1.2"),
+                None,
+            )
+            .await
+            .unwrap();
+
+        // 2. Seed events for Organization B
+        store
+            .record_event(
+                Some("org_b"),
+                Some("proj_b"),
+                Some("user_b1"),
+                "page_view",
+                serde_json::json!({"path": "/docs/b1"}),
+                Some("2.2.2.1"),
+                None,
+            )
+            .await
+            .unwrap();
+        store
+            .record_event(
+                Some("org_b"),
+                Some("proj_b"),
+                Some("user_b2"),
+                "search",
+                serde_json::json!({"query": "secret_b"}),
+                Some("2.2.2.2"),
+                None,
+            )
+            .await
+            .unwrap();
+
+        // 3. Org A organization-wide query (empty project filter) returns ONLY Org A events
+        let org_a_events = store
+            .query_events(Some("org_a"), None, None, None, None, None, None, None)
+            .await
+            .unwrap();
+        assert_eq!(
+            org_a_events.len(),
+            2,
+            "Org A must only see its own 2 events"
+        );
+        for event in &org_a_events {
+            assert_eq!(event.organization_id.as_deref(), Some("org_a"));
+            assert_ne!(event.organization_id.as_deref(), Some("org_b"));
+        }
+
+        // 4. Org B organization-wide query (empty project filter) returns ONLY Org B events
+        let org_b_events = store
+            .query_events(Some("org_b"), None, None, None, None, None, None, None)
+            .await
+            .unwrap();
+        assert_eq!(
+            org_b_events.len(),
+            2,
+            "Org B must only see its own 2 events"
+        );
+        for event in &org_b_events {
+            assert_eq!(event.organization_id.as_deref(), Some("org_b"));
+            assert_ne!(event.organization_id.as_deref(), Some("org_a"));
+        }
+
+        // 5. Org A cannot retrieve events by querying Org B's project_id
+        let org_a_query_proj_b = store
+            .query_events(
+                Some("org_a"),
+                Some("proj_b"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        assert!(
+            org_a_query_proj_b.is_empty(),
+            "Org A cannot retrieve Org B project events"
+        );
+
+        // 6. Missing tenant context (org_id: None) is rejected
+        let unscoped_query = store
+            .query_events(None, None, None, None, None, None, None, None)
+            .await;
+        assert!(
+            unscoped_query.is_err(),
+            "Unscoped analytics queries without tenant context must be rejected"
+        );
+
+        // 7. Aggregations (get_summary) for Org A exclude Org B entirely
+        let now = chrono::Utc::now();
+        let summary_a = store
+            .get_summary(
+                "org_a",
+                now - chrono::Duration::hours(1),
+                now + chrono::Duration::hours(1),
+            )
+            .await
+            .unwrap();
+        assert_eq!(summary_a["total_events"], 2);
+        assert_eq!(summary_a["page_views"], 2);
+        assert_eq!(
+            summary_a["searches"], 0,
+            "Org B search must not bleed into Org A summary"
+        );
+
+        // 8. Aggregations (get_summary) for Org B exclude Org A entirely
+        let summary_b = store
+            .get_summary(
+                "org_b",
+                now - chrono::Duration::hours(1),
+                now + chrono::Duration::hours(1),
+            )
+            .await
+            .unwrap();
+        assert_eq!(summary_b["total_events"], 2);
+        assert_eq!(summary_b["page_views"], 1);
+        assert_eq!(summary_b["searches"], 1);
+
+        // 9. Pagination cannot leak another tenant's records
+        let paginated_a = store
+            .query_events(
+                Some("org_a"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(1),
+                Some(1),
+            )
+            .await
+            .unwrap();
+        assert_eq!(paginated_a.len(), 1);
+        assert_eq!(paginated_a[0].organization_id.as_deref(), Some("org_a"));
     }
 }

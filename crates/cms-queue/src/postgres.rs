@@ -450,7 +450,10 @@ mod tests {
         let dead_letter = dead_letters.into_iter().find(|j| j.id == job_id).unwrap();
         assert_eq!(dead_letter.status, JobStatus::Failed);
         assert_eq!(dead_letter.retry_count, 2);
-        assert_eq!(dead_letter.error_message.as_deref(), Some("terminal failure"));
+        assert_eq!(
+            dead_letter.error_message.as_deref(),
+            Some("terminal failure")
+        );
 
         // Cleanup
         let _ = queue.delete_job(job_id).await;

@@ -4,9 +4,7 @@ use chrono::{DateTime, Utc};
 use cms_entity::{
     common::MemberRole,
     org::Organization,
-    project::{
-        Project, ProjectAddon, ProjectSettings,
-    },
+    project::{Project, ProjectAddon, ProjectSettings},
 };
 use cms_error::AppError;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};

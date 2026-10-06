@@ -21,7 +21,12 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 struct EmbeddedSite;
 
 #[derive(Parser, Debug)]
-#[command(name = "cms-site", author, version, about = "Portable single-binary documentation site runner")]
+#[command(
+    name = "cms-site",
+    author,
+    version,
+    about = "Portable single-binary documentation site runner"
+)]
 struct Args {
     /// Path to the exported SQLite database
     #[arg(short, long, default_value = "docs.sqlite")]
@@ -217,8 +222,8 @@ fn query_bootstrap(
     target_version: Option<&str>,
 ) -> anyhow::Result<SiteShell> {
     // 1. Project metadata
-    let (project_id, project_name, project_slug, exported_at): (String, String, String, String) = conn
-        .query_row(
+    let (project_id, project_name, project_slug, exported_at): (String, String, String, String) =
+        conn.query_row(
             "SELECT project_id, project_name, project_slug, exported_at FROM export_meta LIMIT 1",
             [],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
@@ -226,7 +231,8 @@ fn query_bootstrap(
 
     let mut project_config = serde_json::Map::new();
     let mut stmt = conn.prepare("SELECT key, value FROM project_config")?;
-    let config_rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+    let config_rows =
+        stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
     for (k, v) in config_rows.flatten() {
         if let Ok(json_val) = serde_json::from_str(&v) {
             project_config.insert(k, json_val);
@@ -270,7 +276,11 @@ fn query_bootstrap(
         languages.push(LanguageItem {
             code,
             label,
-            direction: if is_rtl { "RTL".to_string() } else { "LTR".to_string() },
+            direction: if is_rtl {
+                "RTL".to_string()
+            } else {
+                "LTR".to_string()
+            },
             is_default,
             enabled: true,
         });
@@ -290,7 +300,8 @@ fn query_bootstrap(
     let mut versions = Vec::new();
     let mut default_version_id = String::new();
     let mut default_version_slug = String::new();
-    let mut stmt = conn.prepare("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")?;
+    let mut stmt =
+        conn.prepare("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")?;
     let ver_rows = stmt.query_map([], |r| {
         Ok((
             r.get::<_, String>(0)?,
@@ -314,15 +325,19 @@ fn query_bootstrap(
         });
     }
 
-    let (active_version_id, active_version_slug) = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
-        if let Some(v) = versions.iter().find(|v| v.slug == req_ver || v.id == req_ver) {
-            (v.id.clone(), v.slug.clone())
+    let (active_version_id, active_version_slug) =
+        if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
+            if let Some(v) = versions
+                .iter()
+                .find(|v| v.slug == req_ver || v.id == req_ver)
+            {
+                (v.id.clone(), v.slug.clone())
+            } else {
+                anyhow::bail!("Version '{}' not found", req_ver);
+            }
         } else {
-            anyhow::bail!("Version '{}' not found", req_ver);
-        }
-    } else {
-        (default_version_id, default_version_slug)
-    };
+            (default_version_id, default_version_slug)
+        };
 
     // 4. Navigation tree for active version
     struct RawPageNode {
@@ -447,7 +462,11 @@ fn query_page(
     }
 
     if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
-        if !bootstrap.versions.iter().any(|v| v.slug == req_ver || v.id == req_ver) {
+        if !bootstrap
+            .versions
+            .iter()
+            .any(|v| v.slug == req_ver || v.id == req_ver)
+        {
             return Ok(None);
         }
     }
@@ -537,7 +556,8 @@ fn query_page(
     let mut breadcrumbs = Vec::new();
     let mut curr_parent = page_row.parent_id.clone();
     while let Some(parent_id) = curr_parent {
-        let mut stmt = conn.prepare("SELECT title, path, parent_id FROM pages WHERE id = ?1 LIMIT 1")?;
+        let mut stmt =
+            conn.prepare("SELECT title, path, parent_id FROM pages WHERE id = ?1 LIMIT 1")?;
         let mut rows = stmt.query([&parent_id])?;
         if let Some(r) = rows.next()? {
             breadcrumbs.push(BreadcrumbItem {
@@ -557,9 +577,8 @@ fn query_page(
 
     // Query prev & next siblings in version
     let mut siblings = Vec::new();
-    let mut stmt = conn.prepare(
-        "SELECT title, path FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC",
-    )?;
+    let mut stmt = conn
+        .prepare("SELECT title, path FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC")?;
     let sib_rows = stmt.query_map([&page_row.version_id], |r| {
         Ok(AdjacentPage {
             title: r.get(0)?,
@@ -625,7 +644,9 @@ async fn healthz() -> impl IntoResponse {
 
 fn query_changelog(conn: &Connection) -> Vec<ChangelogEntry> {
     let mut entries = Vec::new();
-    if let Ok(mut stmt) = conn.prepare("SELECT slug, title, published_at FROM changelog ORDER BY published_at DESC") {
+    if let Ok(mut stmt) =
+        conn.prepare("SELECT slug, title, published_at FROM changelog ORDER BY published_at DESC")
+    {
         if let Ok(rows) = stmt.query_map([], |r| {
             Ok(ChangelogEntry {
                 version: 1,
@@ -663,8 +684,10 @@ fn execute_search(
         return Ok(Vec::new());
     }
 
-    let resolved_version_id = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
-        let mut stmt = conn.prepare("SELECT id FROM versions WHERE slug = ?1 OR id = ?1 LIMIT 1")?;
+    let resolved_version_id = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty())
+    {
+        let mut stmt =
+            conn.prepare("SELECT id FROM versions WHERE slug = ?1 OR id = ?1 LIMIT 1")?;
         let mut rows = stmt.query([req_ver])?;
         if let Some(r) = rows.next()? {
             Some(r.get::<_, String>(0)?)
@@ -768,7 +791,11 @@ async fn api_bootstrap(
         Ok(Ok(shell)) => Json(shell).into_response(),
         Ok(Err(e)) => {
             tracing::warn!("Failed to query bootstrap: {}", e);
-            (StatusCode::NOT_FOUND, "Site configuration or version not found").into_response()
+            (
+                StatusCode::NOT_FOUND,
+                "Site configuration or version not found",
+            )
+                .into_response()
         }
         Err(e) => {
             tracing::error!("Spawn blocking task join error in api_bootstrap: {}", e);
@@ -777,10 +804,7 @@ async fn api_bootstrap(
     }
 }
 
-async fn api_page(
-    State(state): State<AppState>,
-    Query(query): Query<PageQuery>,
-) -> Response {
+async fn api_page(State(state): State<AppState>, Query(query): Query<PageQuery>) -> Response {
     let path = query.path.unwrap_or_else(|| "/".to_string());
     let lang = query.lang;
     let version = query.version;
@@ -821,10 +845,7 @@ async fn api_changelog(State(state): State<AppState>) -> Response {
     }
 }
 
-async fn api_search(
-    State(state): State<AppState>,
-    Query(query): Query<SearchQuery>,
-) -> Response {
+async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQuery>) -> Response {
     let raw_q = query.q.unwrap_or_default();
     let clean_q = raw_q.trim().to_string();
     if clean_q.is_empty() {
@@ -930,7 +951,13 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
 
     let raw_html = match std::str::from_utf8(&html_file.data) {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Invalid UTF-8 in index.html").into_response(),
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Invalid UTF-8 in index.html",
+            )
+                .into_response()
+        }
     };
 
     // Fast Bootstrap Injection into index.html via blocking task
@@ -1098,7 +1125,13 @@ async fn main() -> anyhow::Result<()> {
         &args.db,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
-    .map_err(|e| anyhow::anyhow!("Failed to open SQLite database at {}: {}", args.db.display(), e))?;
+    .map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to open SQLite database at {}: {}",
+            args.db.display(),
+            e
+        )
+    })?;
 
     // Validate schema version
     let schema_version: i32 = conn
@@ -1317,7 +1350,8 @@ mod tests {
                 name: r#"Evil <Project> "</script><script>alert('xss')</script>""#.to_string(),
                 slug: "evil-project".to_string(),
                 description: Some(
-                    r#"Description with "quotes", <tags>, & ampersand, and line break \u{2028}."#.to_string(),
+                    r#"Description with "quotes", <tags>, & ampersand, and line break \u{2028}."#
+                        .to_string(),
                 ),
                 config: Some(serde_json::json!({
                     "custom": "</script><img src=x onerror=alert(1)>"
@@ -1359,7 +1393,10 @@ mod tests {
         let result = inject_bootstrap_and_meta(template_modern, Some(&shell));
 
         // 1. Meta tags and title verification
-        assert!(!result.contains("<title>Documentation</title>"), "old title replaced");
+        assert!(
+            !result.contains("<title>Documentation</title>"),
+            "old title replaced"
+        );
         assert!(result.contains(
             "<title>Evil &lt;Project&gt; &quot;&lt;/script&gt;&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;&quot;</title>"
         ));
@@ -1371,7 +1408,8 @@ mod tests {
         let script_start = result
             .find(r#"<script type="application/json" id="__bootstrap__">"#)
             .expect("bootstrap tag exists");
-        let script_content_start = script_start + r#"<script type="application/json" id="__bootstrap__">"#.len();
+        let script_content_start =
+            script_start + r#"<script type="application/json" id="__bootstrap__">"#.len();
         let script_end = result[script_content_start..]
             .find("</script>")
             .expect("bootstrap close exists")
@@ -1379,13 +1417,26 @@ mod tests {
         let script_body = &result[script_content_start..script_end];
 
         // Ensure script body has no raw < or > or </script>
-        assert!(!script_body.contains('<'), "script body must not contain raw <");
-        assert!(!script_body.contains('>'), "script body must not contain raw >");
-        assert!(!script_body.contains('\u{2028}'), "script body must not contain raw U+2028");
-        assert!(!script_body.contains('\u{2029}'), "script body must not contain raw U+2029");
+        assert!(
+            !script_body.contains('<'),
+            "script body must not contain raw <"
+        );
+        assert!(
+            !script_body.contains('>'),
+            "script body must not contain raw >"
+        );
+        assert!(
+            !script_body.contains('\u{2028}'),
+            "script body must not contain raw U+2028"
+        );
+        assert!(
+            !script_body.contains('\u{2029}'),
+            "script body must not contain raw U+2029"
+        );
 
         // Verify JSON parses back accurately
-        let roundtrip: SiteShell = serde_json::from_str(script_body).expect("JSON inside script tag must be valid");
+        let roundtrip: SiteShell =
+            serde_json::from_str(script_body).expect("JSON inside script tag must be valid");
         assert_eq!(roundtrip.project.name, shell.project.name);
         assert_eq!(roundtrip.project.description, shell.project.description);
 
@@ -1437,7 +1488,8 @@ mod tests {
         let loopback_default = build_cors_layer("127.0.0.1", None).unwrap();
         assert!(loopback_default.is_none());
 
-        let loopback_with_origin = build_cors_layer("127.0.0.1", Some("https://example.com")).unwrap();
+        let loopback_with_origin =
+            build_cors_layer("127.0.0.1", Some("https://example.com")).unwrap();
         assert!(loopback_with_origin.is_none());
 
         let localhost = build_cors_layer("localhost", None).unwrap();
@@ -1451,11 +1503,16 @@ mod tests {
         assert!(network_empty_origin.is_none());
 
         // Network binding with explicit origin returns Some(CorsLayer)
-        let network_with_origin = build_cors_layer("0.0.0.0", Some("https://docs.company.com")).unwrap();
+        let network_with_origin =
+            build_cors_layer("0.0.0.0", Some("https://docs.company.com")).unwrap();
         assert!(network_with_origin.is_some());
 
         // Multiple origins separated by comma
-        let multi_origin = build_cors_layer("0.0.0.0", Some("https://docs.company.com, https://site.company.com")).unwrap();
+        let multi_origin = build_cors_layer(
+            "0.0.0.0",
+            Some("https://docs.company.com, https://site.company.com"),
+        )
+        .unwrap();
         assert!(multi_origin.is_some());
 
         // Invalid origin header value should error
@@ -1577,7 +1634,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         // Ensure NO Access-Control-Allow-Origin header is present
         assert!(
-            response.headers().get("access-control-allow-origin").is_none(),
+            response
+                .headers()
+                .get("access-control-allow-origin")
+                .is_none(),
             "Loopback must enforce same-origin policy without Access-Control-Allow-Origin"
         );
     }
@@ -1627,7 +1687,9 @@ mod tests {
             .unwrap();
         let response = app.clone().oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let shell: SiteShell = serde_json::from_slice(&body).unwrap();
         assert_eq!(shell.project.name, "Test Project");
         assert_eq!(shell.active_language, "en");
@@ -1641,10 +1703,15 @@ mod tests {
             .unwrap();
         let response = app.clone().oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let page_resp: SitePageResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(page_resp.page.title, "Getting Started v1");
-        assert!(page_resp.page.content.contains("Welcome to documentation v1"));
+        assert!(page_resp
+            .page
+            .content
+            .contains("Welcome to documentation v1"));
 
         // 3. Test changelog
         let req = axum::http::Request::builder()
@@ -1661,7 +1728,9 @@ mod tests {
             .unwrap();
         let response = app.clone().oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(!val["hits"].as_array().unwrap().is_empty());
 
@@ -1691,7 +1760,9 @@ mod tests {
             .unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(page.page.title, "Getting Started v1");
         assert_eq!(page.page.id, "page1");
@@ -1704,7 +1775,9 @@ mod tests {
             .unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(page.page.title, "Getting Started v2");
         assert_eq!(page.page.id, "page2");
@@ -1717,7 +1790,9 @@ mod tests {
             .unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(page.page.id, "page2");
 
@@ -1728,7 +1803,9 @@ mod tests {
             .unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let page: SitePageResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(page.page.id, "page1");
 
@@ -1810,7 +1887,9 @@ mod tests {
             .unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let hits = val["hits"].as_array().unwrap();
         assert_eq!(hits.len(), 1);
@@ -1818,7 +1897,10 @@ mod tests {
         assert_eq!(hits[0]["title"], "Authentication v1");
         // Verify deterministic score (not constant 1.0)
         let score = hits[0]["score"].as_f64().unwrap();
-        assert!(score != 1.0, "Score should be calculated via BM25, not hardcoded 1.0");
+        assert!(
+            score != 1.0,
+            "Score should be calculated via BM25, not hardcoded 1.0"
+        );
 
         // 2. Scoped to v2
         let req = axum::http::Request::builder()
@@ -1827,7 +1909,9 @@ mod tests {
             .unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let hits = val["hits"].as_array().unwrap();
         assert_eq!(hits.len(), 1);
@@ -1841,11 +1925,15 @@ mod tests {
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let hits = val["hits"].as_array().unwrap();
-        assert_eq!(hits.len(), 0, "No hits should be returned for unmatched language");
+        assert_eq!(
+            hits.len(),
+            0,
+            "No hits should be returned for unmatched language"
+        );
     }
 }
-
-

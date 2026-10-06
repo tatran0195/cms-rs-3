@@ -48,11 +48,20 @@ async fn test_18_export_schedules_lifecycle() -> anyhow::Result<()> {
 
     // List export schedules for project
     let schedules = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/export/projects/{project_id}/schedules"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/export/projects/{project_id}/schedules"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list project export schedules",
     )?;
-    let sched_list = schedules.as_array().ok_or_else(|| anyhow::anyhow!("schedules not array"))?;
+    let sched_list = schedules
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("schedules not array"))?;
     anyhow::ensure!(sched_list.iter().any(|s| s["id"] == schedule_id));
 
     // Update export schedule
@@ -76,7 +85,14 @@ async fn test_18_export_schedules_lifecycle() -> anyhow::Result<()> {
 
     // Delete export schedule
     let del_sched = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/export/schedules/{schedule_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/export/schedules/{schedule_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete export schedule",
     )?;

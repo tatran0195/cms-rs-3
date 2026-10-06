@@ -123,7 +123,9 @@ pub async fn get_project_page_handler(
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
 
     if page.project_id != project_id {
-        return Err(AppError::NotFound("Page not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Page not found for this project".to_string(),
+        ));
     }
 
     if page.language_id.is_none() {
@@ -148,7 +150,9 @@ pub async fn update_project_page_handler(
     let existing =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
     if existing.project_id != project_id {
-        return Err(AppError::NotFound("Page not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Page not found for this project".to_string(),
+        ));
     }
 
     let mut page = cms_biz::page::PageService::update_page(
@@ -180,7 +184,9 @@ pub async fn delete_project_page_handler(
     let page =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
     if page.project_id != project_id {
-        return Err(AppError::NotFound("Page not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Page not found for this project".to_string(),
+        ));
     }
     cms_biz::page::PageService::delete_page(&state.biz_context, &auth.user.id, &page_id).await?;
     Ok(Json(serde_json::json!({ "data": { "success": true } })))

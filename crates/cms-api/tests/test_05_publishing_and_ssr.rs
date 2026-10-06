@@ -24,7 +24,14 @@ async fn test_05_publishing_immutability_and_ssr() -> anyhow::Result<()> {
     let public_host = format!("{project_slug}.cms.app");
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
@@ -66,7 +73,11 @@ async fn test_05_publishing_immutability_and_ssr() -> anyhow::Result<()> {
     anyhow::ensure!(version == 1);
     anyhow::ensure!(page_count == 1);
 
-    let en_artifact = ctx.state.storage.get(&format!("sites/{project_id}/{deployment_id}/en/start.html")).await?;
+    let en_artifact = ctx
+        .state
+        .storage
+        .get(&format!("sites/{project_id}/{deployment_id}/en/start.html"))
+        .await?;
     let en_html = String::from_utf8(en_artifact.to_vec())?;
     anyhow::ensure!(en_html.contains("English release content"));
 
@@ -74,13 +85,16 @@ async fn test_05_publishing_immutability_and_ssr() -> anyhow::Result<()> {
     anyhow::ensure!(ssr_status == StatusCode::OK);
     anyhow::ensure!(ssr_html.contains("<html lang=\"en\" dir=\"ltr\">"));
     anyhow::ensure!(ssr_html.contains("English release content"));
-    anyhow::ensure!(ssr_html.contains(&format!("<link rel=\"canonical\" href=\"https://{public_host}/start\">")));
+    anyhow::ensure!(ssr_html.contains(&format!(
+        "<link rel=\"canonical\" href=\"https://{public_host}/start\">"
+    )));
 
     let (root_status, root_html) = site_request(&ctx.app, &public_host, "/").await?;
     anyhow::ensure!(root_status == StatusCode::OK);
     anyhow::ensure!(root_html.contains("Getting started"));
 
-    let (sitemap_status, sitemap_body) = site_request(&ctx.app, &public_host, "/sitemap.xml").await?;
+    let (sitemap_status, sitemap_body) =
+        site_request(&ctx.app, &public_host, "/sitemap.xml").await?;
     anyhow::ensure!(sitemap_status == StatusCode::OK);
     anyhow::ensure!(sitemap_body.contains("/start"));
 

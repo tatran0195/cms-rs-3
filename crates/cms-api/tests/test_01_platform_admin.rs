@@ -14,7 +14,14 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
     let admin_cookie = ctx.admin_cookie();
 
     expect_status(
-        request(&ctx.app, Method::GET, "/api/admin/sites", Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            "/api/admin/sites",
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::FORBIDDEN,
         "organization owners are not platform administrators",
     )?;
@@ -33,8 +40,16 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
     for (event_type, created_at, metadata) in [
         ("signup_completed", signup_at, json!({})),
         ("page_edited", signup_at + Duration::minutes(20), json!({})),
-        ("publish_clicked", signup_at + Duration::minutes(30), json!({ "auto": false })),
-        ("publish_ready", signup_at - Duration::minutes(1), json!({ "auto": false })),
+        (
+            "publish_clicked",
+            signup_at + Duration::minutes(30),
+            json!({ "auto": false }),
+        ),
+        (
+            "publish_ready",
+            signup_at - Duration::minutes(1),
+            json!({ "auto": false }),
+        ),
     ] {
         sqlx::query(
             r#"INSERT INTO "PlatformEvent" (id, organization_id, user_id, event_type, metadata, created_at)
@@ -51,7 +66,14 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
     }
 
     let overview = expect_status(
-        request(&ctx.app, Method::GET, "/api/admin/overview", Some(&admin_cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            "/api/admin/overview",
+            Some(&admin_cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "load platform-admin overview from persisted records",
     )?;
@@ -59,16 +81,35 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
     anyhow::ensure!(overview["data"]["sites"].as_i64().is_some_and(|c| c >= 1));
 
     let admin_user = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/admin/users/{}", ctx.seed.user_id), Some(&admin_cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/admin/users/{}", ctx.seed.user_id),
+            Some(&admin_cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "load user detail with actual memberships",
     )?;
-    let workspaces = admin_user["data"]["workspaces"].as_array().ok_or_else(|| anyhow::anyhow!("workspaces is not array"))?;
-    let ws = workspaces.iter().find(|w| w["organizationId"] == ctx.seed.organization_id).ok_or_else(|| anyhow::anyhow!("org missing"))?;
+    let workspaces = admin_user["data"]["workspaces"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("workspaces is not array"))?;
+    let ws = workspaces
+        .iter()
+        .find(|w| w["organizationId"] == ctx.seed.organization_id)
+        .ok_or_else(|| anyhow::anyhow!("org missing"))?;
     anyhow::ensure!(ws["projectCount"].as_i64().is_some_and(|c| c >= 1));
 
     expect_status(
-        request(&ctx.app, Method::POST, &format!("/api/admin/users/{}/suspend", ctx.seed.user_id), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/admin/users/{}/suspend", ctx.seed.user_id),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::FORBIDDEN,
         "organization owner cannot invoke platform user operations",
     )?;
@@ -96,7 +137,14 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
     let invitation_id = required_string(&invite["data"], "invitationId", "admin invite")?;
 
     let public_invitation = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/invitations/{invitation_id}"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/invitations/{invitation_id}"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "resolve invitation by public ID",
     )?;
@@ -120,7 +168,14 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
         .await?;
 
     expect_status(
-        request(&ctx.app, Method::POST, "/api/platform-events", None, Some(json!({ "event_type": "custom_test" }))).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            "/api/platform-events",
+            None,
+            Some(json!({ "event_type": "custom_test" })),
+        )
+        .await?,
         StatusCode::UNAUTHORIZED,
         "reject unauthenticated event injection",
     )?;

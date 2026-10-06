@@ -392,18 +392,10 @@ pub async fn process_export_job(
 
     // Generate export content based on format
     let content_result = match job.format {
-        ExportFormat::Html => {
-            generate_html_export(&pages, &snapshot.project_id).await
-        }
-        ExportFormat::Pdf => {
-            generate_pdf_export(&pages, &snapshot.project_id).await
-        }
-        ExportFormat::Markdown => {
-            Ok(generate_markdown_export(&pages).await)
-        }
-        ExportFormat::Epub => {
-            generate_epub_export(&pages, &snapshot.project_id).await
-        }
+        ExportFormat::Html => generate_html_export(&pages, &snapshot.project_id).await,
+        ExportFormat::Pdf => generate_pdf_export(&pages, &snapshot.project_id).await,
+        ExportFormat::Markdown => Ok(generate_markdown_export(&pages).await),
+        ExportFormat::Epub => generate_epub_export(&pages, &snapshot.project_id).await,
         ExportFormat::Sqlite => {
             generate_sqlite_export(pool, &snapshot.project_id, &pages, Some(storage.as_ref())).await
         }

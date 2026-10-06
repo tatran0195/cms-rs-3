@@ -156,7 +156,9 @@ pub async fn update_project_comment_handler(
         .await?
         .ok_or_else(|| AppError::NotFound("Page not found for comment".to_string()))?;
     if page.project_id != project_id {
-        return Err(AppError::NotFound("Comment not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Comment not found for this project".to_string(),
+        ));
     }
 
     let request = UpdateCommentRequest {
@@ -197,7 +199,9 @@ pub async fn delete_project_comment_handler(
         .await?
         .ok_or_else(|| AppError::NotFound("Page not found for comment".to_string()))?;
     if page.project_id != project_id {
-        return Err(AppError::NotFound("Comment not found for this project".to_string()));
+        return Err(AppError::NotFound(
+            "Comment not found for this project".to_string(),
+        ));
     }
 
     cms_biz::comment::CommentService::delete_comment(&state.biz_context, &auth.user.id, &id)

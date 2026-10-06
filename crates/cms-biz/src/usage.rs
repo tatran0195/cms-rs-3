@@ -10,8 +10,7 @@ use cms_db::usage::{
 use cms_entity::{
     common::PaginatedResponse,
     usage::{
-        OrganizationUsagePlanResponse,
-        UsageEntitlementResponse, UsageMeterResponse,
+        OrganizationUsagePlanResponse, UsageEntitlementResponse, UsageMeterResponse,
         UsagePlanResponse,
     },
 };

@@ -22,7 +22,14 @@ async fn test_13_translation_linking_and_alternate_language_navigation() -> anyh
     let project_id = required_string(&project, "id", "project")?;
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
@@ -75,7 +82,14 @@ async fn test_13_translation_linking_and_alternate_language_navigation() -> anyh
     .await?;
 
     let dep = expect_status(
-        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "publish" }))).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments"),
+            Some(&cookie),
+            Some(json!({ "message": "publish" })),
+        )
+        .await?,
         StatusCode::OK,
         "publish",
     )?;
@@ -83,22 +97,44 @@ async fn test_13_translation_linking_and_alternate_language_navigation() -> anyh
     wait_for_deployment_ready(&ctx.state, dep_id).await?;
 
     let en_public = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=architecture&lang=en&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/page?path=architecture&lang=en&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "read en page",
     )?;
     anyhow::ensure!(en_public["data"]["page"]["title"] == "Architecture Overview");
-    let en_alt_langs = en_public["data"]["languages"].as_array().ok_or_else(|| anyhow::anyhow!("languages missing"))?;
-    anyhow::ensure!(en_alt_langs.iter().any(|item| item["code"] == "he-IL" && item["path"] == "mivne"));
+    let en_alt_langs = en_public["data"]["languages"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("languages missing"))?;
+    anyhow::ensure!(en_alt_langs
+        .iter()
+        .any(|item| item["code"] == "he-IL" && item["path"] == "mivne"));
 
     let rtl_public = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=mivne&lang=he-IL&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/page?path=mivne&lang=he-IL&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "read rtl page",
     )?;
     anyhow::ensure!(rtl_public["data"]["page"]["title"] == "סקירת ארכיטקטורה");
-    let rtl_alt_langs = rtl_public["data"]["languages"].as_array().ok_or_else(|| anyhow::anyhow!("languages missing"))?;
-    anyhow::ensure!(rtl_alt_langs.iter().any(|item| item["code"] == "en" && item["path"] == "architecture"));
+    let rtl_alt_langs = rtl_public["data"]["languages"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("languages missing"))?;
+    anyhow::ensure!(rtl_alt_langs
+        .iter()
+        .any(|item| item["code"] == "en" && item["path"] == "architecture"));
 
     ctx.teardown().await
 }

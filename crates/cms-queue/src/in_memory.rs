@@ -237,7 +237,10 @@ mod tests {
         assert_eq!(dead_letters.len(), 1);
         assert_eq!(dead_letters[0].id, job_id);
         assert_eq!(dead_letters[0].status, JobStatus::Failed);
-        assert_eq!(dead_letters[0].error_message.as_deref(), Some("synthetic failure"));
+        assert_eq!(
+            dead_letters[0].error_message.as_deref(),
+            Some("synthetic failure")
+        );
     }
 
     #[tokio::test]

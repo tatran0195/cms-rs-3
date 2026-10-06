@@ -15,7 +15,6 @@ pub mod handlers;
 
 use handlers::*;
 
-
 /// Create the OpenAPI router
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()

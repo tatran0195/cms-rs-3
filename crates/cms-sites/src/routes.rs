@@ -34,14 +34,18 @@ pub fn site_host(state: &Arc<SitesAppState>) -> String {
 pub fn create_router(state: Arc<SitesAppState>) -> Router {
     let mut canonical_domains = Vec::new();
     if let Some(ref host) = state.config.site.self_host {
-        let clean = host.trim_start_matches("https://").trim_start_matches("http://");
+        let clean = host
+            .trim_start_matches("https://")
+            .trim_start_matches("http://");
         let bare = clean.split(':').next().unwrap_or(clean);
         if !bare.is_empty() {
             canonical_domains.push(bare.to_string());
         }
     }
     if let Some(ref host) = state.config.site.marketing_host {
-        let clean = host.trim_start_matches("https://").trim_start_matches("http://");
+        let clean = host
+            .trim_start_matches("https://")
+            .trim_start_matches("http://");
         let bare = clean.split(':').next().unwrap_or(clean);
         if !bare.is_empty() && !canonical_domains.contains(&bare.to_string()) {
             canonical_domains.push(bare.to_string());

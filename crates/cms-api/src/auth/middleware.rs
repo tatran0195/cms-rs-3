@@ -146,7 +146,6 @@ async fn extract_from_api_key(
     AuthService::get_user_by_api_key(&state.biz_context, api_key).await
 }
 
-
 /// Optional authentication extractor
 ///
 /// This extractor attempts authentication but doesn't fail if not present.

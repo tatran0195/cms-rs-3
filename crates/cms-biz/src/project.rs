@@ -10,9 +10,9 @@ use cms_db::{
 use cms_entity::{
     common::{MemberRole, PaginatedResponse},
     project::{
-        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse,
-        ProjectAddonResponse, ProjectResponse, ProjectSettings, ProjectWithOrgResponse,
-        UpdateProjectRequest, UpdateProjectSettingsRequest,
+        CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectAddonResponse,
+        ProjectResponse, ProjectSettings, ProjectWithOrgResponse, UpdateProjectRequest,
+        UpdateProjectSettingsRequest,
     },
 };
 use uuid::Uuid;
@@ -97,7 +97,8 @@ impl ProjectService {
                     counter += 1;
                     if counter > 50 {
                         return Err(AppError::Conflict(
-                            "Unable to allocate unique project slug after multiple attempts".to_string(),
+                            "Unable to allocate unique project slug after multiple attempts"
+                                .to_string(),
                         ));
                     }
                 }
@@ -424,7 +425,9 @@ impl ProjectService {
             .ok_or_else(|| AppError::NotFound("Addon not found".to_string()))?;
 
         if addon.project_id != project_id {
-            return Err(AppError::NotFound("Addon not found for this project".to_string()));
+            return Err(AppError::NotFound(
+                "Addon not found for this project".to_string(),
+            ));
         }
 
         // Check if user has admin role in the project
@@ -449,7 +452,9 @@ impl ProjectService {
             .ok_or_else(|| AppError::NotFound("Addon not found".to_string()))?;
 
         if addon.project_id != project_id {
-            return Err(AppError::NotFound("Addon not found for this project".to_string()));
+            return Err(AppError::NotFound(
+                "Addon not found for this project".to_string(),
+            ));
         }
 
         // Check if user has admin role in the project
@@ -527,17 +532,24 @@ mod tests {
         let default_branch = cms_db::branch::BranchQueries::get_default(&pool, &project.id).await;
         assert!(default_branch.is_ok(), "get_default branch failed");
         let branch = default_branch.unwrap();
-        assert!(branch.is_some(), "default branch 'main' must exist immediately after creation");
+        assert!(
+            branch.is_some(),
+            "default branch 'main' must exist immediately after creation"
+        );
         let branch = branch.unwrap();
         assert_eq!(branch.name, "main");
         assert_eq!(branch.slug, "main");
         assert!(branch.is_default);
 
         // 3. Verify default language was created atomically
-        let default_language = cms_db::language::LanguageQueries::get_default(&pool, &project.id).await;
+        let default_language =
+            cms_db::language::LanguageQueries::get_default(&pool, &project.id).await;
         assert!(default_language.is_ok(), "get_default language failed");
         let lang = default_language.unwrap();
-        assert!(lang.is_some(), "default language 'en' must exist immediately after creation");
+        assert!(
+            lang.is_some(),
+            "default language 'en' must exist immediately after creation"
+        );
         let lang = lang.unwrap();
         assert_eq!(lang.code, "en");
         assert!(lang.is_default);
@@ -546,7 +558,10 @@ mod tests {
         let settings = cms_db::project::ProjectSettingsQueries::get(&pool, &project.id).await;
         assert!(settings.is_ok(), "get settings failed");
         let settings = settings.unwrap();
-        assert!(settings.is_some(), "settings must exist immediately after creation without extra upsert");
+        assert!(
+            settings.is_some(),
+            "settings must exist immediately after creation without extra upsert"
+        );
         let settings = settings.unwrap();
         assert_eq!(settings.default_language.as_deref(), Some("en"));
         assert!(settings.search_enabled);
@@ -647,7 +662,10 @@ mod tests {
         )
         .await;
 
-        assert!(result.is_err(), "update with mismatched project_id should fail");
+        assert!(
+            result.is_err(),
+            "update with mismatched project_id should fail"
+        );
         match result.unwrap_err() {
             AppError::NotFound(msg) => assert!(msg.contains("not found")),
             err => panic!("Expected NotFound error, got: {:?}", err),
@@ -728,7 +746,10 @@ mod tests {
         )
         .await;
 
-        assert!(result.is_err(), "resolve_conflict with mismatched project_id should fail");
+        assert!(
+            result.is_err(),
+            "resolve_conflict with mismatched project_id should fail"
+        );
         match result.unwrap_err() {
             AppError::NotFound(msg) => assert!(msg.contains("not found")),
             err => panic!("Expected NotFound error, got: {:?}", err),

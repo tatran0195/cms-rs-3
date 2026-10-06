@@ -91,7 +91,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_migrations() {
-        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL")) else {
+        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL"))
+        else {
             return;
         };
         if let Ok(pool) = create_pool(&url).await {
@@ -105,7 +106,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_count() {
-        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL")) else {
+        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL"))
+        else {
             return;
         };
         if let Ok(pool) = create_pool(&url).await {

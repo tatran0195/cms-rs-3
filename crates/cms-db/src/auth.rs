@@ -4,9 +4,7 @@
 //! users, sessions, accounts, API keys, and verification tokens.
 
 use chrono::{DateTime, Utc};
-use cms_entity::auth::{
-    Account, ApiKey, ApiKeyResponse, Session, User, VerificationToken,
-};
+use cms_entity::auth::{Account, ApiKey, ApiKeyResponse, Session, User, VerificationToken};
 use cms_error::AppError;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 use uuid::Uuid;

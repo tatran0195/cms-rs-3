@@ -14,9 +14,7 @@ use std::sync::Arc;
 use axum::Router;
 use cms_middleware::{
     app_state::AppState,
-    observability::{
-        init_observability, ObservabilityConfig, ObservabilityLayer,
-    },
+    observability::{init_observability, ObservabilityConfig, ObservabilityLayer},
     rate_limit::RateLimitConfig,
     security_headers::SecurityHeadersConfig,
 };

@@ -14,7 +14,6 @@ pub mod handlers;
 
 use handlers::*;
 
-
 /// Create the reader access router
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()

@@ -190,7 +190,10 @@ pub async fn get_system_metrics_handler(
 ) -> Result<(axum::http::HeaderMap, String), AppError> {
     let stats = cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context).await?;
     let users = stats.get("users").and_then(|v| v.as_i64()).unwrap_or(0);
-    let organizations = stats.get("organizations").and_then(|v| v.as_i64()).unwrap_or(0);
+    let organizations = stats
+        .get("organizations")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
     let projects = stats.get("projects").and_then(|v| v.as_i64()).unwrap_or(0);
 
     let active_db_connections = state.biz_context.pool.size();

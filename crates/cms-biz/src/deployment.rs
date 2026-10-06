@@ -13,8 +13,7 @@ use cms_db::{
 use cms_entity::{
     common::{MemberRole, PaginatedResponse},
     deployment::{
-        CreateDeploymentRequest, DeploymentResponse, DeploymentStatus,
-        UpdateDeploymentRequest,
+        CreateDeploymentRequest, DeploymentResponse, DeploymentStatus, UpdateDeploymentRequest,
     },
     domain::{CreateDomainRequest, DomainResponse, UpdateDomainRequest},
 };

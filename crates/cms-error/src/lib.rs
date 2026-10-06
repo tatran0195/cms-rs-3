@@ -418,9 +418,7 @@ impl IntoResponse for AppError {
             let safe_msg = match &self {
                 AppError::Database(_)
                 | AppError::DatabaseConnectionFailed
-                | AppError::TransactionFailed => {
-                    "An internal database error occurred".to_string()
-                }
+                | AppError::TransactionFailed => "An internal database error occurred".to_string(),
                 _ => "An internal server error occurred".to_string(),
             };
             (safe_msg, None)
@@ -526,7 +524,13 @@ mod tests {
         let body_str = String::from_utf8(body.to_vec()).unwrap();
 
         // Must NOT leak raw database error details or "RowNotFound"
-        assert!(!body_str.contains("RowNotFound"), "Leaked raw SQL error: {body_str}");
-        assert!(body_str.contains("An internal database error occurred"), "Expected safe message: {body_str}");
+        assert!(
+            !body_str.contains("RowNotFound"),
+            "Leaked raw SQL error: {body_str}"
+        );
+        assert!(
+            body_str.contains("An internal database error occurred"),
+            "Expected safe message: {body_str}"
+        );
     }
 }

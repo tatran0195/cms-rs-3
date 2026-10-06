@@ -22,7 +22,14 @@ async fn test_04_page_hierarchy_and_tree_reordering() -> anyhow::Result<()> {
     let project_id = required_string(&project, "id", "project")?;
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
@@ -184,10 +191,11 @@ async fn test_04_page_hierarchy_and_tree_reordering() -> anyhow::Result<()> {
     )?;
     anyhow::ensure!(unnest["data"]["success"] == true);
 
-    let draft_row: (Option<String>, String) = sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
-        .bind(draft_id)
-        .fetch_one(&ctx.state.biz_context.pool)
-        .await?;
+    let draft_row: (Option<String>, String) =
+        sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
+            .bind(draft_id)
+            .fetch_one(&ctx.state.biz_context.pool)
+            .await?;
     anyhow::ensure!(draft_row.0.is_none());
     anyhow::ensure!(draft_row.1 == "/draft");
 
@@ -240,14 +248,28 @@ async fn test_04_page_hierarchy_and_tree_reordering() -> anyhow::Result<()> {
     )?;
 
     let del_group = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/projects/{project_id}/pages/{rtl_group_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete group",
     )?;
     anyhow::ensure!(del_group["data"]["success"] == true);
 
     let reparented = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/pages/{rtl_page_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "read reparented child",
     )?;

@@ -49,11 +49,22 @@ impl AnalyticsService {
         // Check if user has admin role in the organization
         ctx.authz.require_org_admin(user_id, org_id).await?;
 
+        // If filtering by a specific project, verify it belongs to this organization
+        if let Some(ref proj_id) = request.project_id {
+            let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
+                .await?
+                .ok_or_else(|| AppError::NotFound(format!("Project {proj_id} not found")))?;
+            if project.organization_id != org_id {
+                return Err(AppError::Forbidden);
+            }
+        }
+
         let limit = page_size as i64;
         let offset = ((page.saturating_sub(1)) as i64) * limit;
 
         let events = AnalyticsEventQueries::query(
             &ctx.pool,
+            org_id,
             request.project_id.as_deref(),
             request.user_id.as_deref(),
             request.event_type.as_deref(),
@@ -110,13 +121,32 @@ impl AnalyticsService {
         .await
     }
 
-    /// List analytics events
+    /// List analytics events with strict tenant boundary resolution
     pub async fn list_events(
         ctx: &BizContext,
         user_id: &str,
         query: cms_entity::analytics::ListAnalyticsEventsQuery,
     ) -> Result<cms_entity::common::PaginatedResponse<AnalyticsEventResponse>, AppError> {
-        let org_id = query.organization_id.clone().unwrap_or_default();
+        let org_id = match query.organization_id.as_deref() {
+            Some(org) if !org.is_empty() => org.to_string(),
+            _ => {
+                if let Some(ref proj_id) = query.project_id {
+                    let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
+                        .await?
+                        .ok_or_else(|| {
+                            AppError::NotFound(format!("Project {proj_id} not found"))
+                        })?;
+                    project.organization_id
+                } else {
+                    let members =
+                        cms_db::org::MemberQueries::get_by_user(&ctx.pool, user_id).await?;
+                    members
+                        .first()
+                        .map(|m| m.organization_id.clone())
+                        .ok_or(AppError::Forbidden)?
+                }
+            }
+        };
         let page = query.page.unwrap_or(1) as u64;
         let page_size = query.page_size.unwrap_or(20) as u64;
         let response = Self::query_events(ctx, user_id, &org_id, query, page, page_size).await?;
@@ -128,13 +158,32 @@ impl AnalyticsService {
         ))
     }
 
-    /// Query analytics
+    /// Query analytics with strict tenant boundary resolution
     pub async fn query_analytics(
         ctx: &BizContext,
         user_id: &str,
         request: AnalyticsQueryRequest,
     ) -> Result<AnalyticsQueryResponse, AppError> {
-        let org_id = request.organization_id.clone().unwrap_or_default();
+        let org_id = match request.organization_id.as_deref() {
+            Some(org) if !org.is_empty() => org.to_string(),
+            _ => {
+                if let Some(ref proj_id) = request.project_id {
+                    let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
+                        .await?
+                        .ok_or_else(|| {
+                            AppError::NotFound(format!("Project {proj_id} not found"))
+                        })?;
+                    project.organization_id
+                } else {
+                    let members =
+                        cms_db::org::MemberQueries::get_by_user(&ctx.pool, user_id).await?;
+                    members
+                        .first()
+                        .map(|m| m.organization_id.clone())
+                        .ok_or(AppError::Forbidden)?
+                }
+            }
+        };
         let page = request.page.unwrap_or(1) as u64;
         let page_size = request.page_size.unwrap_or(20) as u64;
         Self::query_events(ctx, user_id, &org_id, request, page, page_size).await
@@ -153,13 +202,20 @@ impl AnalyticsService {
         AnalyticsQueries::get_dashboard(&ctx.pool, project_id).await
     }
 
-    /// Get page views
+    /// Get page views scoped by project and authorized by user
     pub async fn get_page_views(
         ctx: &BizContext,
-        _user_id: &str,
+        user_id: &str,
         page_id: &str,
     ) -> Result<serde_json::Value, AppError> {
-        AnalyticsQueries::get_page_views(&ctx.pool, page_id).await
+        let page = cms_db::page::PageQueries::get_by_id(&ctx.pool, page_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Page {page_id} not found")))?;
+        ctx.authz
+            .require_project_role(user_id, &page.project_id, MemberRole::Viewer)
+            .await?;
+
+        AnalyticsQueries::get_page_views(&ctx.pool, &page.project_id, page_id).await
     }
 
     /// Get organization stats

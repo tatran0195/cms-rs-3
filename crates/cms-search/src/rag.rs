@@ -77,8 +77,7 @@ pub async fn generate_rag_answer(
                 .api_base_url
                 .as_deref()
                 .unwrap_or("http://localhost:11434/v1");
-            call_openai_compatible("", base_url, &config.model, &prompt, config.temperature)
-                .await?
+            call_openai_compatible("", base_url, &config.model, &prompt, config.temperature).await?
         }
         other => {
             return Err(AppError::SearchError(format!(

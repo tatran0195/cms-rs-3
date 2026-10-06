@@ -274,12 +274,14 @@ impl AnalyticsQueries {
     /// Get view count and unique visitor count for a page
     pub async fn get_page_views(
         pool: &PgPool,
+        project_id: &str,
         page_id: &str,
     ) -> Result<serde_json::Value, AppError> {
         let views: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE event_type = 'page_view' AND \
-             (metadata->>'page_id' = $1 OR metadata->>'id' = $1)",
+            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE project_id = $1 AND event_type = 'page_view' AND \
+             (metadata->>'page_id' = $2 OR metadata->>'id' = $2)",
         )
+        .bind(project_id)
         .bind(page_id)
         .fetch_one(pool)
         .await
@@ -287,8 +289,9 @@ impl AnalyticsQueries {
 
         let unique_visitors: i64 = sqlx::query_scalar(
             "SELECT COUNT(DISTINCT COALESCE(user_id, ip_address)) FROM \"AnalyticsEvent\" WHERE \
-             event_type = 'page_view' AND (metadata->>'page_id' = $1 OR metadata->>'id' = $1)",
+             project_id = $1 AND event_type = 'page_view' AND (metadata->>'page_id' = $2 OR metadata->>'id' = $2)",
         )
+        .bind(project_id)
         .bind(page_id)
         .fetch_one(pool)
         .await
@@ -425,9 +428,10 @@ impl AnalyticsEventQueries {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
-    /// Query analytics events with flexible filters
+    /// Query analytics events with flexible filters strictly isolated to an organization
     pub async fn query(
         pool: &PgPool,
+        org_id: &str,
         project_id: Option<&str>,
         user_id: Option<&str>,
         event_type: Option<&str>,
@@ -436,37 +440,29 @@ impl AnalyticsEventQueries {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<cms_entity::analytics::AnalyticsEvent>, AppError> {
-        let mut builder =
-            sqlx::QueryBuilder::<sqlx::Postgres>::new(r#"SELECT * FROM "AnalyticsEvent""#);
-        let mut has_where = false;
+        let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            r#"SELECT * FROM "AnalyticsEvent" WHERE organization_id = "#,
+        );
+        builder.push_bind(org_id);
 
         if let Some(v) = project_id {
-            builder.push(if !has_where { " WHERE " } else { " AND " });
-            builder.push("project_id = ");
+            builder.push(" AND project_id = ");
             builder.push_bind(v);
-            has_where = true;
         }
         if let Some(v) = user_id {
-            builder.push(if !has_where { " WHERE " } else { " AND " });
-            builder.push("user_id = ");
+            builder.push(" AND user_id = ");
             builder.push_bind(v);
-            has_where = true;
         }
         if let Some(v) = event_type {
-            builder.push(if !has_where { " WHERE " } else { " AND " });
-            builder.push("event_type = ");
+            builder.push(" AND event_type = ");
             builder.push_bind(v);
-            has_where = true;
         }
         if let Some(v) = start_date {
-            builder.push(if !has_where { " WHERE " } else { " AND " });
-            builder.push("created_at >= ");
+            builder.push(" AND created_at >= ");
             builder.push_bind(v);
-            has_where = true;
         }
         if let Some(v) = end_date {
-            builder.push(if !has_where { " WHERE " } else { " AND " });
-            builder.push("created_at <= ");
+            builder.push(" AND created_at <= ");
             builder.push_bind(v);
         }
 

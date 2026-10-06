@@ -7,8 +7,8 @@ use axum::{
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
-use crate::auth::AuthExtractor;
 use super::common::project_org_id;
+use crate::auth::AuthExtractor;
 
 /// Render a stored API key as the SPA's `ApiKey` shape. `secret` is only supplied
 /// on create/rotate, when the plaintext key is still known.

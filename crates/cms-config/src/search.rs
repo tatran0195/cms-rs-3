@@ -24,7 +24,6 @@ pub struct SearchConfig {
     pub max_results: usize,
 
     // ── Vector / embedding settings ──────────────────────────────────
-
     /// Embedding model name for vector search.
     /// Supported: "multilingual-e5-small" (384-dim, default),
     ///            "multilingual-e5-base"  (768-dim, better quality)
@@ -44,7 +43,6 @@ pub struct SearchConfig {
     pub model_cache_dir: String,
 
     // ── RAG configuration ────────────────────────────────────────────
-
     /// RAG (Retrieval Augmented Generation) configuration
     #[serde(default)]
     pub rag: RagConfig,

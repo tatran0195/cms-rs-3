@@ -22,7 +22,14 @@ async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result
     let project_id = required_string(&project, "id", "project")?;
 
     let languages = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{project_id}/languages"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{project_id}/languages"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "languages",
     )?;
@@ -45,7 +52,14 @@ async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result
     let page_id = required_string(&page, "id", "page")?;
 
     let dep1 = expect_status(
-        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "v1" }))).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments"),
+            Some(&cookie),
+            Some(json!({ "message": "v1" })),
+        )
+        .await?,
         StatusCode::OK,
         "dep1",
     )?;
@@ -67,7 +81,14 @@ async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result
     )?;
 
     let dep2 = expect_status(
-        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments"), Some(&cookie), Some(json!({ "message": "v2" }))).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments"),
+            Some(&cookie),
+            Some(json!({ "message": "v2" })),
+        )
+        .await?,
         StatusCode::OK,
         "dep2",
     )?;
@@ -76,15 +97,32 @@ async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result
     anyhow::ensure!(v2 == 2);
 
     let pub_v2 = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=page&lang=en&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/page?path=page&lang=en&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "public read v2",
     )?;
     anyhow::ensure!(pub_v2["data"]["version"] == 2);
-    anyhow::ensure!(pub_v2["data"]["page"]["content"].as_str().unwrap().contains("Updated Version 2 Content"));
+    anyhow::ensure!(pub_v2["data"]["page"]["content"]
+        .as_str()
+        .unwrap()
+        .contains("Updated Version 2 Content"));
 
     let rollback = expect_status(
-        request(&ctx.app, Method::POST, &format!("/api/app/projects/{project_id}/deployments/{dep1_id}/rollback"), Some(&cookie), Some(json!({}))).await?,
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/app/projects/{project_id}/deployments/{dep1_id}/rollback"),
+            Some(&cookie),
+            Some(json!({})),
+        )
+        .await?,
         StatusCode::OK,
         "rollback",
     )?;
@@ -93,12 +131,22 @@ async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result
     anyhow::ensure!(v3 == 3);
 
     let pub_v3 = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{project_id}/page?path=page&lang=en&version=main"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{project_id}/page?path=page&lang=en&version=main"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "public read rollback v3",
     )?;
     anyhow::ensure!(pub_v3["data"]["version"] == 3);
-    anyhow::ensure!(pub_v3["data"]["page"]["content"].as_str().unwrap().contains("Initial Version 1 Content"));
+    anyhow::ensure!(pub_v3["data"]["page"]["content"]
+        .as_str()
+        .unwrap()
+        .contains("Initial Version 1 Content"));
 
     ctx.teardown().await
 }

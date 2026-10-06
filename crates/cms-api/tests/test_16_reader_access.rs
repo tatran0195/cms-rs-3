@@ -43,11 +43,20 @@ async fn test_16_reader_access_audiences_and_grants() -> anyhow::Result<()> {
 
     // List audiences for project
     let audiences = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/reader-access/projects/{project_id}/audiences"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/reader-access/projects/{project_id}/audiences"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list project audiences",
     )?;
-    let aud_array = audiences.as_array().ok_or_else(|| anyhow::anyhow!("audiences not array"))?;
+    let aud_array = audiences
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("audiences not array"))?;
     anyhow::ensure!(aud_array.iter().any(|a| a["id"] == audience_id));
 
     // Create an audience grant
@@ -71,16 +80,32 @@ async fn test_16_reader_access_audiences_and_grants() -> anyhow::Result<()> {
 
     // List audience grants
     let grants = expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/reader-access/audiences/{audience_id}/grants"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/reader-access/audiences/{audience_id}/grants"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "list audience grants",
     )?;
-    let grant_array = grants.as_array().ok_or_else(|| anyhow::anyhow!("grants not array"))?;
+    let grant_array = grants
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("grants not array"))?;
     anyhow::ensure!(grant_array.iter().any(|g| g["id"] == grant_id));
 
     // Delete audience grant
     let del_grant = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/reader-access/audience-grants/{grant_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/reader-access/audience-grants/{grant_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete audience grant",
     )?;
@@ -88,7 +113,14 @@ async fn test_16_reader_access_audiences_and_grants() -> anyhow::Result<()> {
 
     // Delete audience
     let del_aud = expect_status(
-        request(&ctx.app, Method::DELETE, &format!("/api/app/reader-access/audiences/{audience_id}"), Some(&cookie), None).await?,
+        request(
+            &ctx.app,
+            Method::DELETE,
+            &format!("/api/app/reader-access/audiences/{audience_id}"),
+            Some(&cookie),
+            None,
+        )
+        .await?,
         StatusCode::OK,
         "delete audience",
     )?;

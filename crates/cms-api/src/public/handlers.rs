@@ -612,6 +612,19 @@ fn page_breadcrumbs(
     chain
 }
 
+fn sanitize_public_config(config: &Option<serde_json::Value>) -> Option<serde_json::Value> {
+    config.as_ref().map(|cfg| {
+        let mut sanitized = cfg.clone();
+        if let Some(map) = sanitized.as_object_mut() {
+            map.remove("git");
+            map.remove("webhookSecret");
+            map.remove("secrets");
+            map.remove("secret");
+        }
+        sanitized
+    })
+}
+
 /// Get public site shell
 pub async fn get_public_site_handler(
     State(state): State<Arc<AppState>>,
@@ -643,7 +656,7 @@ pub async fn get_public_site_handler(
                 "name": site.project.name,
                 "slug": site.project.slug,
                 "description": site.project.description,
-                "config": site.project.config,
+                "config": sanitize_public_config(&site.project.config),
                 "primaryDomain": site.primary_domain,
             },
             "nav": nav,
@@ -739,7 +752,7 @@ pub async fn get_public_site_page_handler(
                 "name": site.project.name,
                 "slug": site.project.slug,
                 "description": site.project.description,
-                "config": site.project.config,
+                "config": sanitize_public_config(&site.project.config),
                 "primaryDomain": site.primary_domain,
             },
             "page": {
@@ -836,7 +849,7 @@ pub async fn get_public_pages_handler(
                 "name": site.project.name,
                 "slug": site.project.slug,
                 "description": site.project.description,
-                "config": site.project.config,
+                "config": sanitize_public_config(&site.project.config),
                 "primaryDomain": site.primary_domain,
             },
             "page": {

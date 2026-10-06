@@ -14,7 +14,6 @@ pub mod handlers;
 
 use handlers::*;
 
-
 /// Create the project router
 pub fn router(state: Arc<AppState>) -> Router {
     use axum::routing::patch;

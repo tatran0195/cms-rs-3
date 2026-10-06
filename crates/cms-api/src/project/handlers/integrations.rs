@@ -110,10 +110,14 @@ pub async fn update_project_integration_handler(
     let target = integrations
         .into_iter()
         .find(|i| {
-            i.id == provider_id
-                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+            i.id == provider_id || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
         })
-        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Integration '{}' not found for project",
+                provider_id
+            ))
+        })?;
 
     let updated = IntegrationService::update_integration(
         &state.biz_context,
@@ -150,10 +154,14 @@ pub async fn delete_project_integration_handler(
     let target = integrations
         .into_iter()
         .find(|i| {
-            i.id == provider_id
-                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+            i.id == provider_id || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
         })
-        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Integration '{}' not found for project",
+                provider_id
+            ))
+        })?;
     IntegrationService::delete_integration(&state.biz_context, &auth.user.id, &target.id).await?;
 
     Ok(Json(serde_json::json!({
@@ -175,10 +183,14 @@ pub async fn verify_project_integration_handler(
     let target = integrations
         .into_iter()
         .find(|i| {
-            i.id == provider_id
-                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+            i.id == provider_id || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
         })
-        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Integration '{}' not found for project",
+                provider_id
+            ))
+        })?;
     let result =
         IntegrationService::test_integration(&state.biz_context, &auth.user.id, &target.id).await?;
 
@@ -200,10 +212,14 @@ pub async fn delete_project_integration_confirmation_handler(
     let _ = integrations
         .into_iter()
         .find(|i| {
-            i.id == provider_id
-                || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
+            i.id == provider_id || format!("{:?}", i.provider).eq_ignore_ascii_case(&provider_id)
         })
-        .ok_or_else(|| AppError::NotFound(format!("Integration '{}' not found for project", provider_id)))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Integration '{}' not found for project",
+                provider_id
+            ))
+        })?;
 
     Ok(Json(serde_json::json!({
         "data": { "confirmationToken": "confirmed" }

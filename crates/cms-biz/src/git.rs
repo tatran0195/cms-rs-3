@@ -6,8 +6,8 @@
 use cms_db::{
     branch::BranchQueries,
     git::{
-        GitConflictQueries, GitConnectionQueries, GitFileStateQueries,
-        GitPreviewQueries, GitPullRequestQueries, GitSyncOperationQueries,
+        GitConflictQueries, GitConnectionQueries, GitFileStateQueries, GitPreviewQueries,
+        GitPullRequestQueries, GitSyncOperationQueries,
     },
     page::PageQueries,
     project::ProjectQueries,
@@ -15,10 +15,9 @@ use cms_db::{
 use cms_entity::{
     common::{MemberRole, PaginatedResponse},
     git::{
-        CreateGitConnectionRequest, GitConflict, GitConnection,
-        GitConnectionResponse, GitFileState, GitPreview, GitProvider, GitPullRequest,
-        GitSyncOperationResponse, GitSyncOperationStatus, GitSyncOperationType,
-        UpdateGitConnectionRequest,
+        CreateGitConnectionRequest, GitConflict, GitConnection, GitConnectionResponse,
+        GitFileState, GitPreview, GitProvider, GitPullRequest, GitSyncOperationResponse,
+        GitSyncOperationStatus, GitSyncOperationType, UpdateGitConnectionRequest,
     },
 };
 
@@ -271,7 +270,9 @@ impl GitService {
             .ok_or_else(|| AppError::NotFound("Conflict not found".to_string()))?;
 
         if conflict.project_id != project_id {
-            return Err(AppError::NotFound("Conflict not found for this project".to_string()));
+            return Err(AppError::NotFound(
+                "Conflict not found for this project".to_string(),
+            ));
         }
 
         // Check if user has access to the project

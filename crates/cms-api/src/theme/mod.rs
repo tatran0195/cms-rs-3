@@ -14,7 +14,6 @@ pub mod handlers;
 
 use handlers::*;
 
-
 /// Create the theme router
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()

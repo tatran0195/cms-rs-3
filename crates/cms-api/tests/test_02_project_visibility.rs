@@ -39,32 +39,66 @@ async fn test_02_project_visibility_and_access_control() -> anyhow::Result<()> {
 
     let public_host = format!("{public_slug}.cms.app");
     let (unreleased_status, _) = site_request(&ctx.app, &public_host, "/").await?;
-    anyhow::ensure!(unreleased_status == StatusCode::NOT_FOUND, "unreleased public site hidden");
+    anyhow::ensure!(
+        unreleased_status == StatusCode::NOT_FOUND,
+        "unreleased public site hidden"
+    );
 
     let private_host = format!("{private_slug}.cms.app");
     let (private_status, _) = site_request(&ctx.app, &private_host, "/").await?;
-    anyhow::ensure!(private_status == StatusCode::NOT_FOUND, "private project hidden from SSR");
+    anyhow::ensure!(
+        private_status == StatusCode::NOT_FOUND,
+        "private project hidden from SSR"
+    );
 
     expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{public_id}"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{public_id}"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::NOT_FOUND,
         "hide unreleased public project",
     )?;
 
     expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/sites/{private_id}"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/sites/{private_id}"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::NOT_FOUND,
         "hide private project from public sites endpoint",
     )?;
 
     expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/public/projects/{org_slug}/{private_slug}"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/public/projects/{org_slug}/{private_slug}"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::NOT_FOUND,
         "hide private project from legacy public route",
     )?;
 
     expect_status(
-        request(&ctx.app, Method::GET, &format!("/api/app/projects/{private_id}"), None, None).await?,
+        request(
+            &ctx.app,
+            Method::GET,
+            &format!("/api/app/projects/{private_id}"),
+            None,
+            None,
+        )
+        .await?,
         StatusCode::UNAUTHORIZED,
         "unauthenticated caller cannot access private project",
     )?;
