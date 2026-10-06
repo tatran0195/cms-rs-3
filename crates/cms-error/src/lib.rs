@@ -15,8 +15,7 @@
 //! - ai:* - AI provider errors
 //! - import:* - Import errors
 //! - provider:* - Third-party provider errors
-//! - usage:* - Usage/billing errors
-//! - entitlement:* - Entitlement errors
+//! - entitlement:* - Entitlement and feature flag errors
 //! - addon:* - Addon errors
 //! - integration:* - Integration errors
 
@@ -147,12 +146,9 @@ pub enum AppError {
     #[error("Git operation failed: {0}")]
     GitOperationFailed(String),
 
-    // === Usage/Entitlement Errors ===
+    // === Entitlement Errors ===
     #[error("Entitlement disabled: {0}")]
     EntitlementDisabled(String),
-
-    #[error("Usage limit exceeded: {0}")]
-    UsageLimitExceeded(String),
 
     // === MCP Errors ===
     #[error("MCP disabled")]
@@ -266,9 +262,8 @@ impl AppError {
             AppError::ImportFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::GitOperationFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
 
-            // Usage/Entitlement Errors
+            // Entitlement Errors
             AppError::EntitlementDisabled(_) => StatusCode::FORBIDDEN,
-            AppError::UsageLimitExceeded(_) => StatusCode::TOO_MANY_REQUESTS,
 
             // MCP Errors
             AppError::McpDisabled => StatusCode::SERVICE_UNAVAILABLE,
@@ -340,7 +335,6 @@ impl AppError {
             AppError::GitOperationFailed(_) => "import:git_operation_failed".to_string(),
 
             AppError::EntitlementDisabled(_) => "entitlement:disabled".to_string(),
-            AppError::UsageLimitExceeded(_) => "usage:limit_exceeded".to_string(),
 
             AppError::McpDisabled => "mcp:disabled".to_string(),
             AppError::McpError(_) => "mcp:error".to_string(),
@@ -373,7 +367,6 @@ impl AppError {
             AppError::ImportFailed(details) => Some(json!({ "details": details })),
             AppError::GitOperationFailed(details) => Some(json!({ "details": details })),
             AppError::EntitlementDisabled(details) => Some(json!({ "details": details })),
-            AppError::UsageLimitExceeded(details) => Some(json!({ "details": details })),
             AppError::McpError(details) => Some(json!({ "details": details })),
             AppError::IntegrationError(details) => Some(json!({ "details": details })),
             AppError::AddonError(details) => Some(json!({ "details": details })),
@@ -396,34 +389,38 @@ impl IntoResponse for AppError {
         let raw_message = self.to_string();
         let raw_details = self.details();
 
-        if status.is_server_error() {
-            tracing::error!(
-                status = %status,
-                error_code = %error_code,
-                error = %raw_message,
-                details = ?raw_details,
-                "AppError Server Error"
-            );
-        } else if status.is_client_error() {
-            tracing::warn!(
-                status = %status,
-                error_code = %error_code,
-                error = %raw_message,
-                "AppError Client Error"
-            );
-        }
-
         // Never leak raw SQL, internal paths, or unvetted infrastructure errors to clients
-        let (message, details) = if status.is_server_error() {
+        let (message, details, error_id) = if status.is_server_error() {
+            let error_id = uuid::Uuid::new_v4().to_string();
             let safe_msg = match &self {
                 AppError::Database(_)
                 | AppError::DatabaseConnectionFailed
                 | AppError::TransactionFailed => "An internal database error occurred".to_string(),
                 _ => "An internal server error occurred".to_string(),
             };
-            (safe_msg, None)
+            tracing::error!(
+                status = %status,
+                error_id = %error_id,
+                error_code = %error_code,
+                error = %raw_message,
+                details = ?raw_details,
+                "AppError Server Error"
+            );
+            (
+                safe_msg,
+                Some(json!({ "errorId": error_id })),
+                Some(error_id),
+            )
         } else {
-            (raw_message, raw_details)
+            if status.is_client_error() {
+                tracing::warn!(
+                    status = %status,
+                    error_code = %error_code,
+                    error = %raw_message,
+                    "AppError Client Error"
+                );
+            }
+            (raw_message, raw_details, None)
         };
 
         let body = ErrorResponse {
@@ -444,16 +441,20 @@ impl IntoResponse for AppError {
             .to_string()
         });
 
-        Response::builder()
+        let mut builder = Response::builder()
             .status(status)
-            .header("Content-Type", "application/json")
-            .body(Body::from(json_body))
-            .unwrap_or_else(|_| {
-                Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::from("Internal Server Error"))
-                    .unwrap()
-            })
+            .header("Content-Type", "application/json");
+
+        if let Some(ref eid) = error_id {
+            builder = builder.header("X-Error-ID", eid);
+        }
+
+        builder.body(Body::from(json_body)).unwrap_or_else(|_| {
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("Internal Server Error"))
+                .unwrap()
+        })
     }
 }
 
@@ -486,8 +487,8 @@ mod tests {
     fn test_error_codes() {
         assert_eq!(AppError::InvalidApiKey.error_code(), "auth:invalid_api_key");
         assert_eq!(
-            AppError::UsageLimitExceeded("test".to_string()).error_code(),
-            "usage:limit_exceeded"
+            AppError::EntitlementDisabled("test".to_string()).error_code(),
+            "entitlement:disabled"
         );
         assert_eq!(
             AppError::SearchUnavailable("test".to_string()).error_code(),
@@ -517,6 +518,7 @@ mod tests {
         let response = sql_err.into_response();
 
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert!(response.headers().contains_key("X-Error-ID"));
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
@@ -531,6 +533,10 @@ mod tests {
         assert!(
             body_str.contains("An internal database error occurred"),
             "Expected safe message: {body_str}"
+        );
+        assert!(
+            body_str.contains("errorId"),
+            "Expected correlation errorId: {body_str}"
         );
     }
 }

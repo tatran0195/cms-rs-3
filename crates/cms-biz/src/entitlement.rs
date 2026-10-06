@@ -115,7 +115,7 @@ impl EntitlementService {
         let allowed = Self::check_feature_entitlement(ctx, org_id, feature_code).await?;
         if !allowed {
             return Err(AppError::EntitlementDisabled(format!(
-                "Feature '{}' is disabled or not included in your organization's entitlement plan",
+                "Feature '{}' is disabled by system administrator",
                 feature_code
             )));
         }
