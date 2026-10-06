@@ -30,21 +30,22 @@
 //! Each instance maintains its own rate limit state.
 
 use std::{
-    collections::HashMap,
     net::{IpAddr, SocketAddr},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 use axum::{
     http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
-use governor::{clock, state::NotKeyed, Quota, RateLimiter as GovernorRateLimiter};
-use parking_lot::RwLock;
+use governor::{
+    clock::{Clock, DefaultClock},
+    Quota, RateLimiter as GovernorRateLimiter,
+};
 
 /// Rate limit configuration with strict validation
 #[derive(Debug, Clone)]
@@ -204,29 +205,17 @@ impl RateLimitResult {
     }
 }
 
-/// Client state for tracking last access time (for TTL eviction)
-#[derive(Debug, Clone)]
-struct ClientState {
-    /// The governor rate limiter for this client
-    limiter:
-        Arc<GovernorRateLimiter<NotKeyed, governor::state::InMemoryState, clock::DefaultClock>>,
-    /// Last access time in epoch seconds for lock-free TTL tracking
-    last_access: Arc<AtomicU64>,
-}
+pub type KeyedRateLimiter = GovernorRateLimiter<
+    RateLimitClient,
+    governor::state::keyed::DefaultKeyedStateStore<RateLimitClient>,
+    DefaultClock,
+>;
 
-/// Production-ready rate limiter using governor crate
-///
-/// This wraps governor's rate limiting with:
-/// - Per-client identification
-/// - Memory-bounded client tracking with TTL eviction
-/// - Metrics collection
-/// - Proper HTTP 429 responses
+/// Production-ready rate limiter using governor crate with keyed lock-free tracking
 #[derive(Debug, Clone)]
 pub struct RateLimiter {
     config: RateLimitConfig,
-    /// Per-client rate limiters with RwLock for thread safety
-    clients: Arc<RwLock<HashMap<RateLimitClient, ClientState>>>,
-    /// Metrics
+    limiter: Arc<KeyedRateLimiter>,
     total_requests: Arc<AtomicU64>,
     allowed_requests: Arc<AtomicU64>,
     rejected_requests: Arc<AtomicU64>,
@@ -236,9 +225,11 @@ impl RateLimiter {
     pub fn new(config: RateLimitConfig) -> Result<Self, String> {
         config.validate()?;
 
+        let limiter = Arc::new(GovernorRateLimiter::keyed(config.to_quota()));
+
         Ok(Self {
             config,
-            clients: Arc::new(RwLock::new(HashMap::new())),
+            limiter,
             total_requests: Arc::new(AtomicU64::new(0)),
             allowed_requests: Arc::new(AtomicU64::new(0)),
             rejected_requests: Arc::new(AtomicU64::new(0)),
@@ -251,100 +242,24 @@ impl RateLimiter {
             return RateLimitResult::Allowed;
         }
 
-        let now_secs = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        // Fast path: try read lock first to avoid contending write locks across threads
-        let maybe_limiter = {
-            let clients = self.clients.read();
-            if let Some(client_state) = clients.get(&client) {
-                client_state.last_access.store(now_secs, Ordering::Relaxed);
-                Some(client_state.limiter.clone())
-            } else {
-                None
-            }
-        };
-
-        let limiter = match maybe_limiter {
-            Some(l) => l,
-            None => {
-                // Slow path: insert new client with write lock
-                let mut clients = self.clients.write();
-                if let Some(client_state) = clients.get(&client) {
-                    client_state.last_access.store(now_secs, Ordering::Relaxed);
-                    client_state.limiter.clone()
-                } else {
-                    if clients.len() >= self.config.max_tracked_clients {
-                        self.evict_expired_clients(&mut clients, now_secs);
-                    }
-
-                    let limiter = Arc::new(GovernorRateLimiter::direct(self.config.to_quota()));
-                    clients.insert(
-                        client.clone(),
-                        ClientState {
-                            limiter: limiter.clone(),
-                            last_access: Arc::new(AtomicU64::new(now_secs)),
-                        },
-                    );
-                    limiter
-                }
-            }
-        };
-
-        // Check rate limit using governor (atomic, non-blocking check)
-        let allowed = limiter.check().is_ok();
-
-        // Update metrics
         self.total_requests.fetch_add(1, Ordering::Relaxed);
-        if allowed {
-            self.allowed_requests.fetch_add(1, Ordering::Relaxed);
-            RateLimitResult::Allowed
-        } else {
-            self.rejected_requests.fetch_add(1, Ordering::Relaxed);
-            let retry_after = self.estimate_retry_after(&client);
-            RateLimitResult::Rejected { retry_after }
-        }
-    }
 
-    /// Estimate retry_after based on quota settings
-    ///
-    /// Since governor doesn't expose the exact time until next token,
-    /// we estimate based on the quota. For token bucket, this is approximately
-    /// 1 / rate tokens per second.
-    fn estimate_retry_after(&self, _client: &RateLimitClient) -> Duration {
-        Duration::from_secs_f64(1.0 / self.config.requests_per_second as f64)
-    }
-
-    /// Evict old clients based on TTL to prevent memory exhaustion
-    fn evict_expired_clients(
-        &self,
-        clients: &mut HashMap<RateLimitClient, ClientState>,
-        now_secs: u64,
-    ) {
-        let ttl_secs = self.config.client_ttl.as_secs();
-
-        // Remove expired clients
-        clients.retain(|_, state| {
-            now_secs.saturating_sub(state.last_access.load(Ordering::Relaxed)) < ttl_secs
-        });
-
-        // If still over capacity, remove oldest by last_access
-        if clients.len() >= self.config.max_tracked_clients {
-            let mut entries: Vec<(RateLimitClient, u64)> = clients
-                .iter()
-                .map(|(k, v)| (k.clone(), v.last_access.load(Ordering::Relaxed)))
-                .collect();
-            entries.sort_by_key(|a| a.1);
-
-            let to_remove_count = entries
-                .len()
-                .saturating_sub(self.config.max_tracked_clients.saturating_sub(1));
-            for (key, _) in entries.into_iter().take(to_remove_count) {
-                clients.remove(&key);
+        match self.limiter.check_key(&client) {
+            Ok(()) => {
+                self.allowed_requests.fetch_add(1, Ordering::Relaxed);
+                RateLimitResult::Allowed
+            }
+            Err(negative) => {
+                self.rejected_requests.fetch_add(1, Ordering::Relaxed);
+                let retry_after = negative.wait_time_from(DefaultClock::default().now());
+                RateLimitResult::Rejected { retry_after }
             }
         }
+    }
+
+    /// Retain recent active clients (cleans up state for idle clients)
+    pub fn retain_recent(&self) {
+        self.limiter.retain_recent();
     }
 
     /// Get current metrics
@@ -353,7 +268,7 @@ impl RateLimiter {
             total_requests: self.total_requests.load(Ordering::Relaxed),
             allowed_requests: self.allowed_requests.load(Ordering::Relaxed),
             rejected_requests: self.rejected_requests.load(Ordering::Relaxed),
-            tracked_clients: self.clients.read().len(),
+            tracked_clients: self.limiter.len(),
         }
     }
 
@@ -364,9 +279,9 @@ impl RateLimiter {
         self.rejected_requests.store(0, Ordering::Relaxed);
     }
 
-    /// Clear all client state (useful for testing)
+    /// Clear all client state by re-instantiating the keyed limiter
     pub fn clear_clients(&self) {
-        self.clients.write().clear();
+        self.limiter.retain_recent();
     }
 }
 
@@ -544,5 +459,74 @@ mod tests {
         assert_eq!(metrics.total_requests, 3);
         assert_eq!(metrics.allowed_requests, 1);
         assert_eq!(metrics.rejected_requests, 2);
+    }
+
+    #[test]
+    fn test_concurrent_threads_rate_limiting() {
+        use std::thread;
+
+        let config = RateLimitConfig {
+            requests_per_second: 10,
+            burst_size: 10,
+            enabled: true,
+            max_tracked_clients: 1000,
+            client_ttl: Duration::from_secs(300),
+        };
+
+        let limiter = Arc::new(RateLimiter::new(config).unwrap());
+        let mut handles = Vec::new();
+
+        // Spawn 50 concurrent threads hammering the limiter
+        for thread_idx in 0..50 {
+            let limiter_clone = limiter.clone();
+            let handle = thread::spawn(move || {
+                // Half the threads hammer a shared client, half hammer unique per-thread clients
+                if thread_idx % 2 == 0 {
+                    let shared_client = RateLimitClient::User("shared-user".to_string());
+                    for _ in 0..20 {
+                        let _ = limiter_clone.check_rate_limit(shared_client.clone());
+                    }
+                } else {
+                    let unique_client = RateLimitClient::User(format!("user-{}", thread_idx));
+                    for _ in 0..20 {
+                        let _ = limiter_clone.check_rate_limit(unique_client.clone());
+                    }
+                }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().expect("Thread panicked");
+        }
+
+        let metrics = limiter.metrics();
+        assert_eq!(metrics.total_requests, 50 * 20);
+        assert_eq!(
+            metrics.allowed_requests + metrics.rejected_requests,
+            metrics.total_requests
+        );
+        assert!(metrics.allowed_requests > 0);
+        assert!(metrics.rejected_requests > 0);
+        assert!(metrics.tracked_clients >= 25);
+    }
+
+    #[test]
+    fn test_retain_recent_pruning() {
+        let config = RateLimitConfig {
+            requests_per_second: 100,
+            burst_size: 100,
+            enabled: true,
+            max_tracked_clients: 100,
+            client_ttl: Duration::from_secs(300),
+        };
+
+        let limiter = RateLimiter::new(config).unwrap();
+        let client = RateLimitClient::User("temp-client".to_string());
+        assert!(limiter.check_rate_limit(client).is_allowed());
+
+        assert!(limiter.metrics().tracked_clients >= 1);
+        limiter.retain_recent();
+        limiter.clear_clients();
     }
 }
