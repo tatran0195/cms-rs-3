@@ -8,6 +8,7 @@ async-trait = { workspace = true }
 cms-entity = { path = "../cms-entity" }
 cms-error = { path = "../cms-error" }
 cms-db = { path = "../cms-db" }
+serde = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

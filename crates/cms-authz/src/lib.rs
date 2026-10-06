@@ -15,8 +15,48 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use cms_db::PgPool;
-use cms_entity::common::MemberRole;
+use cms_entity::{
+    common::MemberRole,
+    id::{OrgId, UserId},
+};
 use cms_error::AppError;
+use serde::{Deserialize, Serialize};
+
+/// Tenant context containing resolved user, organization, and member role
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenantContext {
+    pub user_id: UserId,
+    pub org_id: OrgId,
+    pub role: MemberRole,
+}
+
+impl TenantContext {
+    /// Create a new TenantContext
+    pub fn new(user_id: impl Into<UserId>, org_id: impl Into<OrgId>, role: MemberRole) -> Self {
+        Self {
+            user_id: user_id.into(),
+            org_id: org_id.into(),
+            role,
+        }
+    }
+
+    /// Check if the member role satisfies the minimum required role
+    pub fn has_min_role(&self, min_role: MemberRole) -> bool {
+        self.role >= min_role
+    }
+
+    /// Require at least the specified role, returning AppError::InsufficientRole on failure
+    pub fn require_min_role(&self, min_role: MemberRole) -> Result<(), AppError> {
+        if self.has_min_role(min_role) {
+            Ok(())
+        } else {
+            Err(AppError::InsufficientRole(format!(
+                "User requires at least {:?} role for organization {}",
+                min_role, self.org_id
+            )))
+        }
+    }
+}
 
 /// Authorization trait
 ///
@@ -78,6 +118,13 @@ pub trait Authz: Send + Sync {
 
     /// Require that the user has system administrative privileges
     async fn require_system_admin(&self, user_id: &str) -> Result<(), AppError>;
+
+    /// Resolve the tenant context in a single query check
+    async fn get_tenant_context(
+        &self,
+        user_id: &str,
+        org_id: &str,
+    ) -> Result<TenantContext, AppError>;
 }
 
 /// Production implementation of Authz
@@ -261,6 +308,22 @@ impl Authz for ProductionAuthz {
         }
         Ok(())
     }
+
+    async fn get_tenant_context(
+        &self,
+        user_id: &str,
+        org_id: &str,
+    ) -> Result<TenantContext, AppError> {
+        use cms_db::org::MemberQueries;
+
+        let member = MemberQueries::get_by_user_and_org(&self.pool, user_id, org_id).await?;
+        match member {
+            Some(m) => Ok(TenantContext::new(user_id, org_id, m.role)),
+            None => Err(AppError::AccessDenied(
+                "User is not a member of this organization".to_string(),
+            )),
+        }
+    }
 }
 
 /// No-op authorization for testing
@@ -309,6 +372,14 @@ impl Authz for NoopAuthz {
     async fn require_system_admin(&self, _user_id: &str) -> Result<(), AppError> {
         Ok(())
     }
+
+    async fn get_tenant_context(
+        &self,
+        user_id: &str,
+        org_id: &str,
+    ) -> Result<TenantContext, AppError> {
+        Ok(TenantContext::new(user_id, org_id, MemberRole::Owner))
+    }
 }
 
 /// Create an authorization implementation based on configuration
@@ -348,5 +419,18 @@ mod tests {
                 .unwrap();
             authz.require_org_owner("user-1", "org-1").await.unwrap();
         });
+    }
+
+    #[test]
+    fn test_tenant_context_role_enforcement() {
+        let ctx = TenantContext::new("user_123", "org_456", MemberRole::Editor);
+        assert!(ctx.has_min_role(MemberRole::Viewer));
+        assert!(ctx.has_min_role(MemberRole::Editor));
+        assert!(!ctx.has_min_role(MemberRole::Admin));
+        assert!(!ctx.has_min_role(MemberRole::Owner));
+
+        assert!(ctx.require_min_role(MemberRole::Viewer).is_ok());
+        assert!(ctx.require_min_role(MemberRole::Editor).is_ok());
+        assert!(ctx.require_min_role(MemberRole::Admin).is_err());
     }
 }
