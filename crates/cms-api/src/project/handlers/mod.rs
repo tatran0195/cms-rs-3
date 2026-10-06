@@ -20,13 +20,14 @@ pub mod reader_access;
 pub mod search;
 pub mod themes_addons;
 
+pub use core::*;
+
 pub use analytics::*;
 pub use api_keys::*;
 pub use assets::*;
 pub use branches::*;
 pub use comments::*;
 pub use common::*;
-pub use core::*;
 pub use deployments::*;
 pub use domains::*;
 pub use git::*;

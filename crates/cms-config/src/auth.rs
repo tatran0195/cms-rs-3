@@ -104,7 +104,8 @@ impl AuthConfig {
             _ => "Lax",
         };
         format!(
-            "better-auth.session_token={token}; Path=/; HttpOnly; SameSite={same_site}{secure_suffix}; Max-Age={max_age_secs}"
+            "better-auth.session_token={token}; Path=/; HttpOnly; \
+             SameSite={same_site}{secure_suffix}; Max-Age={max_age_secs}"
         )
     }
 
@@ -121,7 +122,8 @@ impl AuthConfig {
             _ => "Lax",
         };
         format!(
-            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite={same_site}{secure_suffix}"
+            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; \
+             SameSite={same_site}{secure_suffix}"
         )
     }
 }
@@ -176,7 +178,8 @@ mod tests {
         let prod_cookie = auth.session_cookie_value("test-token", 3600, true, false);
         assert_eq!(
             prod_cookie,
-            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=3600"
+            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Lax; Secure; \
+             Max-Age=3600"
         );
 
         // Explicit Strict SameSite:
@@ -185,7 +188,8 @@ mod tests {
         let strict_cookie = auth.session_cookie_value("test-token", 3600, false, false);
         assert_eq!(
             strict_cookie,
-            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=3600"
+            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Strict; Secure; \
+             Max-Age=3600"
         );
 
         // Clear session cookie:

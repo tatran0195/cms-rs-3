@@ -4,7 +4,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::common::{Id, PaginatedResponse};
+use crate::{
+    common::{Id, PaginatedResponse},
+    id::ProjectId,
+};
 
 /// Project entity
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
@@ -232,6 +235,22 @@ pub struct ListProjectsQuery {
 /// List projects response
 pub type ListProjectsResponse = PaginatedResponse<ProjectResponse>;
 
+/// Delete project response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeleteProjectResponse {
+    pub success: bool,
+    pub id: ProjectId,
+}
+
+impl DeleteProjectResponse {
+    pub fn new(id: impl Into<ProjectId>) -> Self {
+        Self {
+            success: true,
+            id: id.into(),
+        }
+    }
+}
+
 /// Project audit event
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ProjectAuditEvent {
@@ -266,5 +285,14 @@ mod tests {
         assert_eq!(response.id, "proj-1");
         assert_eq!(response.name, "Test Project");
         assert_eq!(response.slug, "test-project");
+    }
+
+    #[test]
+    fn test_delete_project_response() {
+        let resp = DeleteProjectResponse::new("proj-123");
+        assert!(resp.success);
+        assert_eq!(resp.id.as_str(), "proj-123");
+        let json = serde_json::to_string(&resp).unwrap();
+        assert_eq!(json, r#"{"success":true,"id":"proj-123"}"#);
     }
 }

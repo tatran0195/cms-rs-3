@@ -468,11 +468,8 @@ impl ProjectService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{
-        asset::AssetService, branch::BranchService, comment::CommentService,
-        deployment::DeploymentService, integration::IntegrationService, page::PageService,
-    };
+    use std::sync::Arc;
+
     use bytes::Bytes;
     use cms_db::{branch::BranchQueries, comment::CommentQueries, page::PageQueries};
     use cms_entity::{
@@ -483,7 +480,12 @@ mod tests {
         integration::{CreateProjectIntegrationRequest, IntegrationProvider},
     };
     use cms_storage::LocalFsStorage;
-    use std::sync::Arc;
+
+    use super::*;
+    use crate::{
+        asset::AssetService, branch::BranchService, comment::CommentService,
+        deployment::DeploymentService, integration::IntegrationService, page::PageService,
+    };
 
     #[tokio::test]
     async fn test_atomic_project_creation_seeds_branch_language_settings() {

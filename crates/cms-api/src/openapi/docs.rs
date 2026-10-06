@@ -149,6 +149,17 @@ use utoipa::{
         // Project endpoints
         crate::project::handlers::list_projects_handler,
         crate::project::handlers::create_project_handler,
+        crate::project::handlers::get_project_handler,
+        crate::project::handlers::update_project_handler,
+        crate::project::handlers::delete_project_handler,
+        crate::project::handlers::get_project_settings_handler,
+        crate::project::handlers::update_project_settings_handler,
+        crate::project::handlers::list_project_addons_handler,
+        crate::project::handlers::list_project_domains_handler,
+        crate::project::handlers::add_project_domain_handler,
+        crate::project::handlers::delete_project_domain_handler,
+        crate::project::handlers::verify_project_domain_handler,
+        crate::project::handlers::set_primary_project_domain_handler,
 
         // Public endpoints
         crate::public::handlers::get_public_project_handler,

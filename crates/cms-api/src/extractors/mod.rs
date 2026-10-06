@@ -190,6 +190,33 @@ where
     }
 }
 
+/// Optional tenant context extractor for endpoints where organization context is optional
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct OptionalTenantContext(pub Option<TenantContext>);
+
+impl Deref for OptionalTenantContext {
+    type Target = Option<TenantContext>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<S> FromRequestParts<S> for OptionalTenantContext
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        match TenantContext::from_request_parts(parts, state).await {
+            Ok(ctx) => Ok(Self(Some(ctx))),
+            Err(AppError::InvalidInput(_)) => Ok(Self(None)),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 async fn resolve_org_id(
     parts: &Parts,
     pool: Option<&cms_db::PgPool>,

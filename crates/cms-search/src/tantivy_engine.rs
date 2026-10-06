@@ -41,7 +41,6 @@ use tantivy::{
 use crate::embedder::Embedder;
 #[cfg(feature = "vector")]
 use crate::vector_index::{ProjectVectorIndex, VectorMeta};
-
 use crate::{
     markdown,
     tokenizer::{JapaneseTokenizer, LinderaTantivyTokenizer, JAPANESE_TOKENIZER_NAME},

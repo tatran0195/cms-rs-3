@@ -137,14 +137,16 @@ pub fn validate_frontend_assets(asset_root: &Path) -> Result<PathBuf, String> {
     })?;
     if entries.next().is_none() {
         return Err(format!(
-            "Frontend assets directory '{}' is empty. Run 'bun run build' before starting the server.",
+            "Frontend assets directory '{}' is empty. Run 'bun run build' before starting the \
+             server.",
             canonical_root.display()
         ));
     }
     let index_file = canonical_root.join("index.html");
     if !index_file.is_file() {
         return Err(format!(
-            "Frontend assets directory '{}' is missing 'index.html'. Run 'bun run build' before starting the server.",
+            "Frontend assets directory '{}' is missing 'index.html'. Run 'bun run build' before \
+             starting the server.",
             canonical_root.display()
         ));
     }
@@ -277,6 +279,7 @@ pub fn serve_spa_file(path: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use std::fs;
+
     use tempfile::tempdir;
 
     use super::*;

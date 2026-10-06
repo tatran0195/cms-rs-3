@@ -4,7 +4,6 @@
 //! with trusted proxy enforcement, host syntax validation, and configurable
 //! canonical domains.
 
-use parking_lot::RwLock;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -23,6 +22,7 @@ use cms_db::{deployment::DeploymentQueries, domain::DomainQueries, project::Proj
 use cms_entity::common::Id;
 use cms_error::AppError;
 use ipnet::IpNet;
+use parking_lot::RwLock;
 use sqlx::PgPool;
 
 const HOST_CACHE_MAX_ENTRIES: usize = 4096;

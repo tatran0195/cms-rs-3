@@ -278,8 +278,8 @@ impl AnalyticsQueries {
         page_id: &str,
     ) -> Result<serde_json::Value, AppError> {
         let views: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE project_id = $1 AND event_type = 'page_view' AND \
-             (metadata->>'page_id' = $2 OR metadata->>'id' = $2)",
+            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE project_id = $1 AND event_type = \
+             'page_view' AND (metadata->>'page_id' = $2 OR metadata->>'id' = $2)",
         )
         .bind(project_id)
         .bind(page_id)
@@ -289,7 +289,8 @@ impl AnalyticsQueries {
 
         let unique_visitors: i64 = sqlx::query_scalar(
             "SELECT COUNT(DISTINCT COALESCE(user_id, ip_address)) FROM \"AnalyticsEvent\" WHERE \
-             project_id = $1 AND event_type = 'page_view' AND (metadata->>'page_id' = $2 OR metadata->>'id' = $2)",
+             project_id = $1 AND event_type = 'page_view' AND (metadata->>'page_id' = $2 OR \
+             metadata->>'id' = $2)",
         )
         .bind(project_id)
         .bind(page_id)

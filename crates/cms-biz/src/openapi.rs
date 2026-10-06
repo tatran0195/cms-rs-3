@@ -360,8 +360,9 @@ fn count_openapi_paths(content: &str) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+    use super::*;
 
     #[test]
     fn test_count_openapi_paths() {

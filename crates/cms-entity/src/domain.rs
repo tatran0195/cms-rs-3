@@ -117,3 +117,88 @@ pub struct DomainVerificationResult {
     pub is_verified: bool,
     pub verification_token: Option<String>,
 }
+
+/// DNS record challenge information for domain verification
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DnsRecord {
+    pub r#type: String,
+    pub name: String,
+    pub value: String,
+    pub ttl: u32,
+}
+
+/// Domain representation expected by the Studio SPA
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SpaDomainResponse {
+    pub id: Id,
+    pub domain: String,
+    pub verified: bool,
+    pub is_primary: bool,
+    pub dns_status: String,
+    pub ssl_status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssl_certificate_expires_at: Option<DateTime<Utc>>,
+    pub verification_token: String,
+    pub records: Vec<DnsRecord>,
+    pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_checked_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
+}
+
+impl SpaDomainResponse {
+    pub fn from_domain(d: &Domain) -> Self {
+        let verified = d.verified_at.is_some();
+        let dns_status = if verified { "VERIFIED" } else { "PENDING" };
+        let record_name = format!("_cms-rs-verification.{}", d.hostname);
+        let record_value = format!("cms-rs-verification={}", d.verification_token);
+
+        Self {
+            id: d.id.clone(),
+            domain: d.hostname.clone(),
+            verified,
+            is_primary: d.is_primary,
+            dns_status: dns_status.to_string(),
+            ssl_status: d.ssl_status.clone(),
+            ssl_certificate_expires_at: d.ssl_certificate_expires_at,
+            verification_token: d.verification_token.clone(),
+            records: vec![DnsRecord {
+                r#type: "TXT".to_string(),
+                name: record_name,
+                value: record_value,
+                ttl: 300,
+            }],
+            created_at: d.created_at,
+            verified_at: d.verified_at,
+            last_checked_at: d.ssl_checked_at,
+            last_error: d.ssl_last_error.clone(),
+        }
+    }
+}
+
+/// Request to add a domain to a project
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+pub struct AddProjectDomainRequest {
+    #[validate(length(min = 1, max = 253, message = "Domain is required"))]
+    pub domain: String,
+}
+
+/// Delete domain response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeleteDomainResponse {
+    pub success: bool,
+    pub id: Id,
+}
+
+impl DeleteDomainResponse {
+    pub fn new(id: impl Into<Id>) -> Self {
+        Self {
+            success: true,
+            id: id.into(),
+        }
+    }
+}

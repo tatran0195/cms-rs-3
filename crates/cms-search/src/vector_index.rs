@@ -13,10 +13,12 @@
 //! For small indexes (< 1000 chunks), brute-force cosine search is used instead
 //! of HNSW for simplicity and because it's already sub-millisecond at that scale.
 
-use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
 
 use cms_error::AppError;
 use serde::{Deserialize, Serialize};
@@ -390,8 +392,9 @@ impl ProjectVectorIndex {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     fn make_meta(page_id: &str, chunk: i32) -> VectorMeta {
         VectorMeta {

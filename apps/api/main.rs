@@ -103,7 +103,8 @@ async fn main() -> Result<(), AppError> {
             Ok(canonical) => info!("Frontend assets verified at {}", canonical.display()),
             Err(err) => {
                 tracing::warn!(
-                    "Frontend assets check: {err}. In dev mode, SPA requests will return 500 until frontend is built."
+                    "Frontend assets check: {err}. In dev mode, SPA requests will return 500 \
+                     until frontend is built."
                 );
             }
         }

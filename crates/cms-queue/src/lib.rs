@@ -34,7 +34,9 @@ pub async fn create_job_queue(config: &QueueConfig) -> Result<Arc<dyn JobQueue>,
             "PostgreSQL queue creation requires the initialized database pool".to_string(),
         )),
         "redis" => Err(AppError::InvalidInput(
-            "Redis queue backend has been removed. PostgreSQL ('postgres') is the sole production queue backend.".to_string(),
+            "Redis queue backend has been removed. PostgreSQL ('postgres') is the sole production \
+             queue backend."
+                .to_string(),
         )),
         _ => Err(AppError::Storage(format!(
             "Unknown queue backend: {}",

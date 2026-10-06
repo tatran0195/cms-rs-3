@@ -206,21 +206,14 @@ pub async fn get_system_metrics_handler(
     );
 
     let body = format!(
-        "# HELP cms_users_total Total registered users\n\
-         # TYPE cms_users_total gauge\n\
-         cms_users_total {}\n\
-         # HELP cms_organizations_total Total organizations\n\
-         # TYPE cms_organizations_total gauge\n\
-         cms_organizations_total {}\n\
-         # HELP cms_projects_total Total projects\n\
-         # TYPE cms_projects_total gauge\n\
-         cms_projects_total {}\n\
-         # HELP cms_db_connections_active Number of active PostgreSQL pool connections\n\
-         # TYPE cms_db_connections_active gauge\n\
-         cms_db_connections_active {}\n\
-         # HELP cms_db_connections_idle Number of idle PostgreSQL pool connections\n\
-         # TYPE cms_db_connections_idle gauge\n\
-         cms_db_connections_idle {}\n",
+        "# HELP cms_users_total Total registered users\n# TYPE cms_users_total \
+         gauge\ncms_users_total {}\n# HELP cms_organizations_total Total organizations\n# TYPE \
+         cms_organizations_total gauge\ncms_organizations_total {}\n# HELP cms_projects_total \
+         Total projects\n# TYPE cms_projects_total gauge\ncms_projects_total {}\n# HELP \
+         cms_db_connections_active Number of active PostgreSQL pool connections\n# TYPE \
+         cms_db_connections_active gauge\ncms_db_connections_active {}\n# HELP \
+         cms_db_connections_idle Number of idle PostgreSQL pool connections\n# TYPE \
+         cms_db_connections_idle gauge\ncms_db_connections_idle {}\n",
         users, organizations, projects, active_db_connections, idle_db_connections
     );
 

@@ -1,19 +1,18 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use axum::extract::{Query, State};
-use axum::http::{header, StatusCode};
-use axum::response::{Html, IntoResponse, Response};
-use axum::routing::get;
-use axum::{Json, Router};
+use axum::{
+    extract::{Query, State},
+    http::{header, StatusCode},
+    response::{Html, IntoResponse, Response},
+    routing::get,
+    Json, Router,
+};
 use clap::Parser;
 use parking_lot::Mutex;
 use rusqlite::{Connection, OpenFlags};
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
-use tower_http::cors::CorsLayer;
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Embed)]
@@ -352,7 +351,8 @@ fn query_bootstrap(
 
     let mut raw_pages = Vec::new();
     let mut stmt = conn.prepare(
-        "SELECT id, parent_id, kind, title, path, icon, sort_order FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC",
+        "SELECT id, parent_id, kind, title, path, icon, sort_order FROM pages WHERE version_id = \
+         ?1 ORDER BY sort_order ASC",
     )?;
     let page_rows = stmt.query_map([&active_version_id], |r| {
         Ok(RawPageNode {
@@ -505,7 +505,8 @@ fn query_page(
     let mut found_page: Option<PageRow> = None;
     for cand in &path_candidates {
         let mut stmt = conn.prepare(
-            "SELECT id, version_id, parent_id, path, title, icon FROM pages WHERE version_id = ?1 AND path = ?2 LIMIT 1",
+            "SELECT id, version_id, parent_id, path, title, icon FROM pages WHERE version_id = ?1 \
+             AND path = ?2 LIMIT 1",
         )?;
         let mut rows = stmt.query(rusqlite::params![active_version_id, cand])?;
         if let Some(r) = rows.next()? {
@@ -528,7 +529,8 @@ fn query_page(
 
     // Query content for the page specifically for active_lang (no cross-language fallback)
     let mut content_query = conn.prepare(
-        "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 AND language = ?2 LIMIT 1",
+        "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 AND \
+         language = ?2 LIMIT 1",
     )?;
     let mut content_rows = content_query.query(rusqlite::params![page_row.id, active_lang])?;
 
@@ -1046,9 +1048,12 @@ fn inject_bootstrap_script(html: &str, safe_json: &str) -> String {
 }
 
 fn inject_meta(html: &str, site_title: &str, site_desc: &str) -> String {
-    let meta_tags = format!(
-        "<title>{site_title}</title>\n    <meta name=\"description\" content=\"{site_desc}\" />\n    <meta property=\"og:title\" content=\"{site_title}\" />\n    <meta property=\"og:description\" content=\"{site_desc}\" />"
-    );
+    let meta_tags =
+        format!(
+            "<title>{site_title}</title>\n    <meta name=\"description\" content=\"{site_desc}\" \
+             />\n    <meta property=\"og:title\" content=\"{site_title}\" />\n    <meta \
+             property=\"og:description\" content=\"{site_desc}\" />"
+        );
 
     let mut working = html.to_string();
 
@@ -1114,7 +1119,8 @@ async fn main() -> anyhow::Result<()> {
 
     if !args.db.exists() {
         eprintln!(
-            "Error: Database file not found: {}\nPlease provide a valid CMS SQLite export using --db <path>",
+            "Error: Database file not found: {}\nPlease provide a valid CMS SQLite export using \
+             --db <path>",
             args.db.display()
         );
         std::process::exit(1);
@@ -1148,7 +1154,8 @@ async fn main() -> anyhow::Result<()> {
 
     if schema_version != 1 {
         eprintln!(
-            "Error: Unsupported schema_version {} (expected 1). Please re-export from a compatible CMS version.",
+            "Error: Unsupported schema_version {} (expected 1). Please re-export from a \
+             compatible CMS version.",
             schema_version
         );
         std::process::exit(1);
@@ -1222,7 +1229,8 @@ pub(crate) fn build_cors_layer(
     if is_loopback {
         if cors_origin.is_some() {
             tracing::warn!(
-                "CORS origin configured on loopback binding ({}); enforcing same-origin policy without Access-Control-Allow-Origin",
+                "CORS origin configured on loopback binding ({}); enforcing same-origin policy \
+                 without Access-Control-Allow-Origin",
                 bind_host
             );
         }
@@ -1261,7 +1269,8 @@ pub(crate) fn build_cors_layer(
         }
         _ => {
             tracing::info!(
-                "Server exposed on network ({}) without explicit CORS origin; enforcing same-origin policy",
+                "Server exposed on network ({}) without explicit CORS origin; enforcing \
+                 same-origin policy",
                 bind_host
             );
             Ok(None)
@@ -1398,7 +1407,9 @@ mod tests {
             "old title replaced"
         );
         assert!(result.contains(
-            "<title>Evil &lt;Project&gt; &quot;&lt;/script&gt;&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;&quot;</title>"
+            "<title>Evil &lt;Project&gt; \
+             &quot;&lt;/script&gt;&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;&quot;</\
+             title>"
         ));
         assert!(result.contains(
             r#"<meta name="description" content="Description with &quot;quotes&quot;, &lt;tags&gt;, &amp; ampersand, and line break \u{2028}." />"#

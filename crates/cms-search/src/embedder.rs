@@ -7,8 +7,7 @@
 //! - `multilingual-e5-small` — 384 dimensions, ~117MB, best balance of speed and quality
 //! - `multilingual-e5-base`  — 768 dimensions, ~470MB, higher quality for complex queries
 
-use std::path::Path;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use cms_error::AppError;
 use fastembed::{EmbeddingModel, TextEmbedding, TextInitOptions};
@@ -44,7 +43,8 @@ impl Embedder {
             "multilingual-e5-base" => (EmbeddingModel::MultilingualE5Base, 768),
             other => {
                 return Err(AppError::IndexingError(format!(
-                    "Unsupported embedding model: '{}'. Use 'multilingual-e5-small' or 'multilingual-e5-base'.",
+                    "Unsupported embedding model: '{}'. Use 'multilingual-e5-small' or \
+                     'multilingual-e5-base'.",
                     other
                 )))
             }

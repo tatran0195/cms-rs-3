@@ -143,12 +143,14 @@ impl AppState {
                 let trimmed = secret.trim();
                 if KNOWN_DEFAULT_SECRETS.contains(&trimmed) {
                     return Err(AppError::Validation(format!(
-                        "Production configuration error: {name} secret cannot use a known default development value"
+                        "Production configuration error: {name} secret cannot use a known default \
+                         development value"
                     )));
                 }
                 if trimmed.len() < 32 {
                     return Err(AppError::Validation(format!(
-                        "Production configuration error: {name} secret must be at least 32 characters long"
+                        "Production configuration error: {name} secret must be at least 32 \
+                         characters long"
                     )));
                 }
             }
@@ -157,19 +159,22 @@ impl AppState {
             match extract_db_password(&config.database.url) {
                 None => {
                     return Err(AppError::Validation(
-                        "Production configuration error: Database password cannot be empty in production mode"
+                        "Production configuration error: Database password cannot be empty in \
+                         production mode"
                             .into(),
                     ));
                 }
                 Some(ref pw) if pw.is_empty() => {
                     return Err(AppError::Validation(
-                        "Production configuration error: Database password cannot be empty in production mode"
+                        "Production configuration error: Database password cannot be empty in \
+                         production mode"
                             .into(),
                     ));
                 }
                 Some(ref pw) if pw.to_lowercase() == "postgres" => {
                     return Err(AppError::Validation(
-                        "Production configuration error: Database password cannot be default 'postgres' in production mode"
+                        "Production configuration error: Database password cannot be default \
+                         'postgres' in production mode"
                             .into(),
                     ));
                 }
@@ -179,7 +184,8 @@ impl AppState {
             // 3. Queue backend cannot be in-memory in production mode
             if config.queue.backend.trim().eq_ignore_ascii_case("memory") {
                 return Err(AppError::Validation(
-                    "Production configuration error: Queue backend cannot be in-memory in production mode; configure PostgreSQL or durable queue"
+                    "Production configuration error: Queue backend cannot be in-memory in \
+                     production mode; configure PostgreSQL or durable queue"
                         .into(),
                 ));
             }

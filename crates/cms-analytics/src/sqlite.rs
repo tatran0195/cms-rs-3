@@ -141,7 +141,8 @@ impl AnalyticsStore for SqliteAnalyticsStore {
 
                 let mut query = String::from(
                     "SELECT id, organization_id, project_id, user_id, event_type, metadata, \
-                     ip_address, user_agent, created_at FROM analytics_events WHERE organization_id = ?",
+                     ip_address, user_agent, created_at FROM analytics_events WHERE \
+                     organization_id = ?",
                 );
                 let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(org_id_str)];
 
