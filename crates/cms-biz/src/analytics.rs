@@ -75,9 +75,19 @@ impl AnalyticsService {
         )
         .await?;
 
+        let total = AnalyticsEventQueries::count(
+            &ctx.pool,
+            org_id,
+            request.project_id.as_deref(),
+            request.user_id.as_deref(),
+            request.event_type.as_deref(),
+            request.start_date,
+            request.end_date,
+        )
+        .await?;
+
         let event_responses: Vec<AnalyticsEventResponse> =
             events.into_iter().map(|e| e.into()).collect();
-        let total = event_responses.len() as i64;
 
         Ok(AnalyticsQueryResponse {
             query: request,
@@ -254,4 +264,108 @@ pub async fn process_analytics_job(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use cms_authz::ProductionAuthz;
+    use uuid::Uuid;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_analytics_query_events_sql_count_pagination() {
+        let database_url = std::env::var("CMS_DATABASE__URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/cms".to_string());
+
+        let pool = match cms_db::create_pool(&database_url).await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if cms_db::test_connection(&pool).await.is_err() {
+            return;
+        }
+
+        let org_id = format!("org-analytics-{}", Uuid::new_v4());
+        let user_id = format!("user-analytics-{}", Uuid::new_v4());
+        let now = chrono::Utc::now();
+
+        // Seed user, organization and member
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
+               VALUES ($1, $2, 'Analytics User', TRUE, 'user', $3, $3)"#,
+        )
+        .bind(&user_id)
+        .bind(format!("analytics-{}@internal.company", Uuid::new_v4()))
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at)
+               VALUES ($1, 'Analytics Org', $1, $2, $2)"#,
+        )
+        .bind(&org_id)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        let _ = cms_db::sqlx::query(
+            r#"INSERT INTO "Member" (id, organization_id, user_id, role, created_at, updated_at)
+               VALUES ($1, $2, $3, 'OWNER', $4, $4)"#,
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(&org_id)
+        .bind(&user_id)
+        .bind(now)
+        .execute(&pool)
+        .await;
+
+        // Seed 3 analytics events for this org
+        for i in 0..3 {
+            let _ = AnalyticsEventQueries::create(
+                &pool,
+                Some(&org_id),
+                None,
+                Some(&user_id),
+                "page_view",
+                serde_json::json!({ "idx": i }),
+                None,
+                None,
+            )
+            .await;
+        }
+
+        let ctx = BizContext {
+            pool: pool.clone(),
+            authz: std::sync::Arc::new(ProductionAuthz::new(pool)),
+        };
+
+        // Query with page_size = 2, so the returned events will be 2, but total must be at least 3
+        let req = AnalyticsQueryRequest {
+            project_id: None,
+            user_id: Some(user_id.clone()),
+            event_type: Some("page_view".to_string()),
+            start_date: None,
+            end_date: None,
+            group_by: None,
+            limit: None,
+            page: Some(1),
+            page_size: Some(2),
+            organization_id: Some(org_id.clone()),
+        };
+
+        let res = AnalyticsService::query_events(&ctx, &user_id, &org_id, req, 1, 2)
+            .await
+            .expect("query_events should succeed");
+
+        assert_eq!(res.events.len(), 2, "Returned page should have limit 2");
+        assert!(
+            res.total >= 3,
+            "Total must reflect database COUNT(*), got {}",
+            res.total
+        );
+    }
 }

@@ -479,6 +479,51 @@ impl AnalyticsEventQueries {
             .map_err(|e| AppError::Database(e.into()))?;
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
+
+    /// Count analytics events matching flexible filters strictly isolated to an organization
+    pub async fn count(
+        pool: &PgPool,
+        org_id: &str,
+        project_id: Option<&str>,
+        user_id: Option<&str>,
+        event_type: Option<&str>,
+        start_date: Option<chrono::DateTime<chrono::Utc>>,
+        end_date: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<i64, AppError> {
+        let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            r#"SELECT COUNT(*) as count FROM "AnalyticsEvent" WHERE organization_id = "#,
+        );
+        builder.push_bind(org_id);
+
+        if let Some(v) = project_id {
+            builder.push(" AND project_id = ");
+            builder.push_bind(v);
+        }
+        if let Some(v) = user_id {
+            builder.push(" AND user_id = ");
+            builder.push_bind(v);
+        }
+        if let Some(v) = event_type {
+            builder.push(" AND event_type = ");
+            builder.push_bind(v);
+        }
+        if let Some(v) = start_date {
+            builder.push(" AND created_at >= ");
+            builder.push_bind(v);
+        }
+        if let Some(v) = end_date {
+            builder.push(" AND created_at <= ");
+            builder.push_bind(v);
+        }
+
+        let count: i64 = builder
+            .build()
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::Database(e.into()))?
+            .get::<i64, _>("count");
+        Ok(count)
+    }
 }
 
 /// Analytics event row from the database
