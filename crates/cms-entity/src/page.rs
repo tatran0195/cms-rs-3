@@ -2,8 +2,12 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
-use crate::common::{Id, PaginatedResponse};
+use crate::{
+    common::{Id, PaginatedResponse},
+    id::PageId,
+};
 
 /// Page entity (simplified from Prisma Page model)
 ///
@@ -46,7 +50,7 @@ fn default_page_kind() -> String {
 }
 
 /// Page create request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, Validate)]
 pub struct CreatePageRequest {
     #[serde(alias = "projectId", default)]
     pub project_id: String,
@@ -56,7 +60,16 @@ pub struct CreatePageRequest {
     pub parent_id: Option<Id>,
     #[serde(default)]
     pub slug: String,
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Page title must contain 1 to 200 characters"
+    ))]
     pub title: String,
+    #[validate(length(
+        max = 1000,
+        message = "Page description must be 1000 characters or fewer"
+    ))]
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
@@ -82,7 +95,7 @@ fn default_is_published() -> bool {
 }
 
 /// Page update request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, Validate)]
 pub struct UpdatePageRequest {
     #[serde(
         alias = "parentId",
@@ -93,8 +106,17 @@ pub struct UpdatePageRequest {
     pub parent_id: Option<Option<Id>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Page title must contain 1 to 200 characters"
+    ))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[validate(length(
+        max = 1000,
+        message = "Page description must be 1000 characters or fewer"
+    ))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -264,6 +286,7 @@ pub struct PageListItem {
     pub slug: String,
     pub title: String,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     pub icon: Option<String>,
     pub config: Option<serde_json::Value>,
@@ -296,7 +319,9 @@ impl serde::Serialize for PageListItem {
         map.serialize_entry("path", &self.path)?;
         map.serialize_entry("icon", &self.icon)?;
         map.serialize_entry("description", &self.description)?;
-        map.serialize_entry("content", &self.content)?;
+        if let Some(content) = &self.content {
+            map.serialize_entry("content", content)?;
+        }
         map.serialize_entry("config", &self.config)?;
         map.serialize_entry("translationKey", &self.translation_key)?;
         map.serialize_entry("translation_key", &self.translation_key)?;
@@ -315,6 +340,46 @@ impl serde::Serialize for PageListItem {
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct ReorderPagesRequest {
     pub page_ids: Vec<Id>,
+}
+
+/// Response for deleting a page
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct DeletePageResponse {
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<PageId>,
+}
+
+/// Single item in a page tree reorder request
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Validate)]
+#[serde(rename_all = "camelCase")]
+pub struct ReorderTreeItem {
+    pub id: PageId,
+    pub parent_id: Option<PageId>,
+    #[validate(range(
+        min = 0,
+        max = 1000000,
+        message = "Position must be between 0 and 1000000"
+    ))]
+    pub position: i32,
+}
+
+/// Page tree reorder request payload
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Validate)]
+pub struct ReorderPageTreeRequest {
+    #[validate(length(
+        min = 1,
+        max = 10000,
+        message = "Reorder requests must contain between 1 and 10000 pages"
+    ))]
+    #[validate(nested)]
+    pub items: Vec<ReorderTreeItem>,
+}
+
+/// Response for reordering pages
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct ReorderPageTreeResponse {
+    pub success: bool,
 }
 
 /// List pages query parameters
@@ -459,5 +524,68 @@ mod tests {
         assert_eq!(val["languageId"], "lang-1");
         assert_eq!(val["kind"], "PAGE");
         assert_eq!(val["hidden"], false);
+    }
+
+    #[test]
+    fn test_page_list_item_serialization_omits_none_content() {
+        let item = PageListItem {
+            id: "page-1".to_string(),
+            project_id: "proj-1".to_string(),
+            branch_id: "branch-1".to_string(),
+            parent_id: None,
+            language_id: Some("lang-1".to_string()),
+            kind: Some("PAGE".to_string()),
+            path: "/intro".to_string(),
+            slug: "intro".to_string(),
+            title: "Intro".to_string(),
+            description: None,
+            content: None,
+            icon: None,
+            config: None,
+            translation_key: None,
+            position: 0,
+            is_published: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let val = serde_json::to_value(&item).unwrap();
+        assert_eq!(val["id"], "page-1");
+        assert_eq!(val["title"], "Intro");
+        assert!(val.get("content").is_none());
+
+        let mut item_with_content = item;
+        item_with_content.content = Some("# Markdown body".to_string());
+        let val2 = serde_json::to_value(&item_with_content).unwrap();
+        assert_eq!(val2["content"], "# Markdown body");
+    }
+
+    #[test]
+    fn test_delete_page_response_serialization() {
+        let resp = DeletePageResponse {
+            success: true,
+            id: Some(PageId::from("page-del-1")),
+        };
+        let val = serde_json::to_value(&resp).unwrap();
+        assert_eq!(val["success"], true);
+        assert_eq!(val["id"], "page-del-1");
+    }
+
+    #[test]
+    fn test_reorder_page_tree_request_validation() {
+        let json_str = r#"{
+            "items": [
+                { "id": "p-1", "parentId": null, "position": 0 },
+                { "id": "p-2", "parentId": "p-1", "position": 1 }
+            ]
+        }"#;
+        let req: ReorderPageTreeRequest = serde_json::from_str(json_str).unwrap();
+        assert_eq!(req.items.len(), 2);
+        assert_eq!(req.items[0].id.as_str(), "p-1");
+        assert!(req.items[0].parent_id.is_none());
+        assert_eq!(req.items[1].parent_id.as_ref().unwrap().as_str(), "p-1");
+        assert!(req.validate().is_ok());
+
+        let empty = ReorderPageTreeRequest { items: vec![] };
+        assert!(empty.validate().is_err());
     }
 }

@@ -4,27 +4,54 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_entity::{
+    common::ApiResponse,
+    id::{PageId, ProjectId},
+    page::{
+        CreatePageRequest, DeletePageResponse, PageListItem, PageResponse, ReorderPageTreeRequest,
+        ReorderPageTreeResponse, UpdatePageRequest,
+    },
+};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
-use crate::auth::AuthExtractor;
+use crate::{auth::AuthExtractor, validation::ValidatedJson};
 
 /// List pages for a project
+#[utoipa::path(
+    get,
+    path = "/api/app/projects/{project_id}/pages",
+    tag = "projects",
+    params(
+        ("project_id" = ProjectId, Path, description = "Project ID"),
+        ("branch_id", Query, description = "Filter by branch ID"),
+        ("language_id", Query, description = "Filter by language ID"),
+        ("parent_id", Query, description = "Filter by parent page ID"),
+        ("search", Query, description = "Search query for title or content"),
+        ("is_published", Query, description = "Filter by publication status"),
+    ),
+    responses(
+        (status = 200, description = "List of project pages", body = ApiResponse<Vec<PageListItem>>),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Project not found"),
+    )
+)]
 pub async fn list_project_pages_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(project_id): Path<String>,
+    Path(project_id): Path<ProjectId>,
     Query(mut query): Query<cms_entity::page::ListPagesQuery>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    query.project_id = project_id.clone();
+) -> Result<Json<ApiResponse<Vec<PageListItem>>>, AppError> {
+    query.project_id = project_id.to_string();
     if query.branch_id.is_empty() {
         if let Ok(Some(b)) =
-            cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &project_id).await
+            cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, project_id.as_str())
+                .await
         {
             query.branch_id = b.id;
         } else if let Ok(Some(b)) = cms_db::branch::BranchQueries::get_by_project(
             &state.biz_context.pool,
-            &project_id,
+            project_id.as_str(),
             None,
             Some(1),
             None,
@@ -39,12 +66,13 @@ pub async fn list_project_pages_handler(
     let default_lang_id = if let Some(lid) = query.language_id.clone() {
         Some(lid)
     } else if let Ok(Some(dl)) =
-        cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, &project_id).await
+        cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, project_id.as_str())
+            .await
     {
         Some(dl.id)
     } else if let Ok(langs) = cms_db::language::LanguageQueries::get_by_project(
         &state.biz_context.pool,
-        &project_id,
+        project_id.as_str(),
         Some(1),
         None,
     )
@@ -67,25 +95,41 @@ pub async fn list_project_pages_handler(
         }
     }
 
-    Ok(Json(serde_json::json!({ "data": result.data })))
+    Ok(Json(ApiResponse::from(result)))
 }
 
 /// Create a page for a project
+#[utoipa::path(
+    post,
+    path = "/api/app/projects/{project_id}/pages",
+    tag = "projects",
+    params(
+        ("project_id" = ProjectId, Path, description = "Project ID"),
+    ),
+    request_body = CreatePageRequest,
+    responses(
+        (status = 200, description = "Page created successfully", body = ApiResponse<PageResponse>),
+        (status = 400, description = "Validation error"),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Project not found"),
+    )
+)]
 pub async fn create_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(project_id): Path<String>,
-    Json(mut request): Json<cms_entity::page::CreatePageRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    request.project_id = project_id.clone();
+    Path(project_id): Path<ProjectId>,
+    ValidatedJson(mut request): ValidatedJson<cms_entity::page::CreatePageRequest>,
+) -> Result<Json<ApiResponse<PageResponse>>, AppError> {
+    request.project_id = project_id.to_string();
     if request.branch_id.is_empty() {
         if let Ok(Some(b)) =
-            cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &project_id).await
+            cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, project_id.as_str())
+                .await
         {
             request.branch_id = b.id;
         } else if let Ok(Some(b)) = cms_db::branch::BranchQueries::get_by_project(
             &state.biz_context.pool,
-            &project_id,
+            project_id.as_str(),
             None,
             Some(1),
             None,
@@ -104,52 +148,86 @@ pub async fn create_project_page_handler(
     let page = cms_biz::page::PageService::create_page(
         &state.biz_context,
         &auth.user.id,
-        &project_id,
+        project_id.as_str(),
         &branch_id,
         request,
     )
     .await?;
 
-    Ok(Json(serde_json::json!({ "data": page })))
+    Ok(Json(ApiResponse::new(page)))
 }
 
 /// Get a page for a project
+#[utoipa::path(
+    get,
+    path = "/api/app/projects/{project_id}/pages/{page_id}",
+    tag = "projects",
+    params(
+        ("project_id" = ProjectId, Path, description = "Project ID"),
+        ("page_id" = PageId, Path, description = "Page ID"),
+    ),
+    responses(
+        (status = 200, description = "Page details", body = ApiResponse<PageResponse>),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Page not found"),
+    )
+)]
 pub async fn get_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((project_id, page_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Path((project_id, page_id)): Path<(ProjectId, PageId)>,
+) -> Result<Json<ApiResponse<PageResponse>>, AppError> {
     let mut page =
-        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
+        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
+            .await?;
 
-    if page.project_id != project_id {
+    if page.project_id != project_id.as_str() {
         return Err(AppError::NotFound(
             "Page not found for this project".to_string(),
         ));
     }
 
     if page.language_id.is_none() {
-        if let Ok(Some(dl)) =
-            cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, &project_id)
-                .await
+        if let Ok(Some(dl)) = cms_db::language::LanguageQueries::get_default(
+            &state.biz_context.pool,
+            project_id.as_str(),
+        )
+        .await
         {
             page.language_id = Some(dl.id);
         }
     }
 
-    Ok(Json(serde_json::json!({ "data": page })))
+    Ok(Json(ApiResponse::new(page)))
 }
 
 /// Update a page for a project
+#[utoipa::path(
+    put,
+    path = "/api/app/projects/{project_id}/pages/{page_id}",
+    tag = "projects",
+    params(
+        ("project_id" = ProjectId, Path, description = "Project ID"),
+        ("page_id" = PageId, Path, description = "Page ID"),
+    ),
+    request_body = UpdatePageRequest,
+    responses(
+        (status = 200, description = "Page updated successfully", body = ApiResponse<PageResponse>),
+        (status = 400, description = "Validation error"),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Page not found"),
+    )
+)]
 pub async fn update_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((project_id, page_id)): Path<(String, String)>,
-    Json(request): Json<cms_entity::page::UpdatePageRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Path((project_id, page_id)): Path<(ProjectId, PageId)>,
+    ValidatedJson(request): ValidatedJson<cms_entity::page::UpdatePageRequest>,
+) -> Result<Json<ApiResponse<PageResponse>>, AppError> {
     let existing =
-        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
-    if existing.project_id != project_id {
+        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
+            .await?;
+    if existing.project_id != project_id.as_str() {
         return Err(AppError::NotFound(
             "Page not found for this project".to_string(),
         ));
@@ -158,104 +236,113 @@ pub async fn update_project_page_handler(
     let mut page = cms_biz::page::PageService::update_page(
         &state.biz_context,
         &auth.user.id,
-        &page_id,
+        page_id.as_str(),
         request,
     )
     .await?;
 
     if page.language_id.is_none() {
-        if let Ok(Some(dl)) =
-            cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, &project_id)
-                .await
+        if let Ok(Some(dl)) = cms_db::language::LanguageQueries::get_default(
+            &state.biz_context.pool,
+            project_id.as_str(),
+        )
+        .await
         {
             page.language_id = Some(dl.id);
         }
     }
 
-    Ok(Json(serde_json::json!({ "data": page })))
+    Ok(Json(ApiResponse::new(page)))
 }
 
 /// Delete a page for a project
+#[utoipa::path(
+    delete,
+    path = "/api/app/projects/{project_id}/pages/{page_id}",
+    tag = "projects",
+    params(
+        ("project_id" = ProjectId, Path, description = "Project ID"),
+        ("page_id" = PageId, Path, description = "Page ID"),
+    ),
+    responses(
+        (status = 200, description = "Page deleted successfully", body = ApiResponse<DeletePageResponse>),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Page not found"),
+    )
+)]
 pub async fn delete_project_page_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path((project_id, page_id)): Path<(String, String)>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Path((project_id, page_id)): Path<(ProjectId, PageId)>,
+) -> Result<Json<ApiResponse<DeletePageResponse>>, AppError> {
     let page =
-        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
-    if page.project_id != project_id {
+        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
+            .await?;
+    if page.project_id != project_id.as_str() {
         return Err(AppError::NotFound(
             "Page not found for this project".to_string(),
         ));
     }
-    cms_biz::page::PageService::delete_page(&state.biz_context, &auth.user.id, &page_id).await?;
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    cms_biz::page::PageService::delete_page(&state.biz_context, &auth.user.id, page_id.as_str())
+        .await?;
+    Ok(Json(ApiResponse::new(DeletePageResponse {
+        success: true,
+        id: Some(page_id),
+    })))
 }
 
 /// Reorder pages for a project
+#[utoipa::path(
+    post,
+    path = "/api/app/projects/{project_id}/pages/reorder",
+    tag = "projects",
+    params(
+        ("project_id" = ProjectId, Path, description = "Project ID"),
+    ),
+    request_body = ReorderPageTreeRequest,
+    responses(
+        (status = 200, description = "Pages reordered successfully", body = ApiResponse<ReorderPageTreeResponse>),
+        (status = 400, description = "Validation error"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden"),
+    )
+)]
 pub async fn reorder_project_pages_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(project_id): Path<String>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Path(project_id): Path<ProjectId>,
+    ValidatedJson(payload): ValidatedJson<cms_entity::page::ReorderPageTreeRequest>,
+) -> Result<Json<ApiResponse<ReorderPageTreeResponse>>, AppError> {
     state
         .biz_context
         .authz
         .require_project_role(
             &auth.user.id,
-            &project_id,
+            project_id.as_str(),
             cms_entity::common::MemberRole::Editor,
         )
         .await?;
 
-    let items = payload
-        .get("items")
-        .and_then(serde_json::Value::as_array)
-        .ok_or_else(|| {
-            AppError::Validation("Reorder request must include an items array".to_string())
-        })?;
-    if items.is_empty() || items.len() > 10_000 {
-        return Err(AppError::Validation(
-            "Reorder requests must contain between 1 and 10000 pages".to_string(),
-        ));
-    }
+    let reorder_items: Vec<(String, Option<String>, i32)> = payload
+        .items
+        .iter()
+        .map(|item| {
+            (
+                item.id.to_string(),
+                item.parent_id.as_ref().map(|p| p.to_string()),
+                item.position,
+            )
+        })
+        .collect();
 
-    let mut reorder_items = Vec::with_capacity(items.len());
-    for item in items {
-        let id = item
-            .get("id")
-            .and_then(serde_json::Value::as_str)
-            .filter(|id| !id.is_empty())
-            .ok_or_else(|| AppError::Validation("Each reorder item requires an id".to_string()))?;
-        let parent_id = match item.get("parentId") {
-            Some(serde_json::Value::Null) => None,
-            Some(serde_json::Value::String(parent_id)) if !parent_id.is_empty() => {
-                Some(parent_id.clone())
-            }
-            Some(_) => {
-                return Err(AppError::Validation(
-                    "parentId must be a page id or null".to_string(),
-                ));
-            }
-            None => {
-                return Err(AppError::Validation(
-                    "Each reorder item requires parentId".to_string(),
-                ));
-            }
-        };
-        let position = item
-            .get("position")
-            .and_then(serde_json::Value::as_i64)
-            .and_then(|position| i32::try_from(position).ok())
-            .ok_or_else(|| {
-                AppError::Validation("Each reorder item requires an integer position".to_string())
-            })?;
-        reorder_items.push((id.to_string(), parent_id, position));
-    }
+    cms_db::page::PageQueries::reorder_tree(
+        &state.biz_context.pool,
+        project_id.as_str(),
+        &reorder_items,
+    )
+    .await?;
 
-    cms_db::page::PageQueries::reorder_tree(&state.biz_context.pool, &project_id, &reorder_items)
-        .await?;
-
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
+    Ok(Json(ApiResponse::new(ReorderPageTreeResponse {
+        success: true,
+    })))
 }

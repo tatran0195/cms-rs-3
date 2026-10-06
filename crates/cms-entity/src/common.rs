@@ -91,15 +91,102 @@ impl HealthResponse {
     }
 }
 
-/// API response envelope (for non-paginated responses)
+/// Standard API response envelope.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ApiResponse<T> {
+    /// Domain payload.
     pub data: T,
+    /// Optional metadata (pagination, tracing, etc.).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<ResponseMeta>,
+}
+
+/// Standardized pagination metadata.
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PaginationMeta {
+    pub page: u64,
+    pub page_size: u64,
+    pub total: u64,
+    pub total_pages: u64,
+    pub has_next: bool,
+    pub has_prev: bool,
+}
+
+impl PaginationMeta {
+    pub fn new(page: u64, page_size: u64, total: u64) -> Self {
+        let total_pages = if page_size > 0 {
+            total.div_ceil(page_size)
+        } else {
+            0
+        };
+        Self {
+            page,
+            page_size,
+            total,
+            total_pages,
+            has_next: page < total_pages,
+            has_prev: page > 1,
+        }
+    }
+}
+
+/// Production response metadata container.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseMeta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pagination: Option<PaginationMeta>,
+}
+
+impl ResponseMeta {
+    pub fn with_pagination(pagination: PaginationMeta) -> Self {
+        Self {
+            pagination: Some(pagination),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_request_id(request_id: impl Into<String>) -> Self {
+        Self {
+            request_id: Some(request_id.into()),
+            ..Default::default()
+        }
+    }
 }
 
 impl<T> ApiResponse<T> {
+    /// Create a standard data response without metadata (`{"data": ...}`).
     pub fn new(data: T) -> Self {
-        Self { data }
+        Self { data, meta: None }
+    }
+
+    /// Create a response with custom metadata.
+    pub fn with_meta(data: T, meta: ResponseMeta) -> Self {
+        Self {
+            data,
+            meta: Some(meta),
+        }
+    }
+
+    /// Create a paginated response with standardized pagination metadata.
+    pub fn paginated(data: T, page: u64, page_size: u64, total: u64) -> Self {
+        Self {
+            data,
+            meta: Some(ResponseMeta::with_pagination(PaginationMeta::new(
+                page, page_size, total,
+            ))),
+        }
+    }
+}
+
+impl<T> From<PaginatedResponse<T>> for ApiResponse<Vec<T>> {
+    fn from(p: PaginatedResponse<T>) -> Self {
+        ApiResponse::paginated(p.data, p.page, p.page_size, p.total)
     }
 }
 
@@ -280,5 +367,43 @@ mod tests {
 
         let deserialized: MemberRole = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, MemberRole::Owner);
+    }
+
+    #[test]
+    fn test_api_response_serialization_without_meta() {
+        let resp = ApiResponse::new("payload");
+        let json = serde_json::to_string(&resp).unwrap();
+        assert_eq!(json, r#"{"data":"payload"}"#);
+
+        let parsed: ApiResponse<String> = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.data, "payload");
+        assert!(parsed.meta.is_none());
+    }
+
+    #[test]
+    fn test_api_response_serialization_with_pagination() {
+        let resp = ApiResponse::paginated(vec![1, 2, 3], 1, 10, 25);
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains(r#""data":[1,2,3]"#));
+        assert!(json.contains(r#""page":1"#));
+        assert!(json.contains(r#""pageSize":10"#));
+        assert!(json.contains(r#""total":25"#));
+        assert!(json.contains(r#""totalPages":3"#));
+        assert!(json.contains(r#""hasNext":true"#));
+        assert!(json.contains(r#""hasPrev":false"#));
+    }
+
+    #[test]
+    fn test_api_response_from_paginated_response() {
+        let p = PaginatedResponse::new(vec!["item1".to_string()], 50, 2, 10);
+        let resp: ApiResponse<Vec<String>> = p.into();
+        assert_eq!(resp.data, vec!["item1"]);
+        let meta = resp.meta.unwrap().pagination.unwrap();
+        assert_eq!(meta.page, 2);
+        assert_eq!(meta.page_size, 10);
+        assert_eq!(meta.total, 50);
+        assert_eq!(meta.total_pages, 5);
+        assert!(meta.has_next);
+        assert!(meta.has_prev);
     }
 }

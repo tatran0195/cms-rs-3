@@ -106,6 +106,53 @@ impl From<PageRow> for PageListItem {
     }
 }
 
+/// Database representation of a page item omitting the markdown content blob
+#[derive(Debug, FromRow)]
+struct PageListItemRow {
+    id: String,
+    project_id: String,
+    branch_id: String,
+    language_id: Option<String>,
+    parent_id: Option<String>,
+    kind: Option<String>,
+    path: String,
+    slug: String,
+    title: String,
+    description: Option<String>,
+    icon: Option<String>,
+    config: Option<serde_json::Value>,
+    translation_key: Option<String>,
+    position: i32,
+    is_published: bool,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+impl From<PageListItemRow> for PageListItem {
+    fn from(row: PageListItemRow) -> Self {
+        Self {
+            id: row.id,
+            project_id: row.project_id,
+            branch_id: row.branch_id,
+            parent_id: row.parent_id,
+            language_id: row.language_id,
+            kind: row.kind.or(Some("PAGE".to_string())),
+            path: row.path,
+            slug: row.slug,
+            title: row.title,
+            description: row.description,
+            content: None,
+            icon: row.icon,
+            config: row.config,
+            translation_key: row.translation_key,
+            position: row.position,
+            is_published: row.is_published,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
+}
+
 /// Page queries
 pub struct PageQueries;
 
@@ -306,8 +353,9 @@ impl PageQueries {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<PageListItem>, AppError> {
-        let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT * FROM \"Page\" WHERE project_id = ");
+        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+            r#"SELECT id, project_id, branch_id, language_id, parent_id, kind, path, slug, title, description, icon, config, translation_key, position, is_published, created_at, updated_at FROM "Page" WHERE project_id = "#,
+        );
         query_builder.push_bind(project_id);
         query_builder.push(" AND branch_id = ");
         query_builder.push_bind(branch_id);
@@ -354,7 +402,7 @@ impl PageQueries {
         }
 
         let rows = query_builder
-            .build_query_as::<PageRow>()
+            .build_query_as::<PageListItemRow>()
             .fetch_all(pool)
             .await
             .map_err(|e| AppError::Database(e.into()))?;

@@ -160,6 +160,12 @@ use utoipa::{
         crate::project::handlers::delete_project_domain_handler,
         crate::project::handlers::verify_project_domain_handler,
         crate::project::handlers::set_primary_project_domain_handler,
+        crate::project::handlers::list_project_pages_handler,
+        crate::project::handlers::create_project_page_handler,
+        crate::project::handlers::get_project_page_handler,
+        crate::project::handlers::update_project_page_handler,
+        crate::project::handlers::delete_project_page_handler,
+        crate::project::handlers::reorder_project_pages_handler,
 
         // Public endpoints
         crate::public::handlers::get_public_project_handler,

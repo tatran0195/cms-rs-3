@@ -53,7 +53,7 @@ pub async fn list_projects_handler(
     )
     .await?;
 
-    Ok(Json(ApiResponse::new(result.data)))
+    Ok(Json(ApiResponse::from(result)))
 }
 
 /// Create a new project
