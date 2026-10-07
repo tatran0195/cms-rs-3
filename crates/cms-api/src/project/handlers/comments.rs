@@ -166,6 +166,7 @@ pub async fn create_project_comment_handler(
         page_id: page_id.to_string(),
         content: body
             .get("body")
+            .or_else(|| body.get("content"))
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string(),
@@ -203,7 +204,11 @@ pub async fn update_project_comment_handler(
     use cms_entity::comment::UpdateCommentRequest;
 
     let request = UpdateCommentRequest {
-        content: body.get("body").and_then(|v| v.as_str()).map(String::from),
+        content: body
+            .get("body")
+            .or_else(|| body.get("content"))
+            .and_then(|v| v.as_str())
+            .map(String::from),
         resolved: body.get("resolved").and_then(|v| v.as_bool()),
     };
 

@@ -15,7 +15,9 @@ use cms_biz::{
     platform_event::{FunnelEventType, PlatformEventService},
 };
 use cms_entity::auth::{
-    ApiKeyResponse, CreateApiKeyRequest, LoginRequest, RegisterRequest, UserResponse,
+    AcceptInvitationPayload, ApiKeyResponse, ChangeEmailPayload, CreateApiKeyRequest, LoginRequest,
+    RegisterRequest, RequestEmailChangePayload, SendVerificationOtpPayload, SignInEmailOtpPayload,
+    SignInSocialPayload, UpdateUserPayload, UserResponse, VerifyEmailOtpPayload,
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
@@ -234,12 +236,7 @@ pub async fn get_session_handler(
     }
 }
 
-#[derive(serde::Deserialize)]
-pub struct SendOtpRequest {
-    pub email: String,
-    #[serde(rename = "type")]
-    pub otp_type: Option<String>,
-}
+pub type SendOtpRequest = SendVerificationOtpPayload;
 
 fn otp_identifier(purpose: &str, email: &str) -> String {
     format!("otp:{purpose}:{}", email.trim().to_lowercase())
@@ -318,11 +315,7 @@ pub async fn send_verification_otp_handler(
     Ok(Json(serde_json::json!({ "status": true })))
 }
 
-#[derive(serde::Deserialize)]
-pub struct SignInOtpRequest {
-    pub email: String,
-    pub otp: String,
-}
+pub type SignInOtpRequest = SignInEmailOtpPayload;
 
 /// Sign in with email OTP handler (Better Auth compatible)
 ///
@@ -469,12 +462,7 @@ fn user_json(user: &cms_entity::auth::User) -> serde_json::Value {
     })
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateUserBody {
-    name: Option<String>,
-    image: Option<String>,
-}
+pub type UpdateUserBody = UpdateUserPayload;
 
 /// Update the current user's profile (Better Auth `update-user`).
 pub async fn update_user_handler(
@@ -531,12 +519,7 @@ pub async fn verify_email_handler(
     Ok(Json(serde_json::json!({ "user": user_json(&updated) })))
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VerifyEmailOtpBody {
-    email: String,
-    otp: String,
-}
+pub type VerifyEmailOtpBody = VerifyEmailOtpPayload;
 
 /// Verify an email with a 6-digit OTP (Better Auth `email-otp/verify-email`).
 pub async fn verify_email_otp_handler(
@@ -559,12 +542,7 @@ pub async fn verify_email_otp_handler(
     Ok(Json(serde_json::json!({ "user": user_json(&updated) })))
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RequestEmailChangeBody {
-    new_email: String,
-    otp: String,
-}
+pub type RequestEmailChangeBody = RequestEmailChangePayload;
 
 /// Request an email change (Better Auth `email-otp/request-email-change`).
 ///
@@ -611,12 +589,7 @@ pub async fn request_email_change_handler(
     Ok(Json(serde_json::json!({ "status": true })))
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChangeEmailBody {
-    new_email: String,
-    otp: String,
-}
+pub type ChangeEmailBody = ChangeEmailPayload;
 
 /// Complete an email change (Better Auth `email-otp/change-email`).
 ///
@@ -694,11 +667,7 @@ pub async fn stop_impersonating_handler(
     })))
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AcceptInvitationBody {
-    invitation_id: String,
-}
+pub type AcceptInvitationBody = AcceptInvitationPayload;
 
 /// Accept an organization invitation (Better Auth `organizations/accept-invitation`).
 ///
@@ -765,12 +734,7 @@ pub async fn accept_invitation_handler(
     })))
 }
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SignInSocialBody {
-    provider: String,
-    callback_url: Option<String>,
-}
+pub type SignInSocialBody = SignInSocialPayload;
 
 /// Begin a social (OAuth) sign-in (Better Auth `sign-in/social`).
 ///

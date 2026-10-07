@@ -94,10 +94,21 @@ pub async fn update_workspace_settings_handler(
 
     let members =
         cms_db::org::MemberQueries::get_by_user(&state.biz_context.pool, &auth.user.id).await?;
-    let org_id = members
-        .first()
-        .map(|m| m.organization_id.clone())
-        .ok_or_else(|| AppError::NotFound("No workspace organization found".to_string()))?;
+    let org_id = match members.first() {
+        Some(m) => m.organization_id.clone(),
+        None => {
+            let new_org = cms_biz::org::OrgService::create_organization(
+                &state.biz_context,
+                &auth.user.id,
+                cms_entity::org::CreateOrganizationRequest {
+                    name: body.name.clone().unwrap_or_else(|| "Workspace".to_string()),
+                    description: None,
+                },
+            )
+            .await?;
+            new_org.id
+        }
+    };
 
     // Persist the editable workspace fields onto the owning organization.
     let name = body.name.as_deref().filter(|s| !s.trim().is_empty());
@@ -121,11 +132,19 @@ pub async fn get_workspace_analytics_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<ApiResponse<WorkspaceAnalyticsResponse>>, AppError> {
-    let org_id = resolve_workspace_org(&state, &auth.user.id).await?;
-    let stats =
-        cms_biz::analytics::AnalyticsService::get_organization_stats(&state.biz_context, &org_id)
+    let org_id = match resolve_workspace_org(&state, &auth.user.id).await {
+        Ok(id) => Some(id),
+        Err(AppError::NotFound(_)) => None,
+        Err(e) => return Err(e),
+    };
+
+    let stats = if let Some(ref org_id) = org_id {
+        cms_biz::analytics::AnalyticsService::get_organization_stats(&state.biz_context, org_id)
             .await
-            .unwrap_or_else(|_| serde_json::json!({}));
+            .unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
 
     let total_views = stats
         .get("events")

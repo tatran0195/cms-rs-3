@@ -700,8 +700,10 @@ impl ProjectSettingsQueries {
 
         if has_updates {
             query_builder.push(", updated_at = ");
-            query_builder.push_bind(now);
+        } else {
+            query_builder.push("updated_at = ");
         }
+        query_builder.push_bind(now);
 
         query_builder.push(" WHERE project_id = ");
         query_builder.push_bind(project_id);

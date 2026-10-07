@@ -23,6 +23,7 @@ pub struct Branch {
 /// Branch create request
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateBranchRequest {
+    #[serde(default)]
     pub project_id: Id,
     pub name: String,
     #[serde(default)]

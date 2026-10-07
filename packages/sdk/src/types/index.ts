@@ -43,6 +43,18 @@ export * from './generated/ApiKeyResponse';
 export * from './generated/CreateApiKeyRequest';
 export * from './generated/UpdateUserRequest';
 export * from './generated/LoginResponse';
+export * from './generated/AuthUser';
+export * from './generated/AuthSession';
+export * from './generated/AuthSessionData';
+export * from './generated/SendVerificationOtpPayload';
+export * from './generated/VerifyEmailOtpPayload';
+export * from './generated/SignInEmailOtpPayload';
+export * from './generated/RequestEmailChangePayload';
+export * from './generated/ChangeEmailPayload';
+export * from './generated/SignInSocialPayload';
+export * from './generated/SignInSocialResponse';
+export * from './generated/UpdateUserPayload';
+export * from './generated/AcceptInvitationPayload';
 
 // Organization / Workspace
 export * from './generated/OrganizationResponse';

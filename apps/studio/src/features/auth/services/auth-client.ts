@@ -1,52 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/shared';
 
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  image?: string;
-  emailVerified?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { AuthUser as User, AuthSession as Session, AuthSessionData as SessionData } from '@cms/sdk';
 
-export interface Session {
-  id: string;
-  userId: string;
-  token?: string;
-}
+export type { User, Session, SessionData };
 
-export interface SessionData {
-  user: User;
-  session: Session;
-}
+import { cmsClient } from '@/shared/services/cms-client';
 
-async function authFetch<T>(path: string, options?: RequestInit): Promise<{ data?: T; error?: { message?: string; code?: string } }> {
+async function wrapSdkCall<T>(call: () => Promise<T>): Promise<{ data?: T; error?: { message?: string; code?: string } }> {
   try {
-    const headers = new Headers(options?.headers);
-    if (options?.body && !headers.has('Content-Type')) {
-      headers.set('Content-Type', 'application/json');
-    }
-    const res = await fetch(path, {
-      ...options,
-      headers,
-      credentials: 'include',
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return {
-        error: {
-          message: err?.message || err?.error?.message || `HTTP ${res.status}`,
-          code: err?.code || err?.error?.code,
-        },
-      };
-    }
-    const data = await res.json().catch(() => ({}));
+    const data = await call();
     return { data };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Network error';
-    return { error: { message: message || 'Network error' } };
+  } catch (err: unknown) {
+    const errorObj = err as { message?: string; code?: string };
+    const message = errorObj?.message || 'Network error';
+    return {
+      error: {
+        message,
+        code: errorObj?.code,
+      },
+    };
   }
 }
 
@@ -70,57 +43,30 @@ export function useSession() {
 export const authClient = {
   useSession,
   getSession: async (): Promise<SessionData | null> => {
-    try {
-      const res = await fetch('/api/auth/get-session', { credentials: 'include' });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json?.user ? json : null;
-    } catch {
-      return null;
-    }
+    return (await cmsClient.auth.getSession()) as SessionData | null;
   },
   verifyEmail: async (args: { query: { token: string } }) =>
-    authFetch<{ success?: boolean }>(`/api/auth/verify-email?token=${encodeURIComponent(args.query.token)}`, {
-      method: 'GET',
-    }),
+    wrapSdkCall(() => cmsClient.auth.verifyEmail<{ success?: boolean }>(args.query.token)),
   emailOtp: {
     sendVerificationOtp: async (args: { email: string; type?: string }) =>
-      authFetch<{ success?: boolean }>('/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      }),
+      wrapSdkCall(() => cmsClient.auth.sendVerificationOtp<{ success?: boolean }>(args)),
     verifyEmail: async (args: { email: string; otp: string }) =>
-      authFetch<{ success?: boolean }>('/api/auth/email-otp/verify-email', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      }),
+      wrapSdkCall(() => cmsClient.auth.verifyEmailOtp<{ success?: boolean }>(args)),
     requestEmailChange: async (args: { newEmail: string; otp: string }) =>
-      authFetch<{ success?: boolean }>('/api/auth/email-otp/request-email-change', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      }),
+      wrapSdkCall(() => cmsClient.auth.requestEmailChange<{ success?: boolean }>(args)),
     changeEmail: async (args: { newEmail: string; otp: string }) =>
-      authFetch<{ success?: boolean }>('/api/auth/email-otp/change-email', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      }),
+      wrapSdkCall(() => cmsClient.auth.changeEmail<{ success?: boolean }>(args)),
   },
   signIn: {
     emailOtp: async (args: { email: string; otp: string; name?: string }) => {
-      const result = await authFetch<SessionData>('/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      });
+      const result = await wrapSdkCall(() => cmsClient.auth.signInEmailOtp<SessionData>(args));
       if (result.data) {
         queryClient.invalidateQueries({ queryKey: sessionQueryKey });
       }
       return result;
     },
     social: async (args: { provider: string; callbackURL?: string }) => {
-      const result = await authFetch<{ url?: string }>('/api/auth/sign-in/social', {
-        method: 'POST',
-        body: JSON.stringify(args),
-      });
+      const result = await wrapSdkCall(() => cmsClient.auth.signInSocial<{ url?: string }>(args));
       if (result.data?.url && typeof window !== 'undefined') {
         window.location.href = result.data.url;
       }
@@ -128,19 +74,19 @@ export const authClient = {
     },
   },
   signOut: async () => {
-    const result = await authFetch<{ success?: boolean }>('/api/auth/sign-out', { method: 'POST' });
+    const result = await wrapSdkCall(() => cmsClient.auth.signOut<{ success?: boolean }>());
     queryClient.setQueryData(sessionQueryKey, null);
     queryClient.clear();
     return result;
   },
   updateUser: async (args: { name?: string; image?: string }) =>
-    authFetch<{ success?: boolean }>('/api/auth/update-user', { method: 'POST', body: JSON.stringify(args) }),
+    wrapSdkCall(() => cmsClient.auth.updateUser<{ success?: boolean }>(args)),
   organization: {
     acceptInvitation: async (args: { invitationId: string }) =>
-      authFetch<{ success?: boolean }>('/api/auth/organizations/accept-invitation', { method: 'POST', body: JSON.stringify(args) }),
+      wrapSdkCall(() => cmsClient.auth.acceptInvitation<{ success?: boolean }>(args)),
   },
   admin: {
-    stopImpersonating: async () => authFetch<{ success?: boolean }>('/api/auth/admin/stop-impersonating', { method: 'POST' }),
+    stopImpersonating: async () => wrapSdkCall(() => cmsClient.auth.stopImpersonating<{ success?: boolean }>()),
   },
 };
 

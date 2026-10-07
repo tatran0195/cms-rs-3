@@ -7,7 +7,7 @@ import type {
 } from '../types';
 
 export class CommentsResource {
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) { }
 
   /**
    * List comments for a page or project
@@ -28,6 +28,13 @@ export class CommentsResource {
    */
   async update(projectId: ProjectId, commentId: string, payload: UpdateCommentRequest): Promise<ProjectCommentResponse> {
     return this.http.patch<ProjectCommentResponse>(`/api/app/projects/${projectId}/comments/${commentId}`, payload);
+  }
+
+  /**
+   * Resolve comment
+   */
+  async resolve(projectId: ProjectId, commentId: string, payload: UpdateCommentRequest = { resolved: true, content: null }): Promise<ProjectCommentResponse> {
+    return this.update(projectId, commentId, payload);
   }
 
   /**

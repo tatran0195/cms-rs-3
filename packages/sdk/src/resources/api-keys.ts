@@ -31,4 +31,11 @@ export class ApiKeysResource {
   async revoke<T = unknown>(projectId: ProjectId, keyId: string): Promise<T> {
     return this.http.delete<T>(`/api/app/projects/${projectId}/api-keys/${keyId}`);
   }
+
+  /**
+   * Alias for revoke
+   */
+  async delete<T = unknown>(projectId: ProjectId, keyId: string): Promise<T> {
+    return this.revoke<T>(projectId, keyId);
+  }
 }

@@ -342,8 +342,10 @@ impl CommentQueries {
 
         if has_updates {
             query_builder.push(", updated_at = ");
-            query_builder.push_bind(Utc::now());
+        } else {
+            query_builder.push("updated_at = ");
         }
+        query_builder.push_bind(Utc::now());
 
         query_builder.push(" WHERE id = ");
         query_builder.push_bind(comment_id);

@@ -22,6 +22,10 @@ export class OpenApiResource {
     return this.http.put<T>(`/api/app/projects/${projectId}/openapi`, payload);
   }
 
+  async upsertConfig<T = unknown>(projectId: ProjectId, payload: unknown): Promise<T> {
+    return this.upsert<T>(projectId, payload);
+  }
+
   /**
    * Sync OpenAPI specification from remote URL
    */
@@ -34,6 +38,10 @@ export class OpenApiResource {
    */
   async delete<T = unknown>(projectId: ProjectId): Promise<T> {
     return this.http.delete<T>(`/api/app/projects/${projectId}/openapi`);
+  }
+
+  async deleteConfig<T = unknown>(projectId: ProjectId): Promise<T> {
+    return this.delete<T>(projectId);
   }
 
   /**

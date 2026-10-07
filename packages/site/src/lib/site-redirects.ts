@@ -1,6 +1,9 @@
 import { normalizeRedirectPath, resolveRedirectTarget } from '@cms/validators/redirects';
 import { redirect } from '@tanstack/react-router';
+import { createCmsClient } from '@cms/sdk';
 import { buildSiteRedirectHref } from './site-redirect-href';
+
+const defaultClient = createCmsClient();
 
 /**
  * Honor a configured `config.redirects` entry for `path`. Consulted only when a
@@ -25,10 +28,7 @@ export async function redirectIfConfigured(
     shell = await fetchSite(projectId, lang).catch(() => null);
   } else {
     try {
-      const res = await fetch(`/api/public/sites/${projectId}${lang ? `?lang=${encodeURIComponent(lang)}` : ''}`);
-      if (res.ok) {
-        shell = await res.json();
-      }
+      shell = (await defaultClient.public.getSite(projectId, { lang })) as { project: { config: unknown } };
     } catch {
       // ignore
     }

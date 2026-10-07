@@ -16,3 +16,4 @@ export * from './addons';
 export * from './api-keys';
 export * from './notifications';
 export * from './public';
+export * from './auth';

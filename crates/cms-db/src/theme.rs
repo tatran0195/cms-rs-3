@@ -69,7 +69,13 @@ pub struct ThemeQueries;
 impl ThemeQueries {
     /// Get a theme by ID
     pub async fn get_by_id(pool: &PgPool, theme_id: &str) -> Result<Option<Theme>, AppError> {
-        let row = sqlx::query_as::<_, ThemeRow>("SELECT * FROM \"ProjectSettings\" WHERE id = $1")
+        let row = sqlx::query_as::<_, ThemeRow>(
+            "SELECT project_id as id, project_id, COALESCE(theme, 'default') as name, \
+             '#3B82F6'::text as primary_color, '#60A5FA'::text as secondary_color, \
+             '#FFFFFF'::text as background_color, '#111827'::text as text_color, \
+             NULL::text as font_family, NULL::text as logo_url, NULL::text as favicon_url, \
+             created_at, updated_at FROM \"ProjectSettings\" WHERE project_id = $1",
+        )
             .bind(theme_id)
             .fetch_optional(pool)
             .await
@@ -81,11 +87,12 @@ impl ThemeQueries {
     /// Get themes by project
     pub async fn get_by_project(pool: &PgPool, project_id: &str) -> Result<Vec<Theme>, AppError> {
         // Note: In the actual schema, themes are stored in ProjectSettings
-        // This is a simplified query
         let rows = sqlx::query_as::<_, ThemeRow>(
-            "SELECT id, project_id, theme as name, '{}'::jsonb as config, false as is_global, \
-             created_at, updated_at FROM \"ProjectSettings\" WHERE project_id = $1 AND theme IS \
-             NOT NULL",
+            "SELECT project_id as id, project_id, COALESCE(theme, 'default') as name, \
+             '#3B82F6'::text as primary_color, '#60A5FA'::text as secondary_color, \
+             '#FFFFFF'::text as background_color, '#111827'::text as text_color, \
+             NULL::text as font_family, NULL::text as logo_url, NULL::text as favicon_url, \
+             created_at, updated_at FROM \"ProjectSettings\" WHERE project_id = $1",
         )
         .bind(project_id)
         .fetch_all(pool)
@@ -164,8 +171,10 @@ impl ThemeQueries {
 
         if has_updates {
             query_builder.push(", updated_at = ");
-            query_builder.push_bind(Utc::now());
+        } else {
+            query_builder.push("updated_at = ");
         }
+        query_builder.push_bind(Utc::now());
 
         query_builder.push(" WHERE id = ");
         query_builder.push_bind(theme_id);

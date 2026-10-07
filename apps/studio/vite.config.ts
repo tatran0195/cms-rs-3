@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@/hooks': fileURLToPath(new URL('./src/shared/hooks', import.meta.url)),
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@cms/sdk': fileURLToPath(new URL('../../packages/sdk/src/index.ts', import.meta.url)),
       },
     },
     server: {

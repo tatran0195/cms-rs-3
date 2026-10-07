@@ -14,6 +14,7 @@
   "dependencies": {
     "@cms/design-system": "workspace:*",
     "@cms/i18n": "workspace:*",
+    "@cms/sdk": "workspace:*",
     "@cms/shared": "workspace:*",
     "@cms/site": "workspace:*",
     "@cms/validators": "workspace:*",

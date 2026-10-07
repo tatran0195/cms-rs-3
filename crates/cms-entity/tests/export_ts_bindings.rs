@@ -42,6 +42,18 @@ fn export_all_typescript_bindings() {
     cms_entity::auth::CreateApiKeyRequest::export_all(&cfg).unwrap();
     cms_entity::auth::UpdateUserRequest::export_all(&cfg).unwrap();
     cms_entity::auth::LoginResponse::export_all(&cfg).unwrap();
+    cms_entity::auth::AuthUser::export_all(&cfg).unwrap();
+    cms_entity::auth::AuthSession::export_all(&cfg).unwrap();
+    cms_entity::auth::AuthSessionData::export_all(&cfg).unwrap();
+    cms_entity::auth::SendVerificationOtpPayload::export_all(&cfg).unwrap();
+    cms_entity::auth::VerifyEmailOtpPayload::export_all(&cfg).unwrap();
+    cms_entity::auth::SignInEmailOtpPayload::export_all(&cfg).unwrap();
+    cms_entity::auth::RequestEmailChangePayload::export_all(&cfg).unwrap();
+    cms_entity::auth::ChangeEmailPayload::export_all(&cfg).unwrap();
+    cms_entity::auth::SignInSocialPayload::export_all(&cfg).unwrap();
+    cms_entity::auth::SignInSocialResponse::export_all(&cfg).unwrap();
+    cms_entity::auth::UpdateUserPayload::export_all(&cfg).unwrap();
+    cms_entity::auth::AcceptInvitationPayload::export_all(&cfg).unwrap();
 
     // Org / Workspace
     cms_entity::org::OrganizationResponse::export_all(&cfg).unwrap();

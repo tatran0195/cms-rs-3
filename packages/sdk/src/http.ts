@@ -12,7 +12,7 @@ export interface HttpClientOptions {
   /**
    * Base URL of the Axum CMS API, e.g. http://localhost:8080 or https://api.cms.company.internal
    */
-  baseUrl: string;
+  baseUrl?: string;
   /**
    * Static token or dynamic token getter (e.g. from session or auth store)
    */
@@ -63,9 +63,10 @@ export class HttpClient {
   private readonly dynamicHeaders?: HttpClientOptions['headers'];
   private readonly timeout: number | false;
 
-  constructor(options: HttpClientOptions) {
+  constructor(options: HttpClientOptions = {}) {
     this.options = options;
-    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
+    const defaultOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    this.baseUrl = (options.baseUrl ?? defaultOrigin).replace(/\/+$/, '');
     this.token = options.token;
     this.dynamicHeaders = options.headers;
     this.timeout = options.timeout ?? 30_000;

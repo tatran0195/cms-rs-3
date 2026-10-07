@@ -1,7 +1,10 @@
+import { createCmsClient } from '@cms/sdk';
 import type { ProjectConfig } from '@cms/validators';
 import { useMutation } from '@tanstack/react-query';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo } from 'react';
 import type { PublicAnalyticsPayload } from '../types';
+
+const telemetryClient = createCmsClient();
 
 export type { PublicAnalyticsPayload } from '../types';
 
@@ -51,11 +54,7 @@ export function SiteAnalyticsProvider({
   const { mutate: createEvent } = useMutation({
     mutationFn: async (event: SiteAnalyticsEvent) => {
       try {
-        await fetch(`/api/public/sites/${projectId}/events`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(event),
-        });
+        await telemetryClient.public.recordEvent(projectId, event);
       } catch {
         // Telemetry must never crash or block UI
       }

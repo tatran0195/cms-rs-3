@@ -284,6 +284,157 @@ pub struct ProjectApiKeyResponse {
     pub secret: Option<String>,
 }
 
+/// Authenticated user representation matching Better-Auth / SPA client format
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthUser {
+    pub id: Id,
+    pub email: String,
+    #[ts(optional = nullable)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[ts(optional = nullable)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email_verified: Option<bool>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime<Utc>>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl From<&User> for AuthUser {
+    fn from(user: &User) -> Self {
+        Self {
+            id: user.id.clone(),
+            email: user.email.clone(),
+            name: user.name.clone(),
+            image: user.image.clone(),
+            email_verified: Some(user.email_verified),
+            created_at: Some(user.created_at),
+            updated_at: Some(user.updated_at),
+        }
+    }
+}
+
+impl From<User> for AuthUser {
+    fn from(user: User) -> Self {
+        Self::from(&user)
+    }
+}
+
+/// Authenticated session representation matching Better-Auth / SPA client format
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthSession {
+    pub id: Id,
+    pub user_id: Id,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+/// Active auth session payload containing both user and session
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+pub struct AuthSessionData {
+    pub user: AuthUser,
+    pub session: AuthSession,
+}
+
+/// Send email verification OTP request payload
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, utoipa::ToSchema, ts_rs::TS)]
+pub struct SendVerificationOtpPayload {
+    #[validate(email(message = "Invalid email format"))]
+    pub email: String,
+    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub otp_type: Option<String>,
+}
+
+/// Verify email OTP request payload
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, utoipa::ToSchema, ts_rs::TS)]
+pub struct VerifyEmailOtpPayload {
+    #[validate(email(message = "Invalid email format"))]
+    pub email: String,
+    pub otp: String,
+}
+
+/// Sign in via email OTP request payload
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, utoipa::ToSchema, ts_rs::TS)]
+pub struct SignInEmailOtpPayload {
+    #[validate(email(message = "Invalid email format"))]
+    pub email: String,
+    pub otp: String,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+/// Request email change OTP payload
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestEmailChangePayload {
+    #[validate(email(message = "Invalid email format"))]
+    pub new_email: String,
+    pub otp: String,
+}
+
+/// Confirm email change with OTP payload
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeEmailPayload {
+    #[validate(email(message = "Invalid email format"))]
+    pub new_email: String,
+    pub otp: String,
+}
+
+/// Social sign-in request payload
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+pub struct SignInSocialPayload {
+    pub provider: String,
+    #[serde(rename = "callbackURL", alias = "callbackUrl", default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub callback_url: Option<String>,
+}
+
+/// Social sign-in response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SignInSocialResponse {
+    pub url: String,
+    pub redirect: bool,
+    pub state: String,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_challenge: Option<String>,
+}
+
+/// Update user profile attributes payload
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+pub struct UpdateUserPayload {
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[ts(optional)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+}
+
+/// Accept organization invitation payload
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AcceptInvitationPayload {
+    pub invitation_id: String,
+}
+
+
 #[cfg(test)]
 mod tests {
 

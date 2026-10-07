@@ -19,6 +19,7 @@ import {
   ApiKeysResource,
   NotificationsResource,
   PublicResource,
+  AuthResource,
 } from './resources';
 
 export type CmsClientOptions = HttpClientOptions;
@@ -44,8 +45,9 @@ export class CmsClient {
   readonly apiKeys: ApiKeysResource;
   readonly notifications: NotificationsResource;
   readonly public: PublicResource;
+  readonly auth: AuthResource;
 
-  constructor(options: CmsClientOptions, existingHttp?: HttpClient) {
+  constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
     this.http = existingHttp ?? new HttpClient(options);
 
     this.projects = new ProjectsResource(this.http);
@@ -66,6 +68,7 @@ export class CmsClient {
     this.apiKeys = new ApiKeysResource(this.http);
     this.notifications = new NotificationsResource(this.http);
     this.public = new PublicResource(this.http);
+    this.auth = new AuthResource(this.http);
   }
 
   /**
@@ -87,6 +90,6 @@ export class CmsClient {
 /**
  * Factory function to create a typed CMS client instance
  */
-export function createCmsClient(options: CmsClientOptions): CmsClient {
+export function createCmsClient(options: CmsClientOptions = {}): CmsClient {
   return new CmsClient(options);
 }

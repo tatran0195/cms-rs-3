@@ -54,7 +54,7 @@ export function SidebarAccountFooter() {
                 }
               >
                 <Avatar className="size-9 rounded-lg">
-                  {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name} src={visibleSession.user.image} /> : null}
+                  {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name ?? undefined} src={visibleSession.user.image} /> : null}
                   <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-primary/60 font-semibold text-primary-foreground text-xs">
                     {initials}
                   </AvatarFallback>
@@ -72,7 +72,7 @@ export function SidebarAccountFooter() {
               <DropdownMenuContent align="end" className="w-64" side="top">
                 <DropdownMenuLabel className="flex items-center gap-3 py-2">
                   <Avatar className="size-9 rounded-lg">
-                    {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name} src={visibleSession.user.image} /> : null}
+                    {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name ?? undefined} src={visibleSession.user.image} /> : null}
                     <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                   </Avatar>
                   <span className="min-w-0">
