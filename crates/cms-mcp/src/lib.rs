@@ -1,100 +1,43 @@
-//! CMS MCP Server
+//! CMS Model Context Protocol (MCP) Server.
 //!
-//! This crate provides the Model Context Protocol (MCP) server implementation.
-//! MCP allows AI agents to query CMS's documentation programmatically.
+//! This crate provides the official Model Context Protocol (MCP) server implementation
+//! powered by `rmcp`. It allows AI agents (e.g. Claude Desktop, Cursor, Antigravity) to query
+//! and search CMS documentation programmatically via Streamable HTTP (Axum) or stdio transport.
+
+pub mod handler;
+pub mod types;
+
+pub use handler::*;
+pub use types::*;
 
 use std::sync::Arc;
+use cms_biz::BizContext;
+use rmcp::service::ServiceExt;
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+use rmcp::transport::streamable_http_server::tower::StreamableHttpService;
+use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 
-use axum::{extract::State, Json, Router};
-use cms_biz::{mcp::McpService, BizContext};
-use cms_entity::mcp::{McpCapabilities, McpRequest, McpResponse};
-use cms_error::AppError;
-
-/// MCP router
-pub fn mcp_router(ctx: Arc<BizContext>) -> Router {
-    Router::new()
-        .route("/mcp/capabilities", axum::routing::get(get_capabilities))
-        .route("/mcp/tools", axum::routing::post(execute_tool))
-        .with_state(ctx)
+/// Construct a Streamable HTTP Tower service for mounting into Axum routers.
+pub fn create_mcp_http_service(
+    ctx: Arc<BizContext>,
+    security: McpSecurityContext,
+) -> StreamableHttpService<CmsMcpHandler, LocalSessionManager> {
+    let handler = CmsMcpHandler::new(ctx, security);
+    StreamableHttpService::new(
+        move || Ok(handler.clone()),
+        Arc::new(LocalSessionManager::default()),
+        StreamableHttpServerConfig::default().with_json_response(true),
+    )
 }
 
-/// Get MCP capabilities
-async fn get_capabilities(
-    State(ctx): State<Arc<BizContext>>,
-) -> Result<Json<McpCapabilities>, AppError> {
-    let capabilities = McpService::get_capabilities(&ctx, None, None, None).await?;
-    Ok(Json(capabilities))
+/// Run the MCP server over stdio transport.
+pub async fn run_stdio(
+    ctx: Arc<BizContext>,
+    security: McpSecurityContext,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let handler = CmsMcpHandler::new(ctx, security);
+    let running = handler.serve(rmcp::transport::stdio()).await?;
+    running.waiting().await?;
+    Ok(())
 }
 
-/// Execute an MCP tool
-async fn execute_tool(
-    State(ctx): State<Arc<BizContext>>,
-    Json(request): Json<McpRequest>,
-) -> Result<Json<McpResponse>, AppError> {
-    let response = McpService::execute_tool(&ctx, None, None, request).await?;
-    Ok(Json(response))
-}
-
-/// MCP server implementation
-pub struct McpServer;
-
-impl Default for McpServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl McpServer {
-    /// Create a new MCP server
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// Handle an MCP request
-    pub async fn handle_request(
-        &self,
-        ctx: Arc<BizContext>,
-        request: McpRequest,
-    ) -> Result<McpResponse, AppError> {
-        McpService::execute_tool(&ctx, None, None, request).await
-    }
-}
-
-/// MCP client for testing
-pub struct McpClient;
-
-impl McpClient {
-    pub async fn get_capabilities(
-        &self,
-        ctx: Arc<BizContext>,
-    ) -> Result<McpCapabilities, AppError> {
-        McpService::get_capabilities(&ctx, None, None, None).await
-    }
-
-    pub async fn execute_tool(
-        &self,
-        ctx: Arc<BizContext>,
-        request: McpRequest,
-    ) -> Result<McpResponse, AppError> {
-        McpService::execute_tool(&ctx, None, None, request).await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use cms_biz::BizContext;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn test_get_capabilities() {
-        let pool = cms_db::PgPool::connect_lazy("postgres://user:pass@localhost/db").unwrap();
-        let ctx = BizContext::new(pool, Arc::new(cms_authz::NoopAuthz));
-
-        let capabilities = McpService::get_capabilities(&ctx, None, None, None)
-            .await
-            .unwrap();
-
-        assert!(!capabilities.tools.is_empty());
-    }
-}

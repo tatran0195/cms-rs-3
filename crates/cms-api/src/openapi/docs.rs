@@ -107,11 +107,6 @@ use utoipa::{
 
         // Mcp endpoints
         crate::mcp::handlers::list_mcp_audit_events_handler,
-        crate::mcp::handlers::get_mcp_server_info_handler,
-        crate::mcp::handlers::list_mcp_tools_handler,
-        crate::mcp::handlers::call_mcp_tool_handler,
-        crate::mcp::handlers::list_mcp_resources_handler,
-        crate::mcp::handlers::read_mcp_resource_handler,
 
         // Notification endpoints
         crate::notification::handlers::list_notifications_handler,

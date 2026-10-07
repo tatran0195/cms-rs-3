@@ -109,6 +109,8 @@ clap = { version = "4.5", features = ["derive"] }
 rust-embed = "8.6"
 mime_guess = "2.0"
 ipnet = "2.12"
+rmcp = { version = "3.5", features = ["server", "macros", "transport-streamable-http-server", "transport-io"] }
+schemars = "1.0"
 
 # Authentication
 jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
