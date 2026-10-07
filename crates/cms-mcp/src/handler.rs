@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use cms_biz::{mcp::McpService, BizContext};
-use cms_entity::mcp::McpRequest;
 use rmcp::{
     handler::server::wrapper::Parameters,
     model::*,
@@ -53,38 +52,18 @@ impl CmsMcpHandler {
     ) -> Result<CallToolResult, ErrorData> {
         self.check_scope("search:read")?;
 
-        let request = McpRequest {
-            tool_name: "search".to_string(),
-            arguments: serde_json::json!({
-                "query": args.query,
-                "project_id": args.project_id,
-                "limit": args.limit.unwrap_or(10),
-            }),
-        };
-
-        let resp = McpService::execute_tool(
+        let text = McpService::search(
             &self.ctx,
             self.security.user_id.as_deref(),
             self.security.org_id.as_deref(),
-            request,
+            &args.query,
+            &args.project_id,
+            args.limit,
         )
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
-        if resp.is_error {
-            let msg = resp
-                .error_message
-                .unwrap_or_else(|| "Search failed".to_string());
-            Ok(CallToolResult::error(vec![ContentBlock::text(msg)]))
-        } else {
-            let text = resp
-                .result
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
-        }
+        Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
     }
 
     /// Retrieve the full markdown content of a documentation page by path.
@@ -95,47 +74,19 @@ impl CmsMcpHandler {
     ) -> Result<CallToolResult, ErrorData> {
         self.check_scope("pages:read")?;
 
-        let request = McpRequest {
-            tool_name: "get_page".to_string(),
-            arguments: serde_json::json!({
-                "project_id": args.project_id,
-                "path": args.path,
-                "branch_id": args.branch_id,
-            }),
-        };
-
-        let resp = McpService::execute_tool(
+        let text = McpService::get_page(
             &self.ctx,
             self.security.user_id.as_deref(),
             self.security.org_id.as_deref(),
-            request,
+            &args.project_id,
+            &args.path,
+            args.branch_id.as_deref(),
+            args.max_chars,
         )
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
-        if resp.is_error {
-            let msg = resp
-                .error_message
-                .unwrap_or_else(|| "Failed to get page".to_string());
-            Ok(CallToolResult::error(vec![ContentBlock::text(msg)]))
-        } else {
-            let mut text = resp
-                .result
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            // Truncate if max_chars parameter specified
-            if let Some(limit) = args.max_chars {
-                if text.len() > limit {
-                    text.truncate(limit);
-                    text.push_str("\n\n... [Truncated: exceeded max_chars limit]");
-                }
-            }
-
-            Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
-        }
+        Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
     }
 
     /// List all documentation pages in a project.
@@ -146,38 +97,18 @@ impl CmsMcpHandler {
     ) -> Result<CallToolResult, ErrorData> {
         self.check_scope("pages:read")?;
 
-        let request = McpRequest {
-            tool_name: "list_pages".to_string(),
-            arguments: serde_json::json!({
-                "project_id": args.project_id,
-                "branch_id": args.branch_id,
-                "limit": args.limit.unwrap_or(50),
-            }),
-        };
-
-        let resp = McpService::execute_tool(
+        let text = McpService::list_pages(
             &self.ctx,
             self.security.user_id.as_deref(),
             self.security.org_id.as_deref(),
-            request,
+            &args.project_id,
+            args.branch_id.as_deref(),
+            args.limit,
         )
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
-        if resp.is_error {
-            let msg = resp
-                .error_message
-                .unwrap_or_else(|| "Failed to list pages".to_string());
-            Ok(CallToolResult::error(vec![ContentBlock::text(msg)]))
-        } else {
-            let text = resp
-                .result
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
-        }
+        Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
     }
 
     /// Retrieve project metadata and description.
@@ -188,36 +119,16 @@ impl CmsMcpHandler {
     ) -> Result<CallToolResult, ErrorData> {
         self.check_scope("projects:read")?;
 
-        let request = McpRequest {
-            tool_name: "get_project".to_string(),
-            arguments: serde_json::json!({
-                "project_id": args.project_id,
-            }),
-        };
-
-        let resp = McpService::execute_tool(
+        let text = McpService::get_project(
             &self.ctx,
             self.security.user_id.as_deref(),
             self.security.org_id.as_deref(),
-            request,
+            &args.project_id,
         )
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
-        if resp.is_error {
-            let msg = resp
-                .error_message
-                .unwrap_or_else(|| "Failed to get project".to_string());
-            Ok(CallToolResult::error(vec![ContentBlock::text(msg)]))
-        } else {
-            let text = resp
-                .result
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
-        }
+        Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
     }
 }
 
@@ -244,28 +155,19 @@ impl ServerHandler for CmsMcpHandler {
     ) -> Result<ListResourcesResult, ErrorData> {
         self.check_scope("pages:read")?;
 
-        let val =
-            McpService::list_resources(&self.ctx, self.security.user_id.as_deref().unwrap_or(""))
-                .await
-                .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
+        let items = McpService::list_resources(&self.ctx, self.security.user_id.as_deref())
+            .await
+            .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
-        let mut resources = Vec::new();
-        if let Some(arr) = val.as_array() {
-            for item in arr {
-                if let (Some(uri), Some(name)) = (
-                    item.get("uri").and_then(|v| v.as_str()),
-                    item.get("name").and_then(|v| v.as_str()),
-                ) {
-                    let mut res = Resource::new(uri, name);
-                    res.mime_type = Some("text/markdown".to_string());
-                    res.description = item
-                        .get("description")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string());
-                    resources.push(res);
-                }
-            }
-        }
+        let resources = items
+            .into_iter()
+            .map(|item| {
+                let mut res = Resource::new(item.uri, item.name);
+                res.mime_type = Some(item.mime_type);
+                res.description = item.description;
+                res
+            })
+            .collect();
 
         Ok(ListResourcesResult::with_all_items(resources))
     }
@@ -277,22 +179,13 @@ impl ServerHandler for CmsMcpHandler {
     ) -> Result<ReadResourceResponse, ErrorData> {
         self.check_scope("pages:read")?;
 
-        let val = McpService::read_resource(
+        let text = McpService::read_resource(
             &self.ctx,
-            self.security.user_id.as_deref().unwrap_or(""),
+            self.security.user_id.as_deref(),
             &params.uri,
         )
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
-
-        let text = val
-            .get("contents")
-            .and_then(|c| c.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|first| first.get("text"))
-            .and_then(|t| t.as_str())
-            .unwrap_or("")
-            .to_string();
 
         Ok(ReadResourceResult::new(vec![ResourceContents::text(text, params.uri)]).into())
     }
