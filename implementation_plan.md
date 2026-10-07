@@ -7,13 +7,17 @@
 The core problem of `cms-rs-3` is not that Rust is difficult or verbose; it is that the codebase was ported as **syntax-level translation of a Node.js/TypeScript application**. It carries JavaScript runtime idioms into a compiled systems language: untyped JSON dictionaries (`serde_json::Value`), stringly-typed IDs (`pub type Id = String`), anemic models traversing 6 object conversion hops, sequential $N+1$ query chains masquerading as ORM navigation, and a single monolithic catch-all error enum (`AppError`).
 
 ### Critical Corrections to Prior Audit Assumptions
+
 Before locking the architecture, empirical inspection of the codebase invalidates three prior audit assumptions:
+
 1. **The `project_members` table does not exist in PostgreSQL.** The prior audit claimed project role evaluation bypassed a `project_members` table. Inspection of `migrations/` reveals tenancy is strictly hierarchical: projects belong to an `Organization`, and users belong to an `Organization` with a `MemberRole` (`Owner`, `Admin`, `Member`, `Guest`). Authorization must check membership in the project's owning organization, not a nonexistent table.
 2. **Deleting `/api/app/*` routes immediately will break the frontend.** `apps/studio` explicitly issues requests to `/api/app/projects/...`. A naive route deletion causes instant 404 outages. Canonical routes must be `/api/v1/*`, while `/api/app/*` is preserved as a zero-cost routing alias until frontend client migration.
 3. **Migrating PostgreSQL column types from `TEXT` to native `UUID` on live data is high-risk and premature.** Altering primary and foreign key columns across 30+ tables requires exclusive table locks and schema rewrites. In Rust, nominal newtypes (`ProjectId(pub Uuid)`) can bind and parse to text columns transparently via `sqlx::Type` and `FromStr`. We achieve 100% compile-time type safety in Rust today with zero risk of database schema disruption.
 
 ### The Rust-Native Target
+
 We will transform `cms-rs-3` into an idiomatic Rust service:
+
 * **Strong Type Invariants:** Resource IDs are nominal types (`ProjectId`, `OrgId`, `UserId`). Mismatched parameters fail at compile time.
 * **Typed API Boundaries:** All 200+ handlers replace dynamic `serde_json::Value` with strongly typed Serde DTOs and `ValidatedJson<T>`.
 * **Relational Query Consolidation:** Replace 4-hop sequential query chains with single parameterized SQL `JOIN`s.
@@ -83,7 +87,7 @@ We will transform `cms-rs-3` into an idiomatic Rust service:
 ### Crate Classification & Boundary Decisions
 
 | Crate | Action | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | `apps/api` | **KEEP** | Binary composition root. Initializes tracing, pool, worker supervision, and Axum listener. |
 | `crates/cms-config` | **KEEP** | Strongly typed config parsing with TOML and env overrides. |
 | `crates/cms-entity` | **REWRITE** | Replace cosmetic `pub type Id = String;` with nominal typed newtypes (`ProjectId`, `OrgId`, etc.). Add typed DTOs. |
@@ -125,8 +129,10 @@ We will transform `cms-rs-3` into an idiomatic Rust service:
 The following four foundational changes must be implemented before refactoring domain features:
 
 ### Foundation 1: Nominal Identifier Types (`cms-entity::id`)
+
 * **Why foundational:** Prevents cross-entity parameter confusion across all handlers, services, and queries.
 * **Types Introduced:**
+
   ```rust
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
   #[serde(transparent)]
@@ -144,11 +150,14 @@ The following four foundational changes must be implemented before refactoring d
   #[serde(transparent)]
   pub struct PageId(pub uuid::Uuid);
   ```
+
   Each type implements `sqlx::Type<sqlx::Postgres>`, `sqlx::Encode`, `sqlx::Decode`, `std::fmt::Display`, and `std::str::FromStr`.
 
 ### Foundation 2: Explicit Tenant Context (`cms-domain::tenant`)
+
 * **Why foundational:** Guarantees that every business operation possesses an authenticated user and an organization scope.
 * **Types Introduced:**
+
   ```rust
   #[derive(Debug, Clone)]
   pub struct TenantContext {
@@ -165,8 +174,10 @@ The following four foundational changes must be implemented before refactoring d
   ```
 
 ### Foundation 3: Scoped Domain Errors & RFC 7807 Problem Details (`cms-error`)
+
 * **Why foundational:** Eliminates database leakage while giving domain logic structured failure variants.
 * **Types Introduced:**
+
   ```rust
   // In crates/cms-domain/src/project/error.rs
   #[derive(Debug, thiserror::Error)]
@@ -192,8 +203,10 @@ The following four foundational changes must be implemented before refactoring d
   ```
 
 ### Foundation 4: Typed API Envelope & Validated Extractor (`cms-api::extractor`)
+
 * **Why foundational:** Replaces raw `Json<serde_json::Value>` and manual dictionary parsing with compile-time schema validation.
 * **Types Introduced:**
+
   ```rust
   #[derive(Debug, serde::Serialize)]
   pub struct ApiResponse<T> {
@@ -272,7 +285,9 @@ The following four foundational changes must be implemented before refactoring d
 # 6. First Vertical Slice: The Project Domain
 
 ### Selection: `Project`
+
 The **Project** domain is selected as the first vertical slice because it exercises every architectural requirement:
+
 1. It sits directly below `Organization` in the tenancy hierarchy.
 2. It requires `TenantContext` and role authorization (`Owner`, `Admin`, `Member`).
 3. It requires an **atomic multi-table transaction** (inserting `Project`, `Branch`, `Language`, and `ProjectSettings` in one commit).
@@ -285,6 +300,7 @@ The **Project** domain is selected as the first vertical slice because it exerci
 # 7. Reference Implementation Specification: Project Domain
 
 ### Directory Structure
+
 ```text
 crates/cms-domain/src/project/
 ├── mod.rs                  # Domain re-exports
@@ -303,6 +319,7 @@ crates/cms-api/src/project/
 ```
 
 ### 1. Types & DTOs (`crates/cms-api/src/project/dto.rs`)
+
 ```rust
 use validator::Validate;
 use serde::{Deserialize, Serialize};
@@ -330,6 +347,7 @@ pub struct ProjectSummaryResponse {
 ```
 
 ### 2. Domain Operation (`crates/cms-domain/src/project/ops.rs`)
+
 ```rust
 pub struct ProjectOps;
 
@@ -360,6 +378,7 @@ impl ProjectOps {
 ```
 
 ### 3. Database Projection (`crates/cms-db/src/project/queries.rs`)
+
 ```rust
 pub struct ProjectQueries;
 
@@ -412,6 +431,7 @@ impl ProjectQueries {
 ```
 
 ### 4. HTTP Handler (`crates/cms-api/src/project/handlers.rs`)
+
 ```rust
 pub async fn create_project_handler(
     State(state): State<Arc<AppState>>,
@@ -448,6 +468,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 # 9. Implementation Backlog
 
 ### Task 1: Fix Analytics Cross-Tenant Leakage (P0)
+
 * **Problem:** `AnalyticsService::query_events` omits `org_id`, allowing any tenant admin to read events from other organizations.
 * **Current:** [`crates/cms-biz/src/analytics.rs:55-65`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/analytics.rs#L55-L65).
 * **Target:** Mandatory `org_id: &str` parameter in `AnalyticsEventQueries::query` with `WHERE organization_id = $1`.
@@ -461,6 +482,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** `query_events` filters strictly by organization ID; integration test passes.
 
 ### Task 2: Pin Resolved IP in OpenAPI Sync to Block DNS Rebinding SSRF (P0)
+
 * **Problem:** DNS lookup followed by unpinned `reqwest::get` enables TOCTOU DNS rebinding bypass.
 * **Current:** [`crates/cms-biz/src/openapi.rs:267-293`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/openapi.rs#L267-L293).
 * **Target:** Resolve DNS once, validate against private IP blacklists, and pass pinned IP to `reqwest::ClientBuilder::resolve`.
@@ -474,6 +496,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** `reqwest` connects only to pre-validated IP address; tests pass.
 
 ### Task 3: Secure Webhook Secret Generation (P0)
+
 * **Problem:** Secrets synthesized as `whsec_{conn.id}` are forgeable by anyone who knows the UUID.
 * **Current:** [`crates/cms-api/src/project/handlers/git.rs:119, 201, 226`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/project/handlers/git.rs#L119).
 * **Target:** 32 cryptographically secure random bytes formatted as hex: `whsec_{hex}`.
@@ -487,6 +510,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** All generated webhook secrets use CSPRNG hex strings.
 
 ### Task 4: Introduce Nominal Typed Newtypes (P1)
+
 * **Problem:** `pub type Id = String;` allows mixing up entity IDs across handlers and queries.
 * **Current:** [`crates/cms-entity/src/common.rs:7`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-entity/src/common.rs#L7).
 * **Target:** Create `ProjectId(Uuid)`, `OrgId(Uuid)`, `UserId(Uuid)`, `PageId(Uuid)` with Serde and SQLx support.
@@ -500,6 +524,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** Newtypes exported and unit-tested in `cms-entity`.
 
 ### Task 5: Implement `TenantContext` & Authorization Simplification (P1)
+
 * **Problem:** Project role evaluation proxies directly to organization role with redundant queries.
 * **Current:** [`crates/cms-authz/src/lib.rs:121-136`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-authz/src/lib.rs#L121-L136).
 * **Target:** Introduce `TenantContext` containing `user_id`, `org_id`, and `role`. Query `Member` table in a single check.
@@ -513,6 +538,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** `TenantContext` available as Axum extractor; passes role check tests.
 
 ### Task 6: Implement Reference Vertical Slice: Project Domain (P1)
+
 * **Problem:** Handlers use untyped `serde_json::Value`, manual dictionaries, and intermediate `Row` conversions.
 * **Current:** [`crates/cms-api/src/project/handlers/core.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/project/handlers/core.rs).
 * **Target:** Statically typed DTOs, `ValidatedJson`, atomic CTE insertion, and direct SQLx projection.
@@ -526,6 +552,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** All project endpoints use typed DTOs and atomic CTE transactions; integration tests pass.
 
 ### Task 7: Page Navigation Projection & Omit Content Blobs (P1)
+
 * **Problem:** Listing pages transfers full markdown content across the network.
 * **Current:** [`crates/cms-db/src/page.rs:84-100, 310`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-db/src/page.rs#L84-L100).
 * **Target:** Lightweight `PageNavSummary` query selecting only tree metadata; separate endpoint for page content.
@@ -539,6 +566,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** Page tree endpoints transfer zero markdown content bytes.
 
 ### Task 8: Relational Consolidation for Comments (P1)
+
 * **Problem:** Comment lookups execute 4 sequential queries to verify permissions.
 * **Current:** [`crates/cms-biz/src/comment.rs:55-74`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/comment.rs#L55-L74).
 * **Target:** Single query with SQL `JOIN`s (`Comment JOIN Page JOIN Project JOIN Member`).
@@ -552,6 +580,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** Comment access verified in a single database round trip.
 
 ### Task 9: Upgrade Rate Limiter to Keyed Governor (P2)
+
 * **Problem:** Global write lock `RwLock<HashMap>` causes thread contention.
 * **Current:** [`crates/cms-middleware/src/rate_limit.rs:223`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-middleware/src/rate_limit.rs#L223).
 * **Target:** `governor::RateLimiter::keyed` with lock-free concurrent checks.
@@ -565,6 +594,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 * **Definition of Done:** Zero mutex/RwLock acquisitions in rate limiter hot path.
 
 ### Task 10: Upgrade Host Resolution Cache to Moka (P2)
+
 * **Problem:** Cache miss triggers $O(N)$ linear scans under exclusive lock.
 * **Current:** [`crates/cms-sites/src/host_resolution.rs:295-305`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-sites/src/host_resolution.rs#L295-L305).
 * **Target:** `moka::future::Cache` with automatic concurrent TinyLFU eviction.
@@ -582,7 +612,7 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 # 10. Work Classification Matrix
 
 | Task | Priority | Lifecycle Stage |
-|---|:---:|:---:|
+| --- | :---: | :---: |
 | **Task 1: Fix Analytics Cross-Tenant Leak** | **P0** | **MUST DO BEFORE FEATURE MIGRATION** |
 | **Task 2: Pin IP in OpenAPI Fetch (SSRF)** | **P0** | **MUST DO BEFORE FEATURE MIGRATION** |
 | **Task 3: Secure Webhook Secret Generation** | **P0** | **MUST DO BEFORE FEATURE MIGRATION** |
@@ -601,22 +631,27 @@ To prevent large-scale churn and broken dependencies, explicitly defer the follo
 # 11. Migration Checkpoints
 
 ### Checkpoint 1: Security & Tenancy Safe
+
 * **Prerequisites:** Tasks 1, 2, and 3 complete.
 * **Verification:** All P0 security regressions passing. Analytics query verified tenant-scoped. Webhook secrets unpredictable.
 
 ### Checkpoint 2: Rust-Native Foundation Established
+
 * **Prerequisites:** Tasks 4 and 5 complete.
 * **Verification:** `ProjectId` and `OrgId` newtypes compile across `cms-entity`. `TenantContext` extractor unit-tested.
 
 ### Checkpoint 3: Reference Slice Proven
+
 * **Prerequisites:** Task 6 complete.
 * **Verification:** `Project` domain refactored to target architecture. Zero `serde_json::Value` in project handlers. Integration tests pass against PostgreSQL with `sqlx::test`.
 
 ### Checkpoint 4: High-Leverage Domains Migrated
+
 * **Prerequisites:** Tasks 7 and 8 complete.
 * **Verification:** Navigation listing omits markdown blobs. Comment lookups use single-query SQL `JOIN`.
 
 ### Checkpoint 5: Infrastructure & Concurrency Modernized
+
 * **Prerequisites:** Tasks 9 and 10 complete.
 * **Verification:** Zero global mutex/RwLock bottlenecks in rate limiting and host resolution under concurrent load.
 
@@ -648,7 +683,7 @@ cargo test -p cms-api test_webhook_secret_entropy
 # 13. Risks & Mitigations
 
 | Risk | Impact | Mitigation Strategy |
-|---|---|---|
+| --- | --- | --- |
 | **Breaking Frontend API Clients** | Frontend receives 404 or deserialization errors. | Retain `/api/app/*` as routing alias. Maintain exact JSON property names using `#[serde(rename_all = "camelCase")]` on all new DTOs. |
 | **Compile-Time Churn from Typed IDs** | Widespread type mismatch errors during newtype rollout. | Introduce newtypes in `cms-entity` first; migrate one domain slice at a time using `ProjectId::from_str` at boundaries. |
 | **Database Transaction Deadlocks** | Long-running transactions blocking other connections. | Keep transactions strictly scoped to database writes. Never execute outbound HTTP calls or heavy CPU work inside a transaction. |
@@ -669,7 +704,9 @@ The exact first task to hand to the coding agent is:
   3. In `crates/cms-biz/src/analytics.rs`, pass `org_id` from `AnalyticsService::query_events` into `AnalyticsEventQueries::query`.
   4. In `crates/cms-biz/src/analytics.rs`, write a unit/integration test creating events for two different organizations and asserting that querying as Org A never returns Org B's events.
 * **Verification Command:**
+
   ```bash
   cargo test -p cms-biz -p cms-db
   ```
+
 * **Definition of Done:** `AnalyticsEventQueries::query` requires `org_id`; SQL query enforces `organization_id = $1`; test proves zero cross-tenant leakage; clean compilation.

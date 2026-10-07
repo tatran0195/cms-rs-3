@@ -15,8 +15,8 @@
     "lint": "ultracite check",
     "format": "biome check --write --unsafe --max-diagnostics=none .",
     "knip": "knip",
-    "lint:md": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
-    "lint:md:fix": "markdownlint-cli2 --fix \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"!**/node_modules/**\"",
+    "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!**/node_modules/**\"",
     "export:types": "cargo test -p cms-entity --test export_ts_bindings",
     "clean": "bun --filter '*' clean"
   },

@@ -12,17 +12,20 @@
 This backend codebase displays a recurring pattern of **AI-generated scaffolding: syntactically clean, compiling Rust with strong modular intentions, masking severe structural gaps, fake business logic, and critical operational failure modes.**
 
 ### What Is Production-Ready
+
 * **Data Model Primitives & Schema:** Core SQL migrations in [`crates/cms-db/migrations`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-db/migrations) have solid foundation tables (organizations, users, projects, pages, branches) with foreign keys and unique constraints.
 * **Basic CRUD Repositories:** Direct SQLx query modules (such as [`crates/cms-db/src/project.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-db/src/project.rs)) handle basic atomic transactions and parameterized inputs properly, preventing SQL injection on standard paths.
 * **Core Password Hashing:** Argon2id implementation in [`crates/cms-auth/src/password.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-auth/src/password.rs) uses appropriate salt lengths and cost parameters.
 
 ### What Is Demo-Grade / Incomplete
+
 * **Fake External Handlers & Integrations:** Critical settings endpoints—such as Mintlify and Ghost imports—are wired to a generic Git handler that performs no importing and returns synthesized success payloads. Integration health checks do not ping external APIs and return hardcoded success.
 * **Disconnected Background Workers:** The worker runtime defines 8 job types (`Analytics`, `Email`, `Export`, `Git`, `Publish`, `Search`, `Usage`, `Reaper`), but the API only ever enqueues `Publish`. Git syncs create database records that remain in `Pending` indefinitely. Deployment creation in [`crates/cms-api/src/deployment/handlers.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/deployment/handlers.rs) literally leaves a comment `// Queue the deployment job for processing` and returns without calling the queue.
 * **Faux RAG Search Engine:** When RAG is disabled (default in `config.toml`), the system falls back to a template that pastes raw search snippets under a heading claiming to be an AI summary.
 * **Authorization Shortcuts:** Project role evaluation explicitly substitutes organization-wide membership as a "temporary proxy," completely bypassing the `project_members` permission matrix.
 
 ### What Is Dangerous (Production Blockers)
+
 1. **Critical Unauthenticated / Arbitrary SSRF:** [`crates/cms-biz/src/openapi.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/openapi.rs) makes unvalidated HTTP GET requests to user-supplied URLs using `reqwest`. There is no IP resolution, private network filtering (RFC 1918), or cloud metadata protection (`169.254.169.254`). Attackers can exfiltrate internal AWS/GCP credentials or intranet resources. Furthermore, it reads the entire response body into memory via `.text().await` *before* checking the 5MB boundary, enabling memory exhaustion DoS.
 2. **CPU-Exhaustion DoS via Basic Auth Argon2 Re-Hashing:** [`crates/cms-api/src/auth/middleware.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/auth/middleware.rs) runs on every protected route. If a `Basic` auth header is passed, it executes full Argon2 password hashing on the Tokio thread pool with zero rate limiting or token caching. An unauthenticated attacker can saturate all CPU cores with a small stream of requests.
 3. **Database Error & Infrastructure Leakage:** [`crates/cms-error/src/lib.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-error/src/lib.rs) formats raw `sqlx::Error` and `anyhow::Error` strings directly into client-facing JSON payloads, disclosing table schemas, foreign key names, internal file paths, and database query structures.
@@ -95,7 +98,7 @@ This backend codebase displays a recurring pattern of **AI-generated scaffolding
 ## C. Findings Table
 
 | ID | Severity | Category | Location | Problem | Production Impact | Evidence | Recommended Fix |
-|---|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | **SEC-01** | **CRITICAL** | Security (SSRF) | [`crates/cms-biz/src/openapi.rs:148-185`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/openapi.rs#L148-L185) | Unrestricted outbound HTTP GET to user-supplied URL with full body buffered before size check. | Exfiltration of cloud provider instance metadata (`169.254.169.254`), access to internal infrastructure/databases, and memory exhaustion DoS. | `VERIFIED`: `reqwest::get(&req.url)` executes without DNS resolution validation or IP blacklist. Calls `res.text().await` before 5MB check. | Implement pre-dial DNS resolution filtering blocking private/loopback/link-local CIDRs, stream body with `take(5_242_880)` chunking, and reject redirects to private IPs. |
 | **SEC-02** | **CRITICAL** | Security (DoS) | [`crates/cms-api/src/auth/middleware.rs:125-149`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/auth/middleware.rs#L125-L149) | `AuthExtractor` executes expensive Argon2 password hashing on every request containing `Authorization: Basic` without rate limiting. | An unauthenticated attacker can flood any protected endpoint with arbitrary Basic Auth credentials, saturating CPU cores and causing total service unavailability. | `VERIFIED`: `AuthService::login` is invoked on each request matching the `Basic` header. | Restrict Basic auth to machine-to-machine API keys or personal access tokens using fast constant-time HMAC/SHA-256 validation. Drop raw password Basic auth on standard API routes. |
 | **SEC-03** | **HIGH** | Security (Info Leak) | [`crates/cms-error/src/lib.rs:205-245`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-error/src/lib.rs#L205-L245) | Internal SQL and system errors are formatted verbatim into HTTP response bodies. | Discloses database schema, table names, foreign key constraints, internal file paths, and library stack traces to callers. | `VERIFIED`: `AppError::Database(ref e) => ("database:error", format!("Database error: {e}"))`. | Return opaque error messages (`"An internal database error occurred"`) to clients with a correlation ID; log the raw error internally using `tracing::error!`. |
@@ -123,18 +126,23 @@ This backend codebase displays a recurring pattern of **AI-generated scaffolding
 This section highlights AI-generated shortcuts where code technically compiles but exhibits fake, incomplete, or oversimplified behavior.
 
 ### 1. Fake Content Importers
+
 * **Location:** [`crates/cms-api/src/project/mod.rs:136-140`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/project/mod.rs#L136-L140) & [`crates/cms-api/src/project/handlers.rs:3039`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/project/handlers.rs#L3039)
 * **Current Implementation:**
+
   ```rust
   .route("/{project_id}/settings/import/mintlify", post(action_project_git_handler))
   .route("/{project_id}/settings/import/ghost", post(action_project_git_handler))
   ```
+
 * **Why Insufficient:** Calling `/import/mintlify` or `/import/ghost` forwards directly to `action_project_git_handler`. The handler accepts a JSON body intended for Git connections, ignores import zip/tar streams, and returns a dummy `webhookSecret`. No import occurs.
 * **Production Implementation:** Implement dedicated multipart upload handlers parsing Markdown frontmatter/Ghost JSON exports, processing assets into object storage, and generating document trees inside a database transaction.
 
 ### 2. Mock Integration Health Testing
+
 * **Location:** [`crates/cms-biz/src/integration.rs:92-108`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/integration.rs#L92-L108)
 * **Current Implementation:**
+
   ```rust
   pub async fn test_integration(&self, ctx: &SecurityContext, id: Uuid) -> Result<IntegrationTestResult, AppError> {
       let _integration = self.get_integration(ctx, id).await?;
@@ -144,12 +152,15 @@ This section highlights AI-generated shortcuts where code technically compiles b
       })
   }
   ```
+
 * **Why Insufficient:** The method merely fetches the row from the database and immediately returns a hardcoded success struct. If an external Slack, Discord, or generic webhook endpoint is completely dead, invalid, or returning 500s, the system still tells the operator that the integration is functioning.
 * **Production Implementation:** Dispatch an HTTP POST payload with signed headers and a 5-second timeout to the configured webhook URL, inspect the response status code, and return genuine operational status.
 
 ### 3. Faux AI RAG Fallback
+
 * **Location:** [`crates/cms-search/src/rag.rs:69-80`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-search/src/rag.rs#L69-L80)
 * **Current Implementation:**
+
   ```rust
   fn fallback_answer(&self, query: &str, project_name: &str, hits: &[SearchHit]) -> String {
       let mut out = format!("Based on documentation in project '{project_name}', here are the most relevant sections for '{query}':\n\n");
@@ -159,23 +170,29 @@ This section highlights AI-generated shortcuts where code technically compiles b
       out
   }
   ```
+
 * **Why Insufficient:** When RAG is disabled (which is the default configuration), calling the RAG endpoint returns a simulated markdown summary that looks like an AI answer but is merely a string concatenation of raw Tantivy search hits.
 * **Production Implementation:** If an LLM provider is not configured, return an explicit error or standard structured search hits rather than masquerading search results as synthesized RAG answers.
 
 ### 4. Project Role Resolution as a Proxy
+
 * **Location:** [`crates/cms-authz/src/lib.rs:82-95`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-authz/src/lib.rs#L82-L95)
 * **Current Implementation:**
+
   ```rust
   // For now, we'll use organization membership as a proxy.
   // In practice, CMS has project-specific roles
   self.get_user_role(user_id, org_id).await
   ```
+
 * **Why Insufficient:** The database contains a `project_members` table specifically designed to hold granular per-project roles (`Admin`, `Editor`, `Viewer`). By bypassing this table, every organization user inherits blanket access to every project within the organization. A user invited as a read-only viewer on one project can edit documentation on any project in the organization.
 * **Production Implementation:** Perform a two-step hierarchical role resolution: check `project_members` for an explicit assignment; if absent, fall back to the organization default role.
 
 ### 5. Check-Then-Insert Slug Generation Loop
+
 * **Location:** [`crates/cms-biz/src/project.rs:56-67`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/project.rs#L56-L67)
 * **Current Implementation:**
+
   ```rust
   let mut slug = slugify(&req.name);
   let mut counter = 1;
@@ -185,6 +202,7 @@ This section highlights AI-generated shortcuts where code technically compiles b
   }
   self.repo.create_atomic(..., &slug, ...).await
   ```
+
 * **Why Insufficient:** Classic Time-of-Check to Time-of-Use (TOCTOU) race condition. If two requests create projects with the same name simultaneously, both loop iterations observe the slug as available, exit the loop, and call `create_atomic`. One transaction fails with a 409 unique constraint violation instead of gracefully allocating the next counter.
 * **Production Implementation:** Catch the Postgres unique constraint violation (`23505`) on the insert statement and retry with an incremented counter, or allocate slugs using an atomic sequence/UPSERT pattern.
 
@@ -213,6 +231,7 @@ Concrete occurrences of risky patterns identified in the codebase:
 ## F. Failure Scenarios
 
 ### Scenario 1: Server-Side Request Forgery via OpenAPI Sync
+
 * **Trigger:** An authenticated user enters `http://169.254.169.254/latest/meta-data/identity-credentials/` as their project's OpenAPI specification URL.
 * **Trace:**
   1. Client sends `POST /api/v1/projects/{id}/openapi/sync` with payload `{ "url": "http://169.254.169.254/latest/meta-data/..." }`.
@@ -224,6 +243,7 @@ Concrete occurrences of risky patterns identified in the codebase:
 * **Production Consequence:** Complete compromise of AWS/cloud infrastructure credentials.
 
 ### Scenario 2: Denial of Service via Basic Auth Flooding
+
 * **Trigger:** An unauthenticated attacker issues concurrent HTTP requests with header `Authorization: Basic YWRtaW46cGFzc3dvcmQ=` to any protected endpoint (e.g. `/api/v1/projects`).
 * **Trace:**
   1. Request arrives at `AuthExtractor` in [`crates/cms-api/src/auth/middleware.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/auth/middleware.rs#L125).
@@ -235,6 +255,7 @@ Concrete occurrences of risky patterns identified in the codebase:
 * **Production Consequence:** All Tokio runtime threads are pinned computing password hashes. Legitimate API requests time out.
 
 ### Scenario 3: Lost Deployment Work on Backend Crash
+
 * **Trigger:** A user clicks "Deploy" while the server experiences memory pressure or a deployment rollout restart.
 * **Trace:**
   1. Client calls `POST /api/v1/projects/{id}/deployments`.
@@ -249,7 +270,7 @@ Concrete occurrences of risky patterns identified in the codebase:
 ## G. Crate Replacement Matrix
 
 | Current Custom Logic | Problem | Recommended Crate/Primitive | Why | Priority |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | Custom `RwLock<HashMap>` Rate Limiter ([`crates/cms-middleware/src/rate_limit.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-middleware/src/rate_limit.rs)) | Severe write-lock contention across Tokio worker threads; flawed client extraction. | **`governor`** | Battle-tested, lock-free GCRA rate limiting designed specifically for async Rust and Tower. | **HIGH** |
 | Custom in-memory caches with `std::sync::RwLock` ([`crates/cms-sites/src/host_resolution.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-sites/src/host_resolution.rs)) | Unwrapped locks cause permanent cache poisoning cascades on panic; no TTL eviction. | **`moka`** | High-performance concurrent cache with lock-free reads, automatic TTL, and memory bounds. | **HIGH** |
 | Unsafe outbound HTTP fetches ([`crates/cms-biz/src/openapi.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/openapi.rs)) | Full SSRF vulnerability; buffers unbounded bodies into RAM. | **`reqwest`** configured with custom DNS resolver / IP guard | Re-uses connection pools while enforcing RFC 1918/link-local IP filtering prior to TCP dial. | **CRITICAL** |
@@ -261,6 +282,7 @@ Concrete occurrences of risky patterns identified in the codebase:
 ## H. Replacement Strategy
 
 ### 1. SSRF Mitigation & Secure HTTP Client
+
 ```text
 CURRENT IMPLEMENTATION
 reqwest::Client::new().get(url).send().await?.text().await
@@ -288,6 +310,7 @@ Unit tests verifying rejection of localhost, 127.0.0.1, 169.254.169.254, [::1], 
 ```
 
 ### 2. Transactional Outbox Pattern for Background Jobs
+
 ```text
 CURRENT IMPLEMENTATION
 DeploymentQueries::create(&pool).await?;
@@ -319,6 +342,7 @@ Integration tests verifying rollback leaves zero queue records, and concurrent p
 ## I. Improvement Roadmap
 
 ### Phase 0 — Production Blockers (Immediate Remediation)
+
 * **Fix SSRF:** Implement strict IP blocking and bounded streaming in [`crates/cms-biz/src/openapi.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/openapi.rs).
 * **Fix Basic Auth DoS:** Eliminate Argon2 re-hashing on every protected request in [`crates/cms-api/src/auth/middleware.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/auth/middleware.rs); require sessions or machine tokens.
 * **Stop SQL Error Leakage:** Sanitize [`crates/cms-error/src/lib.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-error/src/lib.rs) to prevent leaking raw database error messages to HTTP clients.
@@ -326,22 +350,26 @@ Integration tests verifying rollback leaves zero queue records, and concurrent p
 * **Purge Billing Code:** Remove dead billing/plan error variants from [`crates/cms-error/src/lib.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-error/src/lib.rs) in adherence to internal deployment rules (ADR 001).
 
 ### Phase 1 — Correctness & Business Logic
+
 * **Fix Project Role Checks:** Replace org-level proxy logic in [`crates/cms-authz/src/lib.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-authz/src/lib.rs) with true `project_members` role evaluation.
 * **Fix Disconnected Deployment Enqueue:** Wire [`crates/cms-api/src/deployment/handlers.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/src/deployment/handlers.rs) to enqueue jobs upon deployment creation.
 * **Fix Check-Then-Insert Slug Races:** Replace TOCTOU loop in [`crates/cms-biz/src/project.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-biz/src/project.rs) with database-enforced atomic upsert/retry handling.
 * **Clean Fake Import Routes:** Replace fake Mintlify/Ghost Git handlers with proper 501 Not Implemented status or genuine import workers.
 
 ### Phase 2 — Reliability & Concurrency
+
 * **Replace Rate Limiter:** Swap custom contentious `RwLock<HashMap>` in [`crates/cms-middleware/src/rate_limit.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-middleware/src/rate_limit.rs) with `governor`.
 * **Fix Graceful Shutdown Order:** Reorder shutdown sequence in [`apps/api/main.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/apps/api/main.rs) so Axum stops accepting new connections before worker threads drain.
 * **Make Queue Domain-Agnostic:** Remove hardcoded `"Deployment"` SQL updates from [`crates/cms-queue/src/postgres.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-queue/src/postgres.rs).
 * **Fix Windows Storage Error Handling:** Refactor [`crates/cms-storage/src/local.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-storage/src/local.rs) to match `io::ErrorKind::NotFound`.
 
 ### Phase 3 — Observability
+
 * **Mount Prometheus Metrics Endpoint:** Bind `start_prometheus_exporter` in [`apps/api/main.rs`](file:///d:/Workspace/Software/_working/cms-rs-3/apps/api/main.rs) to an authenticated `/metrics` route.
 * **Structured Tracing Propagation:** Ensure `x-request-id` header is attached to tracing spans across database queries and background job execution.
 
 ### Phase 4 — Testing
+
 * **Activate Integration Tests:** Eliminate blanket `#[ignore]` on the 18 E2E test suites in [`crates/cms-api/tests`](file:///d:/Workspace/Software/_working/cms-rs-3/crates/cms-api/tests) using a disposable PostgreSQL test container fixture.
 
 ---

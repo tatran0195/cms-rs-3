@@ -5,6 +5,7 @@ This is the web client for the internal CMS platform, built with Vite, React, Ta
 ## Scope & Routing
 
 This deployment is dedicated to **internal company use**:
+
 - **Homepage (`/`)**: Redirects directly to `/app`.
 - **Application (`/app`)**: Main workspace dashboard for authenticated company team members.
   - `/app` or `/app/(dashboard)/`: Projects overview, statistics, and quick creation.
@@ -19,5 +20,6 @@ This deployment is dedicated to **internal company use**:
 - **Authentication (`/(auth)`)**: `/sign-in` and `/sign-up` for internal team members.
 
 ## Architectural Constraints
+
 - **No Plan / Billing**: There are no plan tiers, subscription gates, or billing tabs. Do NOT re-implement plan sections or payment integrations.
 - **No Marketing / Landing Pages**: There are no public marketing pages, blogs, or competitor comparisons. The root `/` must remain a direct redirect to `/app`.

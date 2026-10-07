@@ -78,6 +78,7 @@ This guide covers deploying CMS to a single AWS Windows machine as specified in 
 2. **Configure Environment**
    - Copy `config/dev.env` to `config/deploy.env`
    - Edit `config/deploy.env` with production values:
+
      ```env
      CMS_ENV=deploy
      CMS_SERVER__PORT=80
@@ -95,6 +96,7 @@ This guide covers deploying CMS to a single AWS Windows machine as specified in 
    ```
 
 4. **Build Frontend**
+
    ```powershell
    cd frontend
    npm install
@@ -115,6 +117,7 @@ This guide covers deploying CMS to a single AWS Windows machine as specified in 
    ```
 
 2. **Run Migrations**
+
    ```powershell
    # Migrations will run automatically on first startup
    # Or manually:
@@ -166,6 +169,7 @@ This guide covers deploying CMS to a single AWS Windows machine as specified in 
    ```
 
 4. **Verify Service**
+
    ```powershell
    nssm status CMSServer
    nssm logs CMSServer

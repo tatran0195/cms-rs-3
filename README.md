@@ -124,9 +124,9 @@ Following layering discipline:
    ```
 
 6. **Access the application**
-   - API: http://localhost:3000/api
-   - Sites: http://localhost:3000
-   - Frontend: http://localhost:3001
+   - API: <http://localhost:3000/api>
+   - Sites: <http://localhost:3000>
+   - Frontend: <http://localhost:3001>
 
 ### 🛠️ Common Workflows with Makefile
 

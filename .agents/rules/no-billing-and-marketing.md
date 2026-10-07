@@ -1,9 +1,11 @@
 # Rule: Internal Company Scope - No Plan/Billing & No Marketing
 
 ## Context
+
 This repository is configured and maintained exclusively for **internal company use**. It does not serve public consumers or third-party tenants.
 
 ## Architectural Mandates
+
 1. **No Plan, Billing, or Invoicing**:
    - The application does not have a subscription or pricing model.
    - Do not add `PlanSection`, `plan` tabs, or billing links to project or workspace settings.
