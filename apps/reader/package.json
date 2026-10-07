@@ -1,6 +1,6 @@
 {
   "name": "@cms/reader",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -24,7 +24,6 @@
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"
   },
-
   "devDependencies": {
     "@cms/tsconfig": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",

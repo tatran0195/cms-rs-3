@@ -2,7 +2,7 @@
   "name": "@cms/cli",
   "version": "0.1.0",
   "description": "Official CLI for inspecting and fetching agent-readable cms sites.",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "cms": "./dist/cli.mjs"

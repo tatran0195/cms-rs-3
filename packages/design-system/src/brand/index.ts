@@ -6,4 +6,4 @@ export {
   TechnoStarLogo,
   TechnoStarMark,
   TechnoStarWordmark,
-} from './nibleaf-brand';
+} from './brand'

@@ -1,6 +1,6 @@
 {
   "name": "@cms/design-system",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "version": "0.1.2",
   "private": true,
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@cms/i18n",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "version": "0.0.0",
   "private": true,
   "type": "module",
