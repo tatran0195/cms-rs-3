@@ -44,4 +44,12 @@ export class BranchesResource {
   async delete(projectId: ProjectId, branchId: BranchId): Promise<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`/api/projects/${projectId}/branches/${branchId}`);
   }
+
+  /**
+   * Merge preview branch into primary
+   */
+  async merge<T = { success: boolean }>(projectId: ProjectId, branchId: BranchId): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/branches/${branchId}/merge`);
+  }
 }
+

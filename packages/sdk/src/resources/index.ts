@@ -11,3 +11,8 @@ export * from './search';
 export * from './comments';
 export * from './openapi';
 export * from './workspace';
+export * from './reader-access';
+export * from './addons';
+export * from './api-keys';
+export * from './notifications';
+export * from './public';

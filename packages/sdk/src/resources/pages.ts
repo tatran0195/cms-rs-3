@@ -53,4 +53,15 @@ export class PagesResource {
   async delete(projectId: ProjectId, id: PageId): Promise<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`/api/projects/${projectId}/pages/${id}`);
   }
+
+  /**
+   * Reorder page tree hierarchy
+   */
+  async reorder<T = { success: boolean }>(
+    projectId: ProjectId,
+    payload: { items: Array<{ id: string; parentId: string | null; position: number }> }
+  ): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/pages/reorder`, payload);
+  }
 }
+

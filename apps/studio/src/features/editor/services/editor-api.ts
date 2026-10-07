@@ -8,8 +8,7 @@ import type {
   UpdatePageBody,
 } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../../shared/services/api';
-import { getData, mutateData } from '../../../shared/hooks/api/client-helpers';
+import { cmsClient } from '../../../shared/services/cms-client';
 import { queryKeys } from '../../../shared/hooks/api/query-keys';
 import type { Branch, Comment, Language, Page, PageNode } from '../../../shared/hooks/api/types';
 
@@ -18,55 +17,31 @@ export const usePages = (projectId: string | undefined, languageId?: string, bra
     queryKey: queryKeys.pages.all(projectId ?? '', languageId, branchId),
     enabled: Boolean(projectId),
     queryFn: async () =>
-      getData<PageNode[]>(
-        await api.app.projects[':projectId'].pages.$get({
-          param: { projectId: projectId! },
-          query: {
-            ...(languageId ? { languageId } : {}),
-            ...(branchId ? { branchId } : {}),
-          },
-        }),
-        'pages',
-      ),
+      (await cmsClient.pages.list(projectId!, {
+        ...(languageId ? { languageId } : {}),
+        ...(branchId ? { branchId } : {}),
+      })) as unknown as PageNode[],
   });
 
 export const usePage = (projectId: string | undefined, pageId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.pages.detail(projectId ?? '', pageId ?? ''),
     enabled: Boolean(projectId && pageId),
-    queryFn: async () =>
-      getData<Page>(
-        await api.app.projects[':projectId'].pages[':id'].$get({
-          param: { projectId: projectId!, id: pageId! },
-        }),
-        'page',
-      ),
+    queryFn: async () => (await cmsClient.pages.get(projectId!, pageId!)) as unknown as Page,
   });
 
 export const useBranches = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.branches.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      getData<Branch[]>(
-        await api.app.projects[':projectId'].branches.$get({
-          param: { projectId: projectId! },
-        }),
-        'branches',
-      ),
+    queryFn: async () => (await cmsClient.branches.list(projectId!)) as unknown as Branch[],
   });
 
 export const useLanguages = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.languages.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      getData<Language[]>(
-        await api.app.projects[':projectId'].languages.$get({
-          param: { projectId: projectId! },
-        }),
-        'languages',
-      ),
+    queryFn: async () => (await cmsClient.languages.list(projectId!)) as unknown as Language[],
   });
 
 export const useComments = (projectId: string | undefined, pageId?: string) =>
@@ -74,20 +49,14 @@ export const useComments = (projectId: string | undefined, pageId?: string) =>
     queryKey: queryKeys.comments.all(projectId ?? '', pageId),
     enabled: Boolean(projectId),
     queryFn: async () =>
-      getData<Comment[]>(
-        await api.app.projects[':projectId'].comments.$get({
-          param: { projectId: projectId! },
-          query: pageId ? { pageId } : {},
-        }),
-        'comments',
-      ),
+      (await cmsClient.comments.list(projectId!, pageId ? { pageId } : undefined)) as unknown as Comment[],
   });
 
 export const useCreatePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreatePageBody) =>
-      mutateData<Page>(await api.app.projects[':projectId'].pages.$post({ param: { projectId }, json: body }), 'Could not create the page.'),
+      (await cmsClient.pages.create(projectId, body as any)) as unknown as Page,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
   });
 };
@@ -96,10 +65,7 @@ export const useUpdatePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ pageId, body }: { pageId: string; body: UpdatePageBody }) =>
-      mutateData<Page>(
-        await api.app.projects[':projectId'].pages[':id'].$patch({ param: { projectId, id: pageId }, json: body }),
-        'Could not save the page.',
-      ),
+      (await cmsClient.pages.update(projectId, pageId, body as any)) as unknown as Page,
     onSuccess: (_data, { pageId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.detail(projectId, pageId) });
@@ -110,8 +76,7 @@ export const useUpdatePage = (projectId: string) => {
 export const useDeletePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (pageId: string) =>
-      mutateData(await api.app.projects[':projectId'].pages[':id'].$delete({ param: { projectId, id: pageId } }), 'Could not delete the page.'),
+    mutationFn: async (pageId: string) => cmsClient.pages.delete(projectId, pageId),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
   });
 };
@@ -119,8 +84,7 @@ export const useDeletePage = (projectId: string) => {
 export const useReorderPages = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: ReorderPagesBody) =>
-      mutateData(await api.app.projects[':projectId'].pages.reorder.$post({ param: { projectId }, json: body }), 'Could not reorder pages.'),
+    mutationFn: async (body: ReorderPagesBody) => cmsClient.pages.reorder(projectId, body),
     onMutate: async (newOrder) => {
       await qc.cancelQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       const previousPages = qc.getQueriesData<PageNode[]>({
@@ -159,8 +123,7 @@ export const useReorderPages = (projectId: string) => {
 export const useCreateBranch = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateBranchBody) =>
-      mutateData(await api.app.projects[':projectId'].branches.$post({ param: { projectId }, json: body }), 'Could not create the branch.'),
+    mutationFn: async (body: CreateBranchBody) => cmsClient.branches.create(projectId, body as any),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) }),
   });
 };
@@ -168,8 +131,7 @@ export const useCreateBranch = (projectId: string) => {
 export const useMergeBranch = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.projects[':projectId'].branches[':id'].merge.$post({ param: { projectId, id } }), 'Could not merge the branch.'),
+    mutationFn: async (id: string) => cmsClient.branches.merge(projectId, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
@@ -181,7 +143,7 @@ export const useCreateLanguage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateLanguageBody) =>
-      mutateData<Language>(await api.app.projects[':projectId'].languages.$post({ param: { projectId }, json: body }), 'Could not add the language.'),
+      (await cmsClient.languages.create(projectId, body as any)) as unknown as Language,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
@@ -193,10 +155,7 @@ export const useUpdateLanguage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: UpdateLanguageBody }) =>
-      mutateData<Language>(
-        await api.app.projects[':projectId'].languages[':id'].$patch({ param: { projectId, id }, json: body }),
-        'Could not update the language.',
-      ),
+      (await cmsClient.languages.update(projectId, id, body as any)) as unknown as Language,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) }),
   });
 };
@@ -204,8 +163,7 @@ export const useUpdateLanguage = (projectId: string) => {
 export const useDeleteLanguage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.projects[':projectId'].languages[':id'].$delete({ param: { projectId, id } }), 'Could not delete the language.'),
+    mutationFn: async (id: string) => cmsClient.languages.delete(projectId, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
@@ -218,7 +176,10 @@ export const useCreateComment = (projectId: string, pageId?: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: CreateCommentBody) =>
-      mutateData<Comment>(await api.app.projects[':projectId'].comments.$post({ param: { projectId }, json: body }), 'Could not post the comment.'),
+      (await cmsClient.comments.create(projectId, {
+        page_id: pageId ?? null,
+        ...body,
+      } as any)) as unknown as Comment,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId] }),
   });
 };
@@ -227,10 +188,7 @@ export const useResolveComment = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, resolved }: { id: string; resolved: boolean }) =>
-      mutateData<Comment>(
-        await api.app.projects[':projectId'].comments[':id'].$patch({ param: { projectId, id }, json: { resolved } }),
-        'Could not update the comment.',
-      ),
+      (await cmsClient.comments.update(projectId, id, { resolved } as any)) as unknown as Comment,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId] }),
   });
 };
@@ -238,9 +196,7 @@ export const useResolveComment = (projectId: string) => {
 export const useDeleteComment = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.projects[':projectId'].comments[':id'].$delete({ param: { projectId, id } }), 'Could not delete the comment.'),
+    mutationFn: async (id: string) => cmsClient.comments.delete(projectId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId] }),
   });
 };
-

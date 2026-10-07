@@ -14,6 +14,11 @@ import {
   CommentsResource,
   OpenApiResource,
   WorkspaceResource,
+  ReaderAccessResource,
+  AddonsResource,
+  ApiKeysResource,
+  NotificationsResource,
+  PublicResource,
 } from './resources';
 
 export type CmsClientOptions = HttpClientOptions;
@@ -34,6 +39,11 @@ export class CmsClient {
   readonly comments: CommentsResource;
   readonly openapi: OpenApiResource;
   readonly workspace: WorkspaceResource;
+  readonly readerAccess: ReaderAccessResource;
+  readonly addons: AddonsResource;
+  readonly apiKeys: ApiKeysResource;
+  readonly notifications: NotificationsResource;
+  readonly public: PublicResource;
 
   constructor(options: CmsClientOptions, existingHttp?: HttpClient) {
     this.http = existingHttp ?? new HttpClient(options);
@@ -51,6 +61,11 @@ export class CmsClient {
     this.comments = new CommentsResource(this.http);
     this.openapi = new OpenApiResource(this.http);
     this.workspace = new WorkspaceResource(this.http);
+    this.readerAccess = new ReaderAccessResource(this.http);
+    this.addons = new AddonsResource(this.http);
+    this.apiKeys = new ApiKeysResource(this.http);
+    this.notifications = new NotificationsResource(this.http);
+    this.public = new PublicResource(this.http);
   }
 
   /**

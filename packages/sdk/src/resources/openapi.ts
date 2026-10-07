@@ -11,8 +11,29 @@ export class OpenApiResource {
   /**
    * Get OpenAPI configuration for a project
    */
-  async getConfig(projectId: ProjectId): Promise<ProjectOpenApiConfigurationResponse> {
-    return this.http.get<ProjectOpenApiConfigurationResponse>(`/api/app/projects/${projectId}/openapi/config`);
+  async getConfig<T = ProjectOpenApiConfigurationResponse>(projectId: ProjectId): Promise<T> {
+    return this.http.get<T>(`/api/app/projects/${projectId}/openapi`);
+  }
+
+  /**
+   * Save / upsert OpenAPI specification for a project
+   */
+  async upsert<T = unknown>(projectId: ProjectId, payload: unknown): Promise<T> {
+    return this.http.put<T>(`/api/app/projects/${projectId}/openapi`, payload);
+  }
+
+  /**
+   * Sync OpenAPI specification from remote URL
+   */
+  async sync<T = unknown>(projectId: ProjectId): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/openapi/sync`);
+  }
+
+  /**
+   * Delete OpenAPI configuration for a project
+   */
+  async delete<T = unknown>(projectId: ProjectId): Promise<T> {
+    return this.http.delete<T>(`/api/app/projects/${projectId}/openapi`);
   }
 
   /**
@@ -22,3 +43,4 @@ export class OpenApiResource {
     return this.http.post<ProjectOpenApiValidationResponse>(`/api/app/projects/${projectId}/openapi/validate`, payload);
   }
 }
+

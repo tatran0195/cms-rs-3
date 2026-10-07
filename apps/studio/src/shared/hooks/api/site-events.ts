@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { api } from '../../services/api';
+import { cmsClient } from '../../services/cms-client';
 
 export type PublicAnalyticsPayload =
   | { name: 'page_view' | 'page_engaged'; path: string; language?: string; referrer?: string; engagementMs?: number; scrollDepth?: number }
@@ -24,9 +24,6 @@ interface SiteAnalyticsEvent {
 export const useCreateSiteAnalyticsEvent = (projectId: string) =>
   useMutation({
     mutationFn: async (event: SiteAnalyticsEvent) => {
-      const response = await api.public.sites[':id'].events.$post({ param: { id: projectId }, json: event });
-      if (!response.ok) {
-        throw new Error('Could not record the analytics event.');
-      }
+      await cmsClient.public.recordEvent(projectId, event);
     },
   });

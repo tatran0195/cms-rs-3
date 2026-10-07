@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CmsApiError } from '@cms/sdk';
 import { useActivateProjectIntegration, useUpdateProjectIntegration } from './integrations';
 import { queryKeys } from './query-keys';
 
@@ -13,27 +14,20 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => key }));
-vi.mock('../../services/api', () => ({
-  api: {
-    app: {
-      projects: {
-        ':projectId': {
-          integrations: {
-            ':providerId': {
-              $patch: mocks.update,
-              activate: { $post: mocks.activate },
-            },
-          },
-        },
-      },
+vi.mock('../../services/cms-client', () => ({
+  cmsClient: {
+    integrations: {
+      update: mocks.update,
+      activate: mocks.activate,
     },
   },
 }));
 
-const errorResponse = (code: string) =>
-  new Response(JSON.stringify({ error: { code, message: 'The integration changed.' } }), {
+const makeError = (code: string) =>
+  new CmsApiError({
     status: 409,
-    headers: { 'content-type': 'application/json' },
+    code,
+    message: 'The integration changed.',
   });
 
 describe('integration mutation conflict recovery', () => {
@@ -52,8 +46,8 @@ describe('integration mutation conflict recovery', () => {
   });
 
   it.each(['update', 'activate'] as const)('refreshes integration caches before surfacing an %s revision conflict', async (action) => {
-    mocks.update.mockResolvedValue(errorResponse('integration:revision_conflict'));
-    mocks.activate.mockResolvedValue(errorResponse('integration:revision_conflict'));
+    mocks.update.mockRejectedValue(makeError('integration:revision_conflict'));
+    mocks.activate.mockRejectedValue(makeError('integration:revision_conflict'));
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     let mutate: () => Promise<unknown> = () => Promise.reject(new Error('mutation hook was not ready'));
@@ -83,9 +77,8 @@ describe('integration mutation conflict recovery', () => {
   });
 
   it('does not invalidate caches for unrelated mutation errors', async () => {
-    mocks.activate.mockResolvedValue(errorResponse('integration:inactive'));
+    mocks.activate.mockRejectedValue(makeError('integration:inactive'));
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     let mutate: () => Promise<unknown> = () => Promise.reject(new Error('mutation hook was not ready'));
 
     function Probe() {
@@ -96,6 +89,7 @@ describe('integration mutation conflict recovery', () => {
 
     const root = createRoot(container);
     await act(async () => root.render(createElement(QueryClientProvider, { client: queryClient }, createElement(Probe))));
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await act(async () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'integration:inactive' });
     });

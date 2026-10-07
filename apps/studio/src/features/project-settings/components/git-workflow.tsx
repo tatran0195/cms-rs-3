@@ -134,7 +134,7 @@ export function GitWorkflow({ projectId }: { projectId: string }) {
       },
       {
         onSuccess: (result) => {
-          setWebhookSecret(result.webhookSecret);
+          setWebhookSecret(result.webhookSecret ?? null);
           setToken('');
           setAuthorizedAccount(null);
           toast.success(t('settings.git.workflow.connected'));

@@ -1,8 +1,7 @@
 import { inferSafeInlineAssetContentType } from '@cms/validators';
 import type { InviteMemberBody, MarkNotificationsReadBody, UpdateMemberRoleBody } from '@cms/validators';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../services/api';
-import { mutateData } from './client-helpers';
+import { cmsClient } from '../../services/cms-client';
 import { queryKeys } from './query-keys';
 import type { Asset } from './types';
 
@@ -21,13 +20,11 @@ export const useUploadAsset = (projectId: string) => {
   return useMutation({
     mutationFn: async (file: File) => {
       const contentType = uploadContentType(file);
-      const presign = await mutateData<{ uploadUrl: string; assetId: string; publicUrl: string }>(
-        await api.app.projects[':projectId'].assets.presign.$post({
-          param: { projectId },
-          json: { filename: file.name, contentType, sizeBytes: file.size },
-        }),
-        'Could not prepare asset upload.',
-      );
+      const presign = await cmsClient.assets.presign(projectId, {
+        filename: file.name,
+        mimeType: contentType,
+        sizeBytes: file.size,
+      });
       const uploadRes = await fetch(presign.uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': contentType },
@@ -36,13 +33,9 @@ export const useUploadAsset = (projectId: string) => {
       if (!uploadRes.ok) {
         throw new Error(`Upload failed (${uploadRes.status})`);
       }
-      return mutateData<Asset>(
-        await api.app.projects[':projectId'].assets.confirm.$post({
-          param: { projectId },
-          json: { assetId: presign.assetId },
-        }),
-        'Could not finalize asset upload.',
-      );
+      return (await cmsClient.assets.confirm(projectId, {
+        assetId: presign.assetId,
+      } as any)) as unknown as Asset;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.assets.all(projectId) }),
   });
@@ -51,7 +44,7 @@ export const useUploadAsset = (projectId: string) => {
 export const useInviteMember = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: InviteMemberBody) => mutateData(await api.app.members.invite.$post({ json: body }), 'Could not invite member.'),
+    mutationFn: async (body: InviteMemberBody) => cmsClient.workspace.inviteMember(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.members.all() }),
   });
 };
@@ -60,7 +53,7 @@ export const useUpdateMemberRole = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: UpdateMemberRoleBody }) =>
-      mutateData(await api.app.members[':id'].role.$patch({ param: { id }, json: body }), 'Could not update the role.'),
+      cmsClient.workspace.updateMemberRole(id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.members.all() }),
   });
 };
@@ -68,8 +61,7 @@ export const useUpdateMemberRole = () => {
 export const useRemoveMember = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.members[':id'].$delete({ param: { id } }), 'Could not remove the member.'),
+    mutationFn: async (id: string) => cmsClient.workspace.removeMember(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.members.all() }),
   });
 };
@@ -77,8 +69,7 @@ export const useRemoveMember = () => {
 export const useMarkNotificationsRead = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: MarkNotificationsReadBody) =>
-      mutateData(await api.app.notifications.read.$post({ json: body }), 'Could not update notifications.'),
+    mutationFn: async (body: MarkNotificationsReadBody) => cmsClient.notifications.markRead(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       qc.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });

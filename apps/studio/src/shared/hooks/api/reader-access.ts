@@ -1,7 +1,6 @@
 import type { CreateAudienceBody, InviteReaderBody, JwtAccessConfigBody, ProjectAccessModeBody } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../services/api';
-import { getData, mutateData } from './client-helpers';
+import { cmsClient } from '../../services/cms-client';
 import { queryKeys } from './query-keys';
 
 export interface ReaderAccessData {
@@ -38,8 +37,7 @@ export interface ReaderAccessData {
 export const useReaderAccess = (projectId: string) =>
   useQuery({
     queryKey: queryKeys.readerAccess.detail(projectId),
-    queryFn: async () =>
-      getData<ReaderAccessData>(await api.app.projects[':projectId']['reader-access'].$get({ param: { projectId } }), 'reader access settings'),
+    queryFn: async () => (await cmsClient.readerAccess.get(projectId)) as unknown as ReaderAccessData,
   });
 
 const useReaderAccessMutation = <TVariables, TResult>(projectId: string, mutationFn: (variables: TVariables) => Promise<TResult>) => {
@@ -52,65 +50,40 @@ const useReaderAccessMutation = <TVariables, TResult>(projectId: string, mutatio
 
 export const useUpdateReaderAccessMode = (projectId: string) =>
   useReaderAccessMutation(projectId, async (json: ProjectAccessModeBody) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access'].mode.$put({ param: { projectId }, json }),
-      'Could not update the reader access mode.',
-    ),
+    cmsClient.readerAccess.updateMode(projectId, json),
   );
 
 export const useCreateReaderAudience = (projectId: string) =>
   useReaderAccessMutation(projectId, async (json: CreateAudienceBody) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access'].audiences.$post({ param: { projectId }, json }),
-      'Could not create the reader audience.',
-    ),
+    cmsClient.readerAccess.createAudience(projectId, json as any),
   );
 
 export const useDeleteReaderAudience = (projectId: string) =>
   useReaderAccessMutation(projectId, async (audienceId: string) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access'].audiences[':audienceId'].$delete({ param: { projectId, audienceId } }),
-      'Could not delete the reader audience.',
-    ),
+    cmsClient.readerAccess.deleteAudience(projectId, audienceId),
   );
 
 export const useInviteReader = (projectId: string) =>
   useReaderAccessMutation(projectId, async (json: InviteReaderBody) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access'].readers.invite.$post({ param: { projectId }, json }),
-      'Could not invite the reader.',
-    ),
+    cmsClient.readerAccess.inviteReader(projectId, json),
   );
 
 export const useRevokeReader = (projectId: string) =>
   useReaderAccessMutation(projectId, async (readerId: string) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access'].readers[':readerId'].revoke.$post({ param: { projectId, readerId } }),
-      'Could not revoke the reader.',
-    ),
+    cmsClient.readerAccess.revokeReader(projectId, readerId),
   );
 
 export const useUpdateReaderJwt = (projectId: string) =>
   useReaderAccessMutation(projectId, async (json: JwtAccessConfigBody) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access'].jwt.$put({ param: { projectId }, json }),
-      'Could not update the reader JWT configuration.',
-    ),
+    cmsClient.readerAccess.updateJwt(projectId, json),
   );
 
 export const useTestReaderJwt = (projectId: string) =>
   useMutation({
-    mutationFn: async (token: string) =>
-      mutateData(
-        await api.app.projects[':projectId']['reader-access'].jwt.test.$post({ param: { projectId }, json: { token } }),
-        'Could not validate the reader JWT.',
-      ),
+    mutationFn: async (token: string) => cmsClient.readerAccess.testJwt(projectId, { token }),
   });
 
 export const useEmergencyRevokeReaderAccess = (projectId: string) =>
   useReaderAccessMutation(projectId, async (_: undefined) =>
-    mutateData(
-      await api.app.projects[':projectId']['reader-access']['emergency-revoke'].$post({ param: { projectId } }),
-      'Could not revoke reader access.',
-    ),
+    cmsClient.readerAccess.emergencyRevoke(projectId),
   );

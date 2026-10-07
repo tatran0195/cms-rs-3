@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../../services/api';
-import { getData } from './client-helpers';
+import { cmsClient } from '../../services/cms-client';
 import { queryKeys } from './query-keys';
 import type { NotificationList } from './types';
 
@@ -13,19 +12,19 @@ export * from '../../../features/projects/services/projects-api';
 export const useMembers = () =>
   useQuery({
     queryKey: queryKeys.members.all(),
-    queryFn: async () => getData(await api.app.members.$get(), 'members'),
+    queryFn: async () => cmsClient.workspace.getMembers(),
   });
 
 export const useNotifications = (options?: { enabled?: boolean }) =>
   useQuery({
     queryKey: queryKeys.notifications.list(),
     enabled: options?.enabled ?? true,
-    queryFn: async () => getData<NotificationList>(await api.app.notifications.$get({ query: {} }), 'notifications'),
+    queryFn: async () => cmsClient.notifications.list<NotificationList>(),
   });
 
 export const useUnreadNotificationCount = () =>
   useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
-    queryFn: async () => getData(await api.app.notifications['unread-count'].$get(), 'notifications'),
+    queryFn: async () => cmsClient.notifications.getUnreadCount(),
     refetchInterval: 30_000,
   });

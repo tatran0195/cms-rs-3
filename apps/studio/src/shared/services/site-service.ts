@@ -1,35 +1,26 @@
-import { getData, type ChangelogEntry, type SearchAnswer, type SitePage, type SiteSearchHit, type SiteShell } from '../hooks/api';
-import { api } from './api';
+import type { ChangelogEntry, SearchAnswer, SitePage, SiteSearchHit, SiteShell } from '../hooks/api';
+import { cmsClient } from './cms-client';
 
 export const siteService = {
   getSite: async (projectId: string, options?: { language?: string; version?: string }): Promise<SiteShell> =>
-    getData<SiteShell>(
-      await api.public.sites[':id'].$get({
-        param: { id: projectId },
-        query: { ...(options?.language ? { lang: options.language } : {}), ...(options?.version ? { version: options.version } : {}) },
-      }),
-      'site',
-    ),
+    cmsClient.public.getSite<SiteShell>(projectId, {
+      ...(options?.language ? { lang: options.language } : {}),
+      ...(options?.version ? { version: options.version } : {}),
+    }),
 
   getPage: async (projectId: string, path: string, options?: { language?: string; version?: string }): Promise<SitePage> =>
-    getData<SitePage>(
-      await api.public.sites[':id'].page.$get({
-        param: { id: projectId },
-        query: {
-          path,
-          ...(options?.language ? { lang: options.language } : {}),
-          ...(options?.version ? { version: options.version } : {}),
-        },
-      }),
-      'page',
-    ),
+    cmsClient.public.getPage<SitePage>(projectId, {
+      path,
+      ...(options?.language ? { lang: options.language } : {}),
+      ...(options?.version ? { version: options.version } : {}),
+    }),
 
   listChangelog: async (projectId: string): Promise<ChangelogEntry[]> =>
-    getData<ChangelogEntry[]>(await api.public.sites[':id'].changelog.$get({ param: { id: projectId } }), 'changelog'),
+    cmsClient.public.getChangelog<ChangelogEntry>(projectId),
 
   getGitPreview: async (token: string): Promise<string> => {
-    const response = await api.public.git.previews[':token'].$get({ param: { token } });
-    return JSON.stringify(await getData(response, 'pull-request preview'));
+    const result = await cmsClient.public.getGitPreview(token);
+    return JSON.stringify(result);
   },
 
   search: async (
@@ -37,18 +28,12 @@ export const siteService = {
     query: string,
     options?: { language?: string; version?: string; limit?: number },
   ): Promise<SiteSearchHit[]> => {
-    const result = await getData<{ hits: SiteSearchHit[] }>(
-      await api.public.sites[':id'].search.$get({
-        param: { id: projectId },
-        query: {
-          q: query,
-          ...(options?.limit ? { limit: String(options.limit) } : {}),
-          ...(options?.language ? { lang: options.language } : {}),
-          ...(options?.version ? { version: options.version } : {}),
-        },
-      }),
-      'search',
-    );
+    const result = await cmsClient.public.search<SiteSearchHit>(projectId, {
+      q: query,
+      ...(options?.limit ? { limit: String(options.limit) } : {}),
+      ...(options?.language ? { lang: options.language } : {}),
+      ...(options?.version ? { version: options.version } : {}),
+    });
     return result.hits;
   },
 
@@ -57,17 +42,11 @@ export const siteService = {
     query: string,
     options?: { language?: string; version?: string },
   ): Promise<SearchAnswer> =>
-    getData<SearchAnswer>(
-      await api.public.sites[':id'].answer.$post({
-        param: { id: projectId },
-        json: {
-          question: query,
-          q: query,
-          query,
-          ...(options?.language ? { lang: options.language } : {}),
-          ...(options?.version ? { version: options.version } : {}),
-        },
-      }),
-      'answer',
-    ),
+    cmsClient.public.answer<SearchAnswer>(projectId, {
+      question: query,
+      q: query,
+      query,
+      ...(options?.language ? { lang: options.language } : {}),
+      ...(options?.version ? { version: options.version } : {}),
+    }),
 };

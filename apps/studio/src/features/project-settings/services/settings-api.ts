@@ -11,8 +11,8 @@ import type {
   UpsertOpenApiBody,
 } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../../shared/services/api';
-import { ApiResponseError, getData, mutateData } from '../../../shared/hooks/api/client-helpers';
+import { cmsClient } from '../../../shared/services/cms-client';
+import { CmsApiError } from '@cms/sdk';
 import { queryKeys } from '../../../shared/hooks/api/query-keys';
 import type { ApiKey, ApiKeySecret, Domain, OpenApiConfiguration, Project, ProjectAddon, WorkspaceSettings } from '../../../shared/hooks/api/types';
 
@@ -39,13 +39,7 @@ export const useDomains = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.domains.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      getData<Domain[]>(
-        await api.app.projects[':projectId'].domains.$get({
-          param: { projectId: projectId! },
-        }),
-        'domains',
-      ),
+    queryFn: async () => (await cmsClient.domains.list(projectId!)) as unknown as Domain[],
   });
 
 export const useApiKeys = (projectId: string | undefined) => {
@@ -53,13 +47,7 @@ export const useApiKeys = (projectId: string | undefined) => {
   return useQuery({
     queryKey: queryKeys.apiKeys.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      getData<ApiKey[]>(
-        await api.app.projects[':projectId']['api-keys'].$get({
-          param: { projectId: projectId! },
-        }),
-        t('settings.apiKeys.loadError'),
-      ),
+    queryFn: async () => (await cmsClient.apiKeys.list(projectId!)) as unknown as ApiKey[],
   });
 };
 
@@ -67,58 +55,45 @@ export const useOpenApiConfiguration = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.openapi.detail(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      getData<OpenApiConfiguration>(
-        await api.app.projects[':projectId'].openapi.$get({
-          param: { projectId: projectId! },
-        }),
-        'openapi configuration',
-      ),
+    queryFn: async () => (await cmsClient.openapi.getConfig(projectId!)) as unknown as OpenApiConfiguration,
   });
 
 export const useProjectUsage = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.usage.forProject(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      getData(
-        await api.app.projects[':projectId'].settings.usage.$get({ param: { projectId: projectId! } }),
-        'usage',
-      ),
+    queryFn: async () => cmsClient.projects.getUsage(projectId!),
   });
 
 export const useProjectAddons = (projectId: string) =>
   useQuery({
     queryKey: queryKeys.addons.all(projectId),
-    queryFn: async () => getData<ProjectAddon[]>(await api.app.projects[':projectId'].addons.$get({ param: { projectId } }), 'project add-ons'),
+    queryFn: async () => (await cmsClient.addons.list<ProjectAddon>(projectId)),
   });
 
 export const useWorkspaceSettings = (projectId?: string) =>
   useQuery({
     queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings(),
     queryFn: async () =>
-      getData<WorkspaceSettings>(
-        projectId ? await api.app.projects[':projectId'].settings.$get({ param: { projectId } }) : await api.app.workspace.$get(),
-        'settings',
-      ),
+      (projectId
+        ? await cmsClient.projects.getSettings(projectId)
+        : await cmsClient.workspace.get()) as unknown as WorkspaceSettings,
   });
 
 export const useExportProjectTheme = (projectId: string) =>
   useMutation({
-    mutationFn: async () => getData(await api.app.projects[':id']['theme-template'].$get({ param: { id: projectId } }), 'theme template'),
+    mutationFn: async () => cmsClient.projects.getThemeTemplate<{ json: any }>(projectId),
   });
 
 export const useImportProjectTheme = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ template, mode, apply }: { template: unknown; mode: 'merge' | 'replace'; apply: boolean }) =>
-      getData<ProjectThemeImportResult>(
-        await api.app.projects[':id']['theme-template'].$post({
-          param: { id: projectId },
-          json: { template, mode, apply },
-        }),
-        'theme template',
-      ),
+      (await cmsClient.projects.importThemeTemplate<ProjectThemeImportResult>(projectId, {
+        template,
+        mode,
+        apply,
+      })),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
       if (result.applied) {
@@ -130,39 +105,26 @@ export const useImportProjectTheme = (projectId: string) => {
 
 export const useCreateApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
-  const t = useT();
   return useMutation({
     mutationFn: async (body: CreateApiKeyBody) =>
-      mutateData<ApiKeySecret>(
-        await api.app.projects[':projectId']['api-keys'].$post({ param: { projectId }, json: body }),
-        t('settings.apiKeys.createError'),
-      ),
+      (await cmsClient.apiKeys.create<ApiKeySecret>(projectId, body as any)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
 
 export const useRotateApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
-  const t = useT();
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: RotateApiKeyBody }) =>
-      mutateData<ApiKeySecret>(
-        await api.app.projects[':projectId']['api-keys'][':id'].rotate.$post({ param: { projectId, id }, json: body }),
-        t('settings.apiKeys.rotateError'),
-      ),
+      (await cmsClient.apiKeys.rotate<ApiKeySecret>(projectId, id, body)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
 
 export const useRevokeApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
-  const t = useT();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData<ApiKey>(
-        await api.app.projects[':projectId']['api-keys'][':id'].$delete({ param: { projectId, id } }),
-        t('settings.apiKeys.revokeError'),
-      ),
+    mutationFn: async (id: string) => (await cmsClient.apiKeys.revoke<ApiKey>(projectId, id)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
@@ -171,10 +133,7 @@ export const useUpdateProjectConfig = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ config, icon }: { config: ProjectConfigUpdate; icon?: string | null }) =>
-      mutateData<Project>(
-        await api.app.projects[':id'].$patch({ param: { id: projectId }, json: icon === undefined ? { config } : { config, icon } }),
-        'Could not update the site configuration.',
-      ),
+      (await cmsClient.projects.update(projectId, (icon === undefined ? { config } : { config, icon }) as any)) as unknown as Project,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
@@ -185,8 +144,7 @@ export const useUpdateProjectConfig = (projectId: string) => {
 export const useUpsertOpenApi = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: UpsertOpenApiBody) =>
-      mutateData(await api.app.projects[':projectId'].openapi.$put({ param: { projectId }, json: body }), 'Could not save the OpenAPI document.'),
+    mutationFn: async (body: UpsertOpenApiBody) => cmsClient.openapi.upsert(projectId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.openapi.detail(projectId) }),
   });
 };
@@ -194,8 +152,7 @@ export const useUpsertOpenApi = (projectId: string) => {
 export const useSyncOpenApi = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () =>
-      mutateData(await api.app.projects[':projectId'].openapi.sync.$post({ param: { projectId } }), 'Could not refresh the OpenAPI document.'),
+    mutationFn: async () => cmsClient.openapi.sync(projectId),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.openapi.detail(projectId) }),
   });
 };
@@ -203,8 +160,7 @@ export const useSyncOpenApi = (projectId: string) => {
 export const useDeleteOpenApi = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () =>
-      mutateData(await api.app.projects[':projectId'].openapi.$delete({ param: { projectId } }), 'Could not remove the OpenAPI document.'),
+    mutationFn: async () => cmsClient.openapi.delete(projectId),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.openapi.detail(projectId) }),
   });
 };
@@ -212,8 +168,7 @@ export const useDeleteOpenApi = (projectId: string) => {
 export const useAddDomain = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: AddDomainBody) =>
-      mutateData(await api.app.projects[':projectId'].domains.$post({ param: { projectId }, json: body }), 'Could not add the domain.'),
+    mutationFn: async (body: AddDomainBody) => cmsClient.domains.add(projectId, body as any),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.domains.all(projectId) }),
   });
 };
@@ -221,8 +176,7 @@ export const useAddDomain = (projectId: string) => {
 export const useVerifyDomain = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.projects[':projectId'].domains[':id'].verify.$post({ param: { projectId, id } }), 'Could not verify.'),
+    mutationFn: async (id: string) => cmsClient.domains.verify(projectId, id),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.domains.all(projectId) }),
   });
 };
@@ -230,11 +184,7 @@ export const useVerifyDomain = (projectId: string) => {
 export const useSetPrimaryDomain = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(
-        await api.app.projects[':projectId'].domains[':id'].primary.$post({ param: { projectId, id } }),
-        'Could not set the primary domain.',
-      ),
+    mutationFn: async (id: string) => cmsClient.domains.setPrimary(projectId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.domains.all(projectId) }),
   });
 };
@@ -242,8 +192,7 @@ export const useSetPrimaryDomain = (projectId: string) => {
 export const useDeleteDomain = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) =>
-      mutateData(await api.app.projects[':projectId'].domains[':id'].$delete({ param: { projectId, id } }), 'Could not remove the domain.'),
+    mutationFn: async (id: string) => cmsClient.domains.delete(projectId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.domains.all(projectId) }),
   });
 };
@@ -252,17 +201,14 @@ export const useUpdateProjectAddon = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ addonId, body }: { addonId: string; body: UpdateProjectAddonBody }) =>
-      mutateData<ProjectAddon>(
-        await api.app.projects[':projectId'].addons[':addonId'].$patch({ param: { projectId, addonId }, json: body }),
-        'Could not update the add-on.',
-      ),
+      cmsClient.addons.update<ProjectAddon>(projectId, addonId, body),
     onSuccess: (addon) => {
       qc.setQueryData(queryKeys.addons.detail(projectId, addon.id), addon);
       qc.invalidateQueries({ queryKey: queryKeys.addons.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
     },
     onError: async (error, variables) => {
-      if (error instanceof ApiResponseError && error.code === 'addon:revision_conflict') {
+      if (error instanceof CmsApiError && error.code === 'addon:revision_conflict') {
         await Promise.all([
           qc.invalidateQueries({ queryKey: queryKeys.addons.detail(projectId, variables.addonId), exact: true, refetchType: 'all' }),
           qc.invalidateQueries({ queryKey: queryKeys.addons.all(projectId), exact: true, refetchType: 'all' }),
@@ -276,11 +222,9 @@ const useSetProjectAddonEnabled = (projectId: string, action: 'activate' | 'deac
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ addonId, expectedRevision }: { addonId: string; expectedRevision: number }) => {
-      const response =
-        action === 'activate'
-          ? await api.app.projects[':projectId'].addons[':addonId'].activate.$post({ param: { projectId, addonId }, json: { expectedRevision } })
-          : await api.app.projects[':projectId'].addons[':addonId'].deactivate.$post({ param: { projectId, addonId }, json: { expectedRevision } });
-      return mutateData<ProjectAddon>(response, action === 'activate' ? 'Could not enable the add-on.' : 'Could not disable the add-on.');
+      return action === 'activate'
+        ? cmsClient.addons.activate<ProjectAddon>(projectId, addonId, { expectedRevision })
+        : cmsClient.addons.deactivate<ProjectAddon>(projectId, addonId, { expectedRevision });
     },
     onSuccess: (addon) => {
       qc.setQueryData(queryKeys.addons.detail(projectId, addon.id), addon);
@@ -288,7 +232,7 @@ const useSetProjectAddonEnabled = (projectId: string, action: 'activate' | 'deac
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
     },
     onError: async (error, variables) => {
-      if (error instanceof ApiResponseError && error.code === 'addon:revision_conflict') {
+      if (error instanceof CmsApiError && error.code === 'addon:revision_conflict') {
         await Promise.all([
           qc.invalidateQueries({ queryKey: queryKeys.addons.detail(projectId, variables.addonId), exact: true, refetchType: 'all' }),
           qc.invalidateQueries({ queryKey: queryKeys.addons.all(projectId), exact: true, refetchType: 'all' }),
@@ -305,12 +249,9 @@ export const useUpdateWorkspaceSettings = (projectId?: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: UpdateWorkspaceSettingsBody) =>
-      projectId
-        ? mutateData<WorkspaceSettings>(
-            await api.app.projects[':projectId'].settings.$patch({ param: { projectId }, json: body }),
-            'Could not update settings.',
-          )
-        : mutateData<WorkspaceSettings>(await api.app.workspace.$patch({ json: body }), 'Could not update workspace settings.'),
+      (projectId
+        ? await cmsClient.projects.updateSettings(projectId, body)
+        : await cmsClient.workspace.update(body)) as unknown as WorkspaceSettings,
     onSuccess: () => qc.invalidateQueries({ queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings() }),
   });
 };
@@ -318,8 +259,7 @@ export const useUpdateWorkspaceSettings = (projectId?: string) => {
 export const useImportFromGit = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () =>
-      mutateData(await api.app.projects[':projectId'].settings.git.import.$post({ param: { projectId } }), 'Could not import from Git.'),
+    mutationFn: async (): Promise<ContentImportSummary> => cmsClient.projects.importFromGit<ContentImportSummary>(projectId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.workspace.projectSettings(projectId) });
       qc.invalidateQueries({ queryKey: ['pages', projectId] });
@@ -330,11 +270,7 @@ export const useImportFromGit = (projectId: string) => {
 export const useRotateGitWebhookSecret = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () =>
-      mutateData(
-        await api.app.projects[':projectId'].settings.git['webhook-secret'].$post({ param: { projectId } }),
-        'Could not rotate the webhook secret.',
-      ),
+    mutationFn: async () => cmsClient.projects.rotateGitWebhookSecret(projectId),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workspace.projectSettings(projectId) }),
   });
 };
@@ -342,11 +278,8 @@ export const useRotateGitWebhookSecret = (projectId: string) => {
 export const useImportFromMintlify = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: MintlifyImportBody) =>
-      mutateData(
-        await api.app.projects[':projectId'].settings.import.mintlify.$post({ param: { projectId }, json: body }),
-        'Could not import from Mintlify.',
-      ),
+    mutationFn: async (body: MintlifyImportBody): Promise<ContentImportSummary> =>
+      cmsClient.projects.importFromMintlify<ContentImportSummary>(projectId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
@@ -358,11 +291,12 @@ export const useImportFromMintlify = (projectId: string) => {
 export const useImportFromGhost = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: Record<string, unknown>) =>
-      mutateData(
-        await api.app.projects[':projectId'].settings.import.ghost.$post({ param: { projectId }, json: body }),
-        'Could not import from Ghost.',
-      ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
+    mutationFn: async (body: Record<string, unknown>): Promise<ContentImportSummary> =>
+      cmsClient.projects.importFromGhost<ContentImportSummary>(projectId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
+    },
   });
 };

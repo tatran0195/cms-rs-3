@@ -7,8 +7,8 @@ import type {
   VerifyProjectIntegrationBody,
 } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../services/api';
-import { ApiResponseError, getData, mutateData } from './client-helpers';
+import { cmsClient } from '../../services/cms-client';
+import { CmsApiError } from '@cms/sdk';
 import { queryKeys } from './query-keys';
 
 type ConfigurableProviderId = 'slack' | 'discord' | 'zapier';
@@ -18,12 +18,7 @@ export const useProjectIntegrations = (projectId: string) => {
   return useQuery({
     enabled: Boolean(projectId),
     queryKey: queryKeys.integrations.all(projectId),
-    queryFn: async () =>
-      getData<IntegrationCatalogEntry[]>(
-        await api.app.projects[':projectId'].integrations.$get({ param: { projectId } }),
-        'integrations',
-        t('settings.integrations.actionError'),
-      ),
+    queryFn: async () => (await cmsClient.integrations.list(projectId)) as unknown as IntegrationCatalogEntry[],
   });
 };
 
@@ -33,7 +28,7 @@ const useIntegrationMutation = <TVariables, TResult>(projectId: string, mutation
     mutationFn,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(projectId) }),
     onError: async (error) => {
-      if (error instanceof ApiResponseError && error.code === 'integration:revision_conflict') {
+      if (error instanceof CmsApiError && error.code === 'integration:revision_conflict') {
         await queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(projectId), exact: true, refetchType: 'all' });
       }
     },
@@ -43,31 +38,23 @@ const useIntegrationMutation = <TVariables, TResult>(projectId: string, mutation
 export const useCreateProjectIntegration = (projectId: string) => {
   const t = useT();
   return useIntegrationMutation(projectId, async (json: CreateProjectIntegrationBody) =>
-    mutateData<IntegrationConnectionSummary>(
-      await api.app.projects[':projectId'].integrations.$post({ param: { projectId }, json }),
-      t('settings.integrations.actionError'),
-    ),
+    (await cmsClient.integrations.create<IntegrationConnectionSummary>(projectId, json)),
   );
 };
 
 export const useUpdateProjectIntegration = (projectId: string) => {
   const t = useT();
   return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: ConfigurableProviderId; body: UpdateProjectIntegrationBody }) =>
-    mutateData<IntegrationConnectionSummary>(
-      await api.app.projects[':projectId'].integrations[':providerId'].$patch({ param: { projectId, providerId }, json: body }),
-      t('settings.integrations.actionError'),
-    ),
+    (await cmsClient.integrations.update<IntegrationConnectionSummary>(projectId, providerId, body)),
   );
 };
 
 const useStatusProjectIntegration = (projectId: string, action: 'activate' | 'deactivate') => {
   const t = useT();
   return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: ConfigurableProviderId; body: IntegrationRevisionBody }) => {
-    const route = api.app.projects[':projectId'].integrations[':providerId'][action];
-    return mutateData<IntegrationConnectionSummary>(
-      await route.$post({ param: { projectId, providerId }, json: body }),
-      t('settings.integrations.actionError'),
-    );
+    return action === 'activate'
+      ? (await cmsClient.integrations.activate<IntegrationConnectionSummary>(projectId, providerId, body))
+      : (await cmsClient.integrations.deactivate<IntegrationConnectionSummary>(projectId, providerId, body));
   });
 };
 
@@ -77,10 +64,7 @@ export const useDeactivateProjectIntegration = (projectId: string) => useStatusP
 export const useVerifyProjectIntegration = (projectId: string) => {
   const t = useT();
   return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: IntegrationProviderId; body: VerifyProjectIntegrationBody }) =>
-    mutateData<IntegrationCatalogEntry | IntegrationConnectionSummary>(
-      await api.app.projects[':projectId'].integrations[':providerId'].verify.$post({ param: { projectId, providerId }, json: body }),
-      t('settings.integrations.actionError'),
-    ),
+    (await cmsClient.integrations.verify<IntegrationCatalogEntry | IntegrationConnectionSummary>(projectId, providerId, body)),
   );
 };
 
@@ -89,20 +73,13 @@ export const useDeleteProjectIntegration = (projectId: string) => {
   return useIntegrationMutation(
     projectId,
     async ({ providerId, expectedRevision }: { providerId: ConfigurableProviderId; expectedRevision: number }) => {
-      const confirmation = await mutateData<{ confirmationToken: string }>(
-        await api.app.projects[':projectId'].integrations[':providerId']['delete-confirmation'].$post({
-          param: { projectId, providerId },
-          json: { expectedRevision },
-        }),
-        t('settings.integrations.actionError'),
-      );
-      return mutateData<{ providerId: ConfigurableProviderId; deleted: true }>(
-        await api.app.projects[':projectId'].integrations[':providerId'].$delete({
-          param: { projectId, providerId },
-          json: { confirmationToken: confirmation.confirmationToken },
-        }),
-        t('settings.integrations.actionError'),
-      );
+      const confirmation = await cmsClient.integrations.requestDeleteConfirmation(projectId, providerId, {
+        expectedRevision,
+      });
+      await cmsClient.integrations.delete(projectId, providerId, {
+        json: { confirmationToken: confirmation.confirmationToken },
+      });
+      return { providerId, deleted: true as const };
     },
   );
 };

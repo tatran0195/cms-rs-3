@@ -23,27 +23,28 @@ export class SearchResource {
    * Get search configuration and constraints for a project
    */
   async getSettings(projectId: ProjectId): Promise<SearchSettingsResponse> {
-    return this.http.get<SearchSettingsResponse>(`/api/app/projects/${projectId}/search/settings`);
+    return this.http.get<SearchSettingsResponse>(`/api/app/projects/${projectId}/settings/search`);
   }
 
   /**
    * Update search settings for a project
    */
   async updateSettings(projectId: ProjectId, payload: UpdateSearchSettingsRequest): Promise<SearchSettingsResponse> {
-    return this.http.patch<SearchSettingsResponse>(`/api/app/projects/${projectId}/search/settings`, payload);
+    return this.http.patch<SearchSettingsResponse>(`/api/app/projects/${projectId}/settings/search`, payload);
   }
 
   /**
    * Trigger full reindex of a project
    */
   async reindex(projectId: ProjectId): Promise<SearchReindexResponse> {
-    return this.http.post<SearchReindexResponse>(`/api/app/projects/${projectId}/search/reindex`);
+    return this.http.post<SearchReindexResponse>(`/api/app/projects/${projectId}/settings/search/reindex`);
   }
 
   /**
    * Get search diagnostics for a project
    */
-  async getDiagnostics(projectId: ProjectId): Promise<SearchDiagnosticsResponse> {
-    return this.http.get<SearchDiagnosticsResponse>(`/api/app/projects/${projectId}/search/diagnostics`);
+  async getDiagnostics(projectId: ProjectId, params?: { limit?: string | number; cursor?: string }): Promise<SearchDiagnosticsResponse> {
+    return this.http.get<SearchDiagnosticsResponse>(`/api/app/projects/${projectId}/settings/search/diagnostics`, params);
   }
 }
+

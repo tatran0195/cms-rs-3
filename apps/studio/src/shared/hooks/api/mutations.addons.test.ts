@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CmsApiError } from '@cms/sdk';
 import { useActivateProjectAddon, useUpdateProjectAddon } from './mutations';
 import { queryKeys } from './query-keys';
 import type { ProjectAddon } from './types';
@@ -13,28 +14,21 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
 }));
 
-vi.mock('../../services/api', () => ({
-  api: {
-    app: {
-      projects: {
-        ':projectId': {
-          addons: {
-            ':addonId': {
-              $patch: mocks.update,
-              activate: { $post: mocks.activate },
-              deactivate: { $post: vi.fn() },
-            },
-          },
-        },
-      },
+vi.mock('../../services/cms-client', () => ({
+  cmsClient: {
+    addons: {
+      update: mocks.update,
+      activate: mocks.activate,
+      deactivate: vi.fn(),
     },
   },
 }));
 
-const conflictResponse = () =>
-  new Response(JSON.stringify({ error: { code: 'addon:revision_conflict', message: 'The add-on changed.' } }), {
+const conflictError = () =>
+  new CmsApiError({
     status: 409,
-    headers: { 'content-type': 'application/json' },
+    code: 'addon:revision_conflict',
+    message: 'The add-on changed.',
   });
 
 describe('add-on mutation conflict recovery', () => {
@@ -46,8 +40,8 @@ describe('add-on mutation conflict recovery', () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     container = document.createElement('div');
     document.body.append(container);
-    mocks.activate.mockResolvedValue(conflictResponse());
-    mocks.update.mockResolvedValue(conflictResponse());
+    mocks.activate.mockRejectedValue(conflictError());
+    mocks.update.mockRejectedValue(conflictError());
   });
 
   afterEach(() => {

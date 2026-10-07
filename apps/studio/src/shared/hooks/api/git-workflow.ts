@@ -1,7 +1,6 @@
 import type { GitConflictResolutionBody, GitConnectionBody, GitOperationBody } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../services/api';
-import { getData, mutateData } from './client-helpers';
+import { cmsClient } from '../../services/cms-client';
 import { queryKeys } from './query-keys';
 
 export interface GitConflict {
@@ -53,9 +52,9 @@ export interface GitWorkflowStatus {
 export const useGitWorkflow = (projectId: string) =>
   useQuery({
     queryKey: queryKeys.gitWorkflow.detail(projectId),
-    queryFn: async () => getData<GitWorkflowStatus | null>(await api.app.projects[':projectId'].git.$get({ param: { projectId } }), 'Git workflow'),
+    queryFn: async () => (await cmsClient.git.getStatus(projectId)) as unknown as GitWorkflowStatus | null,
     refetchInterval: (query) =>
-      query.state.data?.operations.some((operation) => operation.status === 'QUEUED' || operation.status === 'RUNNING') ? 2500 : false,
+      query.state.data?.operations?.some((operation) => operation.status === 'QUEUED' || operation.status === 'RUNNING') ? 2500 : false,
   });
 
 const useGitWorkflowMutation = <TVariables, TResult>(projectId: string, mutationFn: (variables: TVariables) => Promise<TResult>) => {
@@ -68,43 +67,30 @@ const useGitWorkflowMutation = <TVariables, TResult>(projectId: string, mutation
 
 export const useResolveGitConflict = (projectId: string, conflictId: string) =>
   useGitWorkflowMutation(projectId, async (json: GitConflictResolutionBody) =>
-    mutateData(
-      await api.app.projects[':projectId'].git.conflicts[':conflictId'].resolve.$post({
-        param: { projectId, conflictId },
-        json,
-      }),
-      'Could not resolve the conflict.',
-    ),
+    cmsClient.git.resolveConflict(projectId, conflictId, json),
   );
 
 export const useAuthorizeGitWorkflow = (projectId: string) =>
   useMutation({
-    mutationFn: async (token: string) =>
-      mutateData(
-        await api.app.projects[':projectId'].git.authorize.$post({ param: { projectId }, json: { token } }),
-        'Could not authorize the GitHub account.',
-      ),
+    mutationFn: async (token: string) => cmsClient.git.authorize(projectId, { token }),
   });
 
 export const useConnectGitWorkflow = (projectId: string) =>
   useGitWorkflowMutation(projectId, async (json: GitConnectionBody) =>
-    mutateData(await api.app.projects[':projectId'].git.connection.$put({ param: { projectId }, json }), 'Could not connect the repository.'),
+    cmsClient.git.connect(projectId, json),
   );
 
 export const useDisconnectGitWorkflow = (projectId: string) =>
   useGitWorkflowMutation(projectId, async (_: undefined) =>
-    mutateData(await api.app.projects[':projectId'].git.connection.$delete({ param: { projectId } }), 'Could not disconnect the repository.'),
+    cmsClient.git.disconnect(projectId),
   );
 
 export const useQueueGitOperation = (projectId: string) =>
   useGitWorkflowMutation(projectId, async (json: GitOperationBody) =>
-    mutateData<GitOperation>(
-      await api.app.projects[':projectId'].git.operations.$post({ param: { projectId }, json }),
-      'Could not queue the Git operation.',
-    ),
+    (await cmsClient.git.queueOperation(projectId, json)) as unknown as GitOperation,
   );
 
 export const useRotateGitWorkflowWebhookSecret = (projectId: string) =>
   useGitWorkflowMutation(projectId, async (_: undefined) =>
-    mutateData(await api.app.projects[':projectId'].git['webhook-secret'].$post({ param: { projectId } }), 'Could not rotate the webhook secret.'),
+    cmsClient.git.rotateWebhookSecret(projectId),
   );

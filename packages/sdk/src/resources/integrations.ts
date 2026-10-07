@@ -19,23 +19,63 @@ export class IntegrationsResource {
   }
 
   /**
+   * Create integration provider configuration
+   */
+  async create<T = unknown>(projectId: ProjectId, payload: unknown): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/integrations`, payload);
+  }
+
+  /**
    * Update integration provider configuration
    */
-  async update(projectId: ProjectId, providerId: string, payload: UpdateProjectIntegrationRequest): Promise<ProjectIntegrationResponse> {
-    return this.http.patch<ProjectIntegrationResponse>(`/api/app/projects/${projectId}/integrations/${providerId}`, payload);
+  async update<T = unknown>(projectId: ProjectId, providerId: string, payload: unknown): Promise<T> {
+    return this.http.patch<T>(`/api/app/projects/${projectId}/integrations/${providerId}`, payload);
+  }
+
+  /**
+   * Activate integration provider
+   */
+  async activate<T = unknown>(projectId: ProjectId, providerId: string, payload: unknown): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/integrations/${providerId}/activate`, payload);
+  }
+
+  /**
+   * Deactivate integration provider
+   */
+  async deactivate<T = unknown>(projectId: ProjectId, providerId: string, payload: unknown): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/integrations/${providerId}/deactivate`, payload);
+  }
+
+  /**
+   * Verify integration provider
+   */
+  async verify<T = unknown>(projectId: ProjectId, providerId: string, payload: unknown): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/integrations/${providerId}/verify`, payload);
   }
 
   /**
    * Request confirmation token for integration deletion
    */
-  async requestDeleteConfirmation(projectId: ProjectId, providerId: string): Promise<ProjectIntegrationConfirmationResponse> {
-    return this.http.post<ProjectIntegrationConfirmationResponse>(`/api/app/projects/${projectId}/integrations/${providerId}/confirm-delete`);
+  async requestDeleteConfirmation(projectId: ProjectId, providerId: string, payload?: unknown): Promise<ProjectIntegrationConfirmationResponse> {
+    return this.http.post<ProjectIntegrationConfirmationResponse>(
+      `/api/app/projects/${projectId}/integrations/${providerId}/delete-confirmation`,
+      payload
+    );
   }
 
   /**
    * Delete integration provider
    */
-  async delete(projectId: ProjectId, providerId: string, params?: { confirmationToken?: string }): Promise<DeleteProjectIntegrationResponse> {
-    return this.http.delete<DeleteProjectIntegrationResponse>(`/api/app/projects/${projectId}/integrations/${providerId}`, params);
+  async delete(
+    projectId: ProjectId,
+    providerId: string,
+    options?: { confirmationToken?: string } | { json?: unknown }
+  ): Promise<DeleteProjectIntegrationResponse> {
+    const json = (options && 'json' in options) ? options.json : (options && 'confirmationToken' in options) ? { confirmationToken: options.confirmationToken } : undefined;
+    return this.http.request<DeleteProjectIntegrationResponse>(`/api/app/projects/${projectId}/integrations/${providerId}`, {
+      method: 'DELETE',
+      json,
+    });
   }
 }
+

@@ -30,4 +30,19 @@ export class DomainsResource {
   async delete(projectId: ProjectId, domainId: DomainId): Promise<DeleteDomainResponse> {
     return this.http.delete<DeleteDomainResponse>(`/api/app/projects/${projectId}/domains/${domainId}`);
   }
+
+  /**
+   * Verify domain DNS records
+   */
+  async verify<T = SpaDomainResponse>(projectId: ProjectId, domainId: DomainId): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/domains/${domainId}/verify`);
+  }
+
+  /**
+   * Set domain as primary for project
+   */
+  async setPrimary<T = unknown>(projectId: ProjectId, domainId: DomainId): Promise<T> {
+    return this.http.post<T>(`/api/app/projects/${projectId}/domains/${domainId}/primary`);
+  }
 }
+
