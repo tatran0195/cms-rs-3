@@ -37,51 +37,91 @@ pub async fn list_project_members_handler(
     let project =
         cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id).await?;
     if let Some(p) = project {
-        let members = cms_db::org::MemberQueries::get_by_organization(
+        let proj_members = cms_db::authz::ProjectMemberQueries::list_by_project(
             &state.biz_context.pool,
-            &p.organization_id,
-            None,
-            None,
-            Some(100),
-            None,
+            &project_id,
         )
-        .await?;
+        .await
+        .unwrap_or_default();
 
-        let user_ids: Vec<&str> = members.iter().map(|m| m.user_id.as_str()).collect();
-        let users = cms_db::auth::UserQueries::get_by_ids(&state.biz_context.pool, &user_ids)
-            .await
-            .unwrap_or_default();
-        let user_map: std::collections::HashMap<String, cms_entity::auth::User> =
-            users.into_iter().map(|u| (u.id.clone(), u)).collect();
+        let items: Vec<WorkspaceMemberItem> = if !proj_members.is_empty() {
+            let uids: Vec<&str> = proj_members.iter().map(|m| m.user_id.as_str()).collect();
+            let users = cms_db::auth::UserQueries::get_by_ids(&state.biz_context.pool, &uids)
+                .await
+                .unwrap_or_default();
+            let user_map: std::collections::HashMap<String, cms_entity::auth::User> =
+                users.into_iter().map(|u| (u.id.clone(), u)).collect();
 
-        let items: Vec<WorkspaceMemberItem> = members
-            .into_iter()
-            .map(|m| {
-                let (user_name, user_email, user_image) = if let Some(u) = user_map.get(&m.user_id)
-                {
-                    (u.name.clone(), u.email.clone(), u.image.clone())
-                } else {
-                    (
-                        auth.user.name.clone(),
-                        auth.user.email.clone(),
-                        auth.user.image.clone(),
-                    )
-                };
-                WorkspaceMemberItem {
-                    id: m.id,
-                    organization_id: m.organization_id,
-                    user_id: m.user_id.clone(),
-                    role: format!("{:?}", m.role).to_lowercase(),
-                    created_at: m.created_at,
-                    user: WorkspaceMemberUser {
-                        id: m.user_id,
-                        name: user_name,
-                        email: user_email,
-                        image: user_image,
-                    },
-                }
-            })
-            .collect();
+            proj_members
+                .into_iter()
+                .map(|m| {
+                    let (user_name, user_email, user_image) = if let Some(u) = user_map.get(&m.user_id) {
+                        (u.name.clone(), u.email.clone(), u.image.clone())
+                    } else {
+                        (auth.user.name.clone(), auth.user.email.clone(), auth.user.image.clone())
+                    };
+                    WorkspaceMemberItem {
+                        id: m.id,
+                        organization_id: p.organization_id.clone(),
+                        user_id: m.user_id.clone(),
+                        role: m.role,
+                        created_at: m.created_at,
+                        user: WorkspaceMemberUser {
+                            id: m.user_id,
+                            name: user_name,
+                            email: user_email,
+                            image: user_image,
+                        },
+                    }
+                })
+                .collect()
+        } else {
+            let members = cms_db::org::MemberQueries::get_by_organization(
+                &state.biz_context.pool,
+                &p.organization_id,
+                None,
+                None,
+                Some(100),
+                None,
+            )
+            .await?;
+
+            let user_ids: Vec<&str> = members.iter().map(|m| m.user_id.as_str()).collect();
+            let users = cms_db::auth::UserQueries::get_by_ids(&state.biz_context.pool, &user_ids)
+                .await
+                .unwrap_or_default();
+            let user_map: std::collections::HashMap<String, cms_entity::auth::User> =
+                users.into_iter().map(|u| (u.id.clone(), u)).collect();
+
+            members
+                .into_iter()
+                .map(|m| {
+                    let (user_name, user_email, user_image) = if let Some(u) = user_map.get(&m.user_id)
+                    {
+                        (u.name.clone(), u.email.clone(), u.image.clone())
+                    } else {
+                        (
+                            auth.user.name.clone(),
+                            auth.user.email.clone(),
+                            auth.user.image.clone(),
+                        )
+                    };
+                    WorkspaceMemberItem {
+                        id: m.id,
+                        organization_id: m.organization_id,
+                        user_id: m.user_id.clone(),
+                        role: format!("{:?}", m.role).to_lowercase(),
+                        created_at: m.created_at,
+                        user: WorkspaceMemberUser {
+                            id: m.user_id,
+                            name: user_name,
+                            email: user_email,
+                            image: user_image,
+                        },
+                    }
+                })
+                .collect()
+        };
 
         let raw_invitations = cms_db::org::InvitationQueries::list_by_org(
             &state.biz_context.pool,
@@ -166,6 +206,18 @@ pub async fn update_project_member_role_handler(
     )
     .await?;
 
+    let role_id = body.get("roleId").or_else(|| body.get("role_id")).and_then(|v| v.as_str());
+    if let Ok(Some(pm)) = cms_db::authz::ProjectMemberQueries::get_by_user_and_project(&state.biz_context.pool, &id, &project_id).await {
+        let role_str = body.get("role").and_then(|v| v.as_str()).unwrap_or(&pm.role);
+        let _ = cms_db::authz::ProjectMemberQueries::update_role(
+            &state.biz_context.pool,
+            &pm.id,
+            &project_id,
+            Some(role_str),
+            role_id,
+        ).await;
+    }
+
     Ok(Json(ApiResponse::new(member)))
 }
 
@@ -180,6 +232,7 @@ pub async fn remove_project_member_handler(
     let org_id = project_org_id(&state, &auth, &project_id).await?;
     cms_biz::org::OrgService::remove_member(&state.biz_context, &auth.user.id, &org_id, &id)
         .await?;
+    let _ = cms_db::authz::ProjectMemberQueries::remove(&state.biz_context.pool, &id, &project_id).await;
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
         id,

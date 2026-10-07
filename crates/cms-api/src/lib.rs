@@ -10,6 +10,7 @@ pub mod admin;
 pub mod analytics;
 pub mod asset;
 pub mod auth;
+pub mod authz;
 pub mod branch;
 pub mod comment;
 pub mod deployment;
@@ -73,6 +74,8 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     router = router.nest("/themes", theme::router(state.clone()));
     router = router.nest("/platform-events", platform_event::router(state.clone()));
     router = router.nest("/mcp", mcp::router(state.clone()));
+    router = router.nest("/permissions", authz::permissions_router(state.clone()));
+    router = router.nest("/workspaces", authz::workspace_roles_router(state.clone()));
 
     // App and canonical v1 subrouters
     let app_router = Router::new()
@@ -98,6 +101,8 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
         .nest("/themes", theme::router(state.clone()))
         .nest("/platform-events", platform_event::router(state.clone()))
         .nest("/mcp", mcp::router(state.clone()))
+        .nest("/permissions", authz::permissions_router(state.clone()))
+        .nest("/workspaces", authz::workspace_roles_router(state.clone()))
         .nest("/members", workspace::members_router(state.clone()))
         .nest("/workspace", workspace::workspace_router(state.clone()));
     router = router.nest("/app", app_router.clone());
