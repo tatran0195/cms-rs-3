@@ -16,45 +16,59 @@ export const usePages = (projectId: string | undefined, languageId?: string, bra
   useQuery({
     queryKey: queryKeys.pages.all(projectId ?? '', languageId, branchId),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      (await cmsClient.pages.list(projectId!, {
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.pages.list(projectId, {
         ...(languageId ? { languageId } : {}),
         ...(branchId ? { branchId } : {}),
-      })) as unknown as PageNode[],
+      })) as unknown as PageNode[];
+    },
   });
 
 export const usePage = (projectId: string | undefined, pageId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.pages.detail(projectId ?? '', pageId ?? ''),
     enabled: Boolean(projectId && pageId),
-    queryFn: async () => (await cmsClient.pages.get(projectId!, pageId!)) as unknown as Page,
+    queryFn: async () => {
+      if (!projectId || !pageId) throw new Error('projectId and pageId are required');
+      return (await cmsClient.pages.get(projectId, pageId)) as unknown as Page;
+    },
   });
 
 export const useBranches = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.branches.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.branches.list(projectId!)) as unknown as Branch[],
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.branches.list(projectId)) as unknown as Branch[];
+    },
   });
 
 export const useLanguages = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.languages.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.languages.list(projectId!)) as unknown as Language[],
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.languages.list(projectId)) as unknown as Language[];
+    },
   });
 
 export const useComments = (projectId: string | undefined, pageId?: string) =>
   useQuery({
     queryKey: queryKeys.comments.all(projectId ?? '', pageId),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.comments.list(projectId!, pageId ? { pageId } : undefined)) as unknown as Comment[],
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.comments.list(projectId, pageId ? { pageId } : undefined)) as unknown as Comment[];
+    },
   });
 
 export const useCreatePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreatePageBody) => (await cmsClient.pages.create(projectId, body as any)) as unknown as Page,
+    mutationFn: async (body: CreatePageBody) => (await cmsClient.pages.create(projectId, body)) as unknown as Page,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
   });
 };
@@ -63,7 +77,7 @@ export const useUpdatePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ pageId, body }: { pageId: string; body: UpdatePageBody }) =>
-      (await cmsClient.pages.update(projectId, pageId, body as any)) as unknown as Page,
+      (await cmsClient.pages.update(projectId, pageId, body)) as unknown as Page,
     onSuccess: (_data, { pageId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.detail(projectId, pageId) });
@@ -121,7 +135,7 @@ export const useReorderPages = (projectId: string) => {
 export const useCreateBranch = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateBranchBody) => cmsClient.branches.create(projectId, body as any),
+    mutationFn: async (body: CreateBranchBody) => cmsClient.branches.create(projectId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.branches.all(projectId) }),
   });
 };
@@ -140,7 +154,7 @@ export const useMergeBranch = (projectId: string) => {
 export const useCreateLanguage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateLanguageBody) => (await cmsClient.languages.create(projectId, body as any)) as unknown as Language,
+    mutationFn: async (body: CreateLanguageBody) => (await cmsClient.languages.create(projectId, body)) as unknown as Language,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
@@ -152,7 +166,7 @@ export const useUpdateLanguage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: UpdateLanguageBody }) =>
-      (await cmsClient.languages.update(projectId, id, body as any)) as unknown as Language,
+      (await cmsClient.languages.update(projectId, id, body)) as unknown as Language,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) }),
   });
 };
@@ -176,7 +190,7 @@ export const useCreateComment = (projectId: string, pageId?: string) => {
       (await cmsClient.comments.create(projectId, {
         page_id: pageId ?? null,
         ...body,
-      } as any)) as unknown as Comment,
+      })) as unknown as Comment,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId] }),
   });
 };
@@ -185,7 +199,7 @@ export const useResolveComment = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, resolved }: { id: string; resolved: boolean }) =>
-      (await cmsClient.comments.update(projectId, id, { resolved } as any)) as unknown as Comment,
+      (await cmsClient.comments.update(projectId, id, { resolved })) as unknown as Comment,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId] }),
   });
 };

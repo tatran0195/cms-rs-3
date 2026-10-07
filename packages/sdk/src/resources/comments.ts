@@ -14,14 +14,14 @@ export class CommentsResource {
   /**
    * Create a new comment
    */
-  async create(projectId: ProjectId, payload: CreateCommentRequest): Promise<ProjectCommentResponse> {
+  async create(projectId: ProjectId, payload: CreateCommentRequest | Record<string, unknown>): Promise<ProjectCommentResponse> {
     return this.http.post<ProjectCommentResponse>(`/api/app/projects/${projectId}/comments`, payload);
   }
 
   /**
    * Update or resolve comment
    */
-  async update(projectId: ProjectId, commentId: string, payload: UpdateCommentRequest): Promise<ProjectCommentResponse> {
+  async update(projectId: ProjectId, commentId: string, payload: UpdateCommentRequest | Record<string, unknown>): Promise<ProjectCommentResponse> {
     return this.http.patch<ProjectCommentResponse>(`/api/app/projects/${projectId}/comments/${commentId}`, payload);
   }
 

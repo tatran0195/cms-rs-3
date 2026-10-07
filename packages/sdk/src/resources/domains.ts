@@ -14,7 +14,7 @@ export class DomainsResource {
   /**
    * Add a custom domain to a project
    */
-  async add(projectId: ProjectId, payload: AddProjectDomainRequest): Promise<SpaDomainResponse> {
+  async add(projectId: ProjectId, payload: AddProjectDomainRequest | Record<string, unknown>): Promise<SpaDomainResponse> {
     return this.http.post<SpaDomainResponse>(`/api/app/projects/${projectId}/domains`, payload);
   }
 

@@ -200,7 +200,7 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
                       void navigate({
                         to: '/app/projects/$projectId/editor',
                         params: { projectId },
-                      } as any)
+                      })
                     }
                   >
                     <TableCell>

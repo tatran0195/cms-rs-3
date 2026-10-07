@@ -39,7 +39,10 @@ export const useDomains = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.domains.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.domains.list(projectId!)) as unknown as Domain[],
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.domains.list(projectId)) as unknown as Domain[];
+    },
   });
 
 export const useApiKeys = (projectId: string | undefined) => {
@@ -47,7 +50,10 @@ export const useApiKeys = (projectId: string | undefined) => {
   return useQuery({
     queryKey: queryKeys.apiKeys.all(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.apiKeys.list(projectId!)) as unknown as ApiKey[],
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.apiKeys.list(projectId)) as unknown as ApiKey[];
+    },
   });
 };
 
@@ -55,14 +61,20 @@ export const useOpenApiConfiguration = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.openapi.detail(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.openapi.getConfig(projectId!)) as unknown as OpenApiConfiguration,
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.openapi.getConfig(projectId)) as unknown as OpenApiConfiguration;
+    },
   });
 
 export const useProjectUsage = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.usage.forProject(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => cmsClient.projects.getUsage(projectId!),
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return cmsClient.projects.getUsage(projectId);
+    },
   });
 
 export const useProjectAddons = (projectId: string) =>
@@ -80,7 +92,7 @@ export const useWorkspaceSettings = (projectId?: string) =>
 
 export const useExportProjectTheme = (projectId: string) =>
   useMutation({
-    mutationFn: async () => cmsClient.projects.getThemeTemplate<{ json: any }>(projectId),
+    mutationFn: async () => cmsClient.projects.getThemeTemplate<{ json: string }>(projectId),
   });
 
 export const useImportProjectTheme = (projectId: string) => {
@@ -104,7 +116,7 @@ export const useImportProjectTheme = (projectId: string) => {
 export const useCreateApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateApiKeyBody) => await cmsClient.apiKeys.create<ApiKeySecret>(projectId, body as any),
+    mutationFn: async (body: CreateApiKeyBody) => await cmsClient.apiKeys.create<ApiKeySecret>(projectId, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
@@ -129,7 +141,7 @@ export const useUpdateProjectConfig = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ config, icon }: { config: ProjectConfigUpdate; icon?: string | null }) =>
-      (await cmsClient.projects.update(projectId, (icon === undefined ? { config } : { config, icon }) as any)) as unknown as Project,
+      (await cmsClient.projects.update(projectId, icon === undefined ? { config } : { config, icon })) as unknown as Project,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
@@ -164,7 +176,7 @@ export const useDeleteOpenApi = (projectId: string) => {
 export const useAddDomain = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: AddDomainBody) => cmsClient.domains.add(projectId, body as any),
+    mutationFn: async (body: AddDomainBody) => cmsClient.domains.add(projectId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.domains.all(projectId) }),
   });
 };

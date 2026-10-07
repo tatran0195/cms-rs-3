@@ -21,7 +21,7 @@ export const useUpdateProjectSearchConfiguration = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (body: UpdateProjectSearchConfigurationBody) =>
-      cmsClient.search.updateSettings(projectId, updateProjectSearchConfigurationBody.parse(body) as any),
+      cmsClient.search.updateSettings(projectId, updateProjectSearchConfigurationBody.parse(body)),
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.projectSearch.configuration(projectId), data);
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });

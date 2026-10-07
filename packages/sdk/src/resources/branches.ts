@@ -21,7 +21,7 @@ export class BranchesResource {
   /**
    * Create a new branch
    */
-  async create(projectId: ProjectId, payload: CreateBranchRequest): Promise<BranchResponse> {
+  async create(projectId: ProjectId, payload: CreateBranchRequest | Record<string, unknown>): Promise<BranchResponse> {
     return this.http.post<BranchResponse>(`/api/projects/${projectId}/branches`, payload);
   }
 

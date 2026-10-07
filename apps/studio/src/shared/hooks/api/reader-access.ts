@@ -52,7 +52,7 @@ export const useUpdateReaderAccessMode = (projectId: string) =>
   useReaderAccessMutation(projectId, async (json: ProjectAccessModeBody) => cmsClient.readerAccess.updateMode(projectId, json));
 
 export const useCreateReaderAudience = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (json: CreateAudienceBody) => cmsClient.readerAccess.createAudience(projectId, json as any));
+  useReaderAccessMutation(projectId, async (json: CreateAudienceBody) => cmsClient.readerAccess.createAudience(projectId, json));
 
 export const useDeleteReaderAudience = (projectId: string) =>
   useReaderAccessMutation(projectId, async (audienceId: string) => cmsClient.readerAccess.deleteAudience(projectId, audienceId));

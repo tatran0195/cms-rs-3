@@ -34,7 +34,7 @@ export function SitesListPage({ newSite, onNavigateToProject }: SitesListPagePro
       void navigate({
         to: '/app/projects/$projectId',
         params: { projectId },
-      } as any);
+      });
     }
   };
 

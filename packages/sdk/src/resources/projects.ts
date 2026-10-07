@@ -88,14 +88,14 @@ export class ProjectsResource {
   /**
    * Create a new project
    */
-  async create(payload: CreateProjectRequest): Promise<ProjectResponse> {
+  async create(payload: CreateProjectRequest | Record<string, unknown>): Promise<ProjectResponse> {
     return this.http.post<ProjectResponse>('/api/projects', payload);
   }
 
   /**
    * Update project details
    */
-  async update(id: ProjectId, payload: UpdateProjectRequest): Promise<ProjectResponse> {
+  async update(id: ProjectId, payload: UpdateProjectRequest | Record<string, unknown>): Promise<ProjectResponse> {
     return this.http.patch<ProjectResponse>(`/api/projects/${id}`, payload);
   }
 

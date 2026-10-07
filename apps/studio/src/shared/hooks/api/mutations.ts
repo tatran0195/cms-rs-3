@@ -35,7 +35,7 @@ export const useUploadAsset = (projectId: string) => {
       }
       return (await cmsClient.assets.confirm(projectId, {
         assetId: presign.assetId,
-      } as any)) as unknown as Asset;
+      })) as unknown as Asset;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.assets.all(projectId) }),
   });

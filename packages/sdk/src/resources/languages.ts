@@ -21,14 +21,14 @@ export class LanguagesResource {
   /**
    * Add a language to a project
    */
-  async create(projectId: ProjectId, payload: CreateLanguageRequest): Promise<LanguageResponse> {
+  async create(projectId: ProjectId, payload: CreateLanguageRequest | Record<string, unknown>): Promise<LanguageResponse> {
     return this.http.post<LanguageResponse>(`/api/projects/${projectId}/languages`, payload);
   }
 
   /**
    * Update a project language configuration
    */
-  async update(projectId: ProjectId, languageId: LanguageId, payload: UpdateLanguageRequest): Promise<LanguageResponse> {
+  async update(projectId: ProjectId, languageId: LanguageId, payload: UpdateLanguageRequest | Record<string, unknown>): Promise<LanguageResponse> {
     return this.http.patch<LanguageResponse>(`/api/projects/${projectId}/languages/${languageId}`, payload);
   }
 

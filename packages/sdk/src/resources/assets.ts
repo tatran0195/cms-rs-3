@@ -47,10 +47,10 @@ export class AssetsResource {
    */
   async confirm<T = AssetResponse>(
     projectId: ProjectId,
-    payload: { key?: string; assetId?: string; contentType?: string; size?: number } | Record<string, unknown>,
+    payload: { key?: string; assetId?: string; contentType?: string; size?: number } & Record<string, unknown>,
   ): Promise<T> {
     const body = {
-      key: (payload as any).key ?? (payload as any).assetId,
+      key: payload.key ?? payload.assetId,
       ...payload,
     };
     return this.http.post<T>(`/api/app/projects/${projectId}/assets/confirm`, body);

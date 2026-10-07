@@ -140,6 +140,7 @@ export function SiteSearch({
       <DialogContent
         className="max-h-[min(88vh,760px)] w-full max-w-2xl overflow-hidden rounded-2xl border border-border/70 bg-background/96 p-0 shadow-2xl backdrop-blur-xl sm:max-w-2xl"
         data-theme-surface="search"
+        dir={direction}
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('searchDocumentation')}</DialogTitle>

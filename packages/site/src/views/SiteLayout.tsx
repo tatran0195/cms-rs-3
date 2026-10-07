@@ -452,6 +452,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                 lang={navigationLanguage}
                 version={activeVersionPrefix}
                 hotkey={searchHotkey}
+                direction={isRtl ? 'rtl' : 'ltr'}
               />
             )
           }

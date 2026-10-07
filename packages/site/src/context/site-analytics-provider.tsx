@@ -151,7 +151,11 @@ export function SiteAnalyticsProvider({
 export function useSiteAnalytics(): SiteAnalyticsContextValue {
   const value = useContext(SiteAnalyticsContext);
   if (!value) {
-    return { track: () => {} };
+    return {
+      track: () => {
+        // no-op fallback when provider is missing
+      },
+    };
   }
   return value;
 }

@@ -65,12 +65,11 @@ import { draftPreviewHref } from './utils/draft-preview';
 
 export interface EditorPageProps {
   projectId: string;
-  firstPublish?: boolean;
   page?: string;
   publish?: boolean;
 }
 
-export function EditorPage({ projectId, firstPublish, page: pageParam, publish: publishParam }: EditorPageProps) {
+export function EditorPage({ projectId, page: pageParam, publish: publishParam }: EditorPageProps) {
   const t = useT();
   const { data: project } = useProject(projectId);
 

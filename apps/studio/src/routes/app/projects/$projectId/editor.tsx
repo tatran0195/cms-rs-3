@@ -18,6 +18,6 @@ export const Route = createFileRoute('/app/projects/$projectId/editor')({
 
 function EditorRoute() {
   const { projectId } = Route.useParams();
-  const { firstPublish, page, publish } = Route.useSearch();
-  return <EditorPage projectId={projectId} firstPublish={firstPublish} page={page} publish={publish} />;
+  const { page, publish } = Route.useSearch();
+  return <EditorPage projectId={projectId} page={page} publish={publish} />;
 }

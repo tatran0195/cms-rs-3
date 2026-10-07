@@ -1,3 +1,4 @@
+import type { SiteShell } from '@cms/site';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import React from 'react';
@@ -7,7 +8,7 @@ import './styles.css';
 
 declare global {
   interface Window {
-    __SITE__?: any;
+    __SITE__?: SiteShell;
   }
 }
 
@@ -20,14 +21,14 @@ const queryClient = new QueryClient({
   },
 });
 
-function readBootstrap(): any {
+function readBootstrap(): SiteShell | undefined {
   if (typeof document === 'undefined') return undefined;
 
   const scriptTag = document.getElementById('__bootstrap__') || document.getElementById('__SITE_BOOTSTRAP__');
 
   if (scriptTag?.textContent) {
     try {
-      return JSON.parse(scriptTag.textContent);
+      return JSON.parse(scriptTag.textContent) as SiteShell;
     } catch {
       // Ignore malformed bootstrap JSON
     }

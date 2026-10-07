@@ -14,7 +14,7 @@ export class ApiKeysResource {
   /**
    * Create a new API key for a project
    */
-  async create<T = unknown>(projectId: ProjectId, payload: CreateApiKeyRequest): Promise<T> {
+  async create<T = unknown>(projectId: ProjectId, payload: CreateApiKeyRequest | Record<string, unknown>): Promise<T> {
     return this.http.post<T>(`/api/app/projects/${projectId}/api-keys`, payload);
   }
 

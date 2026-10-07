@@ -23,7 +23,10 @@ export const useDeployments = (projectId: string | undefined, options?: { enable
   useQuery({
     queryKey: queryKeys.deployments.all(projectId ?? ''),
     enabled: Boolean(projectId) && (options?.enabled ?? true),
-    queryFn: async () => (await cmsClient.deployments.list(projectId!)) as unknown as Deployment[],
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.deployments.list(projectId)) as unknown as Deployment[];
+    },
     refetchInterval: (query) => (query.state.data?.some((d) => isInFlight(d.status)) ? (options?.pollIntervalMs ?? 2500) : false),
   });
 
@@ -32,7 +35,10 @@ export const usePendingChanges = (projectId: string | undefined, options?: { ena
     queryKey: queryKeys.deployments.changes(projectId ?? ''),
     enabled: Boolean(projectId) && (options?.enabled ?? true),
     staleTime: 0,
-    queryFn: async () => (await cmsClient.deployments.getChanges(projectId!)) as unknown as PendingChangesResponse,
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.deployments.getChanges(projectId)) as unknown as PendingChangesResponse;
+    },
   });
 
 export const usePublish = (projectId: string) => {

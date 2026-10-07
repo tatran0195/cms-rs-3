@@ -46,7 +46,7 @@ export function ProjectsOverviewPage({ firstPublish, newSite, onNavigateToEditor
         params: { projectId: starterProject.id },
         search: { firstPublish: true },
         replace: true,
-      } as any);
+      });
     }
   }, [firstPublish, navigate, onNavigateToEditor, projects]);
 
@@ -57,7 +57,7 @@ export function ProjectsOverviewPage({ firstPublish, newSite, onNavigateToEditor
       void navigate({
         to: '/app/projects/$projectId',
         params: { projectId },
-      } as any);
+      });
     }
   };
 

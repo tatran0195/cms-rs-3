@@ -14,20 +14,26 @@ export const useProject = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.projects.detail(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => (await cmsClient.projects.get(projectId!)) as unknown as Project,
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return (await cmsClient.projects.get(projectId)) as unknown as Project;
+    },
   });
 
 export const useProjectMembers = (projectId: string | undefined) =>
   useQuery({
     queryKey: queryKeys.members.forProject(projectId ?? ''),
     enabled: Boolean(projectId),
-    queryFn: async () => cmsClient.projects.getMembers(projectId!),
+    queryFn: async () => {
+      if (!projectId) throw new Error('projectId is required');
+      return cmsClient.projects.getMembers(projectId);
+    },
   });
 
 export const useCreateProject = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateProjectBody) => (await cmsClient.projects.create(body as any)) as unknown as Project,
+    mutationFn: async (body: CreateProjectBody) => (await cmsClient.projects.create(body)) as unknown as Project,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects.all() }),
   });
 };
@@ -35,7 +41,7 @@ export const useCreateProject = () => {
 export const useUpdateProject = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: UpdateProjectBody) => (await cmsClient.projects.update(projectId, body as any)) as unknown as Project,
+    mutationFn: async (body: UpdateProjectBody) => (await cmsClient.projects.update(projectId, body)) as unknown as Project,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });

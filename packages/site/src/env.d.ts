@@ -6,7 +6,3 @@ declare module '*.css?url' {
   const content: string;
   export default content;
 }
-declare module 'mdast' {
-  export type Root = any;
-  export type Node = any;
-}

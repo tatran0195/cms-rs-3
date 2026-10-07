@@ -29,7 +29,7 @@ export class SearchResource {
   /**
    * Update search settings for a project
    */
-  async updateSettings(projectId: ProjectId, payload: UpdateSearchSettingsRequest): Promise<SearchSettingsResponse> {
+  async updateSettings(projectId: ProjectId, payload: UpdateSearchSettingsRequest | Record<string, unknown>): Promise<SearchSettingsResponse> {
     return this.http.patch<SearchSettingsResponse>(`/api/app/projects/${projectId}/settings/search`, payload);
   }
 

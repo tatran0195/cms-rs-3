@@ -28,14 +28,14 @@ export class PagesResource {
   /**
    * Create a new page
    */
-  async create(projectId: ProjectId, payload: CreatePageRequest): Promise<PageResponse> {
+  async create(projectId: ProjectId, payload: CreatePageRequest | Record<string, unknown>): Promise<PageResponse> {
     return this.http.post<PageResponse>(`/api/projects/${projectId}/pages`, payload);
   }
 
   /**
    * Update page content or metadata
    */
-  async update(projectId: ProjectId, id: PageId, payload: UpdatePageRequest): Promise<PageResponse> {
+  async update(projectId: ProjectId, id: PageId, payload: UpdatePageRequest | Record<string, unknown>): Promise<PageResponse> {
     return this.http.patch<PageResponse>(`/api/projects/${projectId}/pages/${id}`, payload);
   }
 

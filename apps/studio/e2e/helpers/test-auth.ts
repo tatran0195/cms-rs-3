@@ -10,7 +10,7 @@ export interface TestSession {
 
 export async function createAuthenticatedSession(request: APIRequestContext): Promise<TestSession> {
   const timestamp = Date.now();
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
   const email = `playwright_${timestamp}_${randomSuffix}@test.local`;
   const password = `SecretPass123!_${randomSuffix}`;
   const name = `E2E Tester ${randomSuffix}`;

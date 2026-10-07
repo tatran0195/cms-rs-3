@@ -46,7 +46,10 @@ export class ReaderAccessResource {
   /**
    * Create a new reader audience
    */
-  async createAudience(projectId: ProjectId, payload: { name: string; pageIds?: Array<string | null> }): Promise<unknown> {
+  async createAudience(
+    projectId: ProjectId,
+    payload: { name: string; description?: string; pageIds?: Array<string | null> } | Record<string, unknown>,
+  ): Promise<unknown> {
     return this.http.post(`/api/app/projects/${projectId}/reader-access/audiences`, payload);
   }
 
