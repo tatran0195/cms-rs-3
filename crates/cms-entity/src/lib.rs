@@ -12,6 +12,7 @@
 pub mod analytics;
 pub mod asset;
 pub mod auth;
+pub mod authz;
 pub mod branch;
 pub mod comment;
 pub mod common;
