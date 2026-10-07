@@ -11,3 +11,4 @@ export * from './reader-access';
 export * from './site-events';
 export * from './site-search';
 export * from './types';
+export * from './roles';

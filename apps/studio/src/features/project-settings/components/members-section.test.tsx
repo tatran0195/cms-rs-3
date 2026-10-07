@@ -60,6 +60,7 @@ vi.mock('@/hooks/api', () => ({
   useUpdateProjectMemberRole: () => mutation,
   useCancelProjectInvitation: () => mutation,
   useTransferProjectOwnership: () => mutation,
+  useProjectRoles: () => ({ data: [], isPending: false }),
 }));
 
 describe('MembersSection role selects', () => {

@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
         '@/hooks': fileURLToPath(new URL('./src/shared/hooks', import.meta.url)),
         '@': fileURLToPath(new URL('./src', import.meta.url)),
         '@cms/sdk': fileURLToPath(new URL('../../packages/sdk/src/index.ts', import.meta.url)),
+        '@cms/ui': fileURLToPath(new URL('../../packages/ui/dist/index.js', import.meta.url)),
       },
     },
     server: {

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@/hooks/*": ["./src/shared/hooks/*"],
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@cms/ui": ["../../packages/ui/dist/index.d.ts"]
     }
   },
   "include": ["src", "vite.config.ts"],

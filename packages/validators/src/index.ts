@@ -714,11 +714,15 @@ export const inviteMemberBody = z.object({
   email: z.email(),
   // Invitations can never carry the owner role — see assignableMemberRoleEnum.
   role: assignableMemberRoleEnum.default('member'),
+  roleId: z.string().optional(),
 });
 export type InviteMemberBody = z.infer<typeof inviteMemberBody>;
 
 // Role changes can never grant owner — see assignableMemberRoleEnum.
-export const updateMemberRoleBody = z.object({ role: assignableMemberRoleEnum });
+export const updateMemberRoleBody = z.object({
+  role: assignableMemberRoleEnum,
+  roleId: z.string().optional(),
+});
 export type UpdateMemberRoleBody = z.infer<typeof updateMemberRoleBody>;
 
 /** The ONLY path to the owner role: an owner-guarded transfer that atomically
