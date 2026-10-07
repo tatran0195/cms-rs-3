@@ -8,6 +8,7 @@ use cms_db::{
     PgPool,
 };
 use cms_entity::{
+    authz::{Action, ProjectResource},
     common::PaginatedResponse,
     page::{
         CreatePageRequest, GetPageTreeResponse, ListPagesQuery, ListPagesResponse, PageResponse,
@@ -99,8 +100,13 @@ impl PageService {
             ));
         }
         ctx.authz
-            .require_project_role(user_id, project_id, cms_entity::common::MemberRole::Member)
+            .require_project_permission(user_id, project_id, ProjectResource::Pages, Action::Create)
             .await?;
+        if request.is_published {
+            ctx.authz
+                .require_project_permission(user_id, project_id, ProjectResource::Pages, Action::Publish)
+                .await?;
+        }
 
         let title = request.title.trim();
         if title.is_empty() || title.chars().count() > 200 {
@@ -433,10 +439,11 @@ impl PageService {
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
         ctx.authz
-            .require_project_role(
+            .require_project_permission(
                 user_id,
                 &page.project_id,
-                cms_entity::common::MemberRole::Editor,
+                ProjectResource::Pages,
+                Action::Edit,
             )
             .await?;
         let project = ProjectQueries::get_by_id(&ctx.pool, &page.project_id)
@@ -594,6 +601,16 @@ impl PageService {
             .hidden
             .map(|hidden| !hidden)
             .or(request.is_published);
+        if is_published == Some(true) && !page.is_published {
+            ctx.authz
+                .require_project_permission(
+                    user_id,
+                    &page.project_id,
+                    ProjectResource::Pages,
+                    Action::Publish,
+                )
+                .await?;
+        }
         let updated = PageQueries::update(
             &ctx.pool,
             page_id,
@@ -641,10 +658,11 @@ impl PageService {
 
         // Check if user has access to delete the page
         ctx.authz
-            .require_project_role(
+            .require_project_permission(
                 user_id,
                 &page.project_id,
-                cms_entity::common::MemberRole::Editor,
+                ProjectResource::Pages,
+                Action::Delete,
             )
             .await?;
 

@@ -1316,6 +1316,7 @@ dependencies = [
  "cms-entity",
  "cms-error",
  "serde",
+ "serde_json",
  "tokio",
 ]
 

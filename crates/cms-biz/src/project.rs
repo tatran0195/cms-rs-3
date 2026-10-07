@@ -220,13 +220,18 @@ impl ProjectService {
         user_id: &str,
         project_id: &str,
     ) -> Result<bool, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        // Only organization owner can delete a project
+        // Require DangerZone Delete permission on the project
         ctx.authz
-            .require_org_owner(user_id, &project.organization_id)
+            .require_project_permission(
+                user_id,
+                project_id,
+                cms_entity::authz::ProjectResource::DangerZone,
+                cms_entity::authz::Action::Delete,
+            )
             .await?;
 
         ProjectQueries::delete(&ctx.pool, project_id).await

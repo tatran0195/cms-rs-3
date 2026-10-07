@@ -4,6 +4,7 @@
 
 use cms_db::{branch::BranchQueries, page::PageQueries, project::ProjectQueries};
 use cms_entity::{
+    authz::{Action, ProjectResource},
     branch::{
         BranchResponse, BranchWithProjectResponse, CreateBranchRequest, ListBranchesQuery,
         ListBranchesResponse, SetDefaultBranchRequest, UpdateBranchRequest,
@@ -31,7 +32,7 @@ impl BranchService {
 
         // Check if user has access to create branches in this project
         ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Editor)
+            .require_project_permission(user_id, project_id, ProjectResource::Branches, Action::Create)
             .await?;
 
         // Generate a unique slug atomically with unique constraint retry
@@ -146,7 +147,7 @@ impl BranchService {
 
         // Check if user has admin role in the project
         ctx.authz
-            .require_project_role(user_id, &branch.project_id, MemberRole::Admin)
+            .require_project_permission(user_id, &branch.project_id, ProjectResource::Branches, Action::Edit)
             .await?;
 
         // If name is changing, check for slug conflicts
@@ -201,7 +202,7 @@ impl BranchService {
 
         // Check if user has admin role in the project
         ctx.authz
-            .require_project_role(user_id, &branch.project_id, MemberRole::Admin)
+            .require_project_permission(user_id, &branch.project_id, ProjectResource::Branches, Action::Delete)
             .await?;
 
         // Cannot delete the default branch
