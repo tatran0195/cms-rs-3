@@ -16,7 +16,7 @@ pub struct Reader {
 }
 
 /// Reader response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReaderResponse {
     pub id: Id,
     pub email: String,
@@ -38,7 +38,7 @@ impl From<Reader> for ReaderResponse {
 }
 
 /// Create reader request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateReaderRequest {
     pub email: String,
     #[serde(default)]
@@ -46,7 +46,7 @@ pub struct CreateReaderRequest {
 }
 
 /// Update reader request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateReaderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -64,7 +64,7 @@ pub struct Audience {
 }
 
 /// Audience response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AudienceResponse {
     pub id: Id,
     pub project_id: Id,
@@ -88,7 +88,7 @@ impl From<Audience> for AudienceResponse {
 }
 
 /// Create audience request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateAudienceRequest {
     pub project_id: Id,
     pub name: String,
@@ -97,7 +97,7 @@ pub struct CreateAudienceRequest {
 }
 
 /// Update audience request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateAudienceRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -115,7 +115,7 @@ pub struct ReaderAudience {
 }
 
 /// Reader audience response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReaderAudienceResponse {
     pub id: Id,
     pub reader_id: Id,
@@ -146,7 +146,7 @@ pub struct AudienceGrant {
 }
 
 /// Audience grant response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AudienceGrantResponse {
     pub id: Id,
     pub audience_id: Id,
@@ -170,7 +170,7 @@ impl From<AudienceGrant> for AudienceGrantResponse {
 }
 
 /// Create audience grant request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateAudienceGrantRequest {
     pub audience_id: Id,
     pub project_id: Id,
@@ -192,7 +192,7 @@ pub struct ReaderInvitation {
 }
 
 /// Reader invitation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReaderInvitationResponse {
     pub id: Id,
     pub audience_id: Id,
@@ -214,7 +214,7 @@ impl From<ReaderInvitation> for ReaderInvitationResponse {
 }
 
 /// Create reader invitation request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateReaderInvitationRequest {
     pub audience_id: Id,
     pub email: String,
@@ -231,7 +231,7 @@ pub struct ReaderSession {
 }
 
 /// Reader session response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReaderSessionResponse {
     pub id: Id,
     pub reader_id: Id,
@@ -262,7 +262,7 @@ pub struct JwtAccessProvider {
 }
 
 /// JWT access provider response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct JwtAccessProviderResponse {
     pub id: Id,
     pub name: String,
@@ -307,7 +307,7 @@ pub struct ReaderAuditLog {
 }
 
 /// Reader audit log response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReaderAuditLogResponse {
     pub id: Id,
     pub reader_id: Id,
@@ -353,7 +353,7 @@ pub struct ListAudiencesQuery {
 }
 
 /// Create invitation request (invites a reader to access a project)
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateInvitationRequest {
     pub email: String,
     pub project_id: Id,
@@ -363,7 +363,7 @@ pub struct CreateInvitationRequest {
 }
 
 /// Accept invitation request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AcceptInvitationRequest {
     pub token: String,
     #[serde(default)]
@@ -371,7 +371,7 @@ pub struct AcceptInvitationRequest {
 }
 
 /// Project reader item
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectReaderItem {
     pub id: String,
@@ -384,7 +384,7 @@ pub struct ProjectReaderItem {
 }
 
 /// Project audience item
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectAudienceItem {
     pub id: String,
@@ -395,7 +395,7 @@ pub struct ProjectAudienceItem {
 }
 
 /// Project JWT provider item
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectJwtProviderItem {
     pub enabled: bool,
@@ -411,7 +411,7 @@ pub struct ProjectJwtProviderItem {
 }
 
 /// Project reader access response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectReaderAccessResponse {
     pub access_mode: String,
@@ -422,7 +422,7 @@ pub struct ProjectReaderAccessResponse {
 }
 
 /// Project reader invitation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectReaderInvitationResponse {
     pub id: String,
@@ -434,7 +434,7 @@ pub struct ProjectReaderInvitationResponse {
 }
 
 /// Project JWT test response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectJwtTestResponse {
     pub configured: bool,
@@ -443,7 +443,7 @@ pub struct ProjectJwtTestResponse {
 }
 
 /// Project reader emergency revoke response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectReaderEmergencyRevokeResponse {
     pub revoked: bool,
@@ -451,7 +451,7 @@ pub struct ProjectReaderEmergencyRevokeResponse {
 }
 
 /// Delete audience or grant response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteAudienceResponse {
     pub success: bool,
     pub id: Id,

@@ -7,7 +7,7 @@ use validator::Validate;
 use crate::common::{Id, MemberRole, PaginatedResponse};
 
 /// Organization entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Organization {
     pub id: Id,
     pub name: String,
@@ -21,7 +21,7 @@ pub struct Organization {
 }
 
 /// Organization create request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateOrganizationRequest {
     #[validate(length(
         min = 1,
@@ -35,7 +35,7 @@ pub struct CreateOrganizationRequest {
 }
 
 /// Organization update request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateOrganizationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[validate(length(
@@ -53,7 +53,7 @@ pub struct UpdateOrganizationRequest {
 }
 
 /// Organization response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct OrganizationResponse {
     pub id: Id,
     pub name: String,
@@ -81,7 +81,7 @@ impl From<Organization> for OrganizationResponse {
 }
 
 /// Member entity (user's membership in an organization)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Member {
     pub id: Id,
     pub user_id: Id,
@@ -92,7 +92,7 @@ pub struct Member {
 }
 
 /// Member response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct MemberResponse {
     pub id: Id,
     pub user_id: Id,
@@ -116,7 +116,7 @@ impl From<Member> for MemberResponse {
 }
 
 /// Member with user information
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct MemberWithUserResponse {
     #[serde(flatten)]
     pub member: MemberResponse,
@@ -124,7 +124,7 @@ pub struct MemberWithUserResponse {
 }
 
 /// Invitation entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Invitation {
     pub id: Id,
     pub organization_id: Id,
@@ -137,7 +137,7 @@ pub struct Invitation {
 }
 
 /// Invitation create request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateInvitationRequest {
     #[validate(email(message = "Invalid email format"))]
     pub email: String,
@@ -150,7 +150,7 @@ fn default_invitation_role() -> MemberRole {
 }
 
 /// Invitation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct InvitationResponse {
     pub id: Id,
     pub organization_id: Id,
@@ -174,7 +174,7 @@ impl From<Invitation> for InvitationResponse {
 }
 
 /// Accept invitation request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct AcceptInvitationRequest {
     #[validate(length(min = 1, message = "Token is required"))]
     pub token: String,
@@ -183,7 +183,7 @@ pub struct AcceptInvitationRequest {
 }
 
 /// List members query parameters
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListMembersQuery {
     #[serde(default)]
     pub role: Option<MemberRole>,
@@ -198,7 +198,7 @@ pub type ListMembersResponse = PaginatedResponse<MemberWithUserResponse>;
 pub type ListInvitationsResponse = PaginatedResponse<InvitationResponse>;
 
 /// Workspace settings response for /api/app/workspace
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSettingsResponse {
     pub name: String,
@@ -214,7 +214,7 @@ pub struct WorkspaceSettingsResponse {
 }
 
 /// Workspace settings update request for PATCH /api/app/workspace
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateWorkspaceSettingsRequest {
     pub name: Option<String>,
     pub logo: Option<String>,
@@ -224,7 +224,7 @@ pub struct UpdateWorkspaceSettingsRequest {
 }
 
 /// Workspace member user info in /api/app/members
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceMemberUser {
     pub id: String,
@@ -234,7 +234,7 @@ pub struct WorkspaceMemberUser {
 }
 
 /// Workspace member item in /api/app/members
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceMemberItem {
     pub id: String,
@@ -246,7 +246,7 @@ pub struct WorkspaceMemberItem {
 }
 
 /// Workspace members response for /api/app/members
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceMembersResponse {
     pub members: Vec<WorkspaceMemberItem>,
@@ -254,7 +254,7 @@ pub struct WorkspaceMembersResponse {
 }
 
 /// Workspace analytics response for /api/app/workspace/analytics
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceAnalyticsResponse {
     pub availability: String,
@@ -280,7 +280,7 @@ pub struct WorkspaceAnalyticsResponse {
 }
 
 /// Workspace invite member request for POST /api/app/members/invite
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct InviteWorkspaceMemberRequest {
     #[validate(email(message = "Invalid email format"))]
     pub email: String,
@@ -288,7 +288,7 @@ pub struct InviteWorkspaceMemberRequest {
 }
 
 /// Workspace invitation created response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceInvitationResponse {
     pub id: String,
@@ -300,14 +300,14 @@ pub struct WorkspaceInvitationResponse {
 }
 
 /// Workspace mutation success response (remove member, cancel invitation)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct WorkspaceMutationResponse {
     pub success: bool,
     pub id: String,
 }
 
 /// Request to update a workspace member's role
-#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateWorkspaceMemberRoleRequest {
     pub role: Option<String>,
 }

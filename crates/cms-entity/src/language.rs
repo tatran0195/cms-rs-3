@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::{Id, PaginatedResponse};
 
 /// A content language associated with a project.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Language {
     pub id: Id,
     pub project_id: Id,
@@ -24,7 +24,7 @@ pub struct Language {
 }
 
 /// Language create request.
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateLanguageRequest {
     #[serde(default)]
     pub project_id: Id,
@@ -46,7 +46,7 @@ pub struct CreateLanguageRequest {
 }
 
 /// Language update request.
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateLanguageRequest {
     #[serde(alias = "label", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -78,7 +78,7 @@ where
 }
 
 /// Translation coverage compared with the default language on the same branch.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct LanguageCoverage {
     #[serde(rename = "pageCount")]
     pub page_count: u64,
@@ -95,7 +95,7 @@ pub struct LanguageCoverage {
 
 /// Language response. The wire format intentionally follows the frontend's
 /// camelCase contract while retaining a few snake_case keys for older clients.
-#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct LanguageResponse {
     pub id: Id,
     #[serde(alias = "projectId")]
@@ -179,7 +179,7 @@ impl From<Language> for LanguageResponse {
 }
 
 /// Project translation entity.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectTranslation {
     pub id: Id,
     pub project_id: Id,
@@ -193,7 +193,7 @@ pub struct ProjectTranslation {
 }
 
 /// Project translation response.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectTranslationResponse {
     pub id: Id,
     #[serde(rename = "projectId")]
@@ -225,7 +225,7 @@ impl From<ProjectTranslation> for ProjectTranslationResponse {
 }
 
 /// List languages query parameters.
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListLanguagesQuery {
     pub project_id: Id,
 }
@@ -234,13 +234,13 @@ pub struct ListLanguagesQuery {
 pub type ListLanguagesResponse = PaginatedResponse<LanguageResponse>;
 
 /// Set default language request.
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct SetDefaultLanguageRequest {
     pub language_id: Id,
 }
 
 /// Delete language response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteLanguageResponse {
     pub success: bool,
 }

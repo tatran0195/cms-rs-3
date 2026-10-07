@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Project entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Project {
     pub id: Id,
     pub organization_id: Id,
@@ -28,7 +28,7 @@ pub struct Project {
 }
 
 /// Project create request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateProjectRequest {
     #[serde(alias = "organizationId", default)]
     pub organization_id: Option<Id>,
@@ -52,7 +52,7 @@ fn default_is_public() -> bool {
 }
 
 /// Project update request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateProjectRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[validate(length(
@@ -80,7 +80,7 @@ pub struct UpdateProjectRequest {
 }
 
 /// Project count response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Default, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectCountResponse {
     #[serde(default)]
@@ -92,7 +92,7 @@ pub struct ProjectCountResponse {
 }
 
 /// Project response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectResponse {
     pub id: Id,
@@ -139,7 +139,7 @@ impl From<Project> for ProjectResponse {
 }
 
 /// Project with organization information
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectWithOrgResponse {
     #[serde(flatten)]
     pub project: ProjectResponse,
@@ -147,7 +147,7 @@ pub struct ProjectWithOrgResponse {
 }
 
 /// Project settings (extended configuration)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectSettings {
     pub project_id: Id,
     #[serde(default)]
@@ -165,7 +165,7 @@ pub struct ProjectSettings {
 }
 
 /// Project settings update request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateProjectSettingsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<String>,
@@ -180,7 +180,7 @@ pub struct UpdateProjectSettingsRequest {
 }
 
 /// Project addon entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectAddon {
     pub id: Id,
     pub project_id: Id,
@@ -192,7 +192,7 @@ pub struct ProjectAddon {
 }
 
 /// Project addon response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectAddonResponse {
     pub id: Id,
     pub project_id: Id,
@@ -218,7 +218,7 @@ impl From<ProjectAddon> for ProjectAddonResponse {
 }
 
 /// List projects query parameters
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListProjectsQuery {
     #[serde(default)]
     pub organization_id: Option<Id>,
@@ -236,7 +236,7 @@ pub struct ListProjectsQuery {
 pub type ListProjectsResponse = PaginatedResponse<ProjectResponse>;
 
 /// Delete project response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteProjectResponse {
     pub success: bool,
     pub id: ProjectId,
@@ -252,7 +252,7 @@ impl DeleteProjectResponse {
 }
 
 /// Project audit event
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectAuditEvent {
     pub id: Id,
     pub project_id: Id,

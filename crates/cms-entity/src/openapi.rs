@@ -20,7 +20,7 @@ pub struct OpenApiDocument {
 }
 
 /// OpenAPI document response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct OpenApiDocumentResponse {
     pub id: Id,
     pub project_id: Id,
@@ -50,7 +50,7 @@ impl From<OpenApiDocument> for OpenApiDocumentResponse {
 }
 
 /// Create OpenAPI document request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateOpenApiDocumentRequest {
     pub project_id: Id,
     pub name: String,
@@ -58,7 +58,7 @@ pub struct CreateOpenApiDocumentRequest {
 }
 
 /// Update OpenAPI document request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateOpenApiDocumentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -67,13 +67,13 @@ pub struct UpdateOpenApiDocumentRequest {
 }
 
 /// Parse OpenAPI document request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ParseOpenApiDocumentRequest {
     pub id: Id,
 }
 
 /// OpenAPI parsing result
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct OpenApiParsingResult {
     pub document_id: Id,
     pub parsed_successfully: bool,
@@ -95,7 +95,7 @@ pub struct ListOpenApiDocumentsQuery {
 }
 
 /// OpenAPI path info (simplified for responses)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct OpenApiPathInfo {
     pub path: String,
     pub method: String,
@@ -105,7 +105,7 @@ pub struct OpenApiPathInfo {
 }
 
 /// OpenAPI document with paths
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct OpenApiDocumentWithPaths {
     #[serde(flatten)]
     pub document: OpenApiDocumentResponse,
@@ -113,7 +113,7 @@ pub struct OpenApiDocumentWithPaths {
 }
 
 /// OpenAPI source configuration for SPA
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectOpenApiSourceResponse {
     #[serde(rename = "type")]
     pub source_type: String,
@@ -122,7 +122,7 @@ pub struct ProjectOpenApiSourceResponse {
 }
 
 /// Project OpenAPI configuration response matching SPA OpenApiConfiguration
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOpenApiConfigurationResponse {
     pub title: String,
@@ -133,7 +133,7 @@ pub struct ProjectOpenApiConfigurationResponse {
 }
 
 /// Project OpenAPI validation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectOpenApiValidationResponse {
     pub valid: bool,
     pub version: String,

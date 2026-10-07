@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::{Id, PaginatedResponse};
 
 /// Branch entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Branch {
     pub id: Id,
     pub project_id: Id,
@@ -21,7 +21,7 @@ pub struct Branch {
 }
 
 /// Branch create request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateBranchRequest {
     pub project_id: Id,
     pub name: String,
@@ -32,7 +32,7 @@ pub struct CreateBranchRequest {
 }
 
 /// Branch update request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateBranchRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -43,7 +43,7 @@ pub struct UpdateBranchRequest {
 }
 
 /// Branch response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct BranchResponse {
     pub id: Id,
     pub project_id: Id,
@@ -74,7 +74,7 @@ impl From<Branch> for BranchResponse {
 }
 
 /// Branch with project information
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct BranchWithProjectResponse {
     #[serde(flatten)]
     pub branch: BranchResponse,
@@ -82,7 +82,7 @@ pub struct BranchWithProjectResponse {
 }
 
 /// List branches query parameters
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListBranchesQuery {
     #[serde(default)]
     pub project_id: Id,
@@ -94,13 +94,13 @@ pub struct ListBranchesQuery {
 pub type ListBranchesResponse = PaginatedResponse<BranchResponse>;
 
 /// Set default branch request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct SetDefaultBranchRequest {
     pub branch_id: Id,
 }
 
 /// Delete branch response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteBranchResponse {
     pub id: Id,
     pub name: String,

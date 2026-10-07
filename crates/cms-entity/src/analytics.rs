@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Track analytics event request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct TrackAnalyticsEventRequest {
     pub organization_id: Option<Id>,
     pub project_id: Option<Id>,
@@ -37,7 +37,7 @@ pub struct AnalyticsEvent {
 }
 
 /// Analytics event response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsEventResponse {
     pub id: Id,
     pub organization_id: Option<Id>,
@@ -67,7 +67,7 @@ impl From<AnalyticsEvent> for AnalyticsEventResponse {
 }
 
 /// Analytics query request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsQueryRequest {
     #[serde(default)]
     pub organization_id: Option<Id>,
@@ -92,7 +92,7 @@ pub struct AnalyticsQueryRequest {
 }
 
 /// Analytics result item
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsResultItem {
     pub date: Option<String>,
     pub group_value: Option<String>,
@@ -101,7 +101,7 @@ pub struct AnalyticsResultItem {
 }
 
 /// Analytics query response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsQueryResponse {
     pub query: AnalyticsQueryRequest,
     pub results: Vec<AnalyticsResultItem>,
@@ -118,7 +118,7 @@ pub struct AnalyticsQueryResponse {
 }
 
 /// Page view analytics
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PageViewAnalytics {
     pub page_id: Id,
     pub project_id: Id,
@@ -128,7 +128,7 @@ pub struct PageViewAnalytics {
 }
 
 /// Project analytics summary
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectAnalyticsSummary {
     pub project_id: Id,
     pub total_views: i64,
@@ -139,7 +139,7 @@ pub struct ProjectAnalyticsSummary {
 }
 
 /// Track page view request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct TrackPageViewRequest {
     pub page_id: Id,
     pub project_id: Id,
@@ -152,14 +152,14 @@ pub struct TrackPageViewRequest {
 }
 
 /// Time series analytics
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct TimeSeriesAnalytics {
     pub date: String,
     pub count: i64,
 }
 
 /// Analytics dashboard response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsDashboardResponse {
     pub total_events: i64,
     pub events_by_type: std::collections::HashMap<String, i64>,
@@ -167,7 +167,7 @@ pub struct AnalyticsDashboardResponse {
 }
 
 /// Point in timeseries for ProjectAnalytics
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectAnalyticsTimeseriesPoint {
     pub date: String,
@@ -176,7 +176,7 @@ pub struct ProjectAnalyticsTimeseriesPoint {
 }
 
 /// Project analytics matching SPA contract
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectAnalyticsResponse {
     pub availability: String,
@@ -202,7 +202,7 @@ pub struct ProjectAnalyticsResponse {
 }
 
 /// Project operational telemetry response (ADR 001 compliant, zero billing/plan concepts)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectUsageTelemetryResponse {
     pub availability: String,
@@ -213,7 +213,7 @@ pub struct ProjectUsageTelemetryResponse {
 }
 
 /// Period window for project operational usage
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectUsagePeriod {
     pub start: String,
@@ -221,7 +221,7 @@ pub struct ProjectUsagePeriod {
 }
 
 /// Meter item for internal resource usage tracking
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectUsageMeter {
     pub key: String,

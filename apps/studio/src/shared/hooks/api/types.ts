@@ -5,6 +5,25 @@ import type { LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators'
 
 export type { AnalyticsRange, LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
 
+export type {
+  ProjectResponse,
+  PageResponse,
+  BranchResponse,
+  LanguageResponse,
+  DeploymentResponse,
+  DeploymentListItem,
+  SpaDomainResponse,
+  AssetResponse,
+  ProjectIntegrationCatalogItem,
+  ProjectGitWorkflowStatus,
+  ProjectAnalyticsResponse,
+  ProjectUsageTelemetryResponse,
+  ProjectCommentResponse,
+  SearchResponse,
+  WorkspaceMembersResponse,
+  WorkspaceAnalyticsResponse,
+} from '@cms/sdk';
+
 type PublishedLanguageConfig = LanguageConfig & { name?: string; description?: string };
 
 export interface Language {

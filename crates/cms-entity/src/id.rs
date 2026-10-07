@@ -29,6 +29,27 @@ macro_rules! define_id {
         #[serde(transparent)]
         pub struct $name(pub String);
 
+        impl ts_rs::TS for $name {
+            type WithoutGenerics = Self;
+            type OptionInnerType = Self;
+
+            fn name(_cfg: &ts_rs::Config) -> String {
+                stringify!($name).to_string()
+            }
+
+            fn inline(_cfg: &ts_rs::Config) -> String {
+                "string".to_string()
+            }
+
+            fn inline_flattened(_cfg: &ts_rs::Config) -> String {
+                "string".to_string()
+            }
+
+            fn decl(_cfg: &ts_rs::Config) -> String {
+                format!("type {} = string;", stringify!($name))
+            }
+        }
+
         impl $name {
             /// Generate a new unique ID using UUID v4
             pub fn new() -> Self {

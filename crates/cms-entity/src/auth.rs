@@ -7,7 +7,7 @@ use validator::Validate;
 use crate::common::Id;
 
 /// User entity (simplified from Prisma User model)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct User {
     pub id: Id,
     pub email: String,
@@ -21,7 +21,7 @@ pub struct User {
 }
 
 /// User create request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateUserRequest {
     #[validate(email(message = "Invalid email format"))]
     pub email: String,
@@ -39,7 +39,7 @@ pub struct CreateUserRequest {
 pub type RegisterRequest = CreateUserRequest;
 
 /// User update request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateUserRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[validate(length(max = 100, message = "Name must be at most 100 characters"))]
@@ -50,7 +50,7 @@ pub struct UpdateUserRequest {
 }
 
 /// User response (with sensitive fields removed)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UserResponse {
     pub id: Id,
     pub email: String,
@@ -78,7 +78,7 @@ impl From<User> for UserResponse {
 }
 
 /// Session entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Session {
     pub id: Id,
     pub user_id: Id,
@@ -89,7 +89,7 @@ pub struct Session {
 }
 
 /// Session response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct SessionResponse {
     pub id: Id,
     pub user_id: Id,
@@ -98,7 +98,7 @@ pub struct SessionResponse {
 }
 
 /// Account entity (for OAuth providers)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Account {
     pub id: Id,
     pub user_id: Id,
@@ -119,7 +119,7 @@ pub struct Account {
 }
 
 /// Verification token entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct VerificationToken {
     pub id: Id,
     pub identifier: String,
@@ -129,7 +129,7 @@ pub struct VerificationToken {
 }
 
 /// API Key entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ApiKey {
     pub id: Id,
     pub user_id: Id,
@@ -142,7 +142,7 @@ pub struct ApiKey {
 }
 
 /// API Key create request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateApiKeyRequest {
     #[validate(length(
         min = 1,
@@ -153,7 +153,7 @@ pub struct CreateApiKeyRequest {
 }
 
 /// API Key response (without the actual key)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ApiKeyResponse {
     pub id: Id,
     pub user_id: Id,
@@ -178,7 +178,7 @@ impl From<ApiKey> for ApiKeyResponse {
 }
 
 /// API Key with secret (only returned on creation)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ApiKeyWithSecretResponse {
     #[serde(flatten)]
     pub key: ApiKeyResponse,
@@ -186,7 +186,7 @@ pub struct ApiKeyWithSecretResponse {
 }
 
 /// Login request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct LoginRequest {
     #[validate(email(message = "Invalid email format"))]
     pub email: String,
@@ -195,14 +195,14 @@ pub struct LoginRequest {
 }
 
 /// Login response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct LoginResponse {
     pub user: UserResponse,
     pub session: SessionResponse,
 }
 
 /// OAuth login request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct OAuthLoginRequest {
     pub provider: String,
     pub code: String,
@@ -210,13 +210,13 @@ pub struct OAuthLoginRequest {
 }
 
 /// Token refresh request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
 }
 
 /// Token refresh response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct RefreshTokenResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -224,7 +224,7 @@ pub struct RefreshTokenResponse {
 }
 
 /// Authenticated user information (from session or API key)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AuthenticatedUser {
     pub user_id: Id,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,7 +233,7 @@ pub struct AuthenticatedUser {
 }
 
 /// Reader JWT claims
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReaderJwtClaims {
     pub reader_id: Id,
     pub project_id: Id,
@@ -244,7 +244,7 @@ pub struct ReaderJwtClaims {
 }
 
 /// JWT access provider entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct JwtAccessProvider {
     pub id: Id,
     pub name: String,
@@ -256,7 +256,7 @@ pub struct JwtAccessProvider {
 }
 
 /// JWT replay tracking entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct JwtReplay {
     pub id: Id,
     pub jwt_id: String,
@@ -266,7 +266,7 @@ pub struct JwtReplay {
 }
 
 /// Project API key response matching SPA ApiKey shape
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectApiKeyResponse {
     pub id: Id,

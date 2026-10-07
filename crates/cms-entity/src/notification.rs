@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Notification type
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(
     type_name = "\"NotificationType\"",
@@ -22,7 +22,7 @@ pub enum NotificationType {
 }
 
 /// Notification status
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 pub enum NotificationStatus {
     Unread,
@@ -80,7 +80,7 @@ pub struct Notification {
 }
 
 /// Notification response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct NotificationResponse {
     pub id: Id,
     pub user_id: Id,
@@ -123,21 +123,21 @@ pub struct CreateNotificationRequest {
 }
 
 /// Mark notification as read request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct MarkNotificationReadRequest {
     #[serde(default)]
     pub notification_ids: Vec<Id>,
 }
 
 /// Mark all notifications as read request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct MarkAllNotificationsReadRequest {
     #[serde(default)]
     pub notification_type: Option<NotificationType>,
 }
 
 /// Archive notification request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ArchiveNotificationRequest {
     pub notification_id: Id,
 }
@@ -156,7 +156,7 @@ pub struct ListNotificationsQuery {
 }
 
 /// Notification count response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct NotificationCountResponse {
     pub total: i64,
     pub unread: i64,

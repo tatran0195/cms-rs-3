@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Theme settings for a project
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Theme {
     pub id: Id,
     pub project_id: Id,
@@ -29,7 +29,7 @@ pub struct Theme {
 }
 
 /// Theme response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ThemeResponse {
     pub id: Id,
     pub project_id: Id,
@@ -65,7 +65,7 @@ impl From<Theme> for ThemeResponse {
 }
 
 /// Create theme request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateThemeRequest {
     pub project_id: Id,
     pub name: String,
@@ -108,7 +108,7 @@ fn default_text() -> String {
 }
 
 /// Update theme request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateThemeRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -135,7 +135,7 @@ pub struct UpdateThemeRequest {
 }
 
 /// Theme CSS variables
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ThemeCssVariables {
     pub primary_color: String,
     pub secondary_color: String,
@@ -157,7 +157,7 @@ impl From<Theme> for ThemeCssVariables {
 }
 
 /// List themes query
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListThemesQuery {
     #[serde(default)]
     pub project_id: Option<Id>,
@@ -168,7 +168,7 @@ pub struct ListThemesQuery {
 }
 
 /// Project theme styles
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectThemeStyles {
     pub primary_color: String,
     pub secondary_color: String,
@@ -177,13 +177,13 @@ pub struct ProjectThemeStyles {
 }
 
 /// Project theme template details
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectThemeTemplateDetails {
     pub styles: ProjectThemeStyles,
 }
 
 /// Project theme template response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectThemeTemplateResponse {
     pub id: String,
@@ -201,7 +201,7 @@ pub struct ProjectThemeTemplateResponse {
 }
 
 /// Import project theme template response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportProjectThemeTemplateResponse {
     pub id: String,
@@ -211,7 +211,7 @@ pub struct ImportProjectThemeTemplateResponse {
 }
 
 /// Delete theme response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteThemeResponse {
     pub success: bool,
     pub id: Id,

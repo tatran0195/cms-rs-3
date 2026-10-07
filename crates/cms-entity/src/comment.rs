@@ -23,7 +23,7 @@ pub struct Comment {
 }
 
 /// Comment response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CommentResponse {
     pub id: Id,
     pub page_id: Id,
@@ -57,7 +57,7 @@ impl From<Comment> for CommentResponse {
 }
 
 /// Create comment request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateCommentRequest {
     #[validate(length(min = 1, message = "Page ID is required"))]
     pub page_id: String,
@@ -72,7 +72,7 @@ pub struct CreateCommentRequest {
 }
 
 /// Update comment request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateCommentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
@@ -81,7 +81,7 @@ pub struct UpdateCommentRequest {
 }
 
 /// Resolve comment request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ResolveCommentRequest {
     #[serde(default)]
     pub resolved: bool,
@@ -103,7 +103,7 @@ pub struct ListCommentsQuery {
 }
 
 /// Comment with replies
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CommentWithReplies {
     #[serde(flatten)]
     pub comment: CommentResponse,
@@ -166,7 +166,7 @@ impl CommentWithAuth {
 }
 
 /// Comment user information for SPA comment thread
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CommentUserResponse {
     pub id: String,
     pub name: String,
@@ -174,7 +174,7 @@ pub struct CommentUserResponse {
 }
 
 /// Project comment response matching SPA Comment interface
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectCommentResponse {
     pub id: Id,

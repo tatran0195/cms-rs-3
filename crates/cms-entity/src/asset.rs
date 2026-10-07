@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Asset entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Asset {
     pub id: Id,
     pub project_id: Id,
@@ -23,7 +23,7 @@ pub struct Asset {
 }
 
 /// Asset response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AssetResponse {
     pub id: Id,
     pub project_id: Id,
@@ -59,7 +59,7 @@ impl From<Asset> for AssetResponse {
 }
 
 /// Upload asset request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UploadAssetRequest {
     pub project_id: Id,
     #[serde(default)]
@@ -80,7 +80,7 @@ pub struct UploadAssetRequest {
 }
 
 /// Update asset request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateAssetRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_name: Option<String>,
@@ -89,7 +89,7 @@ pub struct UpdateAssetRequest {
 }
 
 /// Asset upload response (with presigned URL for direct upload)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AssetUploadResponse {
     pub asset_id: Id,
     pub storage_key: String,
@@ -98,7 +98,7 @@ pub struct AssetUploadResponse {
 }
 
 /// List assets query
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListAssetsQuery {
     #[serde(default)]
     pub project_id: Option<Id>,
@@ -111,7 +111,7 @@ pub struct ListAssetsQuery {
 }
 
 /// Delete asset response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteAssetResponse {
     pub success: bool,
     pub asset_id: Id,
@@ -121,13 +121,13 @@ pub struct DeleteAssetResponse {
 pub type CreateAssetRequest = UploadAssetRequest;
 
 /// Presign asset request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PresignAssetRequest {
     pub filename: Option<String>,
 }
 
 /// Presign asset response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PresignAssetResponse {
     pub upload_url: String,
@@ -136,7 +136,7 @@ pub struct PresignAssetResponse {
 }
 
 /// Confirm asset request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmAssetRequest {
     pub key: String,
@@ -147,7 +147,7 @@ pub struct ConfirmAssetRequest {
 }
 
 /// Confirm asset response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmAssetResponse {
     pub id: String,

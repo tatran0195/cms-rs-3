@@ -13,7 +13,7 @@ use crate::{
 ///
 /// The page tree structure is maintained through parent/child relationships
 /// with materialized path for efficient querying.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Page {
     pub id: Id,
     pub project_id: Id,
@@ -50,7 +50,7 @@ fn default_page_kind() -> String {
 }
 
 /// Page create request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, Validate)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, Validate, ts_rs::TS)]
 pub struct CreatePageRequest {
     #[serde(alias = "projectId", default)]
     pub project_id: String,
@@ -95,7 +95,7 @@ fn default_is_published() -> bool {
 }
 
 /// Page update request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, Validate)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, Validate, ts_rs::TS)]
 pub struct UpdatePageRequest {
     #[serde(
         alias = "parentId",
@@ -168,7 +168,7 @@ where
 }
 
 /// Page response (full page with all fields)
-#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PageResponse {
     pub id: Id,
     pub project_id: Id,
@@ -256,7 +256,7 @@ impl From<Page> for PageResponse {
 }
 
 /// Page tree node (for tree listing)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PageTreeNode {
     pub id: Id,
     pub project_id: Id,
@@ -274,7 +274,7 @@ pub struct PageTreeNode {
 }
 
 /// Page list item (for flat listings)
-#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PageListItem {
     pub id: Id,
     pub project_id: Id,
@@ -337,13 +337,13 @@ impl serde::Serialize for PageListItem {
 }
 
 /// Page reorder request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReorderPagesRequest {
     pub page_ids: Vec<Id>,
 }
 
 /// Response for deleting a page
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeletePageResponse {
     pub success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -351,7 +351,7 @@ pub struct DeletePageResponse {
 }
 
 /// Single item in a page tree reorder request
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Validate, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ReorderTreeItem {
     pub id: PageId,
@@ -365,7 +365,7 @@ pub struct ReorderTreeItem {
 }
 
 /// Page tree reorder request payload
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, Validate, ts_rs::TS)]
 pub struct ReorderPageTreeRequest {
     #[validate(length(
         min = 1,
@@ -377,13 +377,13 @@ pub struct ReorderPageTreeRequest {
 }
 
 /// Response for reordering pages
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ReorderPageTreeResponse {
     pub success: bool,
 }
 
 /// List pages query parameters
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListPagesQuery {
     #[serde(alias = "projectId", default)]
     pub project_id: Id,
@@ -412,7 +412,7 @@ pub type ListPagesResponse = PaginatedResponse<PageListItem>;
 pub type GetPageTreeResponse = Vec<PageTreeNode>;
 
 /// Comment on a page
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PageComment {
     pub id: Id,
     pub page_id: Id,

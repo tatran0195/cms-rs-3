@@ -17,6 +17,7 @@
     "knip": "knip",
     "lint:md": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
     "lint:md:fix": "markdownlint-cli2 --fix \"docs/**/*.md\" \"!docs/**/node_modules/**\"",
+    "export:types": "cargo test -p cms-entity --test export_ts_bindings",
     "clean": "bun --filter '*' clean"
   },
   "dependencies": {

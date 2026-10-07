@@ -1,0 +1,26 @@
+{
+  "name": "@cms/sdk",
+  "license": "AGPL-3.0-only",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts",
+    "./errors": "./src/errors.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsdown"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@cms/tsconfig": "workspace:*",
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2",
+    "tsdown": "^0.23.0",
+    "vitest": "^2.1.8"
+  }
+}

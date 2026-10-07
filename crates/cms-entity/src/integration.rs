@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Integration provider types
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(
     type_name = "\"IntegrationProvider\"",
@@ -22,7 +22,7 @@ pub enum IntegrationProvider {
 }
 
 /// Integration event status
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(
     type_name = "IntegrationEventStatus",
@@ -50,7 +50,7 @@ pub struct ProjectIntegration {
 }
 
 /// Project integration response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectIntegrationResponse {
     pub id: Id,
     pub project_id: Id,
@@ -80,7 +80,7 @@ impl From<ProjectIntegration> for ProjectIntegrationResponse {
 }
 
 /// Create project integration request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateProjectIntegrationRequest {
     pub project_id: Id,
     pub provider: IntegrationProvider,
@@ -98,7 +98,7 @@ fn default_true() -> bool {
 }
 
 /// Update project integration request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateProjectIntegrationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -123,7 +123,7 @@ pub struct IntegrationAuditEvent {
 }
 
 /// Integration audit event response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct IntegrationAuditEventResponse {
     pub id: Id,
     pub integration_id: Id,
@@ -159,7 +159,7 @@ pub struct IntegrationConfirmation {
 }
 
 /// Integration confirmation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct IntegrationConfirmationResponse {
     pub id: Id,
     pub integration_id: Id,
@@ -194,7 +194,7 @@ pub struct IntegrationWebhookDelivery {
 }
 
 /// Integration webhook delivery response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct IntegrationWebhookDeliveryResponse {
     pub id: Id,
     pub integration_id: Id,
@@ -235,7 +235,7 @@ pub struct IntegrationIdempotencyRecord {
 }
 
 /// Integration idempotency record response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct IntegrationIdempotencyRecordResponse {
     pub id: Id,
     pub integration_id: Id,
@@ -266,7 +266,7 @@ pub struct ListIntegrationsQuery {
 }
 
 /// Project integration catalog health
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectIntegrationHealth {
     pub status: String,
     pub checked_at: Option<String>,
@@ -274,13 +274,13 @@ pub struct ProjectIntegrationHealth {
 }
 
 /// Project integration credential status
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ProjectIntegrationCredential {
     pub configured: bool,
 }
 
 /// Project integration catalog item (for SPA)
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectIntegrationCatalogItem {
     pub id: String,
@@ -297,7 +297,7 @@ pub struct ProjectIntegrationCatalogItem {
 }
 
 /// Delete project integration response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteProjectIntegrationResponse {
     pub provider_id: String,
@@ -305,7 +305,7 @@ pub struct DeleteProjectIntegrationResponse {
 }
 
 /// Delete project integration confirmation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectIntegrationConfirmationResponse {
     pub confirmation_token: String,

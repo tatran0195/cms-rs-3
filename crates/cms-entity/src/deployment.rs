@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Deployment status
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(
     type_name = "\"DeploymentStatus\"",
@@ -22,7 +22,7 @@ pub enum DeploymentStatus {
 }
 
 /// Deployment entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Deployment {
     pub id: Id,
     pub project_id: Id,
@@ -36,7 +36,7 @@ pub struct Deployment {
 }
 
 /// Deployment response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeploymentResponse {
     pub id: Id,
     pub project_id: Id,
@@ -66,7 +66,7 @@ impl From<Deployment> for DeploymentResponse {
 }
 
 /// Create deployment request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateDeploymentRequest {
     pub project_id: Id,
     #[serde(default)]
@@ -74,7 +74,7 @@ pub struct CreateDeploymentRequest {
 }
 
 /// Update deployment request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateDeploymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<DeploymentStatus>,
@@ -85,7 +85,7 @@ pub struct UpdateDeploymentRequest {
 }
 
 /// List deployments query
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListDeploymentsQuery {
     #[serde(default)]
     pub project_id: Option<Id>,
@@ -100,7 +100,7 @@ pub struct ListDeploymentsQuery {
 /// Immutable content captured by a successful deployment. Public readers use
 /// this instead of mutable editor tables so edits are only visible after the
 /// next successful release.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 pub struct DeploymentSnapshotContent {
     pub project: crate::project::Project,
     pub branch: crate::branch::Branch,
@@ -113,7 +113,7 @@ pub struct DeploymentSnapshotContent {
 }
 
 /// Typed deployment list item for /api/app/projects/:id/deployments
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentListItem {
     pub id: String,
@@ -128,13 +128,13 @@ pub struct DeploymentListItem {
 }
 
 /// Request body for triggering site publish
-#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct TriggerPublishRequest {
     pub message: Option<String>,
 }
 
 /// Single page change item for /api/app/projects/:id/deployments/changes
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentChangeItem {
     pub id: String,
@@ -151,7 +151,7 @@ pub struct DeploymentChangeItem {
 }
 
 /// Deployment changes response for /api/app/projects/:id/deployments/changes
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentChangesResponse {
     pub changes: Vec<DeploymentChangeItem>,

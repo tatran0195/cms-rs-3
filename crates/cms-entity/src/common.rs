@@ -13,7 +13,7 @@ pub type Timestamp = DateTime<Utc>;
 pub type UuidString = String;
 
 /// Pagination request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PaginationRequest {
     #[serde(default = "default_page")]
     pub page: u64,
@@ -29,7 +29,7 @@ fn default_page_size() -> u64 {
 }
 
 /// Unified bounded pagination query for offset-based endpoints
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PaginationQuery {
     #[serde(default = "default_page")]
     pub page: u64,
@@ -68,7 +68,7 @@ impl PaginationQuery {
 }
 
 /// Unified cursor-based pagination query
-#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct CursorQuery {
     pub after: Option<String>,
     pub before: Option<String>,
@@ -102,7 +102,7 @@ impl CursorQuery {
 }
 
 /// Cursor-based pagination metadata
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CursorMeta {
     pub next_cursor: Option<String>,
@@ -121,7 +121,7 @@ impl CursorMeta {
 }
 
 /// Paginated response wrapper
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct PaginatedResponse<T> {
     pub data: Vec<T>,
     pub total: u64,
@@ -149,7 +149,7 @@ impl<T> PaginatedResponse<T> {
 }
 
 /// Sort order
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 pub enum SortOrder {
     #[default]
@@ -158,7 +158,7 @@ pub enum SortOrder {
 }
 
 /// Sort direction for queries
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct SortRequest {
     pub field: String,
     #[serde(default)]
@@ -166,7 +166,7 @@ pub struct SortRequest {
 }
 
 /// Health check response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct HealthResponse {
     pub status: String,
     pub timestamp: DateTime<Utc>,
@@ -184,7 +184,7 @@ impl HealthResponse {
 }
 
 /// Detailed system health response for GET /health
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct SystemHealthResponse {
     pub status: String,
     pub database: String,
@@ -193,7 +193,7 @@ pub struct SystemHealthResponse {
 }
 
 /// Standard API response envelope.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ApiResponse<T> {
     /// Domain payload.
     pub data: T,
@@ -203,7 +203,7 @@ pub struct ApiResponse<T> {
 }
 
 /// Standardized pagination metadata.
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PaginationMeta {
     pub page: u64,
@@ -233,7 +233,7 @@ impl PaginationMeta {
 }
 
 /// Production response metadata container.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -309,11 +309,11 @@ impl<T> From<PaginatedResponse<T>> for ApiResponse<Vec<T>> {
 }
 
 /// Empty response for DELETE and other operations that don't return data
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct EmptyResponse;
 
 /// Success message response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct SuccessResponse {
     pub success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -349,6 +349,7 @@ impl SuccessResponse {
     Ord,
     Default,
     utoipa::ToSchema,
+    ts_rs::TS,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum MemberRole {
@@ -402,7 +403,7 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for MemberRole {
 }
 
 /// Project role
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 pub enum ProjectRole {
     Admin,
@@ -412,7 +413,7 @@ pub enum ProjectRole {
 }
 
 /// Entity audit information
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AuditInfo {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -435,7 +436,7 @@ impl AuditInfo {
 }
 
 /// Filter operators for query parameters
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 pub enum FilterOperator {
     Eq,

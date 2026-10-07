@@ -20,7 +20,7 @@ pub struct McpAuditEvent {
 }
 
 /// MCP audit event response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpAuditEventResponse {
     pub id: Id,
     pub organization_id: Option<Id>,
@@ -50,7 +50,7 @@ impl From<McpAuditEvent> for McpAuditEventResponse {
 }
 
 /// MCP tool definition
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpTool {
     pub name: String,
     pub description: String,
@@ -58,7 +58,7 @@ pub struct McpTool {
 }
 
 /// MCP tool response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpToolResponse {
     pub name: String,
     pub description: String,
@@ -66,7 +66,7 @@ pub struct McpToolResponse {
 }
 
 /// MCP resource definition
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpResource {
     pub uri: String,
     pub name: String,
@@ -75,7 +75,7 @@ pub struct McpResource {
 }
 
 /// MCP resource response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpResourceResponse {
     pub uri: String,
     pub name: String,
@@ -84,7 +84,7 @@ pub struct McpResourceResponse {
 }
 
 /// MCP server info
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpServerInfo {
     pub name: String,
     pub version: String,
@@ -93,7 +93,7 @@ pub struct McpServerInfo {
 }
 
 /// MCP capabilities
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpCapabilities {
     pub tools: Vec<McpTool>,
     #[serde(default)]
@@ -103,21 +103,21 @@ pub struct McpCapabilities {
 }
 
 /// MCP prompt definition
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpPrompt {
     pub name: String,
     pub description: Option<String>,
 }
 
 /// MCP tool call request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpToolCallRequest {
     pub tool_name: String,
     pub arguments: serde_json::Value,
 }
 
 /// MCP tool call response / result
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpToolCallResponse {
     pub tool_name: String,
     pub result: serde_json::Value,
@@ -161,13 +161,13 @@ impl McpToolResultEnum {
 }
 
 /// MCP resource read request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpResourceReadRequest {
     pub uri: String,
 }
 
 /// MCP resource read response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpResourceReadResponse {
     pub uri: String,
     pub content: String,

@@ -7,7 +7,7 @@ use validator::Validate;
 use crate::common::Id;
 
 /// Domain entity
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Domain {
     pub id: Id,
     pub deployment_id: Id,
@@ -27,7 +27,7 @@ pub struct Domain {
 }
 
 /// Domain response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DomainResponse {
     pub id: Id,
     pub deployment_id: Id,
@@ -65,7 +65,7 @@ impl From<Domain> for DomainResponse {
 }
 
 /// Create domain request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateDomainRequest {
     #[validate(length(min = 1, message = "Deployment ID is required"))]
     pub deployment_id: String,
@@ -80,7 +80,7 @@ pub struct CreateDomainRequest {
 }
 
 /// Update domain request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateDomainRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
@@ -93,13 +93,13 @@ pub struct UpdateDomainRequest {
 }
 
 /// Verify domain request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct VerifyDomainRequest {
     pub verification_token: String,
 }
 
 /// List domains query
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListDomainsQuery {
     #[serde(default)]
     pub deployment_id: Option<Id>,
@@ -110,7 +110,7 @@ pub struct ListDomainsQuery {
 }
 
 /// Domain verification result
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DomainVerificationResult {
     pub domain_id: Id,
     pub hostname: String,
@@ -119,7 +119,7 @@ pub struct DomainVerificationResult {
 }
 
 /// DNS record challenge information for domain verification
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DnsRecord {
     pub r#type: String,
     pub name: String,
@@ -128,7 +128,7 @@ pub struct DnsRecord {
 }
 
 /// Domain representation expected by the Studio SPA
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SpaDomainResponse {
     pub id: Id,
@@ -181,14 +181,14 @@ impl SpaDomainResponse {
 }
 
 /// Request to add a domain to a project
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct AddProjectDomainRequest {
     #[validate(length(min = 1, max = 253, message = "Domain is required"))]
     pub domain: String,
 }
 
 /// Delete domain response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct DeleteDomainResponse {
     pub success: bool,
     pub id: Id,

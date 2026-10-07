@@ -25,14 +25,21 @@ const readApiError = async (res: Response, fallback: string) => {
   }
 };
 
+import { CmsApiError } from '@cms/sdk';
+export { CmsApiError };
+
 /** Unwrap a `{ data }` envelope, throwing a readable error on failure. */
-export class ApiResponseError extends Error {
+export class ApiResponseError extends CmsApiError {
   constructor(
     message: string,
-    readonly status: number,
-    readonly code?: string,
+    status: number,
+    code?: string,
   ) {
-    super(message);
+    super({
+      status,
+      code: code ?? `HTTP_${status}`,
+      message,
+    });
     this.name = 'ApiResponseError';
   }
 }

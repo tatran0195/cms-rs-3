@@ -7,7 +7,7 @@ use validator::Validate;
 use crate::common::Id;
 
 /// Git provider types
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "\"GitProvider\"", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GitProvider {
@@ -18,7 +18,7 @@ pub enum GitProvider {
 }
 
 /// Git sync operation type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 pub enum GitSyncOperationType {
     Full,
@@ -61,7 +61,7 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for GitSyncOperationType {
 }
 
 /// Git sync operation status
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(
     type_name = "\"GitSyncOperationStatus\"",
@@ -89,7 +89,7 @@ pub struct GitConnection {
 }
 
 /// Git connection response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct GitConnectionResponse {
     pub id: Id,
     pub project_id: Id,
@@ -115,7 +115,7 @@ impl From<GitConnection> for GitConnectionResponse {
 }
 
 /// Git connection create request
-#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateGitConnectionRequest {
     #[validate(length(min = 1, message = "Project ID is required"))]
     pub project_id: String,
@@ -134,7 +134,7 @@ fn default_branch() -> String {
 }
 
 /// Git connection update request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct UpdateGitConnectionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository: Option<String>,
@@ -160,7 +160,7 @@ pub struct GitSyncOperation {
 }
 
 /// Git sync operation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct GitSyncOperationResponse {
     pub id: Id,
     pub connection_id: Id,
@@ -205,7 +205,7 @@ pub struct GitFileState {
 }
 
 /// Git file state response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct GitFileStateResponse {
     pub id: Id,
     pub project_id: Id,
@@ -249,7 +249,7 @@ pub struct GitConflict {
 }
 
 /// Git conflict response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct GitConflictResponse {
     pub id: Id,
     pub project_id: Id,
@@ -283,7 +283,7 @@ impl From<GitConflict> for GitConflictResponse {
 }
 
 /// Resolve conflict request
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ResolveGitConflictRequest {
     pub resolved_content: String,
 }
@@ -301,7 +301,7 @@ pub struct GitPullRequest {
 }
 
 /// Git pull request response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct GitPullRequestResponse {
     pub id: Id,
     pub connection_id: Id,
@@ -337,7 +337,7 @@ pub struct GitPreview {
 }
 
 /// Git preview response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct GitPreviewResponse {
     pub id: Id,
     pub pull_request_id: Id,
@@ -396,7 +396,7 @@ pub struct ListGitSyncOperationsQuery {
 }
 
 /// Webhook secret rotation response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WebhookSecretRotateResponse {
     pub success: bool,
@@ -404,7 +404,7 @@ pub struct WebhookSecretRotateResponse {
 }
 
 /// Project git workflow status response
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectGitWorkflowStatus {
     pub id: String,
