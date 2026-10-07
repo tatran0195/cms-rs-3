@@ -1,10 +1,4 @@
-import ky, {
-  type KyInstance,
-  type Options as KyOptions,
-  HTTPError,
-  TimeoutError,
-  isHTTPError,
-} from 'ky';
+import ky, { HTTPError, isHTTPError, type KyInstance, type Options as KyOptions, TimeoutError } from 'ky';
 import { CmsApiError, CmsNetworkError, CmsTimeoutError } from './errors';
 import type { ApiResponse } from './types';
 
@@ -77,8 +71,7 @@ export class HttpClient {
       statusCodes: [408, 413, 429, 500, 502, 503, 504],
     };
 
-    const staticHeaders: HeadersInit =
-      typeof options.headers === 'function' ? {} : options.headers ?? {};
+    const staticHeaders: HeadersInit = typeof options.headers === 'function' ? {} : (options.headers ?? {});
 
     this.ky = ky.create({
       prefix: this.baseUrl,
@@ -94,8 +87,7 @@ export class HttpClient {
         beforeRequest: [
           async ({ request }) => {
             if (this.token) {
-              const resolvedToken =
-                typeof this.token === 'function' ? await this.token() : this.token;
+              const resolvedToken = typeof this.token === 'function' ? await this.token() : this.token;
               if (resolvedToken && !request.headers.has('Authorization')) {
                 request.headers.set('Authorization', `Bearer ${resolvedToken}`);
               }
@@ -123,7 +115,7 @@ export class HttpClient {
             const response = error.response;
             let code = `HTTP_${response.status}`;
             let message = response.statusText || 'Request failed';
-            let details: unknown = undefined;
+            let details: unknown;
             let requestId = response.headers.get('x-request-id') || undefined;
 
             let errData = error.data;
@@ -135,11 +127,7 @@ export class HttpClient {
               }
             }
             if (errData && typeof errData === 'object') {
-              if (
-                'error' in errData &&
-                typeof errData.error === 'object' &&
-                errData.error !== null
-              ) {
+              if ('error' in errData && typeof errData.error === 'object' && errData.error !== null) {
                 const sub = errData.error as Record<string, unknown>;
                 code = String(sub.code || code);
                 message = String(sub.message || message);
@@ -204,22 +192,10 @@ export class HttpClient {
       retry: overrides.retry !== undefined ? overrides.retry : this.options.retry,
       fetch: overrides.fetch ?? this.options.fetch,
       hooks: {
-        beforeRequest: [
-          ...(this.options.hooks?.beforeRequest ?? []),
-          ...(overrides.hooks?.beforeRequest ?? []),
-        ],
-        beforeRetry: [
-          ...(this.options.hooks?.beforeRetry ?? []),
-          ...(overrides.hooks?.beforeRetry ?? []),
-        ],
-        afterResponse: [
-          ...(this.options.hooks?.afterResponse ?? []),
-          ...(overrides.hooks?.afterResponse ?? []),
-        ],
-        beforeError: [
-          ...(this.options.hooks?.beforeError ?? []),
-          ...(overrides.hooks?.beforeError ?? []),
-        ],
+        beforeRequest: [...(this.options.hooks?.beforeRequest ?? []), ...(overrides.hooks?.beforeRequest ?? [])],
+        beforeRetry: [...(this.options.hooks?.beforeRetry ?? []), ...(overrides.hooks?.beforeRetry ?? [])],
+        afterResponse: [...(this.options.hooks?.afterResponse ?? []), ...(overrides.hooks?.afterResponse ?? [])],
+        beforeError: [...(this.options.hooks?.beforeError ?? []), ...(overrides.hooks?.beforeError ?? [])],
       },
       kyOptions: {
         ...this.options.kyOptions,
@@ -231,10 +207,7 @@ export class HttpClient {
   /**
    * Executes an HTTP request and returns the full ApiResponse envelope
    */
-  async requestWithMeta<T>(
-    path: string,
-    options: HttpRequestOptions = {}
-  ): Promise<ApiResponse<T>> {
+  async requestWithMeta<T>(path: string, options: HttpRequestOptions = {}): Promise<ApiResponse<T>> {
     try {
       const searchParams = options.searchParams ?? options.params;
       const cleanPath = path.startsWith('/') ? path.slice(1) : path;
@@ -263,9 +236,7 @@ export class HttpClient {
       }
 
       if (err instanceof TimeoutError) {
-        throw new CmsTimeoutError(
-          this.timeout === false ? 0 : this.timeout ?? 30_000
-        );
+        throw new CmsTimeoutError(this.timeout === false ? 0 : (this.timeout ?? 30_000));
       }
 
       if (err instanceof HTTPError) {
@@ -278,10 +249,7 @@ export class HttpClient {
         });
       }
 
-      throw new CmsNetworkError(
-        err instanceof Error ? err.message : 'Network request failed',
-        err
-      );
+      throw new CmsNetworkError(err instanceof Error ? err.message : 'Network request failed', err);
     }
   }
 

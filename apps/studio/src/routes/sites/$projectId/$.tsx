@@ -1,16 +1,9 @@
+import { pageHead, redirectIfConfigured, resolveLanguagePathRedirect, SitePageView } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import {
-  pageHead,
-  redirectIfConfigured,
-  resolveLanguagePathRedirect,
-  SitePageView,
-} from '@cms/site';
-import { ApiResponseError, siteService, type SitePage } from '@/shared';
+import { ApiResponseError, type SitePage, siteService } from '@/shared';
 
-const OpenApiReferenceView = lazy(() =>
-  import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })),
-);
+const OpenApiReferenceView = lazy(() => import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })));
 
 export const Route = createFileRoute('/sites/$projectId/$')({
   component: SitePath,

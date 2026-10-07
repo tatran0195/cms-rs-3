@@ -69,10 +69,7 @@ export class PublicResource {
   /**
    * Search site content
    */
-  async search<T = unknown>(
-    projectId: ProjectId,
-    params: { q: string; lang?: string; version?: string; limit?: string }
-  ): Promise<{ hits: T[] }> {
+  async search<T = unknown>(projectId: ProjectId, params: { q: string; lang?: string; version?: string; limit?: string }): Promise<{ hits: T[] }> {
     return this.http.get<{ hits: T[] }>(`/api/public/sites/${projectId}/search`, params);
   }
 
@@ -81,7 +78,7 @@ export class PublicResource {
    */
   async answer<T = unknown>(
     projectId: ProjectId,
-    payload: { question?: string; q?: string; query?: string; lang?: string; version?: string }
+    payload: { question?: string; q?: string; query?: string; lang?: string; version?: string },
   ): Promise<T> {
     return this.http.post<T>(`/api/public/sites/${projectId}/answer`, payload);
   }

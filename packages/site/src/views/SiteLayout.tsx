@@ -9,7 +9,6 @@ import { LanguageSwitcher } from '../components/language-switcher';
 import { MadeWithBadge } from '../components/made-with-badge';
 import { MobileNav } from '../components/mobile-nav';
 import { type SiteLanguageAlternate, SitePageAlternatesContext } from '../components/page-alternates-context';
-
 import { SiteBanner } from '../components/site-banner';
 import { firstLeafPath, SiteNav } from '../components/site-nav';
 import { SiteSearch } from '../components/site-search';
@@ -72,7 +71,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Resolve current path relative to base
-  const basePrefix = basePath ? basePath.replace(/\/+$/, '') : (projectId ? `/sites/${projectId}` : '');
+  const basePrefix = basePath ? basePath.replace(/\/+$/, '') : projectId ? `/sites/${projectId}` : '';
   const currentPath = decodeURIComponent(basePrefix ? pathname.replace(new RegExp(`^${basePrefix}/?`), '') : pathname).replace(/\/+$/, '');
   const isChangelog = currentPath === 'changelog';
   const currentVersion = site?.versions.find((item) => item.slug === site.activeVersion) ?? site?.versions.find((item) => item.isDefault);
@@ -187,7 +186,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const searchHotkey = config?.search?.hotkey;
   const navLinks = config?.navbar?.links ?? [];
   const navTabs = config?.navbar?.tabs ?? [];
-  const navAnchors = config?.navbar?.anchors ?? [];
+  const _navAnchors = config?.navbar?.anchors ?? [];
   const ctaLabel = config?.navbar?.ctaLabel;
   const ctaUrl = config?.navbar?.ctaUrl;
   const footer = config?.footer;
@@ -416,11 +415,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
               />
             </aside>
           }
-          content={
-            <SitePageAlternatesContext value={pageAlternatesContext}>
-              {children ?? <Outlet />}
-            </SitePageAlternatesContext>
-          }
+          content={<SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>}
           footer={
             hasFooterContent || showBadge ? (
               <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
@@ -449,19 +444,16 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
             ) : null
           }
           overlays={
-            <>
-              {showSearch && (
-                <SiteSearch
-                  open={searchOpen}
-                  onOpenChange={setSearchOpen}
-                  projectId={projectId}
-                  lang={navigationLanguage}
-                  version={activeVersionPrefix}
-                  hotkey={searchHotkey}
-                />
-              )}
-
-            </>
+            showSearch && (
+              <SiteSearch
+                open={searchOpen}
+                onOpenChange={setSearchOpen}
+                projectId={projectId}
+                lang={navigationLanguage}
+                version={activeVersionPrefix}
+                hotkey={searchHotkey}
+              />
+            )
           }
         />
       </DocumentationThemeProvider>

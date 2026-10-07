@@ -1,7 +1,7 @@
+import { SiteApiProvider, SiteLayout, siteHead } from '@cms/site';
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 import { QueryProvider, siteService } from '@/shared';
-import { siteHead, SiteApiProvider, SiteLayout } from '@cms/site';
 
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,

@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate, Outlet, redirect, useLocation } from '@tanstack/react-router';
-import { authClient, AuthProviders, useSession } from '@/features/auth';
+import { AuthProviders, authClient, useSession } from '@/features/auth';
 import { QueryProvider } from '@/shared';
 
 export const Route = createFileRoute('/(auth)')({

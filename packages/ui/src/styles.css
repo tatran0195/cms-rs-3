@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "@cms/ui-preset/theme.css";
+
+@source "./**/*.{ts,tsx}";
+
+:root {
+  background-color: var(--bg-subtle);
+  color: var(--fg-base);
+  text-rendering: optimizeLegibility;
+}

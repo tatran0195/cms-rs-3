@@ -1,4 +1,5 @@
 import { useT } from '@cms/i18n/react';
+import { CmsApiError } from '@cms/sdk';
 import type { IntegrationCatalogEntry, IntegrationConnectionSummary, IntegrationProviderId } from '@cms/shared/integrations';
 import type {
   CreateProjectIntegrationBody,
@@ -8,13 +9,12 @@ import type {
 } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cmsClient } from '../../services/cms-client';
-import { CmsApiError } from '@cms/sdk';
 import { queryKeys } from './query-keys';
 
 type ConfigurableProviderId = 'slack' | 'discord' | 'zapier';
 
 export const useProjectIntegrations = (projectId: string) => {
-  const t = useT();
+  const _t = useT();
   return useQuery({
     enabled: Boolean(projectId),
     queryKey: queryKeys.integrations.all(projectId),
@@ -36,40 +36,45 @@ const useIntegrationMutation = <TVariables, TResult>(projectId: string, mutation
 };
 
 export const useCreateProjectIntegration = (projectId: string) => {
-  const t = useT();
-  return useIntegrationMutation(projectId, async (json: CreateProjectIntegrationBody) =>
-    (await cmsClient.integrations.create<IntegrationConnectionSummary>(projectId, json)),
+  const _t = useT();
+  return useIntegrationMutation(
+    projectId,
+    async (json: CreateProjectIntegrationBody) => await cmsClient.integrations.create<IntegrationConnectionSummary>(projectId, json),
   );
 };
 
 export const useUpdateProjectIntegration = (projectId: string) => {
-  const t = useT();
-  return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: ConfigurableProviderId; body: UpdateProjectIntegrationBody }) =>
-    (await cmsClient.integrations.update<IntegrationConnectionSummary>(projectId, providerId, body)),
+  const _t = useT();
+  return useIntegrationMutation(
+    projectId,
+    async ({ providerId, body }: { providerId: ConfigurableProviderId; body: UpdateProjectIntegrationBody }) =>
+      await cmsClient.integrations.update<IntegrationConnectionSummary>(projectId, providerId, body),
   );
 };
 
 const useStatusProjectIntegration = (projectId: string, action: 'activate' | 'deactivate') => {
-  const t = useT();
-  return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: ConfigurableProviderId; body: IntegrationRevisionBody }) => {
-    return action === 'activate'
-      ? (await cmsClient.integrations.activate<IntegrationConnectionSummary>(projectId, providerId, body))
-      : (await cmsClient.integrations.deactivate<IntegrationConnectionSummary>(projectId, providerId, body));
-  });
+  const _t = useT();
+  return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: ConfigurableProviderId; body: IntegrationRevisionBody }) =>
+    action === 'activate'
+      ? await cmsClient.integrations.activate<IntegrationConnectionSummary>(projectId, providerId, body)
+      : await cmsClient.integrations.deactivate<IntegrationConnectionSummary>(projectId, providerId, body),
+  );
 };
 
 export const useActivateProjectIntegration = (projectId: string) => useStatusProjectIntegration(projectId, 'activate');
 export const useDeactivateProjectIntegration = (projectId: string) => useStatusProjectIntegration(projectId, 'deactivate');
 
 export const useVerifyProjectIntegration = (projectId: string) => {
-  const t = useT();
-  return useIntegrationMutation(projectId, async ({ providerId, body }: { providerId: IntegrationProviderId; body: VerifyProjectIntegrationBody }) =>
-    (await cmsClient.integrations.verify<IntegrationCatalogEntry | IntegrationConnectionSummary>(projectId, providerId, body)),
+  const _t = useT();
+  return useIntegrationMutation(
+    projectId,
+    async ({ providerId, body }: { providerId: IntegrationProviderId; body: VerifyProjectIntegrationBody }) =>
+      await cmsClient.integrations.verify<IntegrationCatalogEntry | IntegrationConnectionSummary>(projectId, providerId, body),
   );
 };
 
 export const useDeleteProjectIntegration = (projectId: string) => {
-  const t = useT();
+  const _t = useT();
   return useIntegrationMutation(
     projectId,
     async ({ providerId, expectedRevision }: { providerId: ConfigurableProviderId; expectedRevision: number }) => {

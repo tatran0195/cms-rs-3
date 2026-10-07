@@ -3,7 +3,6 @@ import { isPublicMarkdownPage } from '@cms/shared/public-markdown';
 import type { ProjectConfig } from '@cms/validators';
 import type { SitePage, SiteShell } from '../types';
 
-
 /**
  * Public origin the site is served from. On the client this is the real origin;
  * during SSR we fall back to the configured app URL. (Per-site custom domains

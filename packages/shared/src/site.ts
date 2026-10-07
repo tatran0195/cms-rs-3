@@ -293,9 +293,7 @@ export const resolvePageCategory = (page: SnapshotPage, siblingPageCount: number
     { title: 'Integrations', icon: 'blocks', order: 9, keywords: ['integration', 'channel manager', 'pms', 'stc', 'hyperpay'] },
   ];
   const match = rules.find((rule) => rule.keywords.some((keyword) => haystack.includes(keyword)));
-  return match
-    ? { title: match.title, icon: match.icon, order: match.order }
-    : { title: 'More guides', icon: 'book-open', order: 10 };
+  return match ? { title: match.title, icon: match.icon, order: match.order } : { title: 'More guides', icon: 'book-open', order: 10 };
 };
 
 /** Build a navigation tree from snapshot pages, hiding pages flagged `hidden`.

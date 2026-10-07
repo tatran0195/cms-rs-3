@@ -1,10 +1,10 @@
 import type { HttpClient } from '../http';
 import type {
-  ProjectId,
-  ProjectReaderAccessResponse,
-  ProjectJwtTestResponse,
-  ProjectReaderEmergencyRevokeResponse,
   DeleteAudienceResponse,
+  ProjectId,
+  ProjectJwtTestResponse,
+  ProjectReaderAccessResponse,
+  ProjectReaderEmergencyRevokeResponse,
 } from '../types';
 
 export interface ProjectReaderInvitationResult {
@@ -32,7 +32,7 @@ export class ReaderAccessResource {
    */
   async updateMode(
     projectId: ProjectId,
-    payload: { accessMode?: 'PUBLIC' | 'WORKSPACE' | 'READERS'; mode?: 'PUBLIC' | 'WORKSPACE' | 'READERS' } | unknown
+    payload: { accessMode?: 'PUBLIC' | 'WORKSPACE' | 'READERS'; mode?: 'PUBLIC' | 'WORKSPACE' | 'READERS' } | unknown,
   ): Promise<ProjectReaderAccessResponse> {
     const raw = payload as Record<string, unknown>;
     const body = {
@@ -62,7 +62,7 @@ export class ReaderAccessResource {
    */
   async inviteReader<T = ProjectReaderInvitationResult>(
     projectId: ProjectId,
-    payload: { email: string; name?: string | null; audienceIds?: string[] }
+    payload: { email: string; name?: string | null; audienceIds?: string[] },
   ): Promise<T> {
     return this.http.post<T>(`/api/app/projects/${projectId}/reader-access/readers/invite`, payload);
   }

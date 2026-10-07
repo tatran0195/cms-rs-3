@@ -1,4 +1,5 @@
 export * from './analytics';
+export * from './client-helpers';
 export * from './git-workflow';
 export * from './integrations';
 export * from './mutations';
@@ -10,4 +11,3 @@ export * from './reader-access';
 export * from './site-events';
 export * from './site-search';
 export * from './types';
-export * from './client-helpers';

@@ -1,32 +1,32 @@
 import type { HttpClient } from '../http';
 import type {
-  AuthUser,
+  AcceptInvitationPayload,
   AuthSession,
   AuthSessionData,
-  SendVerificationOtpPayload,
-  VerifyEmailOtpPayload,
-  SignInEmailOtpPayload,
-  RequestEmailChangePayload,
+  AuthUser,
   ChangeEmailPayload,
+  RequestEmailChangePayload,
+  SendVerificationOtpPayload,
+  SignInEmailOtpPayload,
   SignInSocialPayload,
   SignInSocialResponse,
   UpdateUserPayload,
-  AcceptInvitationPayload,
+  VerifyEmailOtpPayload,
 } from '../types';
 
 export type {
-  AuthUser,
+  AcceptInvitationPayload,
   AuthSession,
   AuthSessionData,
-  SendVerificationOtpPayload,
-  VerifyEmailOtpPayload,
-  SignInEmailOtpPayload,
-  RequestEmailChangePayload,
+  AuthUser,
   ChangeEmailPayload,
+  RequestEmailChangePayload,
+  SendVerificationOtpPayload,
+  SignInEmailOtpPayload,
   SignInSocialPayload,
   SignInSocialResponse,
   UpdateUserPayload,
-  AcceptInvitationPayload,
+  VerifyEmailOtpPayload,
 };
 
 export class AuthResource {

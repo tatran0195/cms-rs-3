@@ -3,15 +3,14 @@ import { siteT } from '@cms/i18n/site';
 import { protectMarkdownCode } from '@cms/shared/markdown-code';
 import { CalendarClock, Check, ChevronLeft, ChevronRight, CircleAlert, Clock3, Image, PencilLine, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Markdown } from './markdown';
-import { DocumentationPageLayout } from './documentation-theme-provider';
-import { useSitePageAlternates } from './page-alternates-context';
-import { TableOfContents } from './toc';
-import { type SiteFeatures, type SitePage, resolveSiteFeatures } from '../types';
+import { useSiteAnalytics } from '../context/site-analytics-provider';
 import { localeTag } from '../lib/format';
 import { siteHref } from '../lib/site-paths';
-import { useSiteAnalytics } from '../context/site-analytics-provider';
-
+import { resolveSiteFeatures, type SiteFeatures, type SitePage } from '../types';
+import { DocumentationPageLayout } from './documentation-theme-provider';
+import { Markdown } from './markdown';
+import { useSitePageAlternates } from './page-alternates-context';
+import { TableOfContents } from './toc';
 
 const applyUrlTemplate = (template: string | undefined, path: string, fallbackUrl: string): string | null => {
   const trimmed = template?.trim();
@@ -27,17 +26,7 @@ const applyUrlTemplate = (template: string | undefined, path: string, fallbackUr
 
 /** "Was this page helpful?" + edit/issue links, rendered at the end of the
  *  article so it always aligns with the reading column. */
-function ReaderActions({
-  projectId,
-  path,
-  language,
-  features,
-}: {
-  projectId: string;
-  path: string;
-  language?: string;
-  features: SiteFeatures;
-}) {
+function ReaderActions({ projectId, path, language, features }: { projectId: string; path: string; language?: string; features: SiteFeatures }) {
   const t = siteT(language);
   const { track } = useSiteAnalytics();
   const [sentiment, setSentiment] = useState<'helpful' | 'not_helpful' | null>(null);

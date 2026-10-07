@@ -23,9 +23,7 @@ const queryClient = new QueryClient({
 function readBootstrap(): any {
   if (typeof document === 'undefined') return undefined;
 
-  const scriptTag =
-    document.getElementById('__bootstrap__') ||
-    document.getElementById('__SITE_BOOTSTRAP__');
+  const scriptTag = document.getElementById('__bootstrap__') || document.getElementById('__SITE_BOOTSTRAP__');
 
   if (scriptTag?.textContent) {
     try {

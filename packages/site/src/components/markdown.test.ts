@@ -4,7 +4,6 @@ import { renderToPipeableStream } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Markdown } from './markdown';
 
-
 const render = (content: string, language?: string): Promise<string> =>
   new Promise((resolve, reject) => {
     const output = new PassThrough();

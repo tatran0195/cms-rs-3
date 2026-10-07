@@ -1,8 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  AssetResponse,
-} from '../types';
+import type { AssetResponse, ProjectId } from '../types';
 
 export interface PresignResult {
   uploadUrl: string;
@@ -20,7 +17,7 @@ export class AssetsResource {
    */
   async presign(
     projectId: ProjectId,
-    payload: { filename: string; mimeType?: string; contentType?: string; sizeBytes?: number; size?: number }
+    payload: { filename: string; mimeType?: string; contentType?: string; sizeBytes?: number; size?: number },
   ): Promise<PresignResult> {
     const res = await this.http.post<Record<string, unknown>>(`/api/app/projects/${projectId}/assets/presign`, {
       filename: payload.filename,
@@ -50,7 +47,7 @@ export class AssetsResource {
    */
   async confirm<T = AssetResponse>(
     projectId: ProjectId,
-    payload: { key?: string; assetId?: string; contentType?: string; size?: number } | Record<string, unknown>
+    payload: { key?: string; assetId?: string; contentType?: string; size?: number } | Record<string, unknown>,
   ): Promise<T> {
     const body = {
       key: (payload as any).key ?? (payload as any).assetId,

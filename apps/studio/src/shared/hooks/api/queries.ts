@@ -6,8 +6,8 @@ import type { NotificationList } from './types';
 // Re-export feature-owned queries for backward compatibility
 export * from '../../../features/editor/services/editor-api';
 export * from '../../../features/project-settings/services/settings-api';
-export * from '../../../features/publishing/services/publishing-api';
 export * from '../../../features/projects/services/projects-api';
+export * from '../../../features/publishing/services/publishing-api';
 
 export const useMembers = () =>
   useQuery({

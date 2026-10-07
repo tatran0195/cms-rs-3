@@ -6,8 +6,8 @@ import { useT } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { NewProjectDialog } from './components/NewProjectDialog';
 import { useFormatters, useProjects } from '@/shared';
+import { NewProjectDialog } from './components/NewProjectDialog';
 
 export interface SitesListPageProps {
   newSite?: boolean;

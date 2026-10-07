@@ -927,7 +927,6 @@ export type ResolveCommentBody = z.infer<typeof resolveCommentBody>;
 export const listCommentsQuery = z.object({ pageId: z.string().optional() });
 export type ListCommentsQuery = z.infer<typeof listCommentsQuery>;
 
-
 // ─── Workspace settings ────────────────────────────────────────────────────—
 
 // Bounded records (key length + count) so the metadata blob stays small even

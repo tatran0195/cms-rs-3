@@ -4,6 +4,7 @@
     "source.organizeImports": "never",
     "source.organizeImports.biome": "always"
   },
+  "css.lint.unknownAtRules": "ignore",
   "cSpell.words": [
     "apalis",
     "Casbin",

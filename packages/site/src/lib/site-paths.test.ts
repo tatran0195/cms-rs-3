@@ -53,9 +53,7 @@ describe('siteHref', () => {
       '/sites/p1/%D7%9E%D7%93%D7%A8%D7%99%D7%9B%D7%99%D7%9D/%D7%90%D7%99%D7%9E%D7%95%D7%AA?lang=he',
     );
     // An authored link that is already encoded is not encoded a second time.
-    expect(siteHref('p1', '/%D7%90%D7%99%D7%9E%D7%95%D7%AA', { lang: 'he' })).toBe(
-      '/sites/p1/%D7%90%D7%99%D7%9E%D7%95%D7%AA?lang=he',
-    );
+    expect(siteHref('p1', '/%D7%90%D7%99%D7%9E%D7%95%D7%AA', { lang: 'he' })).toBe('/sites/p1/%D7%90%D7%99%D7%9E%D7%95%D7%AA?lang=he');
     expect(siteHref('p1', 'api-גישה', { version: 'v2' })).toBe('/sites/p1/v2/api-%D7%92%D7%99%D7%A9%D7%94');
   });
 

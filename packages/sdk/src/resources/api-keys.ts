@@ -1,5 +1,5 @@
 import type { HttpClient } from '../http';
-import type { ProjectId, ApiKeyResponse, CreateApiKeyRequest } from '../types';
+import type { ApiKeyResponse, CreateApiKeyRequest, ProjectId } from '../types';
 
 export class ApiKeysResource {
   constructor(private readonly http: HttpClient) {}

@@ -3,26 +3,25 @@
 import type { AddonGroup, AddonId } from '@cms/shared/addons';
 import type { LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
 
-export type { AnalyticsRange, LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
-
 export type {
-  ProjectResponse,
-  PageResponse,
-  BranchResponse,
-  LanguageResponse,
-  DeploymentResponse,
-  DeploymentListItem,
-  SpaDomainResponse,
   AssetResponse,
-  ProjectIntegrationCatalogItem,
-  ProjectGitWorkflowStatus,
+  BranchResponse,
+  DeploymentListItem,
+  DeploymentResponse,
+  LanguageResponse,
+  PageResponse,
   ProjectAnalyticsResponse,
-  ProjectUsageTelemetryResponse,
   ProjectCommentResponse,
+  ProjectGitWorkflowStatus,
+  ProjectIntegrationCatalogItem,
+  ProjectResponse,
+  ProjectUsageTelemetryResponse,
   SearchResponse,
-  WorkspaceMembersResponse,
+  SpaDomainResponse,
   WorkspaceAnalyticsResponse,
+  WorkspaceMembersResponse,
 } from '@cms/sdk';
+export type { AnalyticsRange, LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
 
 type PublishedLanguageConfig = LanguageConfig & { name?: string; description?: string };
 

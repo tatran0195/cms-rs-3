@@ -4,8 +4,8 @@ import { useT } from '@cms/i18n/react';
 import { Bell } from 'lucide-react';
 import { useId } from 'react';
 import { toast } from 'sonner';
-import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/hooks/api';
 import { useSession } from '@/features/auth';
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/hooks/api';
 import { SettingsSection } from './section';
 
 interface NotifItem {

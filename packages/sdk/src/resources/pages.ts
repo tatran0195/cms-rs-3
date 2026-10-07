@@ -1,13 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  PageId,
-  PageResponse,
-  PageListItem,
-  PageTreeNode,
-  CreatePageRequest,
-  UpdatePageRequest,
-} from '../types';
+import type { CreatePageRequest, PageId, PageListItem, PageResponse, PageTreeNode, ProjectId, UpdatePageRequest } from '../types';
 
 export class PagesResource {
   constructor(private readonly http: HttpClient) {}
@@ -59,9 +51,8 @@ export class PagesResource {
    */
   async reorder<T = { success: boolean }>(
     projectId: ProjectId,
-    payload: { items: Array<{ id: string; parentId: string | null; position: number }> }
+    payload: { items: Array<{ id: string; parentId: string | null; position: number }> },
   ): Promise<T> {
     return this.http.post<T>(`/api/app/projects/${projectId}/pages/reorder`, payload);
   }
 }
-

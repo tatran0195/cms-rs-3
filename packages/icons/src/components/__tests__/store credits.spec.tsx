@@ -1,0 +1,14 @@
+import { cleanup, render, screen } from '@testing-library/react';
+import StoreCredits from '../store credits';
+
+describe('StoreCredits', () => {
+  it('should render the icon without errors', async () => {
+    render(<StoreCredits data-testid="icon" />);
+
+    const svgElement = screen.getByTestId('icon');
+
+    expect(svgElement).toBeInTheDocument();
+
+    cleanup();
+  });
+});

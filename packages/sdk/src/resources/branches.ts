@@ -1,11 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  BranchId,
-  BranchResponse,
-  CreateBranchRequest,
-  UpdateBranchRequest,
-} from '../types';
+import type { BranchId, BranchResponse, CreateBranchRequest, ProjectId, UpdateBranchRequest } from '../types';
 
 export class BranchesResource {
   constructor(private readonly http: HttpClient) {}
@@ -52,4 +46,3 @@ export class BranchesResource {
     return this.http.post<T>(`/api/app/projects/${projectId}/branches/${branchId}/merge`);
   }
 }
-

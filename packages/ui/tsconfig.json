@@ -1,0 +1,22 @@
+{
+  "extends": "@cms/tsconfig/react.json",
+  "compilerOptions": {
+    "types": [],
+    "paths": {
+      "@cms/ui": ["./src/index.ts"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".cache",
+    ".turbo",
+    "src/**/__tests__",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.tsx",
+    "src/**/*.stories.tsx",
+    "src/**/*.stories.ts"
+  ]
+}

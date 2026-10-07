@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cmsClient } from '../../../shared/services/cms-client';
 import { queryKeys } from '../../../shared/hooks/api/query-keys';
 import type { Deployment, PendingChange } from '../../../shared/hooks/api/types';
+import { cmsClient } from '../../../shared/services/cms-client';
 
 export interface RedirectIssue {
   code: string;
@@ -62,8 +62,7 @@ export const usePublishAnyway = (projectId: string) => {
 export const useRollback = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (deploymentId: string) =>
-      (await cmsClient.deployments.rollback(projectId, deploymentId)) as unknown as Deployment,
+    mutationFn: async (deploymentId: string) => (await cmsClient.deployments.rollback(projectId, deploymentId)) as unknown as Deployment,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.deployments.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });

@@ -8,9 +8,9 @@ import type {
   UpdatePageBody,
 } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cmsClient } from '../../../shared/services/cms-client';
 import { queryKeys } from '../../../shared/hooks/api/query-keys';
 import type { Branch, Comment, Language, Page, PageNode } from '../../../shared/hooks/api/types';
+import { cmsClient } from '../../../shared/services/cms-client';
 
 export const usePages = (projectId: string | undefined, languageId?: string, branchId?: string) =>
   useQuery({
@@ -48,15 +48,13 @@ export const useComments = (projectId: string | undefined, pageId?: string) =>
   useQuery({
     queryKey: queryKeys.comments.all(projectId ?? '', pageId),
     enabled: Boolean(projectId),
-    queryFn: async () =>
-      (await cmsClient.comments.list(projectId!, pageId ? { pageId } : undefined)) as unknown as Comment[],
+    queryFn: async () => (await cmsClient.comments.list(projectId!, pageId ? { pageId } : undefined)) as unknown as Comment[],
   });
 
 export const useCreatePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreatePageBody) =>
-      (await cmsClient.pages.create(projectId, body as any)) as unknown as Page,
+    mutationFn: async (body: CreatePageBody) => (await cmsClient.pages.create(projectId, body as any)) as unknown as Page,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
   });
 };
@@ -142,8 +140,7 @@ export const useMergeBranch = (projectId: string) => {
 export const useCreateLanguage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateLanguageBody) =>
-      (await cmsClient.languages.create(projectId, body as any)) as unknown as Language,
+    mutationFn: async (body: CreateLanguageBody) => (await cmsClient.languages.create(projectId, body as any)) as unknown as Language,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });

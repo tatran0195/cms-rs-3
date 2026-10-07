@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { ProjectSettingsPage, isSectionId, type SectionId } from '@/features/project-settings';
+import { isSectionId, ProjectSettingsPage, type SectionId } from '@/features/project-settings';
 
 export const Route = createFileRoute('/app/projects/$projectId/settings')({
   component: ProjectSettingsRoute,
@@ -14,10 +14,6 @@ function ProjectSettingsRoute() {
   const { section } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   return (
-    <ProjectSettingsPage
-      projectId={projectId}
-      section={section}
-      onSectionChange={(next) => navigate({ search: { section: next }, replace: true })}
-    />
+    <ProjectSettingsPage projectId={projectId} section={section} onSectionChange={(next) => navigate({ search: { section: next }, replace: true })} />
   );
 }

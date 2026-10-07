@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  addonConfigSchemas,
-  parseAddonConfigRecord,
-  projectConfigWithAddons,
-} from './addons';
+import { addonConfigSchemas, parseAddonConfigRecord, projectConfigWithAddons } from './addons';
 
 describe('add-on configuration validation', () => {
   it('accepts bounded http(s) templates with known placeholders', () => {
@@ -42,9 +38,7 @@ describe('Project.config compatibility projection', () => {
         analytics: { provider: 'plausible' },
         addons: { futureField: 'keep' },
       },
-      [
-        { key: 'feedback', enabled: false, config: { placement: 'after-navigation', presentation: 'card' } },
-      ],
+      [{ key: 'feedback', enabled: false, config: { placement: 'after-navigation', presentation: 'card' } }],
     );
 
     expect(projected).toMatchObject({

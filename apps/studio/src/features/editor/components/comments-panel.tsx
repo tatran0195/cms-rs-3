@@ -6,9 +6,9 @@ import { useT } from '@cms/i18n/react';
 import { Check, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useSession } from '@/features/auth';
 import type { Comment } from '@/hooks/api';
 import { useComments, useCreateComment, useDeleteComment, useResolveComment } from '@/hooks/api';
-import { useSession } from '@/features/auth';
 import { useFormatters } from '@/shared';
 
 interface CommentsPanelProps {

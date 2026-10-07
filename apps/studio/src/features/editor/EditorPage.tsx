@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { z } from 'zod';
 import { AddLanguageDialog } from '@/features/editor/components/add-language-dialog';
 import { BranchSwitcher } from '@/features/editor/components/branch-switcher';
 import { CommentsPanel } from '@/features/editor/components/comments-panel';
@@ -44,6 +43,7 @@ import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/featur
 import { SortablePageTree } from '@/features/editor/components/sortable-page-tree';
 import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
+import { PublishControl } from '@/features/publishing';
 import type { Language, PageNode } from '@/hooks/api';
 import {
   useBranches,
@@ -58,11 +58,10 @@ import {
   useUpdatePage,
   useUploadAsset,
 } from '@/hooks/api';
-import { PublishControl } from '@/features/publishing';
-import { astWorkerClient } from './utils/ast-worker-client';
-import { draftPreviewHref } from './utils/draft-preview';
 import { typographyVars } from '@/shared/lib/typography';
 import { editorStore } from './stores/editor-store';
+import { astWorkerClient } from './utils/ast-worker-client';
+import { draftPreviewHref } from './utils/draft-preview';
 
 export interface EditorPageProps {
   projectId: string;

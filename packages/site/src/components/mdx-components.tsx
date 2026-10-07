@@ -30,7 +30,6 @@ import { z } from 'zod';
 import { type CalloutType, normalizeType } from './mdx-config';
 import { hasIcon, PageIcon } from './page-icon';
 
-
 // ─── Callouts / admonitions ─────────────────────────────────────────────────
 
 const CALLOUT: Record<CalloutType, { icon: LucideIcon; token: string }> = {

@@ -1,12 +1,12 @@
 import type { HttpClient } from '../http';
 import type {
   ProjectId,
+  SearchDiagnosticsResponse,
+  SearchReindexResponse,
   SearchRequest,
   SearchResponse,
   SearchSettingsResponse,
   UpdateSearchSettingsRequest,
-  SearchDiagnosticsResponse,
-  SearchReindexResponse,
 } from '../types';
 
 export class SearchResource {
@@ -47,4 +47,3 @@ export class SearchResource {
     return this.http.get<SearchDiagnosticsResponse>(`/api/app/projects/${projectId}/settings/search/diagnostics`, params);
   }
 }
-

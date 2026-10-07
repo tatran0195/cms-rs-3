@@ -7,10 +7,10 @@ import { useNavigate } from '@tanstack/react-router';
 import { BarChart3, BookText, FileText, Plus, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { SectionCard, ViewsAreaChart } from '@/features/analytics';
-import { NewProjectDialog } from './components/NewProjectDialog';
 import type { AnalyticsRange } from '@/hooks/api';
 import { useProjects, useWorkspaceAnalytics } from '@/hooks/api';
 import { useFormatters, viewsTrend } from '@/shared';
+import { NewProjectDialog } from './components/NewProjectDialog';
 
 export interface ProjectsOverviewPageProps {
   firstPublish?: boolean;
@@ -19,12 +19,7 @@ export interface ProjectsOverviewPageProps {
   onNavigateToProject?: (projectId: string) => void;
 }
 
-export function ProjectsOverviewPage({
-  firstPublish,
-  newSite,
-  onNavigateToEditor,
-  onNavigateToProject,
-}: ProjectsOverviewPageProps) {
+export function ProjectsOverviewPage({ firstPublish, newSite, onNavigateToEditor, onNavigateToProject }: ProjectsOverviewPageProps) {
   const { data: projects, isPending } = useProjects();
   const [range, setRange] = useState<AnalyticsRange>('30d');
   const { data: analytics, isPending: analyticsPending } = useWorkspaceAnalytics(range);
@@ -145,11 +140,7 @@ export function ProjectsOverviewPage({
             </TableHeader>
             <TableBody>
               {(projects ?? []).map((project) => (
-                <TableRow
-                  key={project.id}
-                  className="cursor-pointer"
-                  onClick={() => handleProjectClick(project.id)}
-                >
+                <TableRow key={project.id} className="cursor-pointer" onClick={() => handleProjectClick(project.id)}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <CmsMark className="size-8 shrink-0" />

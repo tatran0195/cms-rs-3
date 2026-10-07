@@ -3,20 +3,13 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@cms/desi
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { siteT } from '@cms/i18n/site';
 import { useDebouncedValue } from '@tanstack/react-pacer';
-import {
-  ChevronRight,
-  FileText,
-  Loader2,
-  Search,
-  TrendingUp,
-  X,
-} from 'lucide-react';
+import { ChevronRight, FileText, Loader2, Search, TrendingUp, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { hasIcon, PageIcon } from './page-icon';
-import { useSiteSearch } from '../hooks/use-site-search';
-import type { SiteSearchHit } from '../types';
-import { siteHref } from '../lib/site-paths';
 import { useSiteAnalytics } from '../context/site-analytics-provider';
+import { useSiteSearch } from '../hooks/use-site-search';
+import { siteHref } from '../lib/site-paths';
+import type { SiteSearchHit } from '../types';
+import { hasIcon, PageIcon } from './page-icon';
 
 // ── Highlight matched query tokens ────────────────────────────────────────────
 

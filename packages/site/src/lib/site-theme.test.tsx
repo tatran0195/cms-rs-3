@@ -1,4 +1,3 @@
-import { translateFn } from '@cms/i18n';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
@@ -9,7 +8,6 @@ import {
   DocumentationStudioPreviewLayout,
   DocumentationThemeProvider,
 } from '../components/documentation-theme-provider';
-
 import { projectThemeCss, projectThemeVariables, resolveProjectTheme, siteThemeNoFlashScript } from './site-theme';
 
 describe('published theme projection', () => {
@@ -61,8 +59,6 @@ describe('published theme projection', () => {
     expect(css).toContain('--primary:#c2410c');
     expect(css).not.toContain('--background:#f8fafc');
   });
-
-
 
   it.each([
     ['harbor', 'reference', 'harbor-reference'],

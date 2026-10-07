@@ -1,10 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  NotificationResponse,
-  NotificationCountResponse,
-  MarkNotificationReadRequest,
-  MarkAllNotificationsReadRequest,
-} from '../types';
+import type { MarkAllNotificationsReadRequest, MarkNotificationReadRequest, NotificationCountResponse } from '../types';
 
 export type UnreadCountResult = {
   count: number;
@@ -18,9 +13,11 @@ export class NotificationsResource {
   /**
    * List notifications for current user
    */
-  async list<T = { items: NotificationItemLike[]; nextCursor: string | null }>(
-    params?: { unreadOnly?: boolean; limit?: number; offset?: number }
-  ): Promise<T> {
+  async list<T = { items: NotificationItemLike[]; nextCursor: string | null }>(params?: {
+    unreadOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<T> {
     const res = await this.http.get<Record<string, unknown>>('/api/app/notifications', params);
     if ('items' in res) {
       return res as T;
@@ -50,7 +47,7 @@ export class NotificationsResource {
    * Mark notifications as read
    */
   async markRead(
-    payload: MarkNotificationReadRequest | MarkAllNotificationsReadRequest | { ids?: string[]; all?: boolean }
+    payload: MarkNotificationReadRequest | MarkAllNotificationsReadRequest | { ids?: string[]; all?: boolean },
   ): Promise<{ success: boolean }> {
     return this.http.post<{ success: boolean }>('/api/app/notifications/read', payload);
   }

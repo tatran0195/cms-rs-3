@@ -66,9 +66,7 @@ const useGitWorkflowMutation = <TVariables, TResult>(projectId: string, mutation
 };
 
 export const useResolveGitConflict = (projectId: string, conflictId: string) =>
-  useGitWorkflowMutation(projectId, async (json: GitConflictResolutionBody) =>
-    cmsClient.git.resolveConflict(projectId, conflictId, json),
-  );
+  useGitWorkflowMutation(projectId, async (json: GitConflictResolutionBody) => cmsClient.git.resolveConflict(projectId, conflictId, json));
 
 export const useAuthorizeGitWorkflow = (projectId: string) =>
   useMutation({
@@ -76,21 +74,16 @@ export const useAuthorizeGitWorkflow = (projectId: string) =>
   });
 
 export const useConnectGitWorkflow = (projectId: string) =>
-  useGitWorkflowMutation(projectId, async (json: GitConnectionBody) =>
-    cmsClient.git.connect(projectId, json),
-  );
+  useGitWorkflowMutation(projectId, async (json: GitConnectionBody) => cmsClient.git.connect(projectId, json));
 
 export const useDisconnectGitWorkflow = (projectId: string) =>
-  useGitWorkflowMutation(projectId, async (_: undefined) =>
-    cmsClient.git.disconnect(projectId),
-  );
+  useGitWorkflowMutation(projectId, async (_: undefined) => cmsClient.git.disconnect(projectId));
 
 export const useQueueGitOperation = (projectId: string) =>
-  useGitWorkflowMutation(projectId, async (json: GitOperationBody) =>
-    (await cmsClient.git.queueOperation(projectId, json)) as unknown as GitOperation,
+  useGitWorkflowMutation(
+    projectId,
+    async (json: GitOperationBody) => (await cmsClient.git.queueOperation(projectId, json)) as unknown as GitOperation,
   );
 
 export const useRotateGitWorkflowWebhookSecret = (projectId: string) =>
-  useGitWorkflowMutation(projectId, async (_: undefined) =>
-    cmsClient.git.rotateWebhookSecret(projectId),
-  );
+  useGitWorkflowMutation(projectId, async (_: undefined) => cmsClient.git.rotateWebhookSecret(projectId));

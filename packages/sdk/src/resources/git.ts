@@ -1,11 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  ProjectGitWorkflowStatus,
-  GitConnectionResponse,
-  CreateGitConnectionRequest,
-  WebhookSecretRotateResponse,
-} from '../types';
+import type { ProjectGitWorkflowStatus, ProjectId, WebhookSecretRotateResponse } from '../types';
 
 export interface GitIdentity {
   login: string;
@@ -75,4 +69,3 @@ export class GitResource {
     return this.http.post<WebhookSecretRotateResponse>(`/api/app/projects/${projectId}/git/webhook-secret`);
   }
 }
-

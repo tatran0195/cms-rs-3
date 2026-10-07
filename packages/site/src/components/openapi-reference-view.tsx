@@ -3,7 +3,6 @@ import '@scalar/api-reference-react/style.css';
 import { useMemo } from 'react';
 import { scalarOpenApiConfiguration } from '../lib/openapi-reference';
 
-
 /** Scalar owns endpoint/schema rendering and the browser-only try-it client.
  *  No proxy or authentication defaults are provided, and persistAuth is false,
  *  so reader credentials never reach cms storage or server logs. */

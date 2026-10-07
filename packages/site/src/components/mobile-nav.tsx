@@ -2,9 +2,8 @@ import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@cms/design-system/components/ui/sheet';
 import { ExternalLink, Menu } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { SiteNav } from './site-nav';
 import type { NavNode } from '../types';
-
+import { SiteNav } from './site-nav';
 
 export interface MobileNavLink {
   label: string;

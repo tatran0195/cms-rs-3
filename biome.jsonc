@@ -28,6 +28,28 @@
     {
       "includes": ["packages/email/src/templates/**"],
       "javascript": { "jsxRuntime": "reactClassic" }
+    },
+    {
+      "includes": [
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/tests/**"
+      ],
+      "javascript": {
+        "globals": [
+          "describe",
+          "it",
+          "expect",
+          "test",
+          "beforeEach",
+          "afterEach",
+          "beforeAll",
+          "afterAll",
+          "vi"
+        ]
+      }
     }
   ],
   "assist": {
@@ -60,6 +82,8 @@
         "noEqualsToNull": "off",
         "noExplicitAny": "warn",
         "noLeakedRender": "off",
+        // Component libraries (@cms/ui and @cms/icons) use React.forwardRef for Radix UI slotting and ref forwarding
+        "noReactForwardRef": "off",
         "noShadow": "off",
         "noUnknownAttribute": "off",
         "noUnnecessaryConditions": "off",

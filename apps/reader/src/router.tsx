@@ -9,16 +9,10 @@ import {
   SitePageView,
   type SiteShell,
   siteHead,
-} from "@cms/site";
-import type { QueryClient } from "@tanstack/react-query";
-import {
-  createRootRouteWithContext,
-  createRoute,
-  createRouter,
-  notFound,
-  Outlet,
-} from "@tanstack/react-router";
-import { z } from "zod";
+} from '@cms/site';
+import type { QueryClient } from '@tanstack/react-query';
+import { createRootRouteWithContext, createRoute, createRouter, notFound, Outlet } from '@tanstack/react-router';
+import { z } from 'zod';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -28,19 +22,14 @@ export interface RouterContext {
 // ── Root Route ─────────────────────────────────────────────────────────────
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootComponent,
-  validateSearch: (search) =>
-    z
-      .object({ lang: z.string().min(1).optional().catch(undefined) })
-      .parse(search),
+  validateSearch: (search) => z.object({ lang: z.string().min(1).optional().catch(undefined) }).parse(search),
   loaderDeps: ({ search }) => ({ lang: search.lang }),
   loader: async ({ context, deps }) => {
     if (context.bootstrapSite) {
       return { site: context.bootstrapSite };
     }
     try {
-      const res = await fetch(
-        `/api/v1/bootstrap${deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : ""}`,
-      );
+      const res = await fetch(`/api/v1/bootstrap${deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : ''}`);
       if (!res.ok) return { site: null };
       const site: SiteShell = await res.json();
       return { site };
@@ -59,9 +48,9 @@ function RootComponent() {
       config={{
         search: async (options) => {
           const params = new URLSearchParams({ q: options.query });
-          if (options.language) params.set("lang", options.language);
-          if (options.version) params.set("version", options.version);
-          if (options.limit) params.set("limit", String(options.limit));
+          if (options.language) params.set('lang', options.language);
+          if (options.version) params.set('version', options.version);
+          if (options.limit) params.set('limit', String(options.limit));
           const res = await fetch(`/api/v1/search?${params.toString()}`);
           if (!res.ok) throw new Error(`Search failed: ${res.status}`);
           const json = await res.json();
@@ -69,12 +58,7 @@ function RootComponent() {
         },
       }}
     >
-      <SiteLayout
-        site={site}
-        projectId={site?.project.id ?? "standalone"}
-        lang={lang}
-        basePath=""
-      >
+      <SiteLayout site={site} projectId={site?.project.id ?? 'standalone'} lang={lang} basePath="">
         <Outlet />
       </SiteLayout>
     </SiteApiProvider>
@@ -84,13 +68,11 @@ function RootComponent() {
 // ── Home Route (/) ─────────────────────────────────────────────────────────
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  path: '/',
   loaderDeps: ({ search }) => ({ lang: search.lang }),
   loader: async ({ deps }) => {
     try {
-      const res = await fetch(
-        `/api/v1/page?path=${deps.lang ? `&lang=${encodeURIComponent(deps.lang)}` : ""}`,
-      );
+      const res = await fetch(`/api/v1/page?path=${deps.lang ? `&lang=${encodeURIComponent(deps.lang)}` : ''}`);
       if (!res.ok) throw notFound();
       const page: SitePage = await res.json();
       return { page, lang: deps.lang };
@@ -98,28 +80,21 @@ const indexRoute = createRoute({
       throw notFound();
     }
   },
-  head: ({ loaderData }) =>
-    pageHead(loaderData?.page ?? null, "standalone", loaderData?.lang),
+  head: ({ loaderData }) => pageHead(loaderData?.page ?? null, 'standalone', loaderData?.lang),
   component: () => {
     const { page, lang } = indexRoute.useLoaderData();
-    return (
-      <SitePageView
-        projectId={page?.project?.id ?? "standalone"}
-        lang={lang}
-        data={page}
-      />
-    );
+    return <SitePageView projectId={page?.project?.id ?? 'standalone'} lang={lang} data={page} />;
   },
 });
 
 // ── Changelog Route (/changelog) ───────────────────────────────────────────
 const changelogRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/changelog",
+  path: '/changelog',
   loaderDeps: ({ search }) => ({ lang: search.lang }),
   loader: async () => {
     try {
-      const res = await fetch("/api/v1/changelog");
+      const res = await fetch('/api/v1/changelog');
       if (!res.ok) return { entries: [] as ChangelogEntry[] };
       const entries: ChangelogEntry[] = await res.json();
       return { entries };
@@ -137,14 +112,12 @@ const changelogRoute = createRoute({
 // ── Splat Route (/*) ───────────────────────────────────────────────────────
 const pageRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/$",
+  path: '/$',
   loaderDeps: ({ search }) => ({ lang: search.lang }),
   loader: async ({ params, deps }) => {
-    const path = params._splat ?? "";
+    const path = params._splat ?? '';
     try {
-      const res = await fetch(
-        `/api/v1/page?path=${encodeURIComponent(path)}${deps.lang ? `&lang=${encodeURIComponent(deps.lang)}` : ""}`,
-      );
+      const res = await fetch(`/api/v1/page?path=${encodeURIComponent(path)}${deps.lang ? `&lang=${encodeURIComponent(deps.lang)}` : ''}`);
       if (!res.ok) throw notFound();
       const data = await res.json();
       return { data, path, lang: deps.lang };
@@ -154,36 +127,26 @@ const pageRoute = createRoute({
   },
   head: ({ loaderData }) => {
     if (loaderData?.data?.page) {
-      return pageHead(loaderData.data, "standalone", loaderData?.lang);
+      return pageHead(loaderData.data, 'standalone', loaderData?.lang);
     }
     return {};
   },
   component: () => {
     const { data, lang } = pageRoute.useLoaderData();
-    if (data?.kind === "openapi") {
+    if (data?.kind === 'openapi') {
       return <OpenApiReferenceView projectId="standalone" />;
     }
-    return (
-      <SitePageView
-        projectId={data?.project?.id ?? "standalone"}
-        lang={lang}
-        data={data}
-      />
-    );
+    return <SitePageView projectId={data?.project?.id ?? 'standalone'} lang={lang} data={data} />;
   },
 });
 
-export const routeTree = rootRoute.addChildren([
-  indexRoute,
-  changelogRoute,
-  pageRoute,
-]);
+export const routeTree = rootRoute.addChildren([indexRoute, changelogRoute, pageRoute]);
 
 export function createSiteRouter(context: RouterContext) {
   return createRouter({
     routeTree,
     context,
     scrollRestoration: true,
-    defaultPreload: "intent",
+    defaultPreload: 'intent',
   });
 }

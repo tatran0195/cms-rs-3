@@ -7,8 +7,8 @@ import { useT } from '@cms/i18n/react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import { GoogleIcon, readPendingInvitation } from '@/shared';
 import { useGetPublicMeta } from '@/hooks/api/public';
+import { GoogleIcon, readPendingInvitation } from '@/shared';
 import { AuthLayout } from './components/AuthLayout';
 import { authClient, signIn } from './services/auth-client';
 

@@ -1,5 +1,5 @@
-import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { pageHead, redirectIfConfigured, SitePageView } from '@cms/site';
+import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { ApiResponseError, siteService } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId/')({

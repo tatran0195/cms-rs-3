@@ -37,8 +37,7 @@ import {
 } from 'lucide-react';
 import type { Project } from '@/hooks/api';
 import { useProjectUsage } from '@/hooks/api';
-import { useFormatters } from '@/shared';
-import { formatByteQuantity } from '@/shared';
+import { formatByteQuantity, useFormatters } from '@/shared';
 import { SettingsSection } from './section';
 
 const meterPresentation: Record<string, { icon: LucideIcon; label: MessageKey }> = {
@@ -99,7 +98,6 @@ const availabilityKeys: Record<UsageAvailability, MessageKey> = {
   partial: 'settings.usage.availability.partial',
   unavailable: 'settings.usage.availability.unavailable',
 };
-
 
 function UsageSkeleton() {
   return <div aria-hidden className="h-36 animate-pulse rounded-xl border border-border bg-muted/40" />;

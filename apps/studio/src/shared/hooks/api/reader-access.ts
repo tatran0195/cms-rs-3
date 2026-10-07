@@ -49,34 +49,22 @@ const useReaderAccessMutation = <TVariables, TResult>(projectId: string, mutatio
 };
 
 export const useUpdateReaderAccessMode = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (json: ProjectAccessModeBody) =>
-    cmsClient.readerAccess.updateMode(projectId, json),
-  );
+  useReaderAccessMutation(projectId, async (json: ProjectAccessModeBody) => cmsClient.readerAccess.updateMode(projectId, json));
 
 export const useCreateReaderAudience = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (json: CreateAudienceBody) =>
-    cmsClient.readerAccess.createAudience(projectId, json as any),
-  );
+  useReaderAccessMutation(projectId, async (json: CreateAudienceBody) => cmsClient.readerAccess.createAudience(projectId, json as any));
 
 export const useDeleteReaderAudience = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (audienceId: string) =>
-    cmsClient.readerAccess.deleteAudience(projectId, audienceId),
-  );
+  useReaderAccessMutation(projectId, async (audienceId: string) => cmsClient.readerAccess.deleteAudience(projectId, audienceId));
 
 export const useInviteReader = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (json: InviteReaderBody) =>
-    cmsClient.readerAccess.inviteReader(projectId, json),
-  );
+  useReaderAccessMutation(projectId, async (json: InviteReaderBody) => cmsClient.readerAccess.inviteReader(projectId, json));
 
 export const useRevokeReader = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (readerId: string) =>
-    cmsClient.readerAccess.revokeReader(projectId, readerId),
-  );
+  useReaderAccessMutation(projectId, async (readerId: string) => cmsClient.readerAccess.revokeReader(projectId, readerId));
 
 export const useUpdateReaderJwt = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (json: JwtAccessConfigBody) =>
-    cmsClient.readerAccess.updateJwt(projectId, json),
-  );
+  useReaderAccessMutation(projectId, async (json: JwtAccessConfigBody) => cmsClient.readerAccess.updateJwt(projectId, json));
 
 export const useTestReaderJwt = (projectId: string) =>
   useMutation({
@@ -84,6 +72,4 @@ export const useTestReaderJwt = (projectId: string) =>
   });
 
 export const useEmergencyRevokeReaderAccess = (projectId: string) =>
-  useReaderAccessMutation(projectId, async (_: undefined) =>
-    cmsClient.readerAccess.emergencyRevoke(projectId),
-  );
+  useReaderAccessMutation(projectId, async (_: undefined) => cmsClient.readerAccess.emergencyRevoke(projectId));

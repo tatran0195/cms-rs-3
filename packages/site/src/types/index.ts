@@ -15,7 +15,6 @@ export interface PublishedOpenApi {
   document?: Record<string, unknown>;
 }
 
-
 export type PageKind = 'PAGE' | 'FOLDER' | 'LINK' | 'OPENAPI' | 'CHANGELOG' | 'GROUP';
 
 export interface NavNode {
@@ -146,7 +145,6 @@ export interface ChangelogEntry {
   title: string;
   pages: number;
 }
-
 
 export type PublicAnalyticsPayload =
   | { name: 'page_view'; path: string; referrer?: string; language?: string }

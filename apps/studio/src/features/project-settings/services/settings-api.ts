@@ -1,4 +1,5 @@
 import { useT } from '@cms/i18n/react';
+import { CmsApiError } from '@cms/sdk';
 import type { ResolvedTheme, ThemeConfigChange, ThemeTemplateV1 } from '@cms/shared/themes';
 import type {
   AddDomainBody,
@@ -11,10 +12,9 @@ import type {
   UpsertOpenApiBody,
 } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cmsClient } from '../../../shared/services/cms-client';
-import { CmsApiError } from '@cms/sdk';
 import { queryKeys } from '../../../shared/hooks/api/query-keys';
 import type { ApiKey, ApiKeySecret, Domain, OpenApiConfiguration, Project, ProjectAddon, WorkspaceSettings } from '../../../shared/hooks/api/types';
+import { cmsClient } from '../../../shared/services/cms-client';
 
 export interface ProjectThemeImportResult {
   applied: boolean;
@@ -43,7 +43,7 @@ export const useDomains = (projectId: string | undefined) =>
   });
 
 export const useApiKeys = (projectId: string | undefined) => {
-  const t = useT();
+  const _t = useT();
   return useQuery({
     queryKey: queryKeys.apiKeys.all(projectId ?? ''),
     enabled: Boolean(projectId),
@@ -68,16 +68,14 @@ export const useProjectUsage = (projectId: string | undefined) =>
 export const useProjectAddons = (projectId: string) =>
   useQuery({
     queryKey: queryKeys.addons.all(projectId),
-    queryFn: async () => (await cmsClient.addons.list<ProjectAddon>(projectId)),
+    queryFn: async () => await cmsClient.addons.list<ProjectAddon>(projectId),
   });
 
 export const useWorkspaceSettings = (projectId?: string) =>
   useQuery({
     queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings(),
     queryFn: async () =>
-      (projectId
-        ? await cmsClient.projects.getSettings(projectId)
-        : await cmsClient.workspace.get()) as unknown as WorkspaceSettings,
+      (projectId ? await cmsClient.projects.getSettings(projectId) : await cmsClient.workspace.get()) as unknown as WorkspaceSettings,
   });
 
 export const useExportProjectTheme = (projectId: string) =>
@@ -89,11 +87,11 @@ export const useImportProjectTheme = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ template, mode, apply }: { template: unknown; mode: 'merge' | 'replace'; apply: boolean }) =>
-      (await cmsClient.projects.importThemeTemplate<ProjectThemeImportResult>(projectId, {
+      await cmsClient.projects.importThemeTemplate<ProjectThemeImportResult>(projectId, {
         template,
         mode,
         apply,
-      })),
+      }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
       if (result.applied) {
@@ -106,8 +104,7 @@ export const useImportProjectTheme = (projectId: string) => {
 export const useCreateApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: CreateApiKeyBody) =>
-      (await cmsClient.apiKeys.create<ApiKeySecret>(projectId, body as any)),
+    mutationFn: async (body: CreateApiKeyBody) => await cmsClient.apiKeys.create<ApiKeySecret>(projectId, body as any),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
@@ -115,8 +112,7 @@ export const useCreateApiKey = (projectId: string) => {
 export const useRotateApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, body }: { id: string; body: RotateApiKeyBody }) =>
-      (await cmsClient.apiKeys.rotate<ApiKeySecret>(projectId, id, body)),
+    mutationFn: async ({ id, body }: { id: string; body: RotateApiKeyBody }) => await cmsClient.apiKeys.rotate<ApiKeySecret>(projectId, id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
@@ -124,7 +120,7 @@ export const useRotateApiKey = (projectId: string) => {
 export const useRevokeApiKey = (projectId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => (await cmsClient.apiKeys.revoke<ApiKey>(projectId, id)),
+    mutationFn: async (id: string) => await cmsClient.apiKeys.revoke<ApiKey>(projectId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
@@ -221,11 +217,10 @@ export const useUpdateProjectAddon = (projectId: string) => {
 const useSetProjectAddonEnabled = (projectId: string, action: 'activate' | 'deactivate') => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ addonId, expectedRevision }: { addonId: string; expectedRevision: number }) => {
-      return action === 'activate'
+    mutationFn: async ({ addonId, expectedRevision }: { addonId: string; expectedRevision: number }) =>
+      action === 'activate'
         ? cmsClient.addons.activate<ProjectAddon>(projectId, addonId, { expectedRevision })
-        : cmsClient.addons.deactivate<ProjectAddon>(projectId, addonId, { expectedRevision });
-    },
+        : cmsClient.addons.deactivate<ProjectAddon>(projectId, addonId, { expectedRevision }),
     onSuccess: (addon) => {
       qc.setQueryData(queryKeys.addons.detail(projectId, addon.id), addon);
       qc.invalidateQueries({ queryKey: queryKeys.addons.all(projectId) });
@@ -249,9 +244,7 @@ export const useUpdateWorkspaceSettings = (projectId?: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: UpdateWorkspaceSettingsBody) =>
-      (projectId
-        ? await cmsClient.projects.updateSettings(projectId, body)
-        : await cmsClient.workspace.update(body)) as unknown as WorkspaceSettings,
+      (projectId ? await cmsClient.projects.updateSettings(projectId, body) : await cmsClient.workspace.update(body)) as unknown as WorkspaceSettings,
     onSuccess: () => qc.invalidateQueries({ queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings() }),
   });
 };

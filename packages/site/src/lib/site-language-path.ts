@@ -71,11 +71,14 @@ export function resolveLanguagePathRedirect(input: LanguagePathRedirectInput): s
   // Re-encode segment by segment so encoded and decoded (non-ASCII) slugs both
   // yield one valid Location.
   const path = rest.map((segment) => encodeURIComponent(safeDecode(segment))).join('/');
-  const prefix = input.basePath !== undefined
-    ? input.basePath
-    : input.isCustomDomain
-      ? ''
-      : (input.projectId && input.projectId !== 'standalone' ? `/sites/${input.projectId}` : '');
+  const prefix =
+    input.basePath !== undefined
+      ? input.basePath
+      : input.isCustomDomain
+        ? ''
+        : input.projectId && input.projectId !== 'standalone'
+          ? `/sites/${input.projectId}`
+          : '';
   const pathname = `${prefix}${path ? `/${path}` : ''}` || '/';
   const query = params.toString();
   return `${pathname}${query ? `?${query}` : ''}`;

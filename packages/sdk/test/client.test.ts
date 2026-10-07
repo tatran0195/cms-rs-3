@@ -33,8 +33,8 @@ describe('CMS SDK Client', () => {
             'content-type': 'application/json',
             'x-request-id': 'req-abc-123',
           },
-        }
-      )
+        },
+      ),
     );
 
     const client = createCmsClient({
@@ -72,9 +72,9 @@ describe('CMS SDK Client', () => {
               'content-type': 'application/json',
               'x-request-id': 'req-err-999',
             },
-          }
-        )
-      )
+          },
+        ),
+      ),
     );
 
     const client = createCmsClient({
@@ -105,7 +105,7 @@ describe('CMS SDK Client', () => {
       new Response(JSON.stringify({ data: [{ id: 'proj-1' }] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      })
+      }),
     );
 
     const client = createCmsClient({
@@ -126,7 +126,7 @@ describe('CMS SDK Client', () => {
       new Response(JSON.stringify({ data: [] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      })
+      }),
     );
 
     const client = createCmsClient({
@@ -150,14 +150,14 @@ describe('CMS SDK Client', () => {
           new Response('Service Unavailable', {
             status: 503,
             statusText: 'Service Unavailable',
-          })
+          }),
         );
       }
       return Promise.resolve(
         new Response(JSON.stringify({ data: { id: 'proj-retry' } }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
-        })
+        }),
       );
     });
 
@@ -183,7 +183,7 @@ describe('CMS SDK Client', () => {
         new Response('Service Unavailable', {
           status: 503,
           statusText: 'Service Unavailable',
-        })
+        }),
       );
     });
 
@@ -203,8 +203,8 @@ describe('CMS SDK Client', () => {
         new Response(JSON.stringify({ data: { id: 'extended' } }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
-        })
-      )
+        }),
+      ),
     );
 
     const baseClient = createCmsClient({
@@ -236,7 +236,7 @@ describe('CMS SDK Client', () => {
       new Response(JSON.stringify({ custom: 'raw-data' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      })
+      }),
     );
 
     const client = createCmsClient({
@@ -261,7 +261,7 @@ describe('CMS SDK Client', () => {
       new Response(JSON.stringify({ data: { ok: true } }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      })
+      }),
     );
 
     const client = createCmsClient({
@@ -283,7 +283,7 @@ describe('CMS SDK Client', () => {
       new Response(JSON.stringify({ data: [] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      })
+      }),
     );
 
     const client = createCmsClient({
@@ -301,14 +301,15 @@ describe('CMS SDK Client', () => {
   });
 
   it('translates Ky TimeoutError into CmsTimeoutError on request timeout', async () => {
-    const mockFetch = vi.fn().mockImplementation((req: Request) => {
-      return new Promise((_, reject) => {
-        req.signal.addEventListener('abort', () => {
-          const abortError = new DOMException('The operation was aborted.', 'AbortError');
-          reject(abortError);
-        });
-      });
-    });
+    const mockFetch = vi.fn().mockImplementation(
+      (req: Request) =>
+        new Promise((_, reject) => {
+          req.signal.addEventListener('abort', () => {
+            const abortError = new DOMException('The operation was aborted.', 'AbortError');
+            reject(abortError);
+          });
+        }),
+    );
 
     const client = createCmsClient({
       baseUrl: 'http://localhost:8080',
@@ -330,8 +331,8 @@ describe('CMS SDK Client', () => {
         {
           status: 200,
           headers: { 'content-type': 'application/json' },
-        }
-      )
+        },
+      ),
     );
 
     const client = createCmsClient({

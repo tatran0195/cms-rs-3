@@ -1,11 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  LanguageId,
-  LanguageResponse,
-  CreateLanguageRequest,
-  UpdateLanguageRequest,
-} from '../types';
+import type { CreateLanguageRequest, LanguageId, LanguageResponse, ProjectId, UpdateLanguageRequest } from '../types';
 
 export class LanguagesResource {
   constructor(private readonly http: HttpClient) {}

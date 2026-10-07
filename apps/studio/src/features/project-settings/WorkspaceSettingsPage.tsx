@@ -18,8 +18,7 @@ export const WORKSPACE_SETTINGS_SECTIONS = [
   icon: LucideIcon;
 }>;
 
-export const isWorkspaceSettingsTab = (value: unknown): value is WorkspaceSettingsTab =>
-  WORKSPACE_SETTINGS_SECTIONS.some((s) => s.value === value);
+export const isWorkspaceSettingsTab = (value: unknown): value is WorkspaceSettingsTab => WORKSPACE_SETTINGS_SECTIONS.some((s) => s.value === value);
 
 export interface WorkspaceSettingsPageProps {
   tab: WorkspaceSettingsTab;

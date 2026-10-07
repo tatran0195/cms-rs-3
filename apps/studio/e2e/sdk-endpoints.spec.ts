@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
 import { createCmsClient } from '@cms/sdk';
+import { expect, test } from '@playwright/test';
 import { createAuthenticatedSession, type TestSession } from './helpers/test-auth';
 
 test.describe('SDK & Studio App Endpoints Verification', () => {

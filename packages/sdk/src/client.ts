@@ -1,25 +1,25 @@
-import { type KyInstance } from 'ky';
+import type { KyInstance } from 'ky';
 import { HttpClient, type HttpClientOptions } from './http';
 import {
-  ProjectsResource,
-  PagesResource,
-  BranchesResource,
-  LanguagesResource,
-  DeploymentsResource,
-  DomainsResource,
-  AssetsResource,
-  IntegrationsResource,
-  GitResource,
-  SearchResource,
-  CommentsResource,
-  OpenApiResource,
-  WorkspaceResource,
-  ReaderAccessResource,
   AddonsResource,
   ApiKeysResource,
-  NotificationsResource,
-  PublicResource,
+  AssetsResource,
   AuthResource,
+  BranchesResource,
+  CommentsResource,
+  DeploymentsResource,
+  DomainsResource,
+  GitResource,
+  IntegrationsResource,
+  LanguagesResource,
+  NotificationsResource,
+  OpenApiResource,
+  PagesResource,
+  ProjectsResource,
+  PublicResource,
+  ReaderAccessResource,
+  SearchResource,
+  WorkspaceResource,
 } from './resources';
 
 export type CmsClientOptions = HttpClientOptions;

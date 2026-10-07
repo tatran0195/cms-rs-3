@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { WorkspaceSettingsPage, isWorkspaceSettingsTab, type WorkspaceSettingsTab } from '@/features/project-settings';
+import { isWorkspaceSettingsTab, WorkspaceSettingsPage, type WorkspaceSettingsTab } from '@/features/project-settings';
 
 export const Route = createFileRoute('/app/(dashboard)/settings')({
   component: WorkspaceSettingsRoute,
@@ -11,10 +11,5 @@ export const Route = createFileRoute('/app/(dashboard)/settings')({
 function WorkspaceSettingsRoute() {
   const { tab } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  return (
-    <WorkspaceSettingsPage
-      tab={tab}
-      onTabChange={(next) => navigate({ search: { tab: next }, replace: true })}
-    />
-  );
+  return <WorkspaceSettingsPage tab={tab} onTabChange={(next) => navigate({ search: { tab: next }, replace: true })} />;
 }

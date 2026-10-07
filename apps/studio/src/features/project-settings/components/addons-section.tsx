@@ -17,9 +17,7 @@ import type { ProjectAddon } from '@/hooks/api';
 import { useActivateProjectAddon, useDeactivateProjectAddon, useProjectAddons, useUpdateProjectAddon } from '@/hooks/api';
 import { SectionHeader } from './shared';
 
-const GROUPS = [
-  { id: 'engagement', icon: MessageSquareText },
-] as const satisfies ReadonlyArray<{
+const GROUPS = [{ id: 'engagement', icon: MessageSquareText }] as const satisfies ReadonlyArray<{
   id: AddonGroup;
   icon: ComponentType<{ className?: string }>;
 }>;

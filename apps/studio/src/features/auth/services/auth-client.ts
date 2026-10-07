@@ -1,9 +1,8 @@
+import type { AuthSession as Session, AuthSessionData as SessionData, AuthUser as User } from '@cms/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/shared';
 
-import type { AuthUser as User, AuthSession as Session, AuthSessionData as SessionData } from '@cms/sdk';
-
-export type { User, Session, SessionData };
+export type { Session, SessionData, User };
 
 import { cmsClient } from '@/shared/services/cms-client';
 
@@ -42,20 +41,15 @@ export function useSession() {
 
 export const authClient = {
   useSession,
-  getSession: async (): Promise<SessionData | null> => {
-    return (await cmsClient.auth.getSession()) as SessionData | null;
-  },
-  verifyEmail: async (args: { query: { token: string } }) =>
-    wrapSdkCall(() => cmsClient.auth.verifyEmail<{ success?: boolean }>(args.query.token)),
+  getSession: async (): Promise<SessionData | null> => (await cmsClient.auth.getSession()) as SessionData | null,
+  verifyEmail: async (args: { query: { token: string } }) => wrapSdkCall(() => cmsClient.auth.verifyEmail<{ success?: boolean }>(args.query.token)),
   emailOtp: {
     sendVerificationOtp: async (args: { email: string; type?: string }) =>
       wrapSdkCall(() => cmsClient.auth.sendVerificationOtp<{ success?: boolean }>(args)),
-    verifyEmail: async (args: { email: string; otp: string }) =>
-      wrapSdkCall(() => cmsClient.auth.verifyEmailOtp<{ success?: boolean }>(args)),
+    verifyEmail: async (args: { email: string; otp: string }) => wrapSdkCall(() => cmsClient.auth.verifyEmailOtp<{ success?: boolean }>(args)),
     requestEmailChange: async (args: { newEmail: string; otp: string }) =>
       wrapSdkCall(() => cmsClient.auth.requestEmailChange<{ success?: boolean }>(args)),
-    changeEmail: async (args: { newEmail: string; otp: string }) =>
-      wrapSdkCall(() => cmsClient.auth.changeEmail<{ success?: boolean }>(args)),
+    changeEmail: async (args: { newEmail: string; otp: string }) => wrapSdkCall(() => cmsClient.auth.changeEmail<{ success?: boolean }>(args)),
   },
   signIn: {
     emailOtp: async (args: { email: string; otp: string; name?: string }) => {
@@ -79,11 +73,9 @@ export const authClient = {
     queryClient.clear();
     return result;
   },
-  updateUser: async (args: { name?: string; image?: string }) =>
-    wrapSdkCall(() => cmsClient.auth.updateUser<{ success?: boolean }>(args)),
+  updateUser: async (args: { name?: string; image?: string }) => wrapSdkCall(() => cmsClient.auth.updateUser<{ success?: boolean }>(args)),
   organization: {
-    acceptInvitation: async (args: { invitationId: string }) =>
-      wrapSdkCall(() => cmsClient.auth.acceptInvitation<{ success?: boolean }>(args)),
+    acceptInvitation: async (args: { invitationId: string }) => wrapSdkCall(() => cmsClient.auth.acceptInvitation<{ success?: boolean }>(args)),
   },
   admin: {
     stopImpersonating: async () => wrapSdkCall(() => cmsClient.auth.stopImpersonating<{ success?: boolean }>()),

@@ -20,16 +20,11 @@ import {
   type ThemePresetId,
   themeContrastIssues,
 } from '@cms/shared/themes';
+import { DocumentationStudioPreviewLayout, DocumentationThemeProvider, projectThemeStyle, projectThemeVariables } from '@cms/site';
 import type { ProjectConfig } from '@cms/validators';
 import { Download, FileJson, LayoutTemplate, RotateCcw, Undo2, Upload } from 'lucide-react';
 import { type ChangeEvent, type CSSProperties, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  DocumentationStudioPreviewLayout,
-  DocumentationThemeProvider,
-  projectThemeStyle,
-  projectThemeVariables,
-} from '@cms/site';
 import { type Project, type ProjectThemeImportResult, useExportProjectTheme, useImportProjectTheme, useUpdateProjectConfig } from '@/hooks/api';
 import { Field, SaveBar, SectionHeader, Segmented } from './shared';
 
@@ -634,15 +629,8 @@ export function ThemeSection({ project }: { project: Project }) {
             ]}
             value={previewMode}
           />
-          <Button
-            dir={previewRtl ? 'ltr' : 'rtl'}
-            onClick={() => setPreviewRtl((value) => !value)}
-            type="button"
-            variant="outline"
-          >
-            {previewRtl
-              ? translateFn('settings.theme.preview.switchEnglish')
-              : translateFn('settings.theme.preview.switchRtl')}
+          <Button dir={previewRtl ? 'ltr' : 'rtl'} onClick={() => setPreviewRtl((value) => !value)} type="button" variant="outline">
+            {previewRtl ? translateFn('settings.theme.preview.switchEnglish') : translateFn('settings.theme.preview.switchRtl')}
           </Button>
         </div>
         <ThemePreview rtl={previewRtl} config={config} mode={previewMode} />

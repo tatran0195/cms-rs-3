@@ -85,10 +85,7 @@
 
 .pl-editor:lang(fa) .ProseMirror,
 .pl-editor:lang(ur) .ProseMirror {
-  font-family:
-    Tahoma,
-    Arial,
-    sans-serif;
+  font-family: Tahoma, Arial, sans-serif;
 }
 
 .pl-editor .ProseMirror > * + * {

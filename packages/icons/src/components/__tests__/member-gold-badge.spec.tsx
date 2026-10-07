@@ -1,0 +1,14 @@
+import { cleanup, render, screen } from '@testing-library/react';
+import MemberGoldBadge from '../member-gold-badge';
+
+describe('MemberGoldBadge', () => {
+  it('should render the icon without errors', async () => {
+    render(<MemberGoldBadge data-testid="icon" />);
+
+    const svgElement = screen.getByTestId('icon');
+
+    expect(svgElement).toBeInTheDocument();
+
+    cleanup();
+  });
+});

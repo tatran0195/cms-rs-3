@@ -15,19 +15,14 @@ export const siteService = {
       ...(options?.version ? { version: options.version } : {}),
     }),
 
-  listChangelog: async (projectId: string): Promise<ChangelogEntry[]> =>
-    cmsClient.public.getChangelog<ChangelogEntry>(projectId),
+  listChangelog: async (projectId: string): Promise<ChangelogEntry[]> => cmsClient.public.getChangelog<ChangelogEntry>(projectId),
 
   getGitPreview: async (token: string): Promise<string> => {
     const result = await cmsClient.public.getGitPreview(token);
     return JSON.stringify(result);
   },
 
-  search: async (
-    projectId: string,
-    query: string,
-    options?: { language?: string; version?: string; limit?: number },
-  ): Promise<SiteSearchHit[]> => {
+  search: async (projectId: string, query: string, options?: { language?: string; version?: string; limit?: number }): Promise<SiteSearchHit[]> => {
     const result = await cmsClient.public.search<SiteSearchHit>(projectId, {
       q: query,
       ...(options?.limit ? { limit: String(options.limit) } : {}),
@@ -37,11 +32,7 @@ export const siteService = {
     return result.hits;
   },
 
-  answer: async (
-    projectId: string,
-    query: string,
-    options?: { language?: string; version?: string },
-  ): Promise<SearchAnswer> =>
+  answer: async (projectId: string, query: string, options?: { language?: string; version?: string }): Promise<SearchAnswer> =>
     cmsClient.public.answer<SearchAnswer>(projectId, {
       question: query,
       q: query,

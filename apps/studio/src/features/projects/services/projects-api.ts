@@ -1,14 +1,8 @@
-import type {
-  CreateProjectBody,
-  InviteMemberBody,
-  TransferOwnershipBody,
-  UpdateMemberRoleBody,
-  UpdateProjectBody,
-} from '@cms/validators';
+import type { CreateProjectBody, InviteMemberBody, TransferOwnershipBody, UpdateMemberRoleBody, UpdateProjectBody } from '@cms/validators';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cmsClient } from '../../../shared/services/cms-client';
 import { queryKeys } from '../../../shared/hooks/api/query-keys';
 import type { Project } from '../../../shared/hooks/api/types';
+import { cmsClient } from '../../../shared/services/cms-client';
 
 export const useProjects = () =>
   useQuery({
@@ -41,8 +35,7 @@ export const useCreateProject = () => {
 export const useUpdateProject = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: UpdateProjectBody) =>
-      (await cmsClient.projects.update(projectId, body as any)) as unknown as Project,
+    mutationFn: async (body: UpdateProjectBody) => (await cmsClient.projects.update(projectId, body as any)) as unknown as Project,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
@@ -69,8 +62,7 @@ export const useInviteProjectMember = (projectId: string) => {
 export const useUpdateProjectMemberRole = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, body }: { id: string; body: UpdateMemberRoleBody }) =>
-      cmsClient.projects.updateMemberRole(projectId, id, body),
+    mutationFn: async ({ id, body }: { id: string; body: UpdateMemberRoleBody }) => cmsClient.projects.updateMemberRole(projectId, id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.members.forProject(projectId) }),
   });
 };
@@ -78,8 +70,7 @@ export const useUpdateProjectMemberRole = (projectId: string) => {
 export const useTransferProjectOwnership = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: TransferOwnershipBody) =>
-      cmsClient.projects.transferOwnership(projectId, body),
+    mutationFn: async (body: TransferOwnershipBody) => cmsClient.projects.transferOwnership(projectId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.members.forProject(projectId) }),
   });
 };

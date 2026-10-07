@@ -6,9 +6,9 @@ import { useNavigate } from '@tanstack/react-router';
 import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useSession } from '@/features/auth';
 import type { Project } from '@/hooks/api';
 import { useDeleteProject, useProjectMembers, useTransferProjectOwnership } from '@/hooks/api';
-import { useSession } from '@/features/auth';
 import { SectionHeader } from './shared';
 
 interface ProjectMemberUser {

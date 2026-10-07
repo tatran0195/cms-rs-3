@@ -1,9 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  ProjectOpenApiConfigurationResponse,
-  ProjectOpenApiValidationResponse,
-} from '../types';
+import type { ProjectId, ProjectOpenApiConfigurationResponse, ProjectOpenApiValidationResponse } from '../types';
 
 export class OpenApiResource {
   constructor(private readonly http: HttpClient) {}
@@ -51,4 +47,3 @@ export class OpenApiResource {
     return this.http.post<ProjectOpenApiValidationResponse>(`/api/app/projects/${projectId}/openapi/validate`, payload);
   }
 }
-

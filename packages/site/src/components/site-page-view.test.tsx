@@ -6,7 +6,6 @@ import { SitePageView } from './site-page-view';
 vi.mock('./page-alternates-context', () => ({ useSitePageAlternates: () => ({ setAlternates: vi.fn() }) }));
 vi.mock('../context/site-analytics-provider', () => ({ useSiteAnalytics: () => ({ track: vi.fn() }) }));
 
-
 const data = (overrides: Partial<SitePage> = {}): SitePage => ({
   project: {
     id: 'project-1',

@@ -40,7 +40,8 @@
   /* Manuscript reads editorial: a humanist serif for display. */
   .cms-site-chrome[data-theme-id="manuscript"] {
     --font-heading:
-      "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+      "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia,
+      serif;
   }
 
   /* Article title + lede live outside .typeset (site-page-view); give them the

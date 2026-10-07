@@ -9,6 +9,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 import { z } from 'zod';
+import { siteHref, siteLanguageParam } from '../lib/site-paths';
 import {
   Accordion,
   AccordionGroup,
@@ -41,17 +42,8 @@ import {
   Tooltip,
   Update,
 } from './mdx-components';
-import {
-  normalizeMdxBlocks,
-  rehypeAuthoredComponentProps,
-  rehypeMermaid,
-  remarkCallouts,
-  remarkCodeMeta,
-  sanitizeSchema,
-} from './mdx-config';
+import { normalizeMdxBlocks, rehypeAuthoredComponentProps, rehypeMermaid, remarkCallouts, remarkCodeMeta, sanitizeSchema } from './mdx-config';
 import { MermaidBlock } from './mermaid-block';
-import { siteHref, siteLanguageParam } from '../lib/site-paths';
-
 
 /** Link context for a published site: lets the renderer rewrite authored
  *  root-relative doc links (`/guide`) to the site's base path so they don't

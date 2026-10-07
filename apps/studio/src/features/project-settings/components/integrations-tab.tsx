@@ -33,8 +33,6 @@ import {
 } from 'lucide-react';
 import { type ComponentType, type FormEvent, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { GithubIcon, SlackIcon } from '@/shared';
-import { AnalyticsSection } from './analytics-section';
 import {
   type Project,
   useActivateProjectIntegration,
@@ -45,6 +43,8 @@ import {
   useUpdateProjectIntegration,
   useVerifyProjectIntegration,
 } from '@/hooks/api';
+import { GithubIcon, SlackIcon } from '@/shared';
+import { AnalyticsSection } from './analytics-section';
 import { SEARCH_RUNTIME_MESSAGE_KEYS } from './integration-config-values';
 import { SettingsSection } from './section';
 

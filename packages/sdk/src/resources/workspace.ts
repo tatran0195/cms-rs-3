@@ -1,10 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  OrgId,
-  OrganizationResponse,
-  WorkspaceMembersResponse,
-  WorkspaceAnalyticsResponse,
-} from '../types';
+import type { OrganizationResponse, OrgId, WorkspaceMembersResponse } from '../types';
 
 export interface WorkspaceAnalyticsData {
   availability: string;
@@ -80,10 +75,10 @@ export class WorkspaceResource {
    */
   async getAnalytics<T = WorkspaceAnalyticsData>(
     orgIdOrParams?: OrgId | { range?: string; timezone?: string },
-    params?: { period?: string; range?: string; timezone?: string }
+    params?: { period?: string; range?: string; timezone?: string },
   ): Promise<T> {
     if (typeof orgIdOrParams === 'string') {
-      return this.http.get<T>(`/api/app/analytics/overview`, {
+      return this.http.get<T>('/api/app/analytics/overview', {
         organizationId: orgIdOrParams,
         ...params,
       });
@@ -91,4 +86,3 @@ export class WorkspaceResource {
     return this.http.get<T>('/api/app/workspace/analytics', orgIdOrParams ?? params);
   }
 }
-

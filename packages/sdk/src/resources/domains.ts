@@ -1,11 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  DomainId,
-  SpaDomainResponse,
-  AddProjectDomainRequest,
-  DeleteDomainResponse,
-} from '../types';
+import type { AddProjectDomainRequest, DeleteDomainResponse, DomainId, ProjectId, SpaDomainResponse } from '../types';
 
 export class DomainsResource {
   constructor(private readonly http: HttpClient) {}
@@ -45,4 +39,3 @@ export class DomainsResource {
     return this.http.post<T>(`/api/app/projects/${projectId}/domains/${domainId}/primary`);
   }
 }
-

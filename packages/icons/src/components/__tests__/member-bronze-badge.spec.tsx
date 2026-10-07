@@ -1,0 +1,14 @@
+import { cleanup, render, screen } from '@testing-library/react';
+import MemberBronzeBadge from '../member-bronze-badge';
+
+describe('MemberBronzeBadge', () => {
+  it('should render the icon without errors', async () => {
+    render(<MemberBronzeBadge data-testid="icon" />);
+
+    const svgElement = screen.getByTestId('icon');
+
+    expect(svgElement).toBeInTheDocument();
+
+    cleanup();
+  });
+});

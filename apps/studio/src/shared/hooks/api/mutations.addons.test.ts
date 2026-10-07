@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
+import { CmsApiError } from '@cms/sdk';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CmsApiError } from '@cms/sdk';
 import { useActivateProjectAddon, useUpdateProjectAddon } from './mutations';
 import { queryKeys } from './query-keys';
 import type { ProjectAddon } from './types';

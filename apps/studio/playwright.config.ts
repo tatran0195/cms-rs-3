@@ -13,7 +13,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     extraHTTPHeaders: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
     },
   },
   projects: [

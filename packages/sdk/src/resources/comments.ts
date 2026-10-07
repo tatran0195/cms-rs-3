@@ -1,13 +1,8 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  CreateCommentRequest,
-  UpdateCommentRequest,
-  ProjectCommentResponse,
-} from '../types';
+import type { CreateCommentRequest, ProjectCommentResponse, ProjectId, UpdateCommentRequest } from '../types';
 
 export class CommentsResource {
-  constructor(private readonly http: HttpClient) { }
+  constructor(private readonly http: HttpClient) {}
 
   /**
    * List comments for a page or project
@@ -33,7 +28,11 @@ export class CommentsResource {
   /**
    * Resolve comment
    */
-  async resolve(projectId: ProjectId, commentId: string, payload: UpdateCommentRequest = { resolved: true, content: null }): Promise<ProjectCommentResponse> {
+  async resolve(
+    projectId: ProjectId,
+    commentId: string,
+    payload: UpdateCommentRequest = { resolved: true, content: null },
+  ): Promise<ProjectCommentResponse> {
     return this.update(projectId, commentId, payload);
   }
 

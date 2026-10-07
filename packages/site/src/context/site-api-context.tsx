@@ -9,11 +9,7 @@ export interface SiteApiConfig {
 const SiteApiContext = createContext<SiteApiConfig>({});
 
 export function SiteApiProvider({ children, config }: { children: ReactNode; config?: SiteApiConfig }) {
-  return (
-    <SiteApiContext value={config ?? {}}>
-      {children}
-    </SiteApiContext>
-  );
+  return <SiteApiContext value={config ?? {}}>{children}</SiteApiContext>;
 }
 
 export function useSiteApi(): SiteApiConfig {

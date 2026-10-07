@@ -1,5 +1,5 @@
-import { createCmsClient } from '@cms/sdk';
 import { getLocale, REQUEST_LOCALE_HEADER } from '@cms/i18n';
+import { createCmsClient } from '@cms/sdk';
 
 const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4310';
 
@@ -20,10 +20,9 @@ export const cmsClient = createCmsClient({
     }
     return headers;
   },
-  fetch: (input, init) => {
-    return fetch(input, {
+  fetch: (input, init) =>
+    fetch(input, {
       ...init,
       credentials: 'include',
-    });
-  },
+    }),
 });

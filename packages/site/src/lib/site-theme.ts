@@ -115,9 +115,7 @@ export const projectThemeCss = (config?: ProjectConfig | null): string => {
       ];
   return [
     ...colorRules,
-    headingFont
-      ? `.cms-site-chrome :is(h1,h2,h3,h4,h5,h6){font-family:'${headingFont}','Segoe UI',var(--font-sans,sans-serif)}`
-      : '',
+    headingFont ? `.cms-site-chrome :is(h1,h2,h3,h4,h5,h6){font-family:'${headingFont}','Segoe UI',var(--font-sans,sans-serif)}` : '',
     codeFont ? `.cms-site-chrome :is(code,pre,kbd){font-family:'${codeFont}',var(--font-mono,monospace)}` : '',
   ]
     .filter(Boolean)

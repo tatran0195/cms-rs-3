@@ -11,8 +11,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Project } from '@/hooks/api';
 import { useAddDomain, useDeleteDomain, useDomains, useSetPrimaryDomain, useVerifyDomain } from '@/hooks/api';
-import { localeTag } from '@/shared';
-import { copyToClipboard } from '@/shared';
+import { copyToClipboard, localeTag } from '@/shared';
 import { FIELD_MONO, SectionHeader } from './shared';
 
 export function DomainSection({ project }: { project: Project }) {

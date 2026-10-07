@@ -1,6 +1,7 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import { hasIcon, PageIcon } from '@cms/site';
 import {
   closestCenter,
   DndContext,
@@ -19,7 +20,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
 import { type CSSProperties, memo, useMemo, useRef, useState } from 'react';
-import { hasIcon, PageIcon } from '@cms/site';
 import type { PageNode } from '@/hooks/api';
 
 /**

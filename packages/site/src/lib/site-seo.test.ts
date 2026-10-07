@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SitePage, SiteShell } from '../types';
-
 import { canonicalSiteBase, changelogFeedUrl, pageHead, siteHead } from './site-seo';
 
 // Keep the canonical tests hermetic: a developer's local .env may configure a

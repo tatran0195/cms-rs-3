@@ -26,19 +26,19 @@ import type { ReactNode } from 'react';
 import type { Project } from '@/hooks/api';
 import { useProject } from '@/hooks/api';
 import { AddonsSection } from './components/addons-section';
+import { ApiKeysTab } from './components/api-keys-tab';
 import { AuthenticationSection } from './components/authentication-section';
 import { DangerSection } from './components/danger-section';
 import { DomainSection } from './components/domain-section';
 import { GeneralSection } from './components/general-section';
-import { LanguagesSection } from './components/languages-section';
-import { MembersSection } from './components/members-section';
-import { OpenApiSection } from './components/openapi-section';
-import { SearchSection } from './components/search-section';
-import { ApiKeysTab } from './components/api-keys-tab';
 import { GitTab } from './components/git-tab';
 import { ImportTab } from './components/import-tab';
 import { IntegrationsTab } from './components/integrations-tab';
+import { LanguagesSection } from './components/languages-section';
+import { MembersSection } from './components/members-section';
 import { NotificationsTab } from './components/notifications-tab';
+import { OpenApiSection } from './components/openapi-section';
+import { SearchSection } from './components/search-section';
 import { UsageTab } from './components/usage-tab';
 
 export type SettingsGroupId = 'site' | 'deployment' | 'workspace' | 'advanced';
@@ -114,11 +114,7 @@ export function ProjectSettingsPage({ projectId, section, onSectionChange }: Pro
         <label className="mb-1.5 block font-semibold text-[10.5px] text-muted-foreground uppercase tracking-wider" htmlFor="mobile-settings-section">
           {t('settings.heading')}
         </label>
-        <Select
-          items={sectionItems}
-          onValueChange={(next) => onSectionChange((next ?? section) as SectionId)}
-          value={section}
-        >
+        <Select items={sectionItems} onValueChange={(next) => onSectionChange((next ?? section) as SectionId)} value={section}>
           <SelectTrigger aria-label={t('settings.heading')} className="h-10 w-full rounded-lg font-medium" id="mobile-settings-section">
             <SelectValue />
           </SelectTrigger>

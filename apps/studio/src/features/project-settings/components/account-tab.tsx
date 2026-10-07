@@ -10,7 +10,7 @@ import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { authClient, useSession } from '@/features/auth';
-import { email as validateEmail, required } from '@/shared';
+import { required, email as validateEmail } from '@/shared';
 import { GradientAvatar, SettingsSection } from './section';
 
 function NameForm({ initialName }: { initialName: string }) {

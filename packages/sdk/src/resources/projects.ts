@@ -1,13 +1,12 @@
 import type { HttpClient } from '../http';
 import type {
+  CreateProjectRequest,
   ProjectId,
   ProjectResponse,
-  CreateProjectRequest,
-  UpdateProjectRequest,
-  ProjectAnalyticsResponse,
-  ProjectUsageTelemetryResponse,
-  ProjectThemeTemplateResponse,
   ProjectThemeStyles,
+  ProjectThemeTemplateResponse,
+  ProjectUsageTelemetryResponse,
+  UpdateProjectRequest,
   UpdateThemeRequest,
 } from '../types';
 
@@ -110,10 +109,7 @@ export class ProjectsResource {
   /**
    * Fetch project analytics
    */
-  async getAnalytics<T = ProjectAnalyticsData>(
-    id: ProjectId,
-    params?: { period?: string; range?: string; timezone?: string }
-  ): Promise<T> {
+  async getAnalytics<T = ProjectAnalyticsData>(id: ProjectId, params?: { period?: string; range?: string; timezone?: string }): Promise<T> {
     return this.http.get<T>(`/api/app/projects/${id}/analytics`, params);
   }
 

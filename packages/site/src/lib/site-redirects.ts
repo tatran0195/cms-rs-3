@@ -1,6 +1,6 @@
+import { createCmsClient } from '@cms/sdk';
 import { normalizeRedirectPath, resolveRedirectTarget } from '@cms/validators/redirects';
 import { redirect } from '@tanstack/react-router';
-import { createCmsClient } from '@cms/sdk';
 import { buildSiteRedirectHref } from './site-redirect-href';
 
 const defaultClient = createCmsClient();

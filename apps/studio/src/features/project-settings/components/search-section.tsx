@@ -6,10 +6,8 @@ import { useForm } from '@tanstack/react-form';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-
 import type { Language, Project } from '@/hooks/api';
 import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@/hooks/api';
-import { IconPicker } from './icon-picker';
 import { SearchIndexDiagnostics } from './search-index-diagnostics';
 import {
   DirtyStateReporter,
@@ -120,9 +118,7 @@ function ProjectSearchConfigurationForm({
   const [hotkey, setHotkey] = useState<Hotkey>(configuration.hotkey);
   const [versionFilterEnabled, setVersionFilterEnabled] = useState(configuration.versionFilterEnabled);
 
-  const controlsDirty =
-    hotkey !== configuration.hotkey ||
-    versionFilterEnabled !== configuration.versionFilterEnabled;
+  const controlsDirty = hotkey !== configuration.hotkey || versionFilterEnabled !== configuration.versionFilterEnabled;
 
   const form = useForm({
     defaultValues: {
@@ -147,7 +143,6 @@ function ProjectSearchConfigurationForm({
       }
     },
   });
-
 
   return (
     <form
@@ -204,8 +199,6 @@ function ProjectSearchConfigurationForm({
           title={t('settings.search.versionFilters.label')}
         />
       </div>
-
-
 
       <form.Subscribe selector={(state) => state.isDirty}>
         {(isDirty) => <DirtyStateReporter dirty={isDirty || controlsDirty} onDirtyChange={onDirtyChange} />}

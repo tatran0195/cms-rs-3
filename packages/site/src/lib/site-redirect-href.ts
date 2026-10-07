@@ -17,11 +17,14 @@ export function buildSiteRedirectHref(input: {
     targetUrl.searchParams.set('lang', input.lang);
   }
   const suffix = `${targetUrl.search}${targetUrl.hash}`;
-  const prefix = input.basePath !== undefined
-    ? input.basePath
-    : input.customDomain
-      ? ''
-      : (input.projectId && input.projectId !== 'standalone' ? `/sites/${input.projectId}` : '');
+  const prefix =
+    input.basePath !== undefined
+      ? input.basePath
+      : input.customDomain
+        ? ''
+        : input.projectId && input.projectId !== 'standalone'
+          ? `/sites/${input.projectId}`
+          : '';
 
   const href = `${prefix}${target ? `/${target}` : ''}` || '/';
   return `${href}${suffix}`;

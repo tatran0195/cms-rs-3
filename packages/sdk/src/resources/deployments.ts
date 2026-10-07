@@ -1,12 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  DeploymentId,
-  DeploymentResponse,
-  DeploymentListItem,
-  DeploymentChangesResponse,
-  CreateDeploymentRequest,
-} from '../types';
+import type { CreateDeploymentRequest, DeploymentChangesResponse, DeploymentId, DeploymentListItem, DeploymentResponse, ProjectId } from '../types';
 
 export class DeploymentsResource {
   constructor(private readonly http: HttpClient) {}
@@ -58,4 +51,3 @@ export class DeploymentsResource {
     return this.http.post<DeploymentResponse>(`/api/app/projects/${projectId}/deployments/${deploymentId}/rollback`);
   }
 }
-

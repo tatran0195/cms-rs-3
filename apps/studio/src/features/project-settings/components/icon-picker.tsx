@@ -1,9 +1,9 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@cms/design-system/components/ui/popover';
 import { useT } from '@cms/i18n/react';
+import { hasIcon, PageIcon } from '@cms/site';
 import { Search, Sparkles, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { hasIcon, PageIcon } from '@cms/site';
 
 export const CURATED_ICONS: Array<{ name: string; label: string; category?: string }> = [
   // General & Highlights

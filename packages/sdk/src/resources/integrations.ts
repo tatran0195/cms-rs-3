@@ -1,12 +1,5 @@
 import type { HttpClient } from '../http';
-import type {
-  ProjectId,
-  ProjectIntegrationCatalogItem,
-  ProjectIntegrationResponse,
-  UpdateProjectIntegrationRequest,
-  DeleteProjectIntegrationResponse,
-  ProjectIntegrationConfirmationResponse,
-} from '../types';
+import type { DeleteProjectIntegrationResponse, ProjectId, ProjectIntegrationCatalogItem, ProjectIntegrationConfirmationResponse } from '../types';
 
 export class IntegrationsResource {
   constructor(private readonly http: HttpClient) {}
@@ -59,7 +52,7 @@ export class IntegrationsResource {
   async requestDeleteConfirmation(projectId: ProjectId, providerId: string, payload?: unknown): Promise<ProjectIntegrationConfirmationResponse> {
     return this.http.post<ProjectIntegrationConfirmationResponse>(
       `/api/app/projects/${projectId}/integrations/${providerId}/delete-confirmation`,
-      payload
+      payload,
     );
   }
 
@@ -69,13 +62,17 @@ export class IntegrationsResource {
   async delete(
     projectId: ProjectId,
     providerId: string,
-    options?: { confirmationToken?: string } | { json?: unknown }
+    options?: { confirmationToken?: string } | { json?: unknown },
   ): Promise<DeleteProjectIntegrationResponse> {
-    const json = (options && 'json' in options) ? options.json : (options && 'confirmationToken' in options) ? { confirmationToken: options.confirmationToken } : undefined;
+    const json =
+      options && 'json' in options
+        ? options.json
+        : options && 'confirmationToken' in options
+          ? { confirmationToken: options.confirmationToken }
+          : undefined;
     return this.http.request<DeleteProjectIntegrationResponse>(`/api/app/projects/${projectId}/integrations/${providerId}`, {
       method: 'DELETE',
       json,
     });
   }
 }
-
