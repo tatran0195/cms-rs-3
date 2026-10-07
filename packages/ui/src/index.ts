@@ -47,6 +47,7 @@ export { Textarea } from './components/textarea';
 export { Toast } from './components/toast';
 export { Toaster } from './components/toaster';
 export { Tooltip, TooltipProvider } from './components/tooltip';
+export * from './components/permissions';
 // Hooks
 export { usePrompt } from './hooks/use-prompt';
 export { useToggleState } from './hooks/use-toggle-state';
