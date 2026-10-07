@@ -1,21 +1,17 @@
 //! CMS Authz (Authorization)
 //!
 //! This crate provides trait-based authorization,
-//! with CMS's actual enumerable rules instead of Casbin.
-//!
-//! CMS's authorization rules are:
-//! - Organization membership check
-//! - Project role threshold check
-//! - Reader audience grant check
-//!
-//! These are simple enough that a general-purpose policy engine would add
-//! indirection without adding capability.
+//! supporting dual-domain independent custom roles and 2D permission matrices
+//! for Workspaces and Projects.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use cms_db::PgPool;
 use cms_entity::{
+    authz::{
+        Action, ProjectPermissions, ProjectResource, WorkspacePermissions, WorkspaceResource,
+    },
     common::MemberRole,
     id::{OrgId, UserId},
 };
@@ -54,6 +50,55 @@ impl TenantContext {
                 "User requires at least {:?} role for organization {}",
                 min_role, self.org_id
             )))
+        }
+    }
+}
+
+/// Resolved security context for Workspace / Organization actions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceSecurityContext {
+    pub user_id: UserId,
+    pub org_id: OrgId,
+    pub is_owner: bool,
+    pub role_id: Option<String>,
+    pub permissions: WorkspacePermissions,
+}
+
+impl WorkspaceSecurityContext {
+    pub fn can(&self, resource: WorkspaceResource, action: Action) -> bool {
+        self.is_owner || self.permissions.has_permission(resource, action)
+    }
+
+    pub fn require(&self, resource: WorkspaceResource, action: Action) -> Result<(), AppError> {
+        if self.can(resource, action) {
+            Ok(())
+        } else {
+            Err(AppError::Forbidden)
+        }
+    }
+}
+
+/// Resolved security context for Project actions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectSecurityContext {
+    pub user_id: UserId,
+    pub project_id: String,
+    pub org_id: OrgId,
+    pub is_owner: bool,
+    pub role_id: Option<String>,
+    pub permissions: ProjectPermissions,
+}
+
+impl ProjectSecurityContext {
+    pub fn can(&self, resource: ProjectResource, action: Action) -> bool {
+        self.is_owner || self.permissions.has_permission(resource, action)
+    }
+
+    pub fn require(&self, resource: ProjectResource, action: Action) -> Result<(), AppError> {
+        if self.can(resource, action) {
+            Ok(())
+        } else {
+            Err(AppError::Forbidden)
         }
     }
 }
@@ -125,6 +170,38 @@ pub trait Authz: Send + Sync {
         user_id: &str,
         org_id: &str,
     ) -> Result<TenantContext, AppError>;
+
+    /// Resolve workspace security context
+    async fn get_workspace_context(
+        &self,
+        user_id: &str,
+        org_id: &str,
+    ) -> Result<WorkspaceSecurityContext, AppError>;
+
+    /// Resolve project security context
+    async fn get_project_context(
+        &self,
+        user_id: &str,
+        project_id: &str,
+    ) -> Result<ProjectSecurityContext, AppError>;
+
+    /// Assert a workspace permission
+    async fn require_workspace_permission(
+        &self,
+        user_id: &str,
+        org_id: &str,
+        resource: WorkspaceResource,
+        action: Action,
+    ) -> Result<(), AppError>;
+
+    /// Assert a project permission
+    async fn require_project_permission(
+        &self,
+        user_id: &str,
+        project_id: &str,
+        resource: ProjectResource,
+        action: Action,
+    ) -> Result<(), AppError>;
 }
 
 /// Production implementation of Authz
@@ -170,13 +247,11 @@ impl ProductionAuthz {
         user_id: &str,
         project_id: &str,
     ) -> Result<Option<MemberRole>, AppError> {
-        // In this internal platform deployment, access control is scoped hierarchically
-        // through the project's owning organization membership.
         use cms_db::project::ProjectQueries;
 
         let project = ProjectQueries::get_by_id(&self.pool, project_id)
             .await?
-            .ok_or(AppError::NotFound("Project not found".to_string()))?;
+            .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
         let org_id = project.organization_id;
         self.get_org_role(user_id, &org_id).await
@@ -253,7 +328,6 @@ impl Authz for ProductionAuthz {
         project_id: &str,
         branch_id: &str,
     ) -> Result<(), AppError> {
-        // Check if reader has grant for this specific branch
         use cms_db::reader_access::AudienceGrantQueries;
 
         let has_grant = AudienceGrantQueries::has_grant_for_branch(
@@ -324,6 +398,174 @@ impl Authz for ProductionAuthz {
             )),
         }
     }
+
+    async fn get_workspace_context(
+        &self,
+        user_id: &str,
+        org_id: &str,
+    ) -> Result<WorkspaceSecurityContext, AppError> {
+        use cms_db::org::MemberQueries;
+        use cms_db::authz::OrgRoleQueries;
+
+        let member = MemberQueries::get_by_user_and_org(&self.pool, user_id, org_id)
+            .await?
+            .ok_or_else(|| AppError::AccessDenied("User is not a member of this organization".to_string()))?;
+
+        let is_system_admin = self.require_system_admin(user_id).await.is_ok();
+        let is_owner = is_system_admin || member.role == MemberRole::Owner;
+
+        if is_owner {
+            return Ok(WorkspaceSecurityContext {
+                user_id: UserId::from(user_id),
+                org_id: OrgId::from(org_id),
+                is_owner: true,
+                role_id: None,
+                permissions: WorkspacePermissions::full(),
+            });
+        }
+
+        let (role_id, permissions) = if let Some(ref r_id) = member.role_id {
+            if let Some(role) = OrgRoleQueries::get_by_id(&self.pool, r_id).await? {
+                (Some(role.id), role.permissions)
+            } else if let Some(default_role) = OrgRoleQueries::get_default(&self.pool, org_id).await? {
+                (Some(default_role.id), default_role.permissions)
+            } else {
+                (None, WorkspacePermissions::empty())
+            }
+        } else if let Some(default_role) = OrgRoleQueries::get_default(&self.pool, org_id).await? {
+            (Some(default_role.id), default_role.permissions)
+        } else {
+            let perms = if member.role == MemberRole::Admin {
+                WorkspacePermissions::full()
+            } else {
+                let mut p = WorkspacePermissions::empty();
+                let mut acts = std::collections::HashMap::new();
+                acts.insert(Action::Read, true);
+                p.0.insert(WorkspaceResource::Projects, acts.clone());
+                p.0.insert(WorkspaceResource::Members, acts);
+                p
+            };
+            (None, perms)
+        };
+
+        Ok(WorkspaceSecurityContext {
+            user_id: UserId::from(user_id),
+            org_id: OrgId::from(org_id),
+            is_owner: false,
+            role_id,
+            permissions,
+        })
+    }
+
+    async fn get_project_context(
+        &self,
+        user_id: &str,
+        project_id: &str,
+    ) -> Result<ProjectSecurityContext, AppError> {
+        use cms_db::project::ProjectQueries;
+        use cms_db::authz::{ProjectMemberQueries, ProjectRoleQueries};
+
+        let project = ProjectQueries::get_by_id(&self.pool, project_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
+
+        let org_id = project.organization_id;
+        let is_system_admin = self.require_system_admin(user_id).await.is_ok();
+        let org_role = self.get_org_role(user_id, &org_id).await?;
+        let is_org_owner = org_role == Some(MemberRole::Owner);
+
+        if is_system_admin || is_org_owner {
+            return Ok(ProjectSecurityContext {
+                user_id: UserId::from(user_id),
+                project_id: project_id.to_string(),
+                org_id: OrgId::from(org_id),
+                is_owner: true,
+                role_id: None,
+                permissions: ProjectPermissions::full(),
+            });
+        }
+
+        let project_member = ProjectMemberQueries::get_by_user_and_project(&self.pool, user_id, project_id).await?;
+
+        let pm = match project_member {
+            Some(pm) => pm,
+            None => {
+                if org_role == Some(MemberRole::Admin) {
+                    return Ok(ProjectSecurityContext {
+                        user_id: UserId::from(user_id),
+                        project_id: project_id.to_string(),
+                        org_id: OrgId::from(org_id),
+                        is_owner: true,
+                        role_id: None,
+                        permissions: ProjectPermissions::full(),
+                    });
+                }
+                return Err(AppError::AccessDenied("User is not a member of this project".to_string()));
+            }
+        };
+
+        if pm.role == "owner" {
+            return Ok(ProjectSecurityContext {
+                user_id: UserId::from(user_id),
+                project_id: project_id.to_string(),
+                org_id: OrgId::from(org_id),
+                is_owner: true,
+                role_id: pm.role_id,
+                permissions: ProjectPermissions::full(),
+            });
+        }
+
+        let (role_id, permissions) = if let Some(ref r_id) = pm.role_id {
+            if let Some(role) = ProjectRoleQueries::get_by_id(&self.pool, r_id).await? {
+                (Some(role.id), role.permissions)
+            } else if let Some(default_role) = ProjectRoleQueries::get_default(&self.pool, project_id).await? {
+                (Some(default_role.id), default_role.permissions)
+            } else {
+                (None, ProjectPermissions::empty())
+            }
+        } else if let Some(default_role) = ProjectRoleQueries::get_default(&self.pool, project_id).await? {
+            (Some(default_role.id), default_role.permissions)
+        } else {
+            let mut p = ProjectPermissions::empty();
+            let mut read_act = std::collections::HashMap::new();
+            read_act.insert(Action::Read, true);
+            p.0.insert(ProjectResource::Pages, read_act.clone());
+            p.0.insert(ProjectResource::Branches, read_act.clone());
+            p.0.insert(ProjectResource::Deployments, read_act);
+            (None, p)
+        };
+
+        Ok(ProjectSecurityContext {
+            user_id: UserId::from(user_id),
+            project_id: project_id.to_string(),
+            org_id: OrgId::from(org_id),
+            is_owner: false,
+            role_id,
+            permissions,
+        })
+    }
+
+    async fn require_workspace_permission(
+        &self,
+        user_id: &str,
+        org_id: &str,
+        resource: WorkspaceResource,
+        action: Action,
+    ) -> Result<(), AppError> {
+        let ctx = self.get_workspace_context(user_id, org_id).await?;
+        ctx.require(resource, action)
+    }
+
+    async fn require_project_permission(
+        &self,
+        user_id: &str,
+        project_id: &str,
+        resource: ProjectResource,
+        action: Action,
+    ) -> Result<(), AppError> {
+        let ctx = self.get_project_context(user_id, project_id).await?;
+        ctx.require(resource, action)
+    }
 }
 
 /// No-op authorization for testing
@@ -380,12 +622,59 @@ impl Authz for NoopAuthz {
     ) -> Result<TenantContext, AppError> {
         Ok(TenantContext::new(user_id, org_id, MemberRole::Owner))
     }
+
+    async fn get_workspace_context(
+        &self,
+        user_id: &str,
+        org_id: &str,
+    ) -> Result<WorkspaceSecurityContext, AppError> {
+        Ok(WorkspaceSecurityContext {
+            user_id: UserId::from(user_id),
+            org_id: OrgId::from(org_id),
+            is_owner: true,
+            role_id: None,
+            permissions: WorkspacePermissions::full(),
+        })
+    }
+
+    async fn get_project_context(
+        &self,
+        user_id: &str,
+        project_id: &str,
+    ) -> Result<ProjectSecurityContext, AppError> {
+        Ok(ProjectSecurityContext {
+            user_id: UserId::from(user_id),
+            project_id: project_id.to_string(),
+            org_id: OrgId::from("org_default"),
+            is_owner: true,
+            role_id: None,
+            permissions: ProjectPermissions::full(),
+        })
+    }
+
+    async fn require_workspace_permission(
+        &self,
+        _user_id: &str,
+        _org_id: &str,
+        _resource: WorkspaceResource,
+        _action: Action,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn require_project_permission(
+        &self,
+        _user_id: &str,
+        _project_id: &str,
+        _resource: ProjectResource,
+        _action: Action,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
 }
 
 /// Create an authorization implementation based on configuration
 pub fn create_authz(pool: PgPool) -> Result<Arc<dyn Authz>, AppError> {
-    // For now, we always use the production implementation
-    // In the future, this could be configured
     Ok(Arc::new(ProductionAuthz::new(pool)))
 }
 
@@ -406,7 +695,6 @@ mod tests {
     fn test_noop_authz() {
         let authz = NoopAuthz;
 
-        // All checks should pass
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             authz.require_org_member("user-1", "org-1").await.unwrap();
             authz

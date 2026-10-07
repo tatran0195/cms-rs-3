@@ -87,6 +87,8 @@ pub struct Member {
     pub user_id: Id,
     pub organization_id: Id,
     pub role: MemberRole,
+    #[serde(default)]
+    pub role_id: Option<Id>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -98,6 +100,8 @@ pub struct MemberResponse {
     pub user_id: Id,
     pub organization_id: Id,
     pub role: MemberRole,
+    #[serde(default)]
+    pub role_id: Option<Id>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -109,6 +113,7 @@ impl From<Member> for MemberResponse {
             user_id: member.user_id,
             organization_id: member.organization_id,
             role: member.role,
+            role_id: member.role_id,
             created_at: member.created_at,
             updated_at: member.updated_at,
         }

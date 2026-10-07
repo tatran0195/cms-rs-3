@@ -28,6 +28,7 @@ struct MemberRow {
     user_id: String,
     organization_id: String,
     role: MemberRole,
+    role_id: Option<String>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -67,6 +68,7 @@ impl From<MemberRow> for Member {
             user_id: row.user_id,
             organization_id: row.organization_id,
             role: row.role,
+            role_id: row.role_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -80,6 +82,7 @@ impl From<MemberRow> for MemberResponse {
             user_id: row.user_id,
             organization_id: row.organization_id,
             role: row.role,
+            role_id: row.role_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
