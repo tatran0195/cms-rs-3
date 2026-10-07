@@ -1,3 +1,4 @@
+import { type KyInstance } from 'ky';
 import { HttpClient, type HttpClientOptions } from './http';
 import {
   ProjectsResource,
@@ -34,8 +35,8 @@ export class CmsClient {
   readonly openapi: OpenApiResource;
   readonly workspace: WorkspaceResource;
 
-  constructor(options: CmsClientOptions) {
-    this.http = new HttpClient(options);
+  constructor(options: CmsClientOptions, existingHttp?: HttpClient) {
+    this.http = existingHttp ?? new HttpClient(options);
 
     this.projects = new ProjectsResource(this.http);
     this.pages = new PagesResource(this.http);
@@ -50,6 +51,21 @@ export class CmsClient {
     this.comments = new CommentsResource(this.http);
     this.openapi = new OpenApiResource(this.http);
     this.workspace = new WorkspaceResource(this.http);
+  }
+
+  /**
+   * Direct access to the raw underlying Ky instance for custom streaming, blobs, or advanced request pipelines
+   */
+  get raw(): KyInstance {
+    return this.http.raw;
+  }
+
+  /**
+   * Creates an extended client with additional headers, hooks, or retry settings
+   */
+  extend(options: Partial<CmsClientOptions>): CmsClient {
+    const extendedHttp = this.http.extend(options);
+    return new CmsClient(extendedHttp.options, extendedHttp);
   }
 }
 

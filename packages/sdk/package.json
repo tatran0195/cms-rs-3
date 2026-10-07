@@ -15,7 +15,9 @@
     "test": "vitest run",
     "build": "tsdown"
   },
-  "dependencies": {},
+  "dependencies": {
+    "ky": "^2.1.0"
+  },
   "devDependencies": {
     "@cms/tsconfig": "workspace:*",
     "@types/node": "^26.6.4",

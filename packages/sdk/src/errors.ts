@@ -16,6 +16,8 @@ export class CmsApiError extends CmsError {
   readonly code: string;
   readonly details?: unknown;
   readonly requestId?: string;
+  readonly response?: Response;
+  readonly request?: Request;
 
   constructor(params: {
     status: number;
@@ -23,6 +25,8 @@ export class CmsApiError extends CmsError {
     message: string;
     details?: unknown;
     requestId?: string;
+    response?: Response;
+    request?: Request;
   }) {
     super(params.message);
     this.name = 'CmsApiError';
@@ -30,6 +34,8 @@ export class CmsApiError extends CmsError {
     this.code = params.code;
     this.details = params.details;
     this.requestId = params.requestId;
+    this.response = params.response;
+    this.request = params.request;
   }
 
   isNotFound(): boolean {
