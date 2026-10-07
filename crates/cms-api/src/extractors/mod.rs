@@ -11,6 +11,9 @@ use cms_error::AppError;
 
 use crate::{auth::AuthExtractor, AppState};
 
+pub mod authz;
+pub use authz::*;
+
 /// User ID extractor from authenticated session
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserId(pub EntityUserId);
@@ -333,7 +336,7 @@ async fn resolve_org_id(
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
     for i in 0..segments.len() {
         let seg = segments[i];
-        if (seg == "orgs" || seg == "organizations") && i + 1 < segments.len() {
+        if (seg == "orgs" || seg == "organizations" || seg == "workspaces") && i + 1 < segments.len() {
             let next = segments[i + 1].trim();
             if !next.is_empty() {
                 return Ok(Some(next.to_string()));
