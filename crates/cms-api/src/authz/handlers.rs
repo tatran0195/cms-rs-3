@@ -126,13 +126,18 @@ pub async fn create_workspace_role_handler(
     Path(org_id): Path<String>,
     Json(payload): Json<CreateRoleRequest>,
 ) -> Result<Json<ApiResponse<OrganizationRole>>, AppError> {
+    let name = payload.name.trim();
+    if name.is_empty() || name.chars().count() > 100 {
+        return Err(AppError::InvalidInput("Role name must be between 1 and 100 characters".to_string()));
+    }
+
     let normalized = WorkspacePermissions::normalize(payload.permissions);
     let perms_val = serde_json::to_value(&normalized).map_err(|e| AppError::Internal(e.into()))?;
 
     let role = OrgRoleQueries::create(
         &state.biz_context.pool,
         &org_id,
-        &payload.name,
+        name,
         payload.description.as_deref(),
         payload.is_default,
         perms_val,
@@ -166,6 +171,13 @@ pub async fn update_workspace_role_handler(
     Path((org_id, role_id)): Path<(String, String)>,
     Json(payload): Json<UpdateRoleRequest>,
 ) -> Result<Json<ApiResponse<OrganizationRole>>, AppError> {
+    if let Some(ref n) = payload.name {
+        let trimmed = n.trim();
+        if trimmed.is_empty() || trimmed.chars().count() > 100 {
+            return Err(AppError::InvalidInput("Role name must be between 1 and 100 characters".to_string()));
+        }
+    }
+
     let perms_val = if let Some(raw_perms) = payload.permissions {
         let normalized = WorkspacePermissions::normalize(raw_perms);
         Some(serde_json::to_value(&normalized).map_err(|e| AppError::Internal(e.into()))?)
@@ -177,7 +189,7 @@ pub async fn update_workspace_role_handler(
         &state.biz_context.pool,
         &org_id,
         &role_id,
-        payload.name.as_deref(),
+        payload.name.as_deref().map(|s| s.trim()),
         payload.description.as_deref(),
         payload.is_default,
         perms_val,
@@ -243,13 +255,18 @@ pub async fn create_project_role_handler(
     Path(project_id): Path<String>,
     Json(payload): Json<CreateRoleRequest>,
 ) -> Result<Json<ApiResponse<ProjectRole>>, AppError> {
+    let name = payload.name.trim();
+    if name.is_empty() || name.chars().count() > 100 {
+        return Err(AppError::InvalidInput("Role name must be between 1 and 100 characters".to_string()));
+    }
+
     let normalized = ProjectPermissions::normalize(payload.permissions);
     let perms_val = serde_json::to_value(&normalized).map_err(|e| AppError::Internal(e.into()))?;
 
     let role = ProjectRoleQueries::create(
         &state.biz_context.pool,
         &project_id,
-        &payload.name,
+        name,
         payload.description.as_deref(),
         payload.is_default,
         perms_val,
@@ -283,6 +300,13 @@ pub async fn update_project_role_handler(
     Path((project_id, role_id)): Path<(String, String)>,
     Json(payload): Json<UpdateRoleRequest>,
 ) -> Result<Json<ApiResponse<ProjectRole>>, AppError> {
+    if let Some(ref n) = payload.name {
+        let trimmed = n.trim();
+        if trimmed.is_empty() || trimmed.chars().count() > 100 {
+            return Err(AppError::InvalidInput("Role name must be between 1 and 100 characters".to_string()));
+        }
+    }
+
     let perms_val = if let Some(raw_perms) = payload.permissions {
         let normalized = ProjectPermissions::normalize(raw_perms);
         Some(serde_json::to_value(&normalized).map_err(|e| AppError::Internal(e.into()))?)
@@ -294,7 +318,7 @@ pub async fn update_project_role_handler(
         &state.biz_context.pool,
         &project_id,
         &role_id,
-        payload.name.as_deref(),
+        payload.name.as_deref().map(|s| s.trim()),
         payload.description.as_deref(),
         payload.is_default,
         perms_val,

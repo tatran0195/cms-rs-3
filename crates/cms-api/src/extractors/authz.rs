@@ -53,13 +53,20 @@ pub async fn resolve_project_id(parts: &Parts) -> Result<Option<String>, AppErro
         }
     }
 
-    let path = parts.uri.path();
-    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-    for i in 0..segments.len() {
-        if segments[i] == "projects" && i + 1 < segments.len() {
-            let candidate = segments[i + 1].trim();
-            if !candidate.is_empty() {
-                return Ok(Some(candidate.to_string()));
+    let mut candidate_paths = Vec::new();
+    if let Some(orig) = parts.extensions.get::<axum::extract::OriginalUri>() {
+        candidate_paths.push(orig.0.path());
+    }
+    candidate_paths.push(parts.uri.path());
+
+    for path in candidate_paths {
+        let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        for i in 0..segments.len() {
+            if segments[i] == "projects" && i + 1 < segments.len() {
+                let candidate = segments[i + 1].trim();
+                if !candidate.is_empty() {
+                    return Ok(Some(candidate.to_string()));
+                }
             }
         }
     }
@@ -116,23 +123,30 @@ pub async fn resolve_workspace_id(
         }
     }
 
-    let path = parts.uri.path();
-    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-    for i in 0..segments.len() {
-        let seg = segments[i];
-        if (seg == "orgs" || seg == "organizations" || seg == "workspaces") && i + 1 < segments.len() {
-            let next = segments[i + 1].trim();
-            if !next.is_empty() {
-                return Ok(Some(next.to_string()));
-            }
-        } else if seg == "projects" && i + 1 < segments.len() {
-            let project_id = segments[i + 1].trim();
-            if !project_id.is_empty() {
-                if let Some(p) = pool {
-                    if let Some(project) =
-                        cms_db::project::ProjectQueries::get_by_id(p, project_id).await?
-                    {
-                        return Ok(Some(project.organization_id));
+    let mut candidate_paths = Vec::new();
+    if let Some(orig) = parts.extensions.get::<axum::extract::OriginalUri>() {
+        candidate_paths.push(orig.0.path());
+    }
+    candidate_paths.push(parts.uri.path());
+
+    for path in candidate_paths {
+        let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        for i in 0..segments.len() {
+            let seg = segments[i];
+            if (seg == "orgs" || seg == "organizations" || seg == "workspaces") && i + 1 < segments.len() {
+                let next = segments[i + 1].trim();
+                if !next.is_empty() {
+                    return Ok(Some(next.to_string()));
+                }
+            } else if seg == "projects" && i + 1 < segments.len() {
+                let project_id = segments[i + 1].trim();
+                if !project_id.is_empty() {
+                    if let Some(p) = pool {
+                        if let Some(project) =
+                            cms_db::project::ProjectQueries::get_by_id(p, project_id).await?
+                        {
+                            return Ok(Some(project.organization_id));
+                        }
                     }
                 }
             }

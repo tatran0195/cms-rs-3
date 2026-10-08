@@ -26,10 +26,9 @@ pub fn workspace_roles_router(state: Arc<AppState>) -> Router {
 }
 
 /// Router for project roles CRUD
-pub fn project_roles_router(state: Arc<AppState>) -> Router {
+pub fn project_roles_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/{project_id}/roles", get(list_project_roles_handler).post(create_project_role_handler))
         .route("/{project_id}/roles/{role_id}", get(get_project_role_handler).patch(update_project_role_handler).delete(delete_project_role_handler))
         .route("/{project_id}/roles/{role_id}/usage", get(get_project_role_usage_handler))
-        .with_state(state)
 }

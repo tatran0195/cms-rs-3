@@ -318,23 +318,25 @@ pub async fn create_project(
     organization_id: &str,
     is_public: bool,
 ) -> anyhow::Result<Value> {
-    let value = expect_status(
-        request(
-            app,
-            Method::POST,
-            "/api/app/projects",
-            Some(cookie),
-            Some(json!({
-                "name": name,
-                "organizationId": organization_id,
-                "isPublic": is_public,
-            })),
-        )
-        .await?,
-        StatusCode::OK,
-        "create project",
-    )?;
-    Ok(value["data"].clone())
+    let (status, payload) = request(
+        app,
+        Method::POST,
+        "/api/app/projects",
+        Some(cookie),
+        Some(json!({
+            "name": name,
+            "organizationId": organization_id,
+            "isPublic": is_public,
+        })),
+    )
+    .await?;
+    anyhow::ensure!(
+        status == StatusCode::OK || status == StatusCode::CREATED,
+        "create project: expected HTTP 200/201, got HTTP {} with body {}",
+        status,
+        payload
+    );
+    Ok(payload["data"].clone())
 }
 
 pub async fn create_page(

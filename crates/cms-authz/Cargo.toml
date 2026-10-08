@@ -13,6 +13,8 @@ serde = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
 
 [lints]
 workspace = true
