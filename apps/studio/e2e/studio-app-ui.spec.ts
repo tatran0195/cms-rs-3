@@ -46,7 +46,7 @@ test.describe('Studio App Browser UI Workflows', () => {
     const context = await browser.newContext();
     await context.addCookies([
       {
-        name: 'better-auth.session_token',
+        name: 'cms_session',
         value: session.sessionToken,
         domain: 'localhost',
         path: '/',
@@ -73,7 +73,7 @@ test.describe('Studio App Browser UI Workflows', () => {
     const context = await browser.newContext();
     await context.addCookies([
       {
-        name: 'better-auth.session_token',
+        name: 'cms_session',
         value: session.sessionToken,
         domain: 'localhost',
         path: '/',
@@ -105,7 +105,7 @@ test.describe('Studio App Browser UI Workflows', () => {
     const context = await browser.newContext();
     await context.addCookies([
       {
-        name: 'better-auth.session_token',
+        name: 'cms_session',
         value: session.sessionToken,
         domain: 'localhost',
         path: '/',

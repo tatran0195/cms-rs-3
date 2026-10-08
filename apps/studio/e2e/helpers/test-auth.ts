@@ -37,7 +37,7 @@ export async function createAuthenticatedSession(request: APIRequestContext): Pr
 
   // Extract session token from cookies
   const cookies = loginRes.headers()['set-cookie'] || '';
-  const match = cookies.match(/better-auth\.session_token=([^;]+)/);
+  const match = cookies.match(/cms_session=([^;]+)/);
   const sessionToken = match ? match[1] : '';
 
   return {
@@ -45,6 +45,6 @@ export async function createAuthenticatedSession(request: APIRequestContext): Pr
     email,
     name,
     sessionToken,
-    cookieHeader: `better-auth.session_token=${sessionToken}`,
+    cookieHeader: `cms_session=${sessionToken}`,
   };
 }
