@@ -55,6 +55,130 @@ fn test_security_context_matrix_evaluation() {
     assert!(ctx.require(ProjectResource::Pages, Action::Publish).is_err());
 }
 
+#[test]
+fn test_exhaustive_project_not_permissible_matrix() {
+    let empty_ctx = ProjectSecurityContext {
+        user_id: UserId::from("u1"),
+        project_id: "p1".to_string(),
+        org_id: OrgId::from("o1"),
+        is_owner: false,
+        role_id: Some("role-empty".to_string()),
+        permissions: ProjectPermissions::empty(),
+    };
+
+    let all_resources = [
+        ProjectResource::Pages,
+        ProjectResource::Branches,
+        ProjectResource::Deployments,
+        ProjectResource::Domains,
+        ProjectResource::Openapi,
+        ProjectResource::Assets,
+        ProjectResource::Addons,
+        ProjectResource::Members,
+        ProjectResource::Roles,
+        ProjectResource::Analytics,
+        ProjectResource::Comments,
+        ProjectResource::DangerZone,
+    ];
+
+    // With empty permissions, every single resource and action is strictly NOT permissible
+    for res in all_resources {
+        for act in res.supported_actions() {
+            assert!(!empty_ctx.can(res, *act), "Resource {:?} action {:?} must NOT be permissible", res, act);
+            assert!(empty_ctx.require(res, *act).is_err(), "Require {:?} action {:?} must error with Forbidden", res, act);
+        }
+    }
+
+    // With only a single permission (Pages:Read), everything else must remain strictly NOT permissible
+    let single_perm_ctx = ProjectSecurityContext {
+        user_id: UserId::from("u1"),
+        project_id: "p1".to_string(),
+        org_id: OrgId::from("o1"),
+        is_owner: false,
+        role_id: Some("role-pages-read-only".to_string()),
+        permissions: ProjectPermissions::normalize(serde_json::json!({
+            "pages": { "read": true }
+        })),
+    };
+
+    assert!(single_perm_ctx.can(ProjectResource::Pages, Action::Read));
+    assert!(single_perm_ctx.require(ProjectResource::Pages, Action::Read).is_ok());
+
+    // Pages write/delete/publish must NOT be permissible
+    for forbidden_act in [Action::Create, Action::Edit, Action::Delete, Action::Publish] {
+        assert!(!single_perm_ctx.can(ProjectResource::Pages, forbidden_act));
+        assert!(single_perm_ctx.require(ProjectResource::Pages, forbidden_act).is_err());
+    }
+
+    // All other resources must NOT be permissible
+    for res in all_resources {
+        if res == ProjectResource::Pages {
+            continue;
+        }
+        for act in res.supported_actions() {
+            assert!(!single_perm_ctx.can(res, *act));
+            assert!(single_perm_ctx.require(res, *act).is_err());
+        }
+    }
+}
+
+#[test]
+fn test_exhaustive_workspace_not_permissible_matrix() {
+    let empty_ws_ctx = cms_authz::WorkspaceSecurityContext {
+        user_id: UserId::from("u1"),
+        org_id: OrgId::from("o1"),
+        is_owner: false,
+        role_id: Some("role-empty".to_string()),
+        permissions: cms_entity::authz::WorkspacePermissions::empty(),
+    };
+
+    let all_ws_resources = [
+        WorkspaceResource::Projects,
+        WorkspaceResource::Members,
+        WorkspaceResource::Roles,
+        WorkspaceResource::ApiKeys,
+        WorkspaceResource::AuditLogs,
+        WorkspaceResource::Settings,
+        WorkspaceResource::DangerZone,
+    ];
+
+    // With empty permissions, every workspace resource and action is strictly NOT permissible
+    for res in all_ws_resources {
+        for act in res.supported_actions() {
+            assert!(!empty_ws_ctx.can(res, *act), "Workspace resource {:?} action {:?} must NOT be permissible", res, act);
+            assert!(empty_ws_ctx.require(res, *act).is_err(), "Require {:?} action {:?} must return Forbidden", res, act);
+        }
+    }
+
+    // With only Members:Read, all other actions and resources are NOT permissible
+    let read_only_members = cms_authz::WorkspaceSecurityContext {
+        user_id: UserId::from("u1"),
+        org_id: OrgId::from("o1"),
+        is_owner: false,
+        role_id: Some("role-members-read".to_string()),
+        permissions: cms_entity::authz::WorkspacePermissions::normalize(serde_json::json!({
+            "members": { "read": true }
+        })),
+    };
+
+    assert!(read_only_members.can(WorkspaceResource::Members, Action::Read));
+    assert!(read_only_members.require(WorkspaceResource::Members, Action::Read).is_ok());
+
+    assert!(!read_only_members.can(WorkspaceResource::Members, Action::Create));
+    assert!(!read_only_members.can(WorkspaceResource::Members, Action::Edit));
+    assert!(!read_only_members.can(WorkspaceResource::Members, Action::Delete));
+
+    for res in all_ws_resources {
+        if res == WorkspaceResource::Members {
+            continue;
+        }
+        for act in res.supported_actions() {
+            assert!(!read_only_members.can(res, *act));
+            assert!(read_only_members.require(res, *act).is_err());
+        }
+    }
+}
+
 #[tokio::test]
 async fn test_production_authz_live_db_evaluation() {
     let database_url = match std::env::var("CMS_E2E_DATABASE_URL") {

@@ -471,3 +471,385 @@ async fn test_21_authz_red_and_green_enforcement() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+async fn test_21_not_permissible_boundaries_and_isolation() -> anyhow::Result<()> {
+    let ctx = TestContext::setup().await?;
+    let owner_cookie = ctx.user_cookie();
+    let org_a_id = &ctx.seed.organization_id;
+    let now = chrono::Utc::now();
+
+    // =========================================================================
+    // SECTION 1: Anonymous & Unauthenticated "Not Permissible" (401 Unauthorized)
+    // =========================================================================
+
+    // 1.1: Missing authentication on workspace roles endpoints
+    let (anon_ws_roles_get, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/v1/workspaces/{org_a_id}/roles"),
+        None,
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        anon_ws_roles_get == StatusCode::UNAUTHORIZED,
+        "Anon GET workspace roles must return 401 Unauthorized, got {anon_ws_roles_get}"
+    );
+
+    let (anon_ws_roles_post, _) = request(
+        &ctx.app,
+        Method::POST,
+        &format!("/api/v1/workspaces/{org_a_id}/roles"),
+        None,
+        Some(json!({ "name": "AnonRole", "permissions": {} })),
+    )
+    .await?;
+    anyhow::ensure!(
+        anon_ws_roles_post == StatusCode::UNAUTHORIZED,
+        "Anon POST workspace roles must return 401 Unauthorized, got {anon_ws_roles_post}"
+    );
+
+    // 1.2: Bogus / Forged session token
+    let bogus_cookie = session_cookie("completely_invalid_session_token_xyz");
+    let (bogus_ws_get, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/v1/workspaces/{org_a_id}/roles"),
+        Some(&bogus_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        bogus_ws_get == StatusCode::UNAUTHORIZED,
+        "Bogus session GET workspace roles must return 401 Unauthorized, got {bogus_ws_get}"
+    );
+
+    // =========================================================================
+    // SECTION 2: Cross-Tenant Boundary "Not Permissible" Isolation
+    // =========================================================================
+    let org_b_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at)
+           VALUES ($1, 'Tenant Org B', $2, $3, $3)"#,
+    )
+    .bind(&org_b_id)
+    .bind(format!("tenant-b-{}", Uuid::new_v4().simple()))
+    .bind(now)
+    .execute(&ctx.state.biz_context.pool)
+    .await?;
+
+    let role_b = cms_db::authz::OrgRoleQueries::create(
+        &ctx.state.biz_context.pool,
+        &org_b_id,
+        "OrgBSecretRole",
+        Some("Exclusively for tenant B"),
+        false,
+        json!({ "projects": { "read": true } }),
+    )
+    .await?;
+
+    // 2.1: Owner of Org A attempts to list roles of Org B -> 403 Forbidden (not a member of Org B)
+    let (cross_tenant_list, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/v1/workspaces/{org_b_id}/roles"),
+        Some(&owner_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_tenant_list == StatusCode::FORBIDDEN,
+        "Owner A cannot list Org B's roles, expected 403 Forbidden, got {cross_tenant_list}"
+    );
+
+    // 2.2: Cross-tenant ID injection: Owner A queries Org B's role ID under Org A's path -> 404 Not Found
+    let (cross_tenant_get, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/v1/workspaces/{org_a_id}/roles/{}", role_b.id),
+        Some(&owner_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_tenant_get == StatusCode::NOT_FOUND,
+        "Querying Org B's role through Org A's endpoint must return 404 Not Found, got {cross_tenant_get}"
+    );
+
+    // 2.3: Cross-tenant update: Owner A tries to modify Org B's role under Org A's path -> 404 Not Found
+    let (cross_tenant_put, _) = request(
+        &ctx.app,
+        Method::PUT,
+        &format!("/api/v1/workspaces/{org_a_id}/roles/{}", role_b.id),
+        Some(&owner_cookie),
+        Some(json!({ "name": "HackedOrgBRole" })),
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_tenant_put == StatusCode::NOT_FOUND,
+        "Modifying Org B's role through Org A's endpoint must return 404 Not Found, got {cross_tenant_put}"
+    );
+
+    // 2.4: Cross-tenant delete: Owner A tries to delete Org B's role under Org A's path -> 404 Not Found
+    let (cross_tenant_del, _) = request(
+        &ctx.app,
+        Method::DELETE,
+        &format!("/api/v1/workspaces/{org_a_id}/roles/{}", role_b.id),
+        Some(&owner_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_tenant_del == StatusCode::NOT_FOUND,
+        "Deleting Org B's role through Org A's endpoint must return 404 Not Found, got {cross_tenant_del}"
+    );
+
+    // =========================================================================
+    // SECTION 3: Cross-Project Boundary "Not Permissible" Isolation
+    // =========================================================================
+    let project_1 = create_project(
+        &ctx.app,
+        &owner_cookie,
+        format!("P1 {}", Uuid::new_v4().simple()),
+        org_a_id,
+        true,
+    )
+    .await?;
+    let project_1_id = required_string(&project_1, "id", "proj1")?;
+    let project_2 = create_project(
+        &ctx.app,
+        &owner_cookie,
+        format!("P2 {}", Uuid::new_v4().simple()),
+        org_a_id,
+        true,
+    )
+    .await?;
+    let project_2_id = required_string(&project_2, "id", "proj2")?;
+
+    let role_p2 = cms_db::authz::ProjectRoleQueries::create(
+        &ctx.state.biz_context.pool,
+        project_2_id,
+        "P2Role",
+        Some("Role for Project 2 only"),
+        false,
+        json!({ "pages": { "read": true } }),
+    )
+    .await?;
+
+    // 3.1: Cross-project get: Querying P2's role through P1's endpoint -> 404 Not Found
+    let (cross_proj_get, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/v1/projects/{project_1_id}/roles/{}", role_p2.id),
+        Some(&owner_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_proj_get == StatusCode::NOT_FOUND,
+        "Querying P2's role through P1 endpoint must return 404 Not Found, got {cross_proj_get}"
+    );
+
+    // 3.2: Cross-project update: Modifying P2's role through P1's endpoint -> 404 Not Found
+    let (cross_proj_put, _) = request(
+        &ctx.app,
+        Method::PUT,
+        &format!("/api/v1/projects/{project_1_id}/roles/{}", role_p2.id),
+        Some(&owner_cookie),
+        Some(json!({ "name": "HackedP2Role" })),
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_proj_put == StatusCode::NOT_FOUND,
+        "Modifying P2's role through P1 endpoint must return 404 Not Found, got {cross_proj_put}"
+    );
+
+    // 3.3: Cross-project delete: Deleting P2's role through P1's endpoint -> 404 Not Found
+    let (cross_proj_del, _) = request(
+        &ctx.app,
+        Method::DELETE,
+        &format!("/api/v1/projects/{project_1_id}/roles/{}", role_p2.id),
+        Some(&owner_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        cross_proj_del == StatusCode::NOT_FOUND,
+        "Deleting P2's role through P1 endpoint must return 404 Not Found, got {cross_proj_del}"
+    );
+
+    // =========================================================================
+    // SECTION 4: Zero-Permission Project Role "Not Permissible" Enforcements
+    // =========================================================================
+    let zero_role_res = expect_status(
+        request(
+            &ctx.app,
+            Method::POST,
+            &format!("/api/v1/projects/{project_1_id}/roles"),
+            Some(&owner_cookie),
+            Some(json!({
+                "name": "ZeroAccessRole",
+                "description": "Explicitly zero permissions granted",
+                "is_default": false,
+                "permissions": {
+                    "pages": { "read": false, "create": false, "edit": false, "delete": false, "publish": false },
+                    "branches": { "read": false },
+                    "roles": { "read": false, "create": false, "edit": false, "delete": false },
+                    "danger_zone": { "read": false, "delete": false }
+                }
+            })),
+        )
+        .await?,
+        StatusCode::OK,
+        "create zero access project role",
+    )?;
+    let zero_role_id = required_string(&zero_role_res["data"], "id", "zero role id")?;
+
+    let zero_user_id = Uuid::new_v4().to_string();
+    let zero_token = format!("zero_{}", Uuid::new_v4().simple());
+
+    sqlx::query(
+        r#"INSERT INTO "User" (id, email, name, role, email_verified, created_at, updated_at)
+           VALUES ($1, $2, 'Zero Access User', 'user', true, $3, $3)"#,
+    )
+    .bind(&zero_user_id)
+    .bind(format!("zero-{}@example.com", Uuid::new_v4().simple()))
+    .bind(now)
+    .execute(&ctx.state.biz_context.pool)
+    .await?;
+
+    sqlx::query(
+        r#"INSERT INTO "Session" (id, user_id, session_token, expires_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $5)"#,
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(&zero_user_id)
+    .bind(&zero_token)
+    .bind(now + chrono::Duration::hours(2))
+    .bind(now)
+    .execute(&ctx.state.biz_context.pool)
+    .await?;
+
+    // Add to Organization as Member
+    sqlx::query(
+        r#"INSERT INTO "Member" (id, user_id, organization_id, role, created_at, updated_at)
+           VALUES ($1, $2, $3, 'MEMBER', $4, $4)"#,
+    )
+    .bind(Uuid::new_v4().to_string())
+    .bind(&zero_user_id)
+    .bind(org_a_id)
+    .bind(now)
+    .execute(&ctx.state.biz_context.pool)
+    .await?;
+
+    // Add to Project 1 as member with ZeroAccessRole
+    cms_db::authz::ProjectMemberQueries::create(
+        &ctx.state.biz_context.pool,
+        project_1_id,
+        &zero_user_id,
+        "member",
+        Some(zero_role_id),
+    )
+    .await?;
+
+    let zero_cookie = session_cookie(&zero_token);
+
+    // 4.1: zero_user CANNOT list pages -> 403 Forbidden
+    let (zero_pages_get, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/app/projects/{project_1_id}/pages"),
+        Some(&zero_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        zero_pages_get == StatusCode::FORBIDDEN,
+        "Zero-perm user listing pages must return 403 Forbidden, got {zero_pages_get}"
+    );
+
+    // 4.2: zero_user CANNOT list roles -> 403 Forbidden
+    let (zero_roles_get, _) = request(
+        &ctx.app,
+        Method::GET,
+        &format!("/api/v1/projects/{project_1_id}/roles"),
+        Some(&zero_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        zero_roles_get == StatusCode::FORBIDDEN,
+        "Zero-perm user listing roles must return 403 Forbidden, got {zero_roles_get}"
+    );
+
+    // 4.3: zero_user CANNOT create roles -> 403 Forbidden
+    let (zero_roles_create, _) = request(
+        &ctx.app,
+        Method::POST,
+        &format!("/api/v1/projects/{project_1_id}/roles"),
+        Some(&zero_cookie),
+        Some(json!({ "name": "ElevateMe", "permissions": {} })),
+    )
+    .await?;
+    anyhow::ensure!(
+        zero_roles_create == StatusCode::FORBIDDEN,
+        "Zero-perm user creating roles must return 403 Forbidden, got {zero_roles_create}"
+    );
+
+    // 4.4: zero_user CANNOT modify own role -> 403 Forbidden
+    let (zero_roles_put, _) = request(
+        &ctx.app,
+        Method::PUT,
+        &format!("/api/v1/projects/{project_1_id}/roles/{zero_role_id}"),
+        Some(&zero_cookie),
+        Some(json!({ "name": "PrivilegeEscalation" })),
+    )
+    .await?;
+    anyhow::ensure!(
+        zero_roles_put == StatusCode::FORBIDDEN,
+        "Zero-perm user mutating roles must return 403 Forbidden, got {zero_roles_put}"
+    );
+
+    // 4.5: zero_user CANNOT delete own role -> 403 Forbidden
+    let (zero_roles_del, _) = request(
+        &ctx.app,
+        Method::DELETE,
+        &format!("/api/v1/projects/{project_1_id}/roles/{zero_role_id}"),
+        Some(&zero_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        zero_roles_del == StatusCode::FORBIDDEN,
+        "Zero-perm user deleting roles must return 403 Forbidden, got {zero_roles_del}"
+    );
+
+    // 4.6: zero_user CANNOT delete the project (danger_zone:delete is not permissible) -> 403 Forbidden
+    let (zero_project_del, _) = request(
+        &ctx.app,
+        Method::DELETE,
+        &format!("/api/app/projects/{project_1_id}"),
+        Some(&zero_cookie),
+        None,
+    )
+    .await?;
+    anyhow::ensure!(
+        zero_project_del == StatusCode::FORBIDDEN,
+        "Zero-perm user deleting project must return 403 Forbidden, got {zero_project_del}"
+    );
+
+    // Clean up
+    let _ = sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
+        .bind(&zero_user_id)
+        .execute(&ctx.state.biz_context.pool)
+        .await;
+    let _ = sqlx::query(r#"DELETE FROM "Organization" WHERE id = $1"#)
+        .bind(&org_b_id)
+        .execute(&ctx.state.biz_context.pool)
+        .await;
+
+    Ok(())
+}
+

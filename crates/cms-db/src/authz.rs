@@ -213,7 +213,7 @@ impl OrgRoleQueries {
 
         let row = qb
             .build_query_as::<OrgRoleRow>()
-            .fetch_one(pool)
+            .fetch_optional(pool)
             .await
             .map_err(|e| {
                 if e.to_string().contains("duplicate key") {
@@ -221,7 +221,8 @@ impl OrgRoleQueries {
                 } else {
                     AppError::Database(e.into())
                 }
-            })?;
+            })?
+            .ok_or_else(|| AppError::NotFound("Role not found in this workspace".to_string()))?;
 
         Ok(row.into())
     }
@@ -258,7 +259,7 @@ impl OrgRoleQueries {
             .map_err(|e| AppError::Database(e.into()))?;
         }
 
-        sqlx::query(
+        let result = sqlx::query(
             r#"DELETE FROM "OrganizationRole" WHERE id = $1 AND organization_id = $2"#,
         )
         .bind(role_id)
@@ -266,6 +267,10 @@ impl OrgRoleQueries {
         .execute(&mut *tx)
         .await
         .map_err(|e| AppError::Database(e.into()))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Role not found in this workspace".to_string()));
+        }
 
         tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
         Ok(())
@@ -398,7 +403,7 @@ impl ProjectRoleQueries {
 
         let row = qb
             .build_query_as::<ProjectRoleRow>()
-            .fetch_one(pool)
+            .fetch_optional(pool)
             .await
             .map_err(|e| {
                 if e.to_string().contains("duplicate key") {
@@ -406,7 +411,8 @@ impl ProjectRoleQueries {
                 } else {
                     AppError::Database(e.into())
                 }
-            })?;
+            })?
+            .ok_or_else(|| AppError::NotFound("Role not found in this project".to_string()))?;
 
         Ok(row.into())
     }
@@ -443,7 +449,7 @@ impl ProjectRoleQueries {
             .map_err(|e| AppError::Database(e.into()))?;
         }
 
-        sqlx::query(
+        let result = sqlx::query(
             r#"DELETE FROM "ProjectRole" WHERE id = $1 AND project_id = $2"#,
         )
         .bind(role_id)
@@ -451,6 +457,10 @@ impl ProjectRoleQueries {
         .execute(&mut *tx)
         .await
         .map_err(|e| AppError::Database(e.into()))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Role not found in this project".to_string()));
+        }
 
         tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
         Ok(())

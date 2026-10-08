@@ -204,6 +204,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/{project_id}/roles/{role_id}",
             get(crate::authz::get_project_role_handler)
+                .put(crate::authz::update_project_role_handler)
                 .patch(crate::authz::update_project_role_handler)
                 .delete(crate::authz::delete_project_role_handler),
         )

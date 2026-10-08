@@ -290,12 +290,13 @@ impl PageService {
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
 
-        // Check if user has access to the project
+        // Check if user has read permission on project pages
         ctx.authz
-            .require_project_role(
+            .require_project_permission(
                 user_id,
                 &page.project_id,
-                cms_entity::common::MemberRole::Viewer,
+                ProjectResource::Pages,
+                Action::Read,
             )
             .await?;
 
@@ -324,9 +325,14 @@ impl PageService {
             ));
         }
 
-        // Check if user has access to the project
+        // Check if user has read permission on project pages
         ctx.authz
-            .require_project_role(user_id, project_id, cms_entity::common::MemberRole::Viewer)
+            .require_project_permission(
+                user_id,
+                project_id,
+                ProjectResource::Pages,
+                Action::Read,
+            )
             .await?;
 
         let page = PageQueries::get_by_path(&ctx.pool, project_id, branch_id, path)
@@ -358,12 +364,13 @@ impl PageService {
             ));
         }
 
-        // Check if user has access to the project
+        // Check if user has read permission on project pages
         ctx.authz
-            .require_project_role(
+            .require_project_permission(
                 user_id,
                 &query.project_id,
-                cms_entity::common::MemberRole::Viewer,
+                ProjectResource::Pages,
+                Action::Read,
             )
             .await?;
 
@@ -417,9 +424,14 @@ impl PageService {
             ));
         }
 
-        // Check if user has access to the project
+        // Check if user has read permission on project pages
         ctx.authz
-            .require_project_role(user_id, project_id, cms_entity::common::MemberRole::Viewer)
+            .require_project_permission(
+                user_id,
+                project_id,
+                ProjectResource::Pages,
+                Action::Read,
+            )
             .await?;
 
         let tree = PageQueries::get_tree(&ctx.pool, project_id, branch_id, is_published).await?;
@@ -692,9 +704,14 @@ impl PageService {
             }
         }
 
-        // Check if user has access to edit pages in this project
+        // Check if user has edit permission on project pages
         ctx.authz
-            .require_project_role(user_id, project_id, cms_entity::common::MemberRole::Editor)
+            .require_project_permission(
+                user_id,
+                project_id,
+                ProjectResource::Pages,
+                Action::Edit,
+            )
             .await?;
 
         let reordered = PageQueries::reorder(&ctx.pool, &request.page_ids).await?;

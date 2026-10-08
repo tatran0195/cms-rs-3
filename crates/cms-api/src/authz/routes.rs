@@ -20,7 +20,13 @@ pub fn permissions_router(state: Arc<AppState>) -> Router {
 pub fn workspace_roles_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/{org_id}/roles", get(list_workspace_roles_handler).post(create_workspace_role_handler))
-        .route("/{org_id}/roles/{role_id}", get(get_workspace_role_handler).patch(update_workspace_role_handler).delete(delete_workspace_role_handler))
+        .route(
+            "/{org_id}/roles/{role_id}",
+            get(get_workspace_role_handler)
+                .put(update_workspace_role_handler)
+                .patch(update_workspace_role_handler)
+                .delete(delete_workspace_role_handler),
+        )
         .route("/{org_id}/roles/{role_id}/usage", get(get_workspace_role_usage_handler))
         .with_state(state)
 }
@@ -29,6 +35,12 @@ pub fn workspace_roles_router(state: Arc<AppState>) -> Router {
 pub fn project_roles_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/{project_id}/roles", get(list_project_roles_handler).post(create_project_role_handler))
-        .route("/{project_id}/roles/{role_id}", get(get_project_role_handler).patch(update_project_role_handler).delete(delete_project_role_handler))
+        .route(
+            "/{project_id}/roles/{role_id}",
+            get(get_project_role_handler)
+                .put(update_project_role_handler)
+                .patch(update_project_role_handler)
+                .delete(delete_project_role_handler),
+        )
         .route("/{project_id}/roles/{role_id}/usage", get(get_project_role_usage_handler))
 }
