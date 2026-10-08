@@ -1,7 +1,7 @@
 export const Env = ['development', 'test', 'production'] as const;
 export type Env = (typeof Env)[number];
 
-/** Workspace member roles. Aligned with better-auth's organization plugin. */
+/** Workspace member roles. */
 export const MemberRole = {
   OWNER: 'owner',
   ADMIN: 'admin',

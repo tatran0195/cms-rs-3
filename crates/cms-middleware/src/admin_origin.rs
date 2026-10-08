@@ -673,7 +673,7 @@ mod tests {
         let req = axum::http::Request::builder()
             .method("POST")
             .uri("/admin/users/1/suspend")
-            .header("cookie", "better-auth.session_token=test")
+            .header("cookie", "cms_session=test")
             .body(())
             .unwrap();
         let (mut parts, _) = req.into_parts();
@@ -692,7 +692,7 @@ mod tests {
         let req = axum::http::Request::builder()
             .method("POST")
             .uri("/admin/users/1/suspend")
-            .header("cookie", "better-auth.session_token=test")
+            .header("cookie", "cms_session=test")
             .body(())
             .unwrap();
         let (mut parts, _) = req.into_parts();

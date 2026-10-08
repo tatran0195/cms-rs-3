@@ -110,7 +110,7 @@ pub async fn logout_handler(
         if let Ok(cookie_str) = cookie_header.to_str() {
             if let Some(token) = AxumCookie::split_parse(cookie_str).find_map(|c| {
                 c.ok()
-                    .filter(|c| c.name() == "better-auth.session_token")
+                    .filter(|c| c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                     .map(|c| c.value().to_string())
             }) {
                 AuthService::logout(&state.biz_context, &token).await?;
@@ -156,7 +156,7 @@ pub async fn refresh_session_handler(
     let session_token = AxumCookie::split_parse(cookie_str)
         .find_map(|c| {
             c.ok()
-                .filter(|c| c.name() == "refresh_token" || c.name() == "better-auth.session_token")
+                .filter(|c| c.name() == "refresh_token" || c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                 .map(|c| c.value().to_string())
         })
         .ok_or(AppError::Unauthorized)?;
@@ -428,7 +428,7 @@ pub async fn sign_out_better_auth_handler(
         if let Ok(cookie_str) = cookie_header.to_str() {
             if let Some(token) = AxumCookie::split_parse(cookie_str).find_map(|c| {
                 c.ok()
-                    .filter(|c| c.name() == "better-auth.session_token")
+                    .filter(|c| c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                     .map(|c| c.value().to_string())
             }) {
                 let _ = AuthService::logout(&state.biz_context, &token).await;
@@ -647,7 +647,7 @@ pub async fn stop_impersonating_handler(
         .and_then(|cookie_str| {
             AxumCookie::split_parse(cookie_str).find_map(|c| {
                 c.ok()
-                    .filter(|c| c.name() == "better-auth.session_token")
+                    .filter(|c| c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                     .map(|c| c.value().to_string())
             })
         });

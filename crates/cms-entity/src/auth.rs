@@ -284,7 +284,7 @@ pub struct ProjectApiKeyResponse {
     pub secret: Option<String>,
 }
 
-/// Authenticated user representation matching Better-Auth / SPA client format
+/// Authenticated user representation matching CMS auth format
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthUser {
@@ -327,7 +327,7 @@ impl From<User> for AuthUser {
     }
 }
 
-/// Authenticated session representation matching Better-Auth / SPA client format
+/// Authenticated session representation matching CMS auth format
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthSession {

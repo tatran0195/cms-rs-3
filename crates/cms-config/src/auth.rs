@@ -104,7 +104,7 @@ impl AuthConfig {
             _ => "Lax",
         };
         format!(
-            "better-auth.session_token={token}; Path=/; HttpOnly; \
+            "{SESSION_COOKIE_NAME}={token}; Path=/; HttpOnly; \
              SameSite={same_site}{secure_suffix}; Max-Age={max_age_secs}"
         )
     }
@@ -122,11 +122,13 @@ impl AuthConfig {
             _ => "Lax",
         };
         format!(
-            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; \
+            "{SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; \
              SameSite={same_site}{secure_suffix}"
         )
     }
 }
+
+pub const SESSION_COOKIE_NAME: &str = "cms_session";
 
 /// OAuth configuration
 #[derive(Debug, Clone, Deserialize)]
@@ -165,20 +167,25 @@ mod tests {
     }
 
     #[test]
+    fn test_session_cookie_name_is_cms_session() {
+        assert_eq!(SESSION_COOKIE_NAME, "cms_session");
+    }
+
+    #[test]
     fn test_session_cookie_value_formatting() {
         let mut auth = AuthConfig::default();
         // Dev mode without secure:
         let cookie = auth.session_cookie_value("test-token", 3600, false, false);
         assert_eq!(
             cookie,
-            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600"
+            "cms_session=test-token; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600"
         );
 
         // Production mode automatically enables Secure:
         let prod_cookie = auth.session_cookie_value("test-token", 3600, true, false);
         assert_eq!(
             prod_cookie,
-            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Lax; Secure; \
+            "cms_session=test-token; Path=/; HttpOnly; SameSite=Lax; Secure; \
              Max-Age=3600"
         );
 
@@ -188,7 +195,7 @@ mod tests {
         let strict_cookie = auth.session_cookie_value("test-token", 3600, false, false);
         assert_eq!(
             strict_cookie,
-            "better-auth.session_token=test-token; Path=/; HttpOnly; SameSite=Strict; Secure; \
+            "cms_session=test-token; Path=/; HttpOnly; SameSite=Strict; Secure; \
              Max-Age=3600"
         );
 
@@ -196,7 +203,7 @@ mod tests {
         let clear_cookie = auth.clear_session_cookie_value(true, false);
         assert_eq!(
             clear_cookie,
-            "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict; Secure"
+            "cms_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict; Secure"
         );
     }
 }

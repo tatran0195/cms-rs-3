@@ -24,7 +24,7 @@ pub struct Seed {
 }
 
 pub fn session_cookie(token: &str) -> String {
-    format!("better-auth.session_token={token}")
+    format!("cms_session={token}")
 }
 
 pub async fn request_with_headers(

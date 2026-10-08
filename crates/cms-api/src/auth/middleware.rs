@@ -94,7 +94,7 @@ async fn extract_from_session(
     let session_token = Cookie::split_parse(cookie_str)
         .find_map(|c| {
             c.ok()
-                .filter(|c| c.name() == "better-auth.session_token")
+                .filter(|c| c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                 .map(|c| c.value().to_string())
         })
         .ok_or(AppError::Unauthorized)?;
