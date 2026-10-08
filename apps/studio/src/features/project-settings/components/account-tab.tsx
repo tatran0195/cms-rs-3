@@ -9,21 +9,24 @@ import { useForm } from '@tanstack/react-form';
 import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { authClient, useSession } from '@/features/auth';
+import {
+  useChangeEmail,
+  useRequestEmailChange,
+  useSendVerificationOtp,
+  useSession,
+  useUpdateUser,
+} from '@/features/auth';
 import { required, email as validateEmail } from '@/shared';
 import { GradientAvatar, SettingsSection } from './section';
 
 function NameForm({ initialName }: { initialName: string }) {
   const t = useT();
+  const updateUserMutation = useUpdateUser();
   const form = useForm({
     defaultValues: { name: initialName },
     onSubmit: async ({ value }) => {
       try {
-        const res = await authClient.updateUser({ name: value.name.trim() });
-        if (res?.error) {
-          toast.error(res.error.message ?? t('settings.account.name.error'));
-          return;
-        }
+        await updateUserMutation.mutateAsync({ name: value.name.trim() });
         toast.success(t('settings.account.profileUpdated'));
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t('settings.account.name.error'));
@@ -72,7 +75,10 @@ function EmailRow({ email, verified }: { email: string; verified: boolean }) {
   const [stage, setStage] = useState<Stage>('idle');
   const [newEmail, setNewEmail] = useState('');
   const [otp, setOtp] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
+  const sendVerificationOtpMutation = useSendVerificationOtp();
+  const requestEmailChangeMutation = useRequestEmailChange();
+  const changeEmailMutation = useChangeEmail();
+  const isVerifying = requestEmailChangeMutation.isPending || changeEmailMutation.isPending;
 
   const reset = () => {
     setStage('idle');
@@ -85,14 +91,10 @@ function EmailRow({ email, verified }: { email: string; verified: boolean }) {
     onSubmit: async ({ value }) => {
       const next = value.newEmail.trim();
       try {
-        const res = await authClient.emailOtp.sendVerificationOtp({
+        await sendVerificationOtpMutation.mutateAsync({
           email,
           type: 'email-verification',
         });
-        if (res.error) {
-          toast.error(res.error.message ?? t('settings.account.email.sendError'));
-          return;
-        }
         toast.success(t('settings.account.email.currentVerificationSent'));
         setNewEmail(next);
         setStage('verify-current');
@@ -103,43 +105,29 @@ function EmailRow({ email, verified }: { email: string; verified: boolean }) {
   });
 
   const verifyCurrentEmail = async () => {
-    setIsVerifying(true);
     try {
-      const res = await authClient.emailOtp.requestEmailChange({
+      await requestEmailChangeMutation.mutateAsync({
         newEmail,
         otp: otp.trim(),
       });
-      if (res.error) {
-        toast.error(res.error.message ?? t('settings.account.email.verifyError'));
-        return;
-      }
       toast.success(t('settings.account.email.verificationSent', { email: newEmail }));
       setOtp('');
       setStage('pending');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('settings.account.email.verifyError'));
-    } finally {
-      setIsVerifying(false);
     }
   };
 
   const verifyEmailChange = async () => {
-    setIsVerifying(true);
     try {
-      const res = await authClient.emailOtp.changeEmail({
+      await changeEmailMutation.mutateAsync({
         newEmail,
         otp: otp.trim(),
       });
-      if (res.error) {
-        toast.error(res.error.message ?? t('settings.account.email.verifyError'));
-        return;
-      }
       toast.success(t('settings.account.email.changed'));
       window.location.reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('settings.account.email.verifyError'));
-    } finally {
-      setIsVerifying(false);
     }
   };
 

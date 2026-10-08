@@ -18,6 +18,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@cms/auth": "workspace:*",
     "@cms/design-system": "workspace:*",
     "@cms/i18n": "workspace:*",
     "@cms/sdk": "workspace:*",

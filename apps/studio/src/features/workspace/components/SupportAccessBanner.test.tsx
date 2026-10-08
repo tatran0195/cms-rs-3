@@ -10,7 +10,10 @@ vi.mock('@cms/i18n/react', () => ({
   useT: () => (key: string, variables?: Record<string, string>) => (variables ? `${key}(${Object.values(variables).join(',')})` : key),
 }));
 vi.mock('@/features/auth', () => ({
-  authClient: { admin: { stopImpersonating: mocks.stopImpersonating } },
+  useStopImpersonating: () => ({
+    isPending: false,
+    mutateAsync: mocks.stopImpersonating,
+  }),
 }));
 vi.mock('@/shared', async () => {
   const actual = await vi.importActual<typeof import('@/shared')>('@/shared');
@@ -52,7 +55,7 @@ describe('SupportAccessBanner', () => {
   });
 
   it('shows the localized error when stopping support access fails without a message', async () => {
-    mocks.stopImpersonating.mockResolvedValue({ error: { message: '' } });
+    mocks.stopImpersonating.mockRejectedValue(new Error(''));
     const container = await render('Layla');
 
     await act(async () => container.querySelector('button')?.click());

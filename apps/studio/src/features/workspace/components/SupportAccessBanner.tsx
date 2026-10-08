@@ -2,25 +2,23 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { useT } from '@cms/i18n/react';
 import { ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { authClient } from '@/features/auth';
+import { useStopImpersonating } from '@/features/auth';
 import { ADMIN_URL } from '@/shared';
 
 export function SupportAccessBanner({ customerId, customerName }: { customerId: string; customerName?: string | null }) {
   const t = useT();
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stopMutation = useStopImpersonating();
+  const pending = stopMutation.isPending;
   const displayName = customerName?.trim() || t('support.banner.customerFallback');
 
   const stop = async () => {
-    setPending(true);
     setError(null);
     try {
-      const response = await authClient.admin.stopImpersonating();
-      if (response.error) throw new Error(response.error.message || t('support.banner.stopError'));
+      await stopMutation.mutateAsync();
       window.location.assign(`${ADMIN_URL}/users/${customerId}`);
     } catch (cause) {
       setError(cause instanceof Error && cause.message ? cause.message : t('support.banner.stopError'));
-      setPending(false);
     }
   };
 

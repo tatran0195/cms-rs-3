@@ -1,12 +1,14 @@
+import { AcceptInviteForm } from '@cms/auth/forms';
 import { Button } from '@cms/design-system/components/ui/button';
 import { useT } from '@cms/i18n/react';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
+import { useSession } from '@/features/auth';
 import { clearPendingInvitation, setPendingInvitation, useGetInvitationInfo } from '@/shared';
+import { cmsClient } from '@/shared/services/cms-client';
 import { AuthLayout } from './components/AuthLayout';
 import { AuthProviders } from './components/AuthProviders';
-import { authClient, useSession } from './services/auth-client';
 
 export interface AcceptInvitePageProps {
   invitationId?: string;
@@ -27,8 +29,6 @@ function AcceptInviteContent({ invitationId }: { invitationId: string }) {
   const t = useT();
   const { data: session, isPending } = useSession();
   const navigate = useNavigate();
-  const [accepting, setAccepting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const invitation = useGetInvitationInfo(invitationId);
   const info = invitation.data ?? null;
 
@@ -39,22 +39,7 @@ function AcceptInviteContent({ invitationId }: { invitationId: string }) {
     }
   }, [isPending, session, invitationId]);
 
-  const accept = async () => {
-    setError(null);
-    setAccepting(true);
-    const { error: acceptError } = await authClient.organization.acceptInvitation({ invitationId });
-    setAccepting(false);
-    if (acceptError) {
-      const blob = `${acceptError.code ?? ''} ${acceptError.message ?? ''}`.toUpperCase();
-      if (blob.includes('RECIPIENT') && info) {
-        setError(t('auth.invite.wrongAccount', { email: info.email }));
-      } else if (blob.includes('EXPIRED')) {
-        setError(t('auth.invite.expiredError'));
-      } else {
-        setError(acceptError.message ?? t('auth.invite.error'));
-      }
-      return;
-    }
+  const handleSuccess = () => {
     clearPendingInvitation();
     toast.success(t('auth.invite.acceptedToast'));
     navigate({ to: '/app' });
@@ -123,12 +108,16 @@ function AcceptInviteContent({ invitationId }: { invitationId: string }) {
             {t('auth.invite.wrongAccount', { email: info.email })}
           </p>
         ) : (
-          <p className="text-center text-muted-foreground text-sm">{t('auth.invite.acceptPrompt')}</p>
+          <>
+            <p className="text-center text-muted-foreground text-sm">{t('auth.invite.acceptPrompt')}</p>
+            <AcceptInviteForm
+              client={cmsClient}
+              invitationId={invitationId}
+              recipientEmail={info.email}
+              onSuccess={handleSuccess}
+            />
+          </>
         )}
-        {error ? <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive text-sm">{error}</p> : null}
-        <Button className="w-full" disabled={accepting || mismatch} onClick={accept} type="button">
-          {accepting ? t('auth.invite.accepting') : t('auth.invite.accept')}
-        </Button>
         <Link className="text-center text-muted-foreground text-sm hover:underline" to="/app">
           {t('auth.invite.skip')}
         </Link>

@@ -14,7 +14,7 @@ import { useLocale } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { ChevronsUpDown, Languages, LogOut, Moon, Sun } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
-import { authClient } from '@/features/auth';
+import { useSession, useSignOut } from '@/features/auth';
 import { InterfaceLanguageDialog } from '@/shared';
 
 const subscribeToHydration = () => () => undefined;
@@ -22,7 +22,8 @@ const subscribeToHydration = () => () => undefined;
 /** Shared sidebar footer: the signed-in account button + menu (theme, language,
  *  sign out). Used by both the global app sidebar and the per-site sidebar. */
 export function SidebarAccountFooter() {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
+  const signOutMutation = useSignOut();
   const hydrated = useSyncExternalStore(
     subscribeToHydration,
     () => true,
@@ -95,7 +96,7 @@ export function SidebarAccountFooter() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={async () => {
-                    await authClient.signOut();
+                    await signOutMutation.mutateAsync();
                     navigate({ to: '/sign-in' });
                   }}
                   variant="destructive"

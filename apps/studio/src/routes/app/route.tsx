@@ -1,12 +1,12 @@
 import { createFileRoute, Navigate, Outlet, redirect } from '@tanstack/react-router';
-import { authClient, useSession } from '@/features/auth';
+import { getSession, useSession } from '@/features/auth';
 import { ProjectProvider } from '@/features/projects';
 import { SupportAccessBanner } from '@/features/workspace';
 import { AppProviders, PageLoader, QueryProvider } from '@/shared';
 
 export const Route = createFileRoute('/app')({
   beforeLoad: async () => {
-    const routeSession = await authClient.getSession();
+    const routeSession = await getSession();
     if (!routeSession) {
       throw redirect({ to: '/sign-in' });
     }
