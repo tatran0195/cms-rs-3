@@ -105,6 +105,7 @@ export function MembersSection({ projectId }: { projectId: string }) {
   const currentMember = members.find((member) => member.user.id === currentUserId);
   const isCurrentOwner = currentMember?.role === 'owner';
   const canManageMembers = canAdminister(currentMember?.role ?? '');
+  const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
   const [lastInvite, setLastInvite] = useState<{
     email: string;
     link: string;
@@ -158,7 +159,7 @@ export function MembersSection({ projectId }: { projectId: string }) {
     <div>
       <SectionHeader icon={<Users className="size-4" />} title={t('settings.members.title')} description={t('settings.members.description')} />
 
-      <Tabs defaultValue="members" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab((v as 'members' | 'roles') || 'members')} className="w-full">
         <TabsList className="mb-5">
           <TabsTrigger value="members">Project Members</TabsTrigger>
           <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>

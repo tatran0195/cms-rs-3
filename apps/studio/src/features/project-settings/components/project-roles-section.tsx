@@ -3,11 +3,8 @@ import { Badge } from '@cms/design-system/components/ui/badge';
 import { Button } from '@cms/design-system/components/ui/button';
 import { useConfirm } from '@cms/design-system/components/ui/confirm';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
-import {
-  RoleEditorPanel,
-  type PermissionsMatrixState,
-  type ResourceCategory,
-} from '@cms/ui';
+import type { PermissionsMatrixState, ResourceCategory } from '@cms/design-system/components/ui/permission-matrix';
+import { RoleEditorPanel } from './role-editor-panel';
 import type { ProjectRole } from '@cms/sdk';
 import { Edit2, Plus, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';

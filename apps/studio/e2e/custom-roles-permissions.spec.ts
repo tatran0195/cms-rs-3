@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication and Custom Roles Permissions Verification', () => {
@@ -18,8 +19,20 @@ test.describe('Authentication and Custom Roles Permissions Verification', () => 
     const otpInput = page.locator('#otp');
     await expect(otpInput).toBeVisible({ timeout: 10_000 });
 
-    // Fill deterministic test OTP
-    await otpInput.fill('123456');
+    // Retrieve the newly generated OTP from VerificationToken table
+    const otp = execFileSync(
+      'psql',
+      [
+        'postgresql://postgres:postgres@localhost:5432/cms',
+        '-t',
+        '-A',
+        '-c',
+        "SELECT token FROM \"VerificationToken\" WHERE identifier = 'otp:sign-in:owner-test@company.com' ORDER BY expires_at DESC LIMIT 1;",
+      ],
+      { encoding: 'utf-8' }
+    ).trim();
+
+    await otpInput.fill(otp);
 
     // Should redirect to /app
     await expect(page).toHaveURL(/\/app/, { timeout: 15_000 });

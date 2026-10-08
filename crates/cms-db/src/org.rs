@@ -417,7 +417,7 @@ impl MemberQueries {
         offset: Option<i64>,
     ) -> Result<Vec<Member>, AppError> {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "SELECT m.id, m.user_id, m.organization_id, m.role, m.created_at, m.updated_at FROM \
+            "SELECT m.id, m.user_id, m.organization_id, m.role, m.role_id, m.created_at, m.updated_at FROM \
              \"Member\" m JOIN \"User\" u ON m.user_id = u.id WHERE m.organization_id = ",
         );
         query_builder.push_bind(org_id);

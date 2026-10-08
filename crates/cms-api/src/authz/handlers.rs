@@ -115,7 +115,11 @@ pub async fn list_workspace_roles_handler(
     _guard: WorkspaceAuth<{ WORKSPACE_ROLES }, { ACTION_READ }>,
     Path(org_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<OrganizationRole>>>, AppError> {
-    let roles = OrgRoleQueries::list_by_org(&state.biz_context.pool, &org_id).await?;
+    let mut roles = OrgRoleQueries::list_by_org(&state.biz_context.pool, &org_id).await?;
+    if roles.is_empty() {
+        OrgRoleQueries::seed_defaults(&state.biz_context.pool, &org_id).await?;
+        roles = OrgRoleQueries::list_by_org(&state.biz_context.pool, &org_id).await?;
+    }
     Ok(Json(ApiResponse::new(roles)))
 }
 
@@ -244,7 +248,11 @@ pub async fn list_project_roles_handler(
     _guard: ProjectAuth<{ PROJECT_ROLES }, { ACTION_READ }>,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<ProjectRole>>>, AppError> {
-    let roles = ProjectRoleQueries::list_by_project(&state.biz_context.pool, &project_id).await?;
+    let mut roles = ProjectRoleQueries::list_by_project(&state.biz_context.pool, &project_id).await?;
+    if roles.is_empty() {
+        ProjectRoleQueries::seed_defaults(&state.biz_context.pool, &project_id).await?;
+        roles = ProjectRoleQueries::list_by_project(&state.biz_context.pool, &project_id).await?;
+    }
     Ok(Json(ApiResponse::new(roles)))
 }
 

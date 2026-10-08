@@ -336,6 +336,8 @@ impl ProjectQueries {
             .await
             .map_err(|e| AppError::Database(e.into()))?;
 
+            crate::authz::OrgRoleQueries::seed_defaults_conn(&mut tx, effective_org_id).await?;
+
             org_row.into()
         } else {
             let org_row = sqlx::query_as::<_, crate::org::OrganizationRow>(
@@ -427,6 +429,9 @@ impl ProjectQueries {
         .execute(&mut *tx)
         .await
         .map_err(|e| AppError::Database(e.into()))?;
+
+        // Default project roles
+        crate::authz::ProjectRoleQueries::seed_defaults_conn(&mut tx, &project_id).await?;
 
         tx.commit().await?;
         Ok((row.into(), org))

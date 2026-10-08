@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@cms/design-system/components/ui/button';
 import { FieldError } from '@cms/design-system/components/ui/form-field';
 import { Input } from '@cms/design-system/components/ui/input';
@@ -56,6 +57,7 @@ export function WorkspaceMembersPage() {
   const invite = useInviteMember();
   const remove = useRemoveMember();
   const updateRole = useUpdateMemberRole();
+  const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
 
   const roleOptions = [
     { value: 'member', label: t('members.role.editor') },
@@ -98,7 +100,7 @@ export function WorkspaceMembersPage() {
         <p className="mt-1 text-muted-foreground text-sm">{t('members.subtitle')}</p>
       </div>
 
-      <Tabs defaultValue="members" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab((v as 'members' | 'roles') || 'members')} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="members">{t('members.title')}</TabsTrigger>
           <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>

@@ -275,6 +275,66 @@ impl OrgRoleQueries {
         tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
         Ok(())
     }
+
+    pub async fn seed_defaults(pool: &PgPool, org_id: &str) -> Result<(), AppError> {
+        let mut tx = pool.begin().await.map_err(|e| AppError::Database(e.into()))?;
+        Self::seed_defaults_conn(&mut tx, org_id).await?;
+        tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
+        Ok(())
+    }
+
+    pub async fn seed_defaults_conn(conn: &mut sqlx::PgConnection, org_id: &str) -> Result<(), AppError> {
+        let now = Utc::now();
+        let member_perms = serde_json::json!({
+            "projects": {"create": true, "read": true, "edit": true, "delete": false},
+            "members": {"create": false, "read": true, "edit": false, "delete": false},
+            "roles": {"create": false, "read": true, "edit": false, "delete": false},
+            "api_keys": {"create": false, "read": false, "edit": false, "delete": false},
+            "audit_logs": {"read": false},
+            "settings": {"read": true, "edit": false},
+            "danger_zone": {"read": false, "delete": false}
+        });
+        sqlx::query(
+            r#"
+            INSERT INTO "OrganizationRole" (id, organization_id, name, description, is_default, permissions, created_at, updated_at)
+            VALUES ($1, $2, 'Member', 'Standard workspace member with access to projects and general settings.', true, $3, $4, $4)
+            ON CONFLICT (organization_id, name) DO NOTHING
+            "#
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(org_id)
+        .bind(member_perms)
+        .bind(now)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        let viewer_perms = serde_json::json!({
+            "projects": {"create": false, "read": true, "edit": false, "delete": false},
+            "members": {"create": false, "read": true, "edit": false, "delete": false},
+            "roles": {"create": false, "read": true, "edit": false, "delete": false},
+            "api_keys": {"create": false, "read": false, "edit": false, "delete": false},
+            "audit_logs": {"read": false},
+            "settings": {"read": true, "edit": false},
+            "danger_zone": {"read": false, "delete": false}
+        });
+        sqlx::query(
+            r#"
+            INSERT INTO "OrganizationRole" (id, organization_id, name, description, is_default, permissions, created_at, updated_at)
+            VALUES ($1, $2, 'Viewer', 'Read-only access to workspace projects and resources.', false, $3, $4, $4)
+            ON CONFLICT (organization_id, name) DO NOTHING
+            "#
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(org_id)
+        .bind(viewer_perms)
+        .bind(now)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(())
+    }
 }
 
 pub struct ProjectRoleQueries;
@@ -463,6 +523,76 @@ impl ProjectRoleQueries {
         }
 
         tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
+        Ok(())
+    }
+
+    pub async fn seed_defaults(pool: &PgPool, project_id: &str) -> Result<(), AppError> {
+        let mut tx = pool.begin().await.map_err(|e| AppError::Database(e.into()))?;
+        Self::seed_defaults_conn(&mut tx, project_id).await?;
+        tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
+        Ok(())
+    }
+
+    pub async fn seed_defaults_conn(conn: &mut sqlx::PgConnection, project_id: &str) -> Result<(), AppError> {
+        let now = Utc::now();
+        let member_perms = serde_json::json!({
+            "pages": {"create": true, "read": true, "edit": true, "delete": true, "publish": true},
+            "branches": {"create": true, "read": true, "edit": true, "delete": false},
+            "deployments": {"create": true, "read": true, "delete": false, "publish": true},
+            "domains": {"create": false, "read": true, "edit": false, "delete": false},
+            "openapi": {"create": false, "read": true, "edit": true, "delete": false},
+            "assets": {"create": true, "read": true, "edit": true, "delete": true},
+            "addons": {"create": false, "read": true, "edit": false, "delete": false},
+            "members": {"create": false, "read": true, "edit": false, "delete": false},
+            "roles": {"create": false, "read": true, "edit": false, "delete": false},
+            "analytics": {"read": true},
+            "comments": {"create": true, "read": true, "edit": true, "delete": true},
+            "danger_zone": {"read": false, "delete": false}
+        });
+        sqlx::query(
+            r#"
+            INSERT INTO "ProjectRole" (id, project_id, name, description, is_default, permissions, created_at, updated_at)
+            VALUES ($1, $2, 'Member', 'Standard project contributor who can create, edit, and publish documentation pages.', true, $3, $4, $4)
+            ON CONFLICT (project_id, name) DO NOTHING
+            "#
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(project_id)
+        .bind(member_perms)
+        .bind(now)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        let viewer_perms = serde_json::json!({
+            "pages": {"create": false, "read": true, "edit": false, "delete": false, "publish": false},
+            "branches": {"create": false, "read": true, "edit": false, "delete": false},
+            "deployments": {"create": false, "read": true, "delete": false, "publish": false},
+            "domains": {"create": false, "read": true, "edit": false, "delete": false},
+            "openapi": {"create": false, "read": true, "edit": false, "delete": false},
+            "assets": {"create": false, "read": true, "edit": false, "delete": false},
+            "addons": {"create": false, "read": true, "edit": false, "delete": false},
+            "members": {"create": false, "read": true, "edit": false, "delete": false},
+            "roles": {"create": false, "read": true, "edit": false, "delete": false},
+            "analytics": {"read": true},
+            "comments": {"create": false, "read": true, "edit": false, "delete": false},
+            "danger_zone": {"read": false, "delete": false}
+        });
+        sqlx::query(
+            r#"
+            INSERT INTO "ProjectRole" (id, project_id, name, description, is_default, permissions, created_at, updated_at)
+            VALUES ($1, $2, 'Viewer', 'Read-only viewer of project documentation and previews.', false, $3, $4, $4)
+            ON CONFLICT (project_id, name) DO NOTHING
+            "#
+        )
+        .bind(Uuid::new_v4().to_string())
+        .bind(project_id)
+        .bind(viewer_perms)
+        .bind(now)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
         Ok(())
     }
 }
