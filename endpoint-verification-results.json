@@ -1,0 +1,1109 @@
+[
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/members/invite",
+    "testedPath": "/api/app/members/invite",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"validation:invalid_input\",\"message\":\"Invalid input: Invalid ro"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/members/:id/role",
+    "testedPath": "/api/app/members/323b7cab-a652-4b28-8df5-ef6c91dcf15c/role",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"validation:invalid_input\",\"message\":\"Invalid input: Invalid ro"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/members/:id",
+    "testedPath": "/api/app/members/323b7cab-a652-4b28-8df5-ef6c91dcf15c",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"validation:invalid_input\",\"message\":\"Invalid input: You cannot"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/members",
+    "testedPath": "/api/app/members",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"members\":[{\"id\":\"323b7cab-a652-4b28-8df5-ef6c91dcf15c\",\"userId\":\"323b7"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/notifications/read",
+    "testedPath": "/api/app/notifications/read",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"success\":true}"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/notifications/unread-count",
+    "testedPath": "/api/app/notifications/unread-count",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"total\":0,\"unread\":0,\"by_type\":{}}"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/notifications",
+    "testedPath": "/api/app/notifications",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":[],\"total\":0,\"page\":1,\"page_size\":20,\"total_pages\":0}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:id/theme-template/import",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/theme-template/import",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"id\":\"771fd028-0485-42e5-8426-a79ccad4b752\",\"name\":\"Imported theme 1791"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:id/theme-template",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/theme-template",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"id\":\"bf96a528-f4b6-467b-ae03-4048b9a72245\",\"name\":\"default\",\"primaryCo"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:id/theme-repository",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/theme-repository",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{ \"exportedAt\": \"2026-10-09T13:17:11.755319200+00:00\", \"projectId\": \"bf96a52"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:id/export",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/export",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"not_found\",\"message\":\"API endpoint not found\"}}"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"success\":true,\"id\":\"bf96a528-f4b6-467b-ae03-4048b9a72245\"}}"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/addons/:addonId/activate",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/addons/test-addon/activate",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Addon not found\",\"detail"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/addons/:addonId/deactivate",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/addons/test-addon/deactivate",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Addon not found\",\"detail"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/addons/:addonId",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/addons/test-addon",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Addon not found\",\"detail"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/addons",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/addons",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/ai",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/ai",
+    "status": 405,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": ""
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/analytics",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/analytics",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"availability\":\"available\",\"totalViews\":0,\"uniqueVisitors\":null,\"viewsP"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/assets/confirm",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/assets/confirm",
+    "status": 422,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "Failed to deserialize the JSON body into the target type: missing field `key` at"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/assets/presign",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/assets/presign",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/branches/:id/merge",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/branches/test-id/merge",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Branch not found\",\"detai"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/branches",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/branches",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/branches",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/branches",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/branches/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/branches/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/comments/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/comments/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Comment not found\",\"deta"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/comments/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/comments/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Comment not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/comments",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/comments",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/comments",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/comments",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"validation:invalid_input\",\"message\":\"Invalid input: pageId is "
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/deployments/changes",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/deployments/changes",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/deployments/:id/rollback",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/deployments/test-id/rollback",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Target deployment not fo"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/deployments",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/deployments",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/deployments",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/deployments",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/domains/:id/primary",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/domains/test-id/primary",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/domains/:id/verify",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/domains/test-id/verify",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/domains/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/domains/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/domains",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/domains",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/domains",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/domains",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:bad_request\",\"message\":\"Bad Request: Invalid JSON: Failed"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/exports/schedules/:scheduleId/run",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports/schedules/test-schedule/run",
+    "status": 405,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": ""
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/exports/schedules/:scheduleId",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports/schedules/test-schedule",
+    "status": 405,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": ""
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/exports/schedules",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports/schedules",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"not_found\",\"message\":\"API endpoint not found\"}}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/exports/schedules",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports/schedules",
+    "status": 405,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": ""
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/exports/:id/artifacts/:artifactId/download",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports/test-id/artifacts/test-artifact/download",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"not_found\",\"message\":\"API endpoint not found\"}}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/exports/:id/cancel",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports/test-id/cancel",
+    "status": 405,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": ""
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/exports",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"not_found\",\"message\":\"API endpoint not found\"}}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/exports",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/exports",
+    "status": 405,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": ""
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/git/authorize",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git/authorize",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/git/conflicts/:conflictId/resolve",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git/conflicts/test-conflict/resolve",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Conflict not found\",\"det"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/git/connection",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git/connection",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PUT",
+    "frontendPath": "/api/app/projects/:projectId/git/connection",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git/connection",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/git/operations",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git/operations",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/git/webhook-secret",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git/webhook-secret",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/git",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/git",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/integrations/:providerId/verify",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/integrations/test-provider/verify",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Integration 'test-provid"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/integrations/:providerId/delete-confirmation",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/integrations/test-provider/delete-confirmation",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Integration 'test-provid"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/integrations/:providerId",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/integrations/test-provider",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Integration 'test-provid"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/integrations/:providerId",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/integrations/test-provider",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Integration 'test-provid"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/integrations",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/integrations",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":[]}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/integrations",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/integrations",
+    "status": 500,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": "{\"error\":{\"code\":\"database:error\",\"message\":\"An internal database error occurred"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/languages/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/languages/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/languages/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/languages/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/languages",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/languages",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/languages",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/languages",
+    "status": 422,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "Failed to deserialize the JSON body into the target type: missing field `code` a"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/members/invitations/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/members/invitations/test-id",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"success\":true,\"id\":\"test-id\"}}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/members/invite",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/members/invite",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"id\":\"052e8f78-af8d-49f4-9856-022209fabae2\",\"email\":\"colleague@example."
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/members/:id/role",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/members/323b7cab-a652-4b28-8df5-ef6c91dcf15c/role",
+    "status": 500,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": "{\"error\":{\"code\":\"database:error\",\"message\":\"An internal database error occurred"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/members/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/members/323b7cab-a652-4b28-8df5-ef6c91dcf15c",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"success\":true,\"id\":\"323b7cab-a652-4b28-8df5-ef6c91dcf15c\"}}"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/members/transfer-ownership",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/members/transfer-ownership",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"validation:invalid_input\",\"message\":\"Invalid input: memberId i"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/members",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/members",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/openapi/sync",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/openapi/sync",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/openapi",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/openapi",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/openapi",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/openapi",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PUT",
+    "frontendPath": "/api/app/projects/:projectId/openapi",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/openapi",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/pages/reorder",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/pages/reorder",
+    "status": 400,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:bad_request\",\"message\":\"Bad Request: Invalid JSON: Failed"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/pages/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/pages/a82df3ba-bc59-4ee0-ba51-325bad5ab97e",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/pages/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/pages/a82df3ba-bc59-4ee0-ba51-325bad5ab97e",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/pages/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/pages/a82df3ba-bc59-4ee0-ba51-325bad5ab97e",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/pages",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/pages",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/pages",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/pages",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/settings/git/import",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/git/import",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/settings/git/webhook-secret",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/git/webhook-secret",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/settings/import/ghost",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/import/ghost",
+    "status": 501,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": "{\"error\":{\"code\":\"internal:error\",\"message\":\"An internal server error occurred\","
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/settings/import/mintlify",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/import/mintlify",
+    "status": 501,
+    "isWired": true,
+    "isWorking": false,
+    "responseExcerpt": "{\"error\":{\"code\":\"internal:error\",\"message\":\"An internal server error occurred\","
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/settings/search/diagnostics",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/search/diagnostics",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"availability\":{\"configured\":false,\"reason\":null},\"health\":\"empty\",\"run"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/settings/search/reindex",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/search/reindex",
+    "status": 409,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:conflict\",\"message\":\"Conflict: Project has no default bra"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/settings/search",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/search",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/settings/search",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/search",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/settings/usage",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings/usage",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/settings",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/projects/:projectId/settings",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/settings",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/api-keys/:id/rotate",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/api-keys/test-id/rotate",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/api-keys/:id",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/api-keys/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/api-keys",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/api-keys",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/api-keys",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/api-keys",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "DELETE",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/audiences/:audienceId",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/audiences/test-audience",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/audiences",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/audiences",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/jwt/test",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/jwt/test",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PUT",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/jwt",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/jwt",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "PUT",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/mode",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/mode",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/readers/invite",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/readers/invite",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/readers/:readerId/revoke",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/readers/test-reader/revoke",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects/:projectId/reader-access/emergency-revoke",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access/emergency-revoke",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects/:projectId/reader-access",
+    "testedPath": "/api/app/projects/bf96a528-f4b6-467b-ae03-4048b9a72245/reader-access",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Project not found\",\"deta"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/projects",
+    "testedPath": "/api/app/projects",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":[{\"id\":\"2b1a049b-a003-4887-b7e5-5b2012e118dc\",\"name\":\"Company Docs\",\"slu"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/app/projects",
+    "testedPath": "/api/app/projects",
+    "status": 201,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"id\":\"d450a2e1-7605-48b1-be23-1f36de4529cb\",\"name\":\"Updated Title\",\"slu"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/workspace/analytics",
+    "testedPath": "/api/app/workspace/analytics",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"availability\":\"available\",\"totalViews\":0,\"uniqueVisitors\":0,\"viewsPrev"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/app/workspace",
+    "testedPath": "/api/app/workspace",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"name\":\"Acme Corp Internal CMS\",\"slug\":\"workspace\",\"notifications\":{},\""
+  },
+  {
+    "method": "PATCH",
+    "frontendPath": "/api/app/workspace",
+    "testedPath": "/api/app/workspace",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"name\":\"Updated Title\",\"slug\":\"workspace\",\"notifications\":{},\"integrati"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/git/previews/:token",
+    "testedPath": "/api/public/git/previews/test-token",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":null}"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/invitations/:id",
+    "testedPath": "/api/public/invitations/test-id",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"data\":{\"email\":\"invitee@internal.company\",\"expiresAt\":\"2026-10-16T13:17:13.336"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/meta",
+    "testedPath": "/api/public/meta",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"providers\":{\"github\":false,\"google\":false}}"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/pages/:id",
+    "testedPath": "/api/public/pages/a82df3ba-bc59-4ee0-ba51-325bad5ab97e",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Page not found\",\"details"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/public/sites/:id/answer",
+    "testedPath": "/api/public/sites/test-id/answer",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Site not found\",\"details"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/sites/:id/changelog",
+    "testedPath": "/api/public/sites/test-id/changelog",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Site not found\",\"details"
+  },
+  {
+    "method": "POST",
+    "frontendPath": "/api/public/sites/:id/events",
+    "testedPath": "/api/public/sites/test-id/events",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Site not found\",\"details"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/sites/:id/page",
+    "testedPath": "/api/public/sites/test-id/page",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Site not found\",\"details"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/sites/:id/search",
+    "testedPath": "/api/public/sites/test-id/search",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Site not found\",\"details"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/public/sites/:id",
+    "testedPath": "/api/public/sites/test-id",
+    "status": 404,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"error\":{\"code\":\"http:not_found\",\"message\":\"Not Found: Site not found\",\"details"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/health",
+    "testedPath": "/api/health",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"status\":\"healthy\",\"database\":\"connected\",\"database_latency_ms\":1,\"timestamp\":\""
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/api-docs/openapi.json",
+    "testedPath": "/api/api-docs/openapi.json",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"openapi\":\"3.1.0\",\"info\":{\"title\":\"CMS API\",\"description\":\"CMS REST API for man"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/auth/me",
+    "testedPath": "/api/auth/me",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"id\":\"323b7cab-a652-4b28-8df5-ef6c91dcf15c\",\"email\":\"admin@example.com\",\"name\":"
+  },
+  {
+    "method": "GET",
+    "frontendPath": "/api/auth/get-session",
+    "testedPath": "/api/auth/get-session",
+    "status": 200,
+    "isWired": true,
+    "isWorking": true,
+    "responseExcerpt": "{\"session\":{\"id\":\"323b7cab-a652-4b28-8df5-ef6c91dcf15c\",\"token\":\"session\",\"userI"
+  }
+]
