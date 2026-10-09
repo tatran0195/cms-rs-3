@@ -11,7 +11,7 @@ use cms_entity::{
     id::ProjectId,
     project::{
         CreateProjectRequest, DeleteProjectResponse, ListProjectsQuery, ListProjectsResponse,
-        ProjectAddonResponse, ProjectResponse, ProjectSettings, ProjectWithOrgResponse,
+        ProjectAddonResponse, ProjectResponse, ProjectSettings,
         UpdateProjectRequest, UpdateProjectSettingsRequest,
     },
 };
@@ -96,8 +96,6 @@ pub async fn list_projects_handler(
 }
 
 /// Create a new project
-///
-/// Creates a new project within an organization.
 #[utoipa::path(
     post,
     path = "/projects",
@@ -109,7 +107,7 @@ pub async fn list_projects_handler(
     ),
     request_body = CreateProjectRequest,
     responses(
-        (status = 201, description = "Project created successfully", body = ApiResponse<ProjectWithOrgResponse>),
+        (status = 201, description = "Project created successfully", body = ApiResponse<ProjectResponse>),
         (status = 400, description = "Bad request"),
         (status = 401, description = "Unauthorized"),
         (status = 403, description = "Forbidden - user may not have permission"),
@@ -119,10 +117,9 @@ pub async fn create_project_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     ValidatedJson(request): ValidatedJson<CreateProjectRequest>,
-) -> Result<(StatusCode, Json<ApiResponse<ProjectWithOrgResponse>>), AppError> {
-    let org_id = request.organization_id.clone().unwrap_or_default();
+) -> Result<(StatusCode, Json<ApiResponse<ProjectResponse>>), AppError> {
     let project =
-        ProjectService::create_project(&state.biz_context, &auth.user.id, &org_id, request).await?;
+        ProjectService::create_project(&state.biz_context, &auth.user.id, request).await?;
 
     Ok((StatusCode::CREATED, Json(ApiResponse::new(project))))
 }
@@ -141,7 +138,7 @@ pub async fn create_project_handler(
         ("id", Path, description = "Project ID"),
     ),
     responses(
-        (status = 200, description = "Project details", body = ApiResponse<ProjectWithOrgResponse>),
+        (status = 200, description = "Project details", body = ApiResponse<ProjectResponse>),
         (status = 401, description = "Unauthorized"),
         (status = 404, description = "Project not found"),
     )
@@ -150,13 +147,13 @@ pub async fn get_project_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
     Path(project_id): Path<ProjectId>,
-) -> Result<Json<ApiResponse<ProjectWithOrgResponse>>, AppError> {
+) -> Result<Json<ApiResponse<ProjectResponse>>, AppError> {
     let project =
         ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
     let target = cms_authz::ProjectTarget {
-        id: project.project.id.to_string(),
-        is_public: project.project.is_public,
+        id: project.id.to_string(),
+        is_public: project.is_public,
         owner_id: None,
     };
 

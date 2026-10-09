@@ -6,16 +6,15 @@ use cms_middleware::app_state::AppState;
 
 use crate::auth::AuthExtractor;
 
-/// Resolve the organization id that owns a project, so member/role operations can
-/// be delegated to the org service. Enforces project membership for the caller.
-pub async fn project_org_id(
+/// Verify caller has access to the project.
+pub async fn verify_project_access(
     state: &Arc<AppState>,
     auth: &AuthExtractor,
     project_id: &str,
-) -> Result<String, AppError> {
-    let project =
+) -> Result<(), AppError> {
+    let _project =
         ProjectService::get_project(&state.biz_context, &auth.user.id, project_id).await?;
-    Ok(project.project.organization_id.clone())
+    Ok(())
 }
 
 /// Resolve the deployments that belong to a project (newest first).
@@ -31,3 +30,31 @@ pub async fn project_deployments(
     )
     .await
 }
+
+/// Authorize a project action using Gatehouse.
+pub async fn authorize_project(
+    state: &AppState,
+    auth: &AuthExtractor,
+    project_id: &str,
+    action: cms_authz::ProjectAction,
+) -> Result<cms_entity::project::Project, AppError> {
+    let project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, project_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
+    let auth_user = auth.to_auth_user(state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project.id.clone(),
+        is_public: project.is_public,
+        owner_id: None,
+    };
+    state
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &action, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
+    Ok(project)
+}
+

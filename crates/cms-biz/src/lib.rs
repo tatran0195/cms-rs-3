@@ -17,7 +17,6 @@ pub mod comment;
 pub mod deployment;
 pub mod domain;
 pub mod email;
-pub mod entitlement;
 pub mod export;
 pub mod git;
 pub mod integration;
@@ -25,7 +24,6 @@ pub mod language;
 pub mod mcp;
 pub mod notification;
 pub mod openapi;
-pub mod org;
 pub mod page;
 pub mod platform_event;
 pub mod project;
@@ -33,7 +31,6 @@ pub mod queue;
 pub mod reader_access;
 pub mod search;
 pub mod theme;
-pub mod usage;
 
 // Re-export commonly used types
 pub use cms_db::PgPool;

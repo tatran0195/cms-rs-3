@@ -7,9 +7,18 @@ use uuid::Uuid;
 
 #[tokio::test]
 #[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
-async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
+async fn test_11_project_membership_and_rbac() -> anyhow::Result<()> {
     let ctx = TestContext::setup().await?;
     let cookie = ctx.user_cookie();
+
+    let project = create_project(
+        &ctx.app,
+        &cookie,
+        format!("RBAC Project {}", Uuid::new_v4().simple()),
+        true,
+    )
+    .await?;
+    let project_id = required_string(&project, "id", "created project")?;
 
     let second_email = format!("collab-{}@example.invalid", Uuid::new_v4());
     let second_user = expect_status(
@@ -34,38 +43,37 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
         request(
             &ctx.app,
             Method::GET,
-            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            &format!("/api/app/projects/{project_id}/members"),
             Some(&cookie),
             None,
         )
         .await?,
         StatusCode::OK,
-        "list org members",
+        "list project members initially",
     )?;
-    let members_arr = initial_members
+    let members_arr = initial_members["data"]["members"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("members not array"))?;
     anyhow::ensure!(members_arr.len() == 1, "initial member count is 1 (owner)");
 
-    let add_member = expect_status(
+    let _invite = expect_status(
         request(
             &ctx.app,
             Method::POST,
-            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            &format!("/api/app/projects/{project_id}/members/invite"),
             Some(&cookie),
-            Some(json!({ "user_id": second_user_id, "role": "MEMBER" })),
+            Some(json!({ "email": second_email, "role": "member" })),
         )
         .await?,
         StatusCode::OK,
-        "add member",
+        "invite member to project",
     )?;
-    let membership_id = required_string(&add_member, "id", "membership id")?;
 
     let members_after_add = expect_status(
         request(
             &ctx.app,
             Method::GET,
-            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            &format!("/api/app/projects/{project_id}/members"),
             Some(&cookie),
             None,
         )
@@ -73,33 +81,34 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
         StatusCode::OK,
         "list members after add",
     )?;
-    anyhow::ensure!(members_after_add.as_array().unwrap().len() == 2);
+    let members_after_arr = members_after_add["data"]["members"].as_array().unwrap();
+    anyhow::ensure!(members_after_arr.len() == 2);
+
+    let second_member = members_after_arr
+        .iter()
+        .find(|m| m["user"]["email"] == second_email)
+        .ok_or_else(|| anyhow::anyhow!("second member not found in list"))?;
+    let membership_id = required_string(second_member, "id", "membership id")?;
 
     let updated_role = expect_status(
         request(
             &ctx.app,
-            Method::PUT,
-            &format!(
-                "/api/orgs/{}/members/{membership_id}",
-                ctx.seed.organization_id
-            ),
+            Method::PATCH,
+            &format!("/api/app/projects/{project_id}/members/{membership_id}/role"),
             Some(&cookie),
-            Some(json!({ "role": "ADMIN" })),
+            Some(json!({ "role": "viewer" })),
         )
         .await?,
         StatusCode::OK,
-        "update member role",
+        "update member role to viewer",
     )?;
-    anyhow::ensure!(updated_role["role"] == "ADMIN");
+    anyhow::ensure!(updated_role["data"]["role"] == "viewer");
 
     let remove_member = expect_status(
         request(
             &ctx.app,
             Method::DELETE,
-            &format!(
-                "/api/orgs/{}/members/{membership_id}",
-                ctx.seed.organization_id
-            ),
+            &format!("/api/app/projects/{project_id}/members/{membership_id}"),
             Some(&cookie),
             None,
         )
@@ -107,13 +116,13 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
         StatusCode::OK,
         "remove member",
     )?;
-    anyhow::ensure!(remove_member["success"] == true);
+    anyhow::ensure!(remove_member["data"]["success"] == true);
 
     let members_after_remove = expect_status(
         request(
             &ctx.app,
             Method::GET,
-            &format!("/api/orgs/{}/members", ctx.seed.organization_id),
+            &format!("/api/app/projects/{project_id}/members"),
             Some(&cookie),
             None,
         )
@@ -121,7 +130,7 @@ async fn test_11_organization_membership_and_rbac() -> anyhow::Result<()> {
         StatusCode::OK,
         "list members after remove",
     )?;
-    anyhow::ensure!(members_after_remove.as_array().unwrap().len() == 1);
+    anyhow::ensure!(members_after_remove["data"]["members"].as_array().unwrap().len() == 1);
 
     sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
         .bind(second_user_id)

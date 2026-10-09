@@ -3,4 +3,4 @@
 /**
  * Branch create request
  */
-export type CreateBranchRequest = { project_id: string, name: string, description: string | null, is_protected: boolean, };
+export type CreateBranchRequest = { project_id: string, name: string, description: string | null, is_protected: boolean, from_branch_id: string | null, };

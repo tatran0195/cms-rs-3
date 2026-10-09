@@ -431,28 +431,20 @@ impl DeploymentQueries {
         .execute(&mut *tx)
         .await?;
         if let Some(actor_user_id) = actor_user_id {
-            let organization_id = snapshot
-                .get("project")
-                .and_then(|project| project.get("organization_id"))
-                .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| {
-                    AppError::InvalidInput("Snapshot is missing organization id".to_string())
-                })?;
             sqlx::query(
                 r#"INSERT INTO "PlatformEvent" (
-                       id, organization_id, user_id, event_type, metadata, created_at
+                       id, user_id, event_type, metadata, created_at
                    )
-                   SELECT $1, $2, actor.id, 'publish_ready',
+                   SELECT $1, actor.id, 'publish_ready',
                           jsonb_build_object(
                               'auto', FALSE,
-                              'deployment_id', $3,
-                              'project_id', $4,
-                              'branch_id', $5
-                          ), $6
-                   FROM "User" actor WHERE actor.id = $7"#,
+                              'deployment_id', $2,
+                              'project_id', $3,
+                              'branch_id', $4
+                          ), $5
+                   FROM "User" actor WHERE actor.id = $6"#,
             )
             .bind(Uuid::new_v4().to_string())
-            .bind(organization_id)
             .bind(deployment_id)
             .bind(project_id)
             .bind(branch_id)
@@ -815,9 +807,9 @@ impl DeploymentQueries {
         if let Some(actor_user_id) = actor_user_id {
             sqlx::query(
                 r#"INSERT INTO "PlatformEvent" (
-                       id, organization_id, user_id, event_type, metadata, created_at
+                       id, user_id, event_type, metadata, created_at
                    )
-                   SELECT $1, project.organization_id, actor.id, 'publish_clicked',
+                   SELECT $1, actor.id, 'publish_clicked',
                           jsonb_build_object(
                               'auto', FALSE,
                               'deployment_id', $3,

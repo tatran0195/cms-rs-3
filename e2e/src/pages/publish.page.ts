@@ -85,13 +85,20 @@ export class PublishControl {
   }
 
   async closePipeline(): Promise<void> {
-    const done = this.page.getByRole('button', { name: 'Done', exact: true });
-    if (await done.isVisible()) {
-      await done.click();
-    } else {
-      await this.page.getByRole('button', { name: 'Close', exact: true }).click();
+    const pipeline = this.pipeline();
+    if (await pipeline.isHidden()) {
+      return;
     }
-    await expect(this.pipeline()).toBeHidden({ timeout: 30_000 });
+    const done = pipeline.getByRole('button', { name: 'Done', exact: true });
+    if (await done.isVisible()) {
+      await done.click().catch(() => {});
+    } else {
+      const close = pipeline.getByRole('button', { name: 'Close', exact: true });
+      if (await close.isVisible()) {
+        await close.click().catch(() => {});
+      }
+    }
+    await expect(pipeline).toBeHidden({ timeout: 30_000 });
   }
 
   /** Roll back to the previous release through the pipeline dialog. */

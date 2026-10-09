@@ -88,8 +88,7 @@ pub async fn overview_handler(
             (SELECT COUNT(*) FROM "Domain"
              WHERE ssl_status IN ('ERROR', 'EXPIRED')) AS domain_issues,
             (SELECT COUNT(*) FROM "Project" WHERE takedown_at IS NOT NULL) AS taken_down_sites,
-            (SELECT COUNT(*) FROM "Invitation"
-             WHERE role = 'OWNER' AND expires_at < NOW()) AS expired_owner_invites,
+            0::BIGINT AS expired_owner_invites,
             (SELECT COUNT(*) FROM "ExportJob"
              WHERE status = 'FAILED' AND created_at >= NOW() - INTERVAL '7 days') AS failed_exports_7d,
             (SELECT COUNT(*) FROM "GitSyncOperation"
@@ -198,7 +197,7 @@ async fn load_admin_users(
     let mut query: QueryBuilder<Postgres> = QueryBuilder::new(
         r#"SELECT u.id, u.name, u.email, u.role, u.email_verified, u.suspended_at,
                   u.created_at, u.updated_at,
-                  (SELECT COUNT(*) FROM "Member" m WHERE m.user_id = u.id) AS workspaces,
+                  (SELECT COUNT(*) FROM "ProjectMember" pm WHERE pm.user_id = u.id) AS workspaces,
                   COALESCE((SELECT ARRAY_AGG(DISTINCT a.provider ORDER BY a.provider)
                             FROM "Account" a WHERE a.user_id = u.id), ARRAY[]::TEXT[]) AS providers,
                   (SELECT COUNT(*) FROM "Session" s
@@ -258,59 +257,39 @@ pub async fn user_handler(
         .next()
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
     let memberships = sqlx::query(
-        r#"SELECT m.id AS membership_id, m.role::TEXT AS role, m.created_at,
-                  o.id AS organization_id, o.name AS organization_name,
-                  active_plan.plan,
-                  COALESCE(projects.project_count, 0)::BIGINT AS project_count,
-                  COALESCE(projects.items, '[]'::JSONB) AS projects
-           FROM "Member" m
-           JOIN "Organization" o ON o.id = m.organization_id
-           LEFT JOIN LATERAL (
-               SELECT jsonb_build_object(
-                   'name', plan.name,
-                   'billingPeriod', plan.billing_period,
-                   'startsAt', assigned.starts_at,
-                   'endsAt', assigned.ends_at
-               ) AS plan
-               FROM "OrganizationUsagePlan" assigned
-               JOIN "UsagePlan" plan ON plan.id = assigned.usage_plan_id
-               WHERE assigned.organization_id = o.id
-                 AND assigned.status = 'ACTIVE'
-                 AND assigned.starts_at <= NOW()
-                 AND (assigned.ends_at IS NULL OR assigned.ends_at > NOW())
-               ORDER BY assigned.starts_at DESC LIMIT 1
-           ) active_plan ON TRUE
-           LEFT JOIN LATERAL (
-               SELECT COUNT(*) AS project_count,
-                      jsonb_agg(jsonb_build_object(
-                          'id', project.id, 'name', project.name, 'slug', project.slug,
-                          'takedownAt', project.takedown_at
-                      ) ORDER BY project.created_at) AS items
-               FROM "Project" project
-               WHERE project.organization_id = o.id
-           ) projects ON TRUE
-           WHERE m.user_id = $1
-           ORDER BY m.created_at DESC LIMIT 500"#,
+        r#"SELECT pm.id AS membership_id, pm.role::TEXT AS role, pm.created_at,
+                  p.id AS project_id, p.name AS project_name, p.slug AS project_slug
+           FROM "ProjectMember" pm
+           JOIN "Project" p ON p.id = pm.project_id
+           WHERE pm.user_id = $1
+           ORDER BY pm.created_at DESC LIMIT 500"#,
     )
     .bind(&user_id)
     .fetch_all(&state.biz_context.pool)
     .await?
     .into_iter()
     .map(|row| {
+        let pid = row.get::<String, _>("project_id");
+        let pname = row.get::<String, _>("project_name");
+        let pslug = row.get::<String, _>("project_slug");
         json!({
             "membershipId": row.get::<String, _>("membership_id"),
-            "organizationId": row.get::<String, _>("organization_id"),
-            "organizationName": row.get::<String, _>("organization_name"),
+            "projectId": pid,
+            "projectName": pname,
+            "projectSlug": pslug,
             "role": row.get::<String, _>("role"),
             "joinedAt": row.get::<DateTime<Utc>, _>("created_at"),
-            "plan": row.get::<Option<Value>, _>("plan"),
-            "projectCount": row.get::<i64, _>("project_count"),
-            "projects": row.get::<Value, _>("projects"),
+            "projectCount": 1,
+            "projects": json!([{
+                "id": pid,
+                "name": pname,
+                "slug": pslug,
+            }]),
         })
     })
     .collect::<Vec<_>>();
     let activity = sqlx::query(
-        r#"SELECT id, event_type, organization_id, created_at
+        r#"SELECT id, event_type, created_at
            FROM "PlatformEvent" WHERE user_id = $1
            ORDER BY created_at DESC LIMIT 30"#,
     )
@@ -322,7 +301,6 @@ pub async fn user_handler(
         json!({
             "id": row.get::<String, _>("id"),
             "type": row.get::<String, _>("event_type"),
-            "organizationId": row.try_get::<Option<String>, _>("organization_id").ok().flatten(),
             "createdAt": row.get::<DateTime<Utc>, _>("created_at"),
         })
     })
@@ -450,13 +428,8 @@ struct AdminSiteRow {
     name: String,
     slug: String,
     description: Option<String>,
-    organization_id: String,
-    organization_name: String,
     owner_email: Option<String>,
     owner_suspended_at: Option<DateTime<Utc>>,
-    owner_invitation_id: Option<String>,
-    owner_invitation_email: Option<String>,
-    plan: Option<String>,
     pages: i64,
     deployments: i64,
     languages: i64,
@@ -476,28 +449,15 @@ async fn load_admin_sites(
     project_id: Option<&str>,
 ) -> Result<Vec<AdminSiteRow>, AppError> {
     let mut query: QueryBuilder<Postgres> = QueryBuilder::new(
-        r#"SELECT p.id, p.name, p.slug, p.description, p.organization_id,
-                  o.name AS organization_name, p.is_public, p.takedown_at,
+        r#"SELECT p.id, p.name, p.slug, p.description, p.is_public, p.takedown_at,
                   p.takedown_reason, p.created_at, p.updated_at,
                   owner_member.email AS owner_email,
                   owner_member.suspended_at AS owner_suspended_at,
-                  (SELECT i.id FROM "Invitation" i
-                   WHERE i.organization_id = p.organization_id AND i.role = 'OWNER'
-                     AND i.expires_at > NOW() ORDER BY i.created_at LIMIT 1) AS owner_invitation_id,
-                  (SELECT i.email FROM "Invitation" i
-                   WHERE i.organization_id = p.organization_id AND i.role = 'OWNER'
-                     AND i.expires_at > NOW() ORDER BY i.created_at LIMIT 1) AS owner_invitation_email,
-                  (SELECT plan.name FROM "OrganizationUsagePlan" assigned
-                   JOIN "UsagePlan" plan ON plan.id = assigned.usage_plan_id
-                   WHERE assigned.organization_id = p.organization_id AND assigned.status = 'ACTIVE'
-                     AND assigned.starts_at <= NOW()
-                     AND (assigned.ends_at IS NULL OR assigned.ends_at > NOW())
-                   ORDER BY assigned.starts_at DESC LIMIT 1) AS plan,
                   (SELECT COUNT(*) FROM "Page" pg
                    WHERE pg.project_id = p.id AND UPPER(pg.kind) = 'PAGE') AS pages,
                   (SELECT COUNT(*) FROM "Deployment" d WHERE d.project_id = p.id) AS deployments,
                   (SELECT COUNT(*) FROM "Language" l WHERE l.project_id = p.id) AS languages,
-                  (SELECT COUNT(*) FROM "Member" m WHERE m.organization_id = p.organization_id) AS members,
+                  (SELECT COUNT(*) FROM "ProjectMember" pm WHERE pm.project_id = p.id) AS members,
                   (SELECT COUNT(*) FROM "Domain" dm JOIN "Deployment" d ON d.id = dm.deployment_id
                    WHERE d.project_id = p.id) AS domains,
                   (SELECT COUNT(*) FROM "Domain" dm JOIN "Deployment" d ON d.id = dm.deployment_id
@@ -513,12 +473,11 @@ async fn load_admin_sites(
                    WHERE d.project_id = p.id
                    ORDER BY d.created_at DESC LIMIT 1) AS latest_deployment
            FROM "Project" p
-           JOIN "Organization" o ON o.id = p.organization_id
            LEFT JOIN LATERAL (
                SELECT u.email, u.suspended_at
-               FROM "Member" m JOIN "User" u ON u.id = m.user_id
-               WHERE m.organization_id = p.organization_id AND m.role = 'OWNER'
-               ORDER BY (u.suspended_at IS NOT NULL), m.created_at LIMIT 1
+               FROM "ProjectMember" pm JOIN "User" u ON u.id = pm.user_id
+               WHERE pm.project_id = p.id AND pm.role = 'owner'
+               ORDER BY (u.suspended_at IS NOT NULL), pm.created_at LIMIT 1
            ) owner_member ON TRUE"#,
     );
     if let Some(project_id) = project_id {
@@ -536,8 +495,6 @@ fn admin_site_summary(site: &AdminSiteRow) -> Value {
         "suspended"
     } else if site.owner_email.is_some() {
         "active"
-    } else if site.owner_invitation_id.is_some() {
-        "invited"
     } else {
         "missing"
     };
@@ -557,12 +514,8 @@ fn admin_site_summary(site: &AdminSiteRow) -> Value {
         "id": site.id,
         "name": site.name,
         "slug": site.slug,
-        "org": site.organization_name,
-        "organizationId": site.organization_id,
-        "plan": site.plan,
-        "owner": site.owner_email.as_deref().or(site.owner_invitation_email.as_deref()),
+        "owner": site.owner_email.as_deref(),
         "ownerStatus": owner_status,
-        "ownerInvitationId": site.owner_invitation_id,
         "pages": site.pages,
         "deployments": site.deployments,
         "languages": site.languages,
@@ -612,26 +565,17 @@ pub async fn site_handler(
     .await?;
     let members: Value = sqlx::query_scalar(
         r#"SELECT COALESCE(jsonb_agg(jsonb_build_object(
-               'id', m.id, 'role', m.role::TEXT, 'joinedAt', m.created_at,
+               'id', pm.id, 'role', pm.role::TEXT, 'joinedAt', pm.created_at,
                'user', jsonb_build_object('id', u.id, 'name', u.name, 'email', u.email,
                    'role', u.role, 'emailVerified', u.email_verified, 'suspendedAt', u.suspended_at)
-           ) ORDER BY m.created_at), '[]'::JSONB)
-           FROM "Member" m JOIN "User" u ON u.id = m.user_id
-           WHERE m.organization_id = $1"#,
+           ) ORDER BY pm.created_at), '[]'::JSONB)
+           FROM "ProjectMember" pm JOIN "User" u ON u.id = pm.user_id
+           WHERE pm.project_id = $1"#,
     )
-    .bind(&site.organization_id)
+    .bind(&site.id)
     .fetch_one(&state.biz_context.pool)
     .await?;
-    let invitations: Value = sqlx::query_scalar(
-        r#"SELECT COALESCE(jsonb_agg(jsonb_build_object(
-               'id', id, 'email', email, 'role', role::TEXT, 'expiresAt', expires_at,
-               'expired', expires_at < NOW()
-           ) ORDER BY expires_at), '[]'::JSONB)
-           FROM "Invitation" WHERE organization_id = $1"#,
-    )
-    .bind(&site.organization_id)
-    .fetch_one(&state.biz_context.pool)
-    .await?;
+    let invitations: Value = json!([]);
     let deployments = deployment_rows(&state, Some(&project_id), 30).await?;
     let domains = domain_rows(&state, Some(&project_id), 100).await?;
     let exports = export_rows(&state, Some(&project_id), 50).await?;
@@ -661,19 +605,16 @@ pub async fn site_handler(
                'actorName', u.name, 'createdAt', e.created_at
            ) ORDER BY e.created_at DESC), '[]'::JSONB)
            FROM (
-               SELECT * FROM "PlatformEvent" WHERE organization_id = $1
+               SELECT * FROM "PlatformEvent"
                ORDER BY created_at DESC LIMIT 30
            ) e LEFT JOIN "User" u ON u.id = e.user_id"#,
     )
-    .bind(&site.organization_id)
     .fetch_one(&state.biz_context.pool)
     .await?;
     let mut summary = admin_site_summary(&site);
     summary["description"] = json!(site.description);
     summary["workspace"] = json!({
-        "id": site.organization_id,
-        "name": site.organization_name,
-        "plan": site.plan,
+        "name": "Workspace",
     });
     summary["usage"] = json!({
         "pages": site.pages,
@@ -936,267 +877,7 @@ pub async fn operations_handler(
     } })))
 }
 
-#[derive(Deserialize)]
-pub struct InviteOrganizationBody {
-    #[serde(rename = "organizationName")]
-    organization_name: String,
-    #[serde(rename = "siteName")]
-    site_name: String,
-    #[serde(rename = "ownerEmail")]
-    owner_email: String,
-    #[serde(rename = "siteSlug")]
-    site_slug: Option<String>,
-    description: Option<String>,
-    #[serde(default = "default_delivery")]
-    delivery: String,
-}
 
-fn default_delivery() -> String {
-    "email".to_string()
-}
-
-fn slugify(value: &str) -> String {
-    let mut slug = String::new();
-    let mut dash = false;
-    for character in value.trim().chars().flat_map(char::to_lowercase) {
-        if character.is_ascii_alphanumeric() {
-            slug.push(character);
-            dash = false;
-        } else if !slug.is_empty() && !dash {
-            slug.push('-');
-            dash = true;
-        }
-        if slug.len() >= 63 {
-            break;
-        }
-    }
-    slug.trim_matches('-').to_string()
-}
-
-fn valid_owner_email(email: &str) -> bool {
-    if email.len() > 254 || email.chars().any(char::is_whitespace) {
-        return false;
-    }
-    let mut parts = email.split('@');
-    let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
-        return false;
-    };
-    !local.is_empty()
-        && local.len() <= 64
-        && domain.split('.').count() >= 2
-        && domain.split('.').all(|label| {
-            !label.is_empty()
-                && label.len() <= 63
-                && label
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-                && label
-                    .as_bytes()
-                    .first()
-                    .is_some_and(u8::is_ascii_alphanumeric)
-                && label
-                    .as_bytes()
-                    .last()
-                    .is_some_and(u8::is_ascii_alphanumeric)
-        })
-}
-
-pub async fn invite_organization_handler(
-    State(state): State<Arc<AppState>>,
-    auth: AuthExtractor,
-    Json(body): Json<InviteOrganizationBody>,
-) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
-    let organization_name = body.organization_name.trim();
-    let site_name = body.site_name.trim();
-    let owner_email = body.owner_email.trim().to_ascii_lowercase();
-    if organization_name.is_empty()
-        || organization_name.len() > 100
-        || site_name.is_empty()
-        || site_name.len() > 100
-        || !valid_owner_email(&owner_email)
-        || body
-            .description
-            .as_deref()
-            .is_some_and(|value| value.len() > 500)
-        || !matches!(body.delivery.as_str(), "email" | "link")
-    {
-        return Err(AppError::InvalidInput(
-            "Invalid organization invitation details".to_string(),
-        ));
-    }
-    if body.delivery == "email"
-        && state
-            .config
-            .mailer
-            .as_ref()
-            .and_then(|mailer| mailer.smtp_host.as_ref())
-            .is_none()
-    {
-        return Err(AppError::ProviderError(
-            "Email delivery is not configured".to_string(),
-        ));
-    }
-
-    let org_slug_base = {
-        let slug = slugify(organization_name);
-        if slug.is_empty() {
-            "workspace".to_string()
-        } else {
-            slug
-        }
-    };
-    // The organization is new, so it cannot already own a project with this slug.
-    let project_slug = slugify(body.site_slug.as_deref().unwrap_or(site_name));
-    let org_id = uuid::Uuid::new_v4().to_string();
-    let project_id = uuid::Uuid::new_v4().to_string();
-    let branch_id = uuid::Uuid::new_v4().to_string();
-    let language_id = uuid::Uuid::new_v4().to_string();
-    let invitation_id = uuid::Uuid::new_v4().to_string();
-    let invitation_token = uuid::Uuid::new_v4().to_string();
-    let now = Utc::now();
-    let expires_at = now + chrono::Duration::days(7);
-    let project_slug = if project_slug.is_empty() {
-        "docs".to_string()
-    } else {
-        project_slug
-    };
-
-    // The operator is intentionally not inserted as a workspace member. The
-    // invited user becomes the sole initial owner after accepting the invite.
-    let mut tx = state.biz_context.pool.begin().await?;
-    let description = body
-        .description
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
-    let mut organization_created = false;
-    for suffix in 0..100 {
-        let candidate = if suffix == 0 {
-            org_slug_base.clone()
-        } else {
-            format!("{}-{}", org_slug_base, suffix + 1)
-        };
-        let inserted = sqlx::query(
-            r#"INSERT INTO "Organization" (id, name, slug, description, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $5)
-               ON CONFLICT (slug) DO NOTHING"#,
-        )
-        .bind(&org_id)
-        .bind(organization_name)
-        .bind(&candidate)
-        .bind(description)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
-        if inserted.rows_affected() == 1 {
-            organization_created = true;
-            break;
-        }
-    }
-    if !organization_created {
-        let fallback_slug = format!("{}-{}", org_slug_base, uuid::Uuid::new_v4().simple());
-        let inserted = sqlx::query(
-            r#"INSERT INTO "Organization" (id, name, slug, description, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $5)
-               ON CONFLICT (slug) DO NOTHING"#,
-        )
-        .bind(&org_id)
-        .bind(organization_name)
-        .bind(fallback_slug)
-        .bind(description)
-        .bind(now)
-        .execute(&mut *tx)
-        .await?;
-        if inserted.rows_affected() == 0 {
-            return Err(AppError::Conflict(
-                "Could not reserve a unique organization slug".to_string(),
-            ));
-        }
-    }
-    sqlx::query(
-        r#"INSERT INTO "Project" (id, organization_id, name, slug, description, is_public, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, TRUE, $6, $6)"#,
-    )
-    .bind(&project_id).bind(&org_id).bind(site_name).bind(&project_slug)
-    .bind(body.description.as_deref().map(str::trim).filter(|s| !s.is_empty()))
-    .bind(now).execute(&mut *tx).await?;
-    sqlx::query(
-        r#"INSERT INTO "Branch" (id, project_id, name, slug, description, is_default, is_protected, created_at, updated_at)
-           VALUES ($1, $2, 'main', 'main', 'Default branch', TRUE, TRUE, $3, $3)"#,
-    )
-    .bind(&branch_id).bind(&project_id).bind(now).execute(&mut *tx).await?;
-    sqlx::query(
-        r#"INSERT INTO "Language" (id, project_id, code, name, is_default, is_rtl, enabled, position, created_at, updated_at)
-           VALUES ($1, $2, 'en', 'English', TRUE, FALSE, TRUE, 0, $3, $3)"#,
-    )
-    .bind(&language_id).bind(&project_id).bind(now).execute(&mut *tx).await?;
-    sqlx::query(
-        r#"INSERT INTO "Invitation" (id, organization_id, email, role, token, expires_at, created_at, updated_at)
-           VALUES ($1, $2, $3, 'OWNER', $4, $5, $6, $6)"#,
-    )
-    .bind(&invitation_id).bind(&org_id).bind(&owner_email).bind(&invitation_token)
-    .bind(expires_at).bind(now).execute(&mut *tx).await?;
-
-    let base_url = state
-        .config
-        .admin_origin
-        .allowed_origins
-        .first()
-        .map(|origin| origin.trim_end_matches('/').to_string())
-        .unwrap_or_else(|| {
-            format!(
-                "https://{}",
-                state.config.site.self_host.as_deref().unwrap_or("cms.app")
-            )
-        });
-    let invitation_url = format!("{base_url}/accept-invite/{invitation_token}");
-    if body.delivery == "email" {
-        let email_payload = json!({
-            "to": owner_email,
-            "subject": format!("You're invited to {}", organization_name),
-            "body": format!("You have been invited as the owner of {}. Accept the invitation: {}\n\nThis invitation expires in 7 days.", organization_name, invitation_url),
-        });
-        if state.config.queue.backend.eq_ignore_ascii_case("postgres") {
-            sqlx::query(
-                r#"INSERT INTO "CmsJob" (id, job_type, payload, status, retry_count, created_at, available_at)
-                   VALUES ($1, 'email', $2, 'pending', 0, $3, $3)"#,
-            )
-            .bind(uuid::Uuid::new_v4().to_string())
-            .bind(email_payload)
-            .bind(now)
-            .execute(&mut *tx)
-            .await?;
-        }
-    }
-    tx.commit().await?;
-
-    if body.delivery == "email" && !state.config.queue.backend.eq_ignore_ascii_case("postgres") {
-        let job = cms_queue::JobEnvelope::new(
-            cms_queue::JobType::Email,
-            json!({
-                "to": owner_email,
-                "subject": format!("You're invited to {}", organization_name),
-                "body": format!("You have been invited as the owner of {}. Accept the invitation: {}\n\nThis invitation expires in 7 days.", organization_name, invitation_url),
-            }),
-        );
-        if let Err(error) = state.job_queue.enqueue(job).await {
-            let _ =
-                cms_db::org::OrganizationQueries::delete(&state.biz_context.pool, &org_id).await;
-            return Err(error);
-        }
-    }
-
-    Ok(Json(json!({ "data": {
-        "organizationId": org_id,
-        "projectId": project_id,
-        "invitationId": invitation_id,
-        "ownerEmail": owner_email,
-        "slug": project_slug,
-        "invitationUrl": invitation_url,
-        "delivery": body.delivery,
-    } })))
-}
 
 #[derive(Deserialize)]
 pub struct TakedownBody {

@@ -15,7 +15,6 @@ async fn test_06_public_search_and_grounded_qa() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("SearchQA E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

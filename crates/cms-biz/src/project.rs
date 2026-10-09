@@ -3,19 +3,15 @@
 //! This module contains business logic for projects, including creation,
 //! updates, deletion, and membership management.
 
-use cms_db::{
-    org::MemberQueries,
-    project::{ProjectAddonQueries, ProjectQueries, ProjectSettingsQueries},
-};
+use cms_db::project::{ProjectAddonQueries, ProjectQueries, ProjectSettingsQueries};
 use cms_entity::{
     common::PaginatedResponse,
     project::{
         CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectAddonResponse,
-        ProjectResponse, ProjectSettings, ProjectWithOrgResponse, UpdateProjectRequest,
+        ProjectResponse, ProjectSettings, UpdateProjectRequest,
         UpdateProjectSettingsRequest,
     },
 };
-use uuid::Uuid;
 
 use crate::{AppError, BizContext};
 
@@ -27,26 +23,8 @@ impl ProjectService {
     pub async fn create_project(
         ctx: &BizContext,
         user_id: &str,
-        org_id: &str,
         request: CreateProjectRequest,
-    ) -> Result<ProjectWithOrgResponse, AppError> {
-        let (effective_org_id, new_org_info) = if org_id.trim().is_empty() {
-            // Check if user already belongs to an organization
-            let user_memberships =
-                cms_db::org::MemberQueries::get_by_user(&ctx.pool, user_id).await?;
-            if let Some(first_membership) = user_memberships.first() {
-                (first_membership.organization_id.clone(), None)
-            } else {
-                // Mint dedicated organization for user (site is its own workspace)
-                let new_org_id = Uuid::new_v4().to_string();
-                let org_slug = Uuid::new_v4().to_string();
-                let org_name = request.name.clone();
-                (new_org_id, Some((org_name, org_slug, user_id.to_string())))
-            }
-        } else {
-            (org_id.to_string(), None)
-        };
-
+    ) -> Result<ProjectResponse, AppError> {
         // Generate a base slug from the request name
         let sanitized = request
             .name
@@ -73,20 +51,15 @@ impl ProjectService {
         let mut counter = 1;
 
         // Atomically insert with collision retry on PostgreSQL unique constraint conflict (23505)
-        let (project, org) = loop {
-            let new_org_tuple = new_org_info
-                .as_ref()
-                .map(|(name, slug, uid)| (name.as_str(), slug.as_str(), uid.as_str()));
-
-            match ProjectQueries::create_atomic(
+        let project = loop {
+            match ProjectQueries::create(
                 &ctx.pool,
-                new_org_tuple,
-                &effective_org_id,
                 &request.name,
                 &slug,
                 request.description.as_deref(),
                 request.icon.as_deref(),
                 request.is_public,
+                Some(user_id),
             )
             .await
             {
@@ -105,10 +78,7 @@ impl ProjectService {
             }
         };
 
-        Ok(ProjectWithOrgResponse {
-            project: project.into(),
-            organization: org.into(),
-        })
+        Ok(project.into())
     }
 
     /// Get a project by ID
@@ -116,61 +86,39 @@ impl ProjectService {
         ctx: &BizContext,
         _user_id: &str,
         project_id: &str,
-    ) -> Result<ProjectWithOrgResponse, AppError> {
+    ) -> Result<ProjectResponse, AppError> {
         let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        let org = cms_db::org::OrganizationQueries::get_by_id(&ctx.pool, &project.organization_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-
-        Ok(ProjectWithOrgResponse {
-            project: project.into(),
-            organization: org.into(),
-        })
+        Ok(project.into())
     }
 
-    /// Get a public project by org and project slug
+    /// Get a public project by project slug
     pub async fn get_public_project(
         ctx: &BizContext,
-        org_slug: &str,
         project_slug: &str,
-    ) -> Result<ProjectWithOrgResponse, AppError> {
-        let org = cms_db::org::OrganizationQueries::get_by_slug(&ctx.pool, org_slug)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-        let project = ProjectQueries::get_by_slug(&ctx.pool, &org.id, project_slug)
+    ) -> Result<ProjectResponse, AppError> {
+        let project = ProjectQueries::get_by_slug(&ctx.pool, project_slug)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
         if !project.is_public {
             return Err(AppError::NotFound("Project not found".to_string()));
         }
-        Ok(ProjectWithOrgResponse {
-            project: project.into(),
-            organization: org.into(),
-        })
+        Ok(project.into())
     }
 
     /// Get a project by slug
     pub async fn get_project_by_slug(
         ctx: &BizContext,
         _user_id: &str,
-        org_slug: &str,
         project_slug: &str,
-    ) -> Result<ProjectWithOrgResponse, AppError> {
-        let org = cms_db::org::OrganizationQueries::get_by_slug(&ctx.pool, org_slug)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-
-        let project = ProjectQueries::get_by_slug(&ctx.pool, &org.id, project_slug)
+    ) -> Result<ProjectResponse, AppError> {
+        let project = ProjectQueries::get_by_slug(&ctx.pool, project_slug)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-        Ok(ProjectWithOrgResponse {
-            project: project.into(),
-            organization: org.into(),
-        })
+        Ok(project.into())
     }
 
     /// Update a project
@@ -212,19 +160,17 @@ impl ProjectService {
         ProjectQueries::delete(&ctx.pool, project_id).await
     }
 
-    /// List projects for an organization
+    /// List all projects
     pub async fn list_projects(
         ctx: &BizContext,
         _user_id: &str,
-        org_id: &str,
         query: ListProjectsQuery,
         page: u64,
         page_size: u64,
     ) -> Result<ListProjectsResponse, AppError> {
         let offset = page.saturating_sub(1) * page_size;
-        let projects = ProjectQueries::get_by_organization(
+        let projects = ProjectQueries::get_all(
             &ctx.pool,
-            org_id,
             query.is_public,
             query.search.as_deref(),
             Some(page_size as i64),
@@ -232,9 +178,8 @@ impl ProjectService {
         )
         .await?;
 
-        let total = ProjectQueries::count_by_organization(
+        let total = ProjectQueries::count(
             &ctx.pool,
-            org_id,
             query.is_public,
             query.search.as_deref(),
         )
@@ -255,31 +200,17 @@ impl ProjectService {
         page: u64,
         page_size: u64,
     ) -> Result<ListProjectsResponse, AppError> {
-        // Get all organizations the user is a member of
-        let members = MemberQueries::get_by_user(&ctx.pool, user_id).await?;
-        let org_ids: Vec<&str> = members.iter().map(|m| m.organization_id.as_str()).collect();
+        let projects = ProjectQueries::list_by_user(&ctx.pool, user_id).await?;
+        let total = projects.len() as u64;
+        let offset = (page.saturating_sub(1) * page_size) as usize;
+        let paged: Vec<ProjectResponse> = projects
+            .into_iter()
+            .skip(offset)
+            .take(page_size as usize)
+            .map(|p| p.into())
+            .collect();
 
-        if org_ids.is_empty() {
-            return Ok(PaginatedResponse::new(vec![], 0, page, page_size));
-        }
-
-        let offset = page.saturating_sub(1) * page_size;
-        let projects = ProjectQueries::get_by_organizations(
-            &ctx.pool,
-            &org_ids,
-            Some(page_size as i64),
-            Some(offset as i64),
-        )
-        .await?;
-
-        let total = ProjectQueries::count_by_organizations(&ctx.pool, &org_ids).await?;
-
-        Ok(PaginatedResponse::new(
-            projects.into_iter().map(|p| p.into()).collect(),
-            total as u64,
-            page,
-            page_size,
-        ))
+        Ok(PaginatedResponse::new(paged, total, page, page_size))
     }
 
     /// Get project settings
@@ -427,6 +358,7 @@ mod tests {
         integration::{CreateProjectIntegrationRequest, IntegrationProvider},
     };
     use cms_storage::LocalFsStorage;
+    use uuid::Uuid;
 
     use super::*;
     use crate::{
@@ -465,32 +397,26 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let org_name = format!("Atomic Org {}", Uuid::new_v4());
-        let org_slug = format!("atomic-org-{}", Uuid::new_v4());
-        let org_id = Uuid::new_v4().to_string();
-
         let proj_name = format!("Atomic Proj {}", Uuid::new_v4());
         let proj_slug = format!("atomic-proj-{}", Uuid::new_v4());
 
-        // 1. Call create_atomic with new organization
+        // 1. Call create_atomic
         let result = ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name, &org_slug, &user_id)),
-            &org_id,
             &proj_name,
             &proj_slug,
             Some("Atomic project description"),
             None,
             false,
+            Some(&user_id),
         )
         .await;
 
         assert!(result.is_ok(), "create_atomic failed: {:?}", result.err());
-        let (project, org) = result.unwrap();
+        let project = result.unwrap();
 
         assert_eq!(project.name, proj_name);
         assert_eq!(project.slug, proj_slug);
-        assert_eq!(org.id, org_id);
 
         // 2. Verify default branch was created atomically
         let default_branch = cms_db::branch::BranchQueries::get_default(&pool, &project.id).await;
@@ -548,14 +474,6 @@ mod tests {
             .bind(&project.id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-            .bind(&org_id)
-            .execute(&pool)
-            .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org_id)
-            .execute(&pool)
-            .await;
         let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
             .bind(&user_id)
             .execute(&pool)
@@ -577,27 +495,19 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+        );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let project_id = format!("test-proj-{}", Uuid::new_v4());
         let foreign_project_id = format!("test-foreign-proj-{}", Uuid::new_v4());
-        let org_id = format!("test-org-{}", Uuid::new_v4());
 
         let now = chrono::Utc::now();
         let _ = cms_db::sqlx::query(
-            r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at) VALUES ($1, 'Test Org', $2, $3, $3)"#,
-        )
-        .bind(&org_id)
-        .bind(format!("org-{}", Uuid::new_v4()))
-        .bind(now)
-        .execute(&pool)
-        .await;
-
-        let _ = cms_db::sqlx::query(
-            r#"INSERT INTO "Project" (id, organization_id, name, slug, is_public, created_at, updated_at) VALUES ($1, $2, 'Test Proj', $3, false, $4, $4)"#,
+            r#"INSERT INTO "Project" (id, name, slug, is_public, created_at, updated_at) VALUES ($1, 'Test Proj', $2, false, $3, $3)"#,
         )
         .bind(&project_id)
-        .bind(&org_id)
         .bind(format!("proj-{}", Uuid::new_v4()))
         .bind(now)
         .execute(&pool)
@@ -643,10 +553,6 @@ mod tests {
             .bind(&project_id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org_id)
-            .execute(&pool)
-            .await;
     }
 
     #[tokio::test]
@@ -664,28 +570,20 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+        );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let project_id = format!("test-proj-{}", Uuid::new_v4());
         let foreign_project_id = format!("test-foreign-proj-{}", Uuid::new_v4());
-        let org_id = format!("test-org-{}", Uuid::new_v4());
         let conflict_id = format!("test-conflict-{}", Uuid::new_v4());
 
         let now = chrono::Utc::now();
         let _ = cms_db::sqlx::query(
-            r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at) VALUES ($1, 'Test Org 2', $2, $3, $3)"#,
-        )
-        .bind(&org_id)
-        .bind(format!("org-{}", Uuid::new_v4()))
-        .bind(now)
-        .execute(&pool)
-        .await;
-
-        let _ = cms_db::sqlx::query(
-            r#"INSERT INTO "Project" (id, organization_id, name, slug, is_public, created_at, updated_at) VALUES ($1, $2, 'Test Proj 2', $3, false, $4, $4)"#,
+            r#"INSERT INTO "Project" (id, name, slug, is_public, created_at, updated_at) VALUES ($1, 'Test Proj 2', $2, false, $3, $3)"#,
         )
         .bind(&project_id)
-        .bind(&org_id)
         .bind(format!("proj-{}", Uuid::new_v4()))
         .bind(now)
         .execute(&pool)
@@ -727,10 +625,6 @@ mod tests {
             .bind(&project_id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org_id)
-            .execute(&pool)
-            .await;
     }
 
     #[tokio::test]
@@ -748,7 +642,10 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+        );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -762,21 +659,17 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let org_id_1 = Uuid::new_v4().to_string();
-        let org_name_1 = format!("Org 1 {}", Uuid::new_v4());
-        let org_slug_1 = format!("org-1-{}", Uuid::new_v4());
         let proj_name_1 = format!("Proj 1 {}", Uuid::new_v4());
         let proj_slug_1 = format!("proj-1-{}", Uuid::new_v4());
 
-        let (project1, org1) = match ProjectQueries::create_atomic(
+        let project1 = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name_1, &org_slug_1, &user_id)),
-            &org_id_1,
             &proj_name_1,
             &proj_slug_1,
             None,
             None,
             false,
+            Some(&user_id),
         )
         .await
         {
@@ -784,21 +677,17 @@ mod tests {
             Err(_) => return,
         };
 
-        let org_id_2 = Uuid::new_v4().to_string();
-        let org_name_2 = format!("Org 2 {}", Uuid::new_v4());
-        let org_slug_2 = format!("org-2-{}", Uuid::new_v4());
         let proj_name_2 = format!("Proj 2 {}", Uuid::new_v4());
         let proj_slug_2 = format!("proj-2-{}", Uuid::new_v4());
 
-        let (project2, org2) = match ProjectQueries::create_atomic(
+        let project2 = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name_2, &org_slug_2, &user_id)),
-            &org_id_2,
             &proj_name_2,
             &proj_slug_2,
             None,
             None,
             false,
+            Some(&user_id),
         )
         .await
         {
@@ -873,18 +762,12 @@ mod tests {
                 .bind(pid)
                 .execute(&pool)
                 .await;
-            let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            let _ = cms_db::sqlx::query("DELETE FROM \"ProjectMember\" WHERE project_id = $1")
                 .bind(pid)
                 .execute(&pool)
                 .await;
-        }
-        for oid in [&org1.id, &org2.id] {
-            let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-                .bind(oid)
-                .execute(&pool)
-                .await;
-            let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-                .bind(oid)
+            let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+                .bind(pid)
                 .execute(&pool)
                 .await;
         }
@@ -909,7 +792,10 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+        );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -923,21 +809,17 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let org_id = Uuid::new_v4().to_string();
-        let org_name = format!("Comment Org {}", Uuid::new_v4());
-        let org_slug = format!("comment-org-{}", Uuid::new_v4());
         let proj_name = format!("Comment Proj {}", Uuid::new_v4());
         let proj_slug = format!("comment-proj-{}", Uuid::new_v4());
 
-        let (project, org) = match ProjectQueries::create_atomic(
+        let project = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name, &org_slug, &user_id)),
-            &org_id,
             &proj_name,
             &proj_slug,
             None,
             None,
             false,
+            Some(&user_id),
         )
         .await
         {
@@ -1043,16 +925,12 @@ mod tests {
             .bind(&project.id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectMember\" WHERE project_id = $1")
             .bind(&project.id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-            .bind(&org.id)
-            .execute(&pool)
-            .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org.id)
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
             .execute(&pool)
             .await;
         let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
@@ -1076,7 +954,10 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+        );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -1090,21 +971,17 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let org_id_1 = Uuid::new_v4().to_string();
-        let org_name_1 = format!("Asset Org 1 {}", Uuid::new_v4());
-        let org_slug_1 = format!("asset-org-1-{}", Uuid::new_v4());
         let proj_name_1 = format!("Asset Proj 1 {}", Uuid::new_v4());
         let proj_slug_1 = format!("asset-proj-1-{}", Uuid::new_v4());
 
-        let (project1, org1) = match ProjectQueries::create_atomic(
+        let project1 = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name_1, &org_slug_1, &user_id)),
-            &org_id_1,
             &proj_name_1,
             &proj_slug_1,
             None,
             None,
             false,
+            Some(&user_id),
         )
         .await
         {
@@ -1112,21 +989,17 @@ mod tests {
             Err(_) => return,
         };
 
-        let org_id_2 = Uuid::new_v4().to_string();
-        let org_name_2 = format!("Asset Org 2 {}", Uuid::new_v4());
-        let org_slug_2 = format!("asset-org-2-{}", Uuid::new_v4());
         let proj_name_2 = format!("Asset Proj 2 {}", Uuid::new_v4());
         let proj_slug_2 = format!("asset-proj-2-{}", Uuid::new_v4());
 
-        let (project2, org2) = match ProjectQueries::create_atomic(
+        let project2 = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name_2, &org_slug_2, &user_id)),
-            &org_id_2,
             &proj_name_2,
             &proj_slug_2,
             None,
             None,
             false,
+            Some(&user_id),
         )
         .await
         {
@@ -1208,18 +1081,12 @@ mod tests {
                 .bind(pid)
                 .execute(&pool)
                 .await;
-            let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            let _ = cms_db::sqlx::query("DELETE FROM \"ProjectMember\" WHERE project_id = $1")
                 .bind(pid)
                 .execute(&pool)
                 .await;
-        }
-        for oid in [&org1.id, &org2.id] {
-            let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-                .bind(oid)
-                .execute(&pool)
-                .await;
-            let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-                .bind(oid)
+            let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+                .bind(pid)
                 .execute(&pool)
                 .await;
         }
@@ -1245,13 +1112,13 @@ mod tests {
         }
 
         let owner_id = format!("owner-{}", Uuid::new_v4());
-        let guest_id = format!("guest-{}", Uuid::new_v4());
+        let viewer_id = format!("viewer-{}", Uuid::new_v4());
         let admin_id = format!("admin-{}", Uuid::new_v4());
         let now = chrono::Utc::now();
 
         for (uid, name) in [
             (&owner_id, "Owner User"),
-            (&guest_id, "Guest User"),
+            (&viewer_id, "Viewer User"),
             (&admin_id, "Admin User"),
         ] {
             let email = format!(
@@ -1271,21 +1138,17 @@ mod tests {
             .await;
         }
 
-        let org_id = Uuid::new_v4().to_string();
-        let org_name = format!("RBAC Org {}", Uuid::new_v4());
-        let org_slug = format!("rbac-org-{}", Uuid::new_v4());
         let proj_name = format!("RBAC Proj {}", Uuid::new_v4());
         let proj_slug = format!("rbac-proj-{}", Uuid::new_v4());
 
-        let (project, org) = match ProjectQueries::create_atomic(
+        let project = match ProjectQueries::create(
             &pool,
-            Some((&org_name, &org_slug, &owner_id)),
-            &org_id,
             &proj_name,
             &proj_slug,
             None,
             None,
             false,
+            Some(&owner_id),
         )
         .await
         {
@@ -1293,16 +1156,16 @@ mod tests {
             Err(_) => return,
         };
 
-        // Add guest with Guest role
-        let _ = MemberQueries::create(&pool, &guest_id, &org.id, MemberRole::Guest).await;
-        // Add admin with Admin role
-        let _ = MemberQueries::create(&pool, &admin_id, &org.id, MemberRole::Admin).await;
+        // Add viewer with viewer role
+        let _ = cms_db::authz::ProjectMemberQueries::create(&pool, &project.id, &viewer_id, "viewer", None).await;
+        // Add admin with owner role
+        let _ = cms_db::authz::ProjectMemberQueries::create(&pool, &project.id, &admin_id, "owner", None).await;
 
         let authz = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
         let ctx = BizContext::new(pool.clone(), authz);
 
-        // 1. Guest user attempts to create integration -> InsufficientRole (Admin required)
-        let guest_req = CreateProjectIntegrationRequest {
+        // 1. Viewer user attempts to create integration -> InsufficientRole (Admin required)
+        let viewer_req = CreateProjectIntegrationRequest {
             project_id: project.id.clone(),
             provider: IntegrationProvider::Webhook,
             name: "Webhook Integration".to_string(),
@@ -1310,12 +1173,12 @@ mod tests {
             webhook_url: Some("https://example.com/webhook".to_string()),
             is_active: true,
         };
-        let res_guest = IntegrationService::create_integration(&ctx, &guest_id, guest_req).await;
+        let res_viewer = IntegrationService::create_integration(&ctx, &viewer_id, viewer_req).await;
         assert!(
-            res_guest.is_err(),
-            "Guest role must not be permitted to create integration"
+            res_viewer.is_err(),
+            "Viewer role must not be permitted to create integration"
         );
-        match res_guest.unwrap_err() {
+        match res_viewer.unwrap_err() {
             AppError::InsufficientRole(msg) => assert!(msg.contains("Admin")),
             err => panic!("Expected InsufficientRole, got {:?}", err),
         }
@@ -1336,14 +1199,14 @@ mod tests {
         );
         let integration = res_admin.unwrap();
 
-        // 3. Guest user attempts to get integration -> InsufficientRole (Viewer required)
-        let res_guest_get =
-            IntegrationService::get_integration(&ctx, &guest_id, &integration.id).await;
+        // 3. Viewer user attempts to get integration -> InsufficientRole (Viewer required)
+        let res_viewer_get =
+            IntegrationService::get_integration(&ctx, &viewer_id, &integration.id).await;
         assert!(
-            res_guest_get.is_err(),
-            "Guest role must not be permitted to read integration"
+            res_viewer_get.is_err(),
+            "Viewer role must not be permitted to read integration"
         );
-        match res_guest_get.unwrap_err() {
+        match res_viewer_get.unwrap_err() {
             AppError::InsufficientRole(msg) => assert!(msg.contains("Viewer")),
             err => panic!("Expected InsufficientRole, got {:?}", err),
         }
@@ -1373,19 +1236,15 @@ mod tests {
             .bind(&project.id)
             .execute(&pool)
             .await;
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectMember\" WHERE project_id = $1")
+            .bind(&project.id)
+            .execute(&pool)
+            .await;
         let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
             .bind(&project.id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-            .bind(&org.id)
-            .execute(&pool)
-            .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org.id)
-            .execute(&pool)
-            .await;
-        for uid in [&owner_id, &guest_id, &admin_id] {
+        for uid in [&owner_id, &viewer_id, &admin_id] {
             let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")
                 .bind(uid)
                 .execute(&pool)
@@ -1408,7 +1267,10 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
+        let ctx = BizContext::new(
+            pool.clone(),
+            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+        );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -1422,21 +1284,17 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let org_id = Uuid::new_v4().to_string();
-        let org_name = format!("Concurrent Org {}", Uuid::new_v4());
-        let org_slug = format!("concurrent-org-{}", Uuid::new_v4());
         let proj_name = format!("Concurrent Proj {}", Uuid::new_v4());
         let proj_slug = format!("concurrent-proj-{}", Uuid::new_v4());
 
-        let (project, org) = match ProjectQueries::create_atomic(
+        let project = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name, &org_slug, &user_id)),
-            &org_id,
             &proj_name,
             &proj_slug,
             None,
             None,
             false,
+            Some(&user_id),
         )
         .await
         {
@@ -1459,6 +1317,7 @@ mod tests {
                         name: "concurrent-feature".to_string(),
                         description: None,
                         is_protected: false,
+                        from_branch_id: None,
                     },
                 )
                 .await
@@ -1500,16 +1359,12 @@ mod tests {
             .bind(&project.id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+        let _ = cms_db::sqlx::query("DELETE FROM \"ProjectMember\" WHERE project_id = $1")
             .bind(&project.id)
             .execute(&pool)
             .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-            .bind(&org.id)
-            .execute(&pool)
-            .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org.id)
+        let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
+            .bind(&project.id)
             .execute(&pool)
             .await;
         let _ = cms_db::sqlx::query("DELETE FROM \"User\" WHERE id = $1")

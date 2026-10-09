@@ -23,7 +23,6 @@ pub mod mcp;
 pub mod middleware;
 pub mod notification;
 pub mod openapi;
-pub mod org;
 pub mod page;
 pub mod platform_event;
 pub mod project;
@@ -31,7 +30,6 @@ pub mod public;
 pub mod reader_access;
 pub mod search;
 pub mod theme;
-pub mod usage;
 pub mod validation;
 pub mod workspace;
 use std::sync::Arc;
@@ -52,7 +50,6 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
 
     // Mount all domain routers
     router = router.nest("/auth", auth::router(state.clone()));
-    router = router.nest("/orgs", org::router(state.clone()));
     router = router.nest("/projects", project::router(state.clone()));
     router = router.nest("/pages", page::router(state.clone()));
     router = router.nest("/branches", branch::router(state.clone()));
@@ -66,7 +63,6 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     router = router.nest("/search", search::router(state.clone()));
     router = router.nest("/export", export::router(state.clone()));
     router = router.nest("/openapi", openapi::router(state.clone()));
-    router = router.nest("/usage", usage::router(state.clone()));
     router = router.nest("/notifications", notification::router(state.clone()));
     router = router.nest("/assets", asset::router(state.clone()));
     router = router.nest("/analytics", analytics::router(state.clone()));
@@ -77,7 +73,6 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     // App and canonical v1 subrouters
     let app_router = Router::new()
         .nest("/auth", auth::router(state.clone()))
-        .nest("/orgs", org::router(state.clone()))
         .nest("/projects", project::router(state.clone()))
         .nest("/pages", page::router(state.clone()))
         .nest("/branches", branch::router(state.clone()))
@@ -91,7 +86,6 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
         .nest("/search", search::router(state.clone()))
         .nest("/export", export::router(state.clone()))
         .nest("/openapi", openapi::router(state.clone()))
-        .nest("/usage", usage::router(state.clone()))
         .nest("/notifications", notification::router(state.clone()))
         .nest("/assets", asset::router(state.clone()))
         .nest("/analytics", analytics::router(state.clone()))

@@ -15,7 +15,6 @@ async fn test_18_export_schedules_lifecycle() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Export E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

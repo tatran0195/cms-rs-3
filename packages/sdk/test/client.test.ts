@@ -7,7 +7,6 @@ describe('CMS SDK Client', () => {
   it('unwraps ApiResponse data envelope on 200 OK', async () => {
     const mockProject: ProjectResponse = {
       id: 'proj-123',
-      organizationId: 'org-456',
       name: 'Docs Engine',
       slug: 'docs-engine',
       description: 'Main product documentation',

@@ -53,7 +53,6 @@ fn normalize_page_slug(value: &str) -> String {
 }
 
 struct PageEditEvent<'a> {
-    organization_id: &'a str,
     project_id: &'a str,
     branch_id: &'a str,
     page_id: &'a str,
@@ -65,7 +64,6 @@ async fn record_page_edited(ctx: &BizContext, user_id: &str, event: PageEditEven
     PlatformEventService::record_funnel_event_best_effort(
         ctx,
         user_id,
-        Some(event.organization_id),
         FunnelEventType::PageEdited,
         serde_json::json!({
             "project_id": event.project_id,
@@ -87,7 +85,7 @@ impl PageService {
         branch_id: &str,
         request: CreatePageRequest,
     ) -> Result<PageResponse, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
         let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
@@ -258,7 +256,6 @@ impl PageService {
                 ctx,
                 user_id,
                 PageEditEvent {
-                    organization_id: &project.organization_id,
                     project_id,
                     branch_id,
                     page_id: &page.id,
@@ -401,7 +398,7 @@ impl PageService {
         let page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-        let project = ProjectQueries::get_by_id(&ctx.pool, &page.project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, &page.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
@@ -460,7 +457,7 @@ impl PageService {
             .as_deref()
             .map(|kind| normalize_page_kind(Some(kind)))
             .transpose()?;
-        let normalized_slug = if let Some(slug) = request.slug.as_deref() {
+        let mut normalized_slug = if let Some(slug) = request.slug.as_deref() {
             let slug = normalize_page_slug(slug);
             if slug.is_empty() || slug.chars().count() > 160 {
                 return Err(AppError::Validation(
@@ -468,6 +465,15 @@ impl PageService {
                 ));
             }
             Some(slug)
+        } else if page.slug == "untitled" {
+            request.title.as_deref().and_then(|t| {
+                let s = normalize_page_slug(t);
+                if !s.is_empty() {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
         } else {
             None
         };
@@ -525,12 +531,42 @@ impl PageService {
             None
         };
         let effective_slug = normalized_slug.as_deref().unwrap_or(&page.slug);
-        let candidate_path = match effective_parent_path.as_deref() {
+        let mut candidate_path = match effective_parent_path.as_deref() {
             Some(parent_path) => {
                 format!("{}/{}", parent_path.trim_end_matches('/'), effective_slug)
             }
             None => format!("/{effective_slug}"),
         };
+        if page.slug == "untitled" && request.slug.is_none() && normalized_slug.is_some() {
+            let base_slug = normalized_slug.as_deref().unwrap().to_string();
+            for suffix in 0..=1000u32 {
+                let test_slug = if suffix == 0 {
+                    base_slug.clone()
+                } else {
+                    format!("{base_slug}-{suffix}")
+                };
+                let test_path = match effective_parent_path.as_deref() {
+                    Some(parent_path) => {
+                        format!("{}/{}", parent_path.trim_end_matches('/'), test_slug)
+                    }
+                    None => format!("/{test_slug}"),
+                };
+                if PageQueries::is_path_available(
+                    &ctx.pool,
+                    &page.project_id,
+                    &page.branch_id,
+                    Some(effective_language_id),
+                    &test_path,
+                    Some(page_id),
+                )
+                .await?
+                {
+                    normalized_slug = Some(test_slug);
+                    candidate_path = test_path;
+                    break;
+                }
+            }
+        }
         if candidate_path.len() > 1024 {
             return Err(AppError::Validation(
                 "Page path must be 1024 bytes or fewer".to_string(),
@@ -578,7 +614,6 @@ impl PageService {
                 ctx,
                 user_id,
                 PageEditEvent {
-                    organization_id: &project.organization_id,
                     project_id: &updated.project_id,
                     branch_id: &updated.branch_id,
                     page_id: &updated.id,
@@ -701,19 +736,12 @@ impl PageService {
         Ok(count)
     }
 
-    /// Helper to resolve public project by org slug and project slug
+    /// Helper to resolve public project by project slug
     async fn resolve_public_project(
         pool: &PgPool,
-        org_slug: &str,
         project_slug: &str,
     ) -> Result<cms_entity::project::Project, AppError> {
-        use cms_db::org::OrganizationQueries;
-
-        let org = OrganizationQueries::get_by_slug(pool, org_slug)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-
-        let project = ProjectQueries::get_by_slug(pool, &org.id, project_slug)
+        let project = ProjectQueries::get_by_slug(pool, project_slug)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
@@ -727,11 +755,10 @@ impl PageService {
     /// Get a public page by path
     pub async fn get_public_page(
         ctx: &BizContext,
-        org_slug: &str,
         project_slug: &str,
         page_path: &str,
     ) -> Result<PageResponse, AppError> {
-        let project = Self::resolve_public_project(&ctx.pool, org_slug, project_slug).await?;
+        let project = Self::resolve_public_project(&ctx.pool, project_slug).await?;
 
         let default_branch = BranchQueries::get_default(&ctx.pool, &project.id).await?;
         let branch_id = default_branch
@@ -764,10 +791,9 @@ impl PageService {
     /// List public pages
     pub async fn list_public_pages(
         ctx: &BizContext,
-        org_slug: &str,
         project_slug: &str,
     ) -> Result<Vec<PageResponse>, AppError> {
-        let project = Self::resolve_public_project(&ctx.pool, org_slug, project_slug).await?;
+        let project = Self::resolve_public_project(&ctx.pool, project_slug).await?;
 
         let default_branch = BranchQueries::get_default(&ctx.pool, &project.id).await?;
         let branch_id = default_branch.map(|b| b.id).unwrap_or_default();
@@ -785,11 +811,10 @@ impl PageService {
     /// Search public pages
     pub async fn search_public_pages(
         ctx: &BizContext,
-        org_slug: &str,
         project_slug: &str,
         search_term: &str,
     ) -> Result<Vec<PageResponse>, AppError> {
-        let project = Self::resolve_public_project(&ctx.pool, org_slug, project_slug).await?;
+        let project = Self::resolve_public_project(&ctx.pool, project_slug).await?;
 
         let default_branch = BranchQueries::get_default(&ctx.pool, &project.id).await?;
         let branch_id = default_branch.map(|b| b.id).unwrap_or_default();
@@ -815,10 +840,9 @@ impl PageService {
     /// Get project sitemap
     pub async fn get_project_sitemap(
         ctx: &BizContext,
-        org_slug: &str,
         project_slug: &str,
     ) -> Result<serde_json::Value, AppError> {
-        let project = Self::resolve_public_project(&ctx.pool, org_slug, project_slug).await?;
+        let project = Self::resolve_public_project(&ctx.pool, project_slug).await?;
 
         let default_branch = BranchQueries::get_default(&ctx.pool, &project.id).await?;
         let branch_id = default_branch.map(|b| b.id).unwrap_or_default();
@@ -829,7 +853,7 @@ impl PageService {
             .filter(|p| p.is_published && (branch_id.is_empty() || p.branch_id == branch_id))
             .map(|p| {
                 serde_json::json!({
-                    "loc": format!("/{}/{}{}", org_slug, project_slug, p.path),
+                    "loc": format!("/{}/{}", project_slug, p.path.trim_start_matches('/')),
                     "lastmod": p.updated_at.to_rfc3339(),
                     "title": p.title,
                 })

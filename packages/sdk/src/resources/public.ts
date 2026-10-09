@@ -15,7 +15,7 @@ export interface PublicInstanceMeta {
 export interface PublicInvitationInfo {
   id: string;
   email: string;
-  organizationName?: string;
+  workspaceName?: string;
   expired?: boolean;
   role?: string;
   [key: string]: unknown;

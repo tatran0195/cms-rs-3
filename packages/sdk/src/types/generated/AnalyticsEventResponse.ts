@@ -4,4 +4,4 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * Analytics event response
  */
-export type AnalyticsEventResponse = { id: string, organization_id: string | null, project_id: string | null, user_id: string | null, event_type: string, metadata: JsonValue, ip_address: string | null, user_agent: string | null, created_at: string, };
+export type AnalyticsEventResponse = { id: string, project_id: string | null, user_id: string | null, event_type: string, metadata: JsonValue, ip_address: string | null, user_agent: string | null, created_at: string, };

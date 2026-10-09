@@ -141,7 +141,7 @@ pub async fn process_job(
         JobType::Search => {
             cms_biz::search::process_search_job(&state.db, state.search.clone(), &job.payload).await
         }
-        JobType::Usage => cms_biz::usage::process_usage_job(&state.db, &job.payload).await,
+        JobType::Usage => Ok(()),
         JobType::Reaper => {
             cms_biz::queue::process_reaper_job(&state.db, state.job_queue.clone(), &job.payload)
                 .await

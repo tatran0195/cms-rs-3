@@ -31,7 +31,6 @@ use crate::auth::AuthExtractor;
         ("cookieAuth" = []),
     ),
     params(
-        ("organization_id", Query, description = "Filter by organization ID"),
         ("project_id", Query, description = "Filter by project ID"),
         ("user_id", Query, description = "Filter by user ID"),
         ("operation", Query, description = "Filter by operation type"),
@@ -54,12 +53,9 @@ pub async fn list_mcp_audit_events_handler(
     let result = McpService::list_audit_events(
         &state.biz_context,
         &auth.user.id,
-        query.organization_id.as_deref(),
         query.project_id.as_deref(),
         query.user_id.as_deref(),
         query.operation.as_deref(),
-        query.start_date,
-        query.end_date,
         query.limit,
         query.offset,
     )

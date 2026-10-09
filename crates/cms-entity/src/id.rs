@@ -149,7 +149,6 @@ macro_rules! define_id {
 }
 
 define_id!(ProjectId, "Nominal identifier for a project");
-define_id!(OrgId, "Nominal identifier for an organization");
 define_id!(UserId, "Nominal identifier for a user");
 define_id!(BranchId, "Nominal identifier for a branch");
 define_id!(PageId, "Nominal identifier for a page");
@@ -188,11 +187,11 @@ mod tests {
 
     #[test]
     fn test_typed_id_serde_roundtrip() {
-        let id = OrgId::from("org_12345");
+        let id = ProjectId::from("proj_12345");
         let json = serde_json::to_string(&id).unwrap();
-        assert_eq!(json, "\"org_12345\"");
+        assert_eq!(json, "\"proj_12345\"");
 
-        let deserialized: OrgId = serde_json::from_str(&json).unwrap();
+        let deserialized: ProjectId = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, id);
     }
 

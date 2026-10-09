@@ -203,7 +203,7 @@ impl ReaderAccessService {
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
 
         // Fetch source project
-        let audience_project = ProjectQueries::get_by_id(&ctx.pool, &audience.project_id)
+        let _audience_project = ProjectQueries::get_by_id(&ctx.pool, &audience.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience project not found".to_string()))?;
 
@@ -212,12 +212,6 @@ impl ReaderAccessService {
             .await?
             .ok_or_else(|| AppError::NotFound("Target project not found".to_string()))?;
 
-        // Verify target project belongs to the same organization as the audience project
-        if audience_project.organization_id != target_project.organization_id {
-            return Err(AppError::AccessDenied(
-                "Audience and target project must belong to the same organization".to_string(),
-            ));
-        }
 
         // Verify branch belongs to the target project if specified
         if let Some(bid) = branch_id {

@@ -15,7 +15,6 @@ async fn test_15_page_comments_lifecycle_and_resolution() -> anyhow::Result<()> 
         &ctx.app,
         &cookie,
         format!("Comment E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

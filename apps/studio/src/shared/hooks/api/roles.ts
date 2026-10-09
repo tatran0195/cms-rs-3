@@ -1,16 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cmsClient } from '@/shared/services/cms-client';
 import type {
   CreateRolePayload,
   FullPermissionCatalog,
-  OrganizationRole,
   ProjectRole,
   UpdateRolePayload,
+  WorkspaceRole,
 } from '@cms/sdk';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { cmsClient } from '@/shared/services/cms-client';
 
 export const rolesQueryKeys = {
   catalog: () => ['permissions', 'catalog'] as const,
-  workspaceRoles: (orgId?: string) => ['workspace', orgId, 'roles'] as const,
+  workspaceRoles: (workspaceId: string = 'workspace') => ['workspace', workspaceId, 'roles'] as const,
   projectRoles: (projectId: string) => ['project', projectId, 'roles'] as const,
 };
 
@@ -22,52 +22,46 @@ export function usePermissionCatalog() {
   });
 }
 
-export function useWorkspaceRoles(orgId?: string) {
-  return useQuery<OrganizationRole[]>({
-    queryKey: rolesQueryKeys.workspaceRoles(orgId),
-    queryFn: () => {
-      if (!orgId) return Promise.resolve([]);
-      return cmsClient.roles.listWorkspaceRoles(orgId);
-    },
-    enabled: !!orgId,
+export function useWorkspaceRoles(workspaceId: string = 'workspace') {
+  return useQuery<WorkspaceRole[]>({
+    queryKey: rolesQueryKeys.workspaceRoles(workspaceId),
+    queryFn: () => cmsClient.roles.listWorkspaceRoles(workspaceId),
+    enabled: !!workspaceId,
   });
 }
 
-export function useCreateWorkspaceRole(orgId?: string) {
+export function useCreateWorkspaceRole(workspaceId: string = 'workspace') {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateRolePayload) => {
-      if (!orgId) throw new Error('Organization ID is required');
-      return cmsClient.roles.createWorkspaceRole(orgId, payload);
+      return cmsClient.roles.createWorkspaceRole(workspaceId, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(orgId) });
+      queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(workspaceId) });
     },
   });
 }
 
-export function useUpdateWorkspaceRole(orgId?: string) {
+export function useUpdateWorkspaceRole(workspaceId: string = 'workspace') {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) => {
-      if (!orgId) throw new Error('Organization ID is required');
-      return cmsClient.roles.updateWorkspaceRole(orgId, roleId, payload);
+      return cmsClient.roles.updateWorkspaceRole(workspaceId, roleId, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(orgId) });
+      queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(workspaceId) });
     },
   });
 }
 
-export function useDeleteWorkspaceRole(orgId?: string) {
+export function useDeleteWorkspaceRole(workspaceId: string = 'workspace') {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ roleId, targetRoleId }: { roleId: string; targetRoleId?: string }) => {
-      if (!orgId) throw new Error('Organization ID is required');
-      return cmsClient.roles.deleteWorkspaceRole(orgId, roleId, targetRoleId);
+      return cmsClient.roles.deleteWorkspaceRole(workspaceId, roleId, targetRoleId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(orgId) });
+      queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(workspaceId) });
     },
   });
 }

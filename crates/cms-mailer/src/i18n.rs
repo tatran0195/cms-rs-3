@@ -62,11 +62,11 @@ fn lookup_en(key: &str) -> Option<&'static str> {
              sign-in page."
         }
 
-        "email.memberJoined.subject" => "{memberName} joined {organizationName}",
-        "email.memberJoined.preview" => "{memberName} joined {organizationName}.",
-        "email.memberJoined.title" => "New teammate in {organizationName}",
+        "email.memberJoined.subject" => "{memberName} joined {workspaceName}",
+        "email.memberJoined.preview" => "{memberName} joined {workspaceName}.",
+        "email.memberJoined.title" => "New teammate in {workspaceName}",
         "email.memberJoined.message" => {
-            "{memberName} just joined {organizationName} and can now collaborate on its \
+            "{memberName} just joined {workspaceName} and can now collaborate on its \
              documentation."
         }
 
@@ -83,11 +83,11 @@ fn lookup_en(key: &str) -> Option<&'static str> {
             "If this was not you, sign out other sessions immediately and contact support@cms.com."
         }
 
-        "email.invite.subject" => "{inviterName} invited you to {organizationName} on cms",
-        "email.invite.preview" => "Join {organizationName} on cms.",
-        "email.invite.title" => "You're invited to {organizationName}",
+        "email.invite.subject" => "{inviterName} invited you to {workspaceName} on cms",
+        "email.invite.preview" => "Join {workspaceName} on cms.",
+        "email.invite.title" => "You're invited to {workspaceName}",
         "email.invite.message" => {
-            "{inviterName} invited you to collaborate on documentation in {organizationName} as \
+            "{inviterName} invited you to collaborate on documentation in {workspaceName} as \
              {role}."
         }
         "email.invite.action" => "Accept invitation",
@@ -175,11 +175,11 @@ fn lookup_ja(key: &str) -> Option<&'static str> {
             "この確認リンクは1回のみ有効です。有効期限が切れた場合は再リクエストしてください。"
         }
 
-        "email.memberJoined.subject" => "{memberName} が {organizationName} に参加しました",
-        "email.memberJoined.preview" => "{memberName} が {organizationName} に参加しました。",
-        "email.memberJoined.title" => "{organizationName} の新しいチームメンバー",
+        "email.memberJoined.subject" => "{memberName} が {workspaceName} に参加しました",
+        "email.memberJoined.preview" => "{memberName} が {workspaceName} に参加しました。",
+        "email.memberJoined.title" => "{workspaceName} の新しいチームメンバー",
         "email.memberJoined.message" => {
-            "{memberName} が {organizationName} \
+            "{memberName} が {workspaceName} \
              に参加し、ドキュメントの共同作業が可能になりました。"
         }
 
@@ -198,12 +198,12 @@ fn lookup_ja(key: &str) -> Option<&'static str> {
         }
 
         "email.invite.subject" => {
-            "{inviterName} があなたを CMS の {organizationName} に招待しました"
+            "{inviterName} があなたを CMS の {workspaceName} に招待しました"
         }
-        "email.invite.preview" => "CMS で {organizationName} に参加しましょう。",
-        "email.invite.title" => "{organizationName} への招待",
+        "email.invite.preview" => "CMS で {workspaceName} に参加しましょう。",
+        "email.invite.title" => "{workspaceName} への招待",
         "email.invite.message" => {
-            "{inviterName} があなたを {organizationName} の {role} として招待しました。"
+            "{inviterName} があなたを {workspaceName} の {role} として招待しました。"
         }
         "email.invite.action" => "招待を承諾",
         "email.invite.expiry" => "この招待の有効期限は {days} 日間です。",

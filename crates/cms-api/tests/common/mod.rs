@@ -16,7 +16,6 @@ use uuid::Uuid;
 
 pub struct Seed {
     pub user_id: String,
-    pub organization_id: String,
     pub session_token: String,
     pub platform_admin_id: String,
     pub platform_admin_session_token: String,
@@ -181,8 +180,6 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
     let registration_app = Router::new()
         .nest("/api", cms_api::create_api_router(state.clone()))
         .layer(Extension(state.clone()));
-    let organization_id = Uuid::new_v4().to_string();
-    let member_id = Uuid::new_v4().to_string();
     let session_id = Uuid::new_v4().to_string();
     let session_token = format!("e2e_{}", Uuid::new_v4().simple());
     let platform_admin_id = Uuid::new_v4().to_string();
@@ -232,27 +229,6 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
     .await?;
 
     sqlx::query(
-        r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at)
-           VALUES ($1, 'Product E2E', $2, $3, $3)"#,
-    )
-    .bind(&organization_id)
-    .bind(format!("e2e-{}", Uuid::new_v4().simple()))
-    .bind(now)
-    .execute(&state.biz_context.pool)
-    .await?;
-
-    sqlx::query(
-        r#"INSERT INTO "Member" (id, user_id, organization_id, role, created_at, updated_at)
-           VALUES ($1, $2, $3, 'OWNER', $4, $4)"#,
-    )
-    .bind(member_id)
-    .bind(&user_id)
-    .bind(&organization_id)
-    .bind(now)
-    .execute(&state.biz_context.pool)
-    .await?;
-
-    sqlx::query(
         r#"INSERT INTO "Session" (id, user_id, session_token, expires_at, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $5)"#,
     )
@@ -278,7 +254,6 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
 
     Ok(Seed {
         user_id,
-        organization_id,
         session_token,
         platform_admin_id,
         platform_admin_session_token,
@@ -293,10 +268,6 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
 }
 
 pub async fn cleanup(state: &AppState, seed: &Seed) -> anyhow::Result<()> {
-    sqlx::query(r#"DELETE FROM "Organization" WHERE id = $1"#)
-        .bind(&seed.organization_id)
-        .execute(&state.biz_context.pool)
-        .await?;
     sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
         .bind(&seed.user_id)
         .execute(&state.biz_context.pool)
@@ -315,7 +286,6 @@ pub async fn create_project(
     app: &Router,
     cookie: &str,
     name: String,
-    organization_id: &str,
     is_public: bool,
 ) -> anyhow::Result<Value> {
     let (status, payload) = request(
@@ -325,7 +295,6 @@ pub async fn create_project(
         Some(cookie),
         Some(json!({
             "name": name,
-            "organizationId": organization_id,
             "isPublic": is_public,
         })),
     )

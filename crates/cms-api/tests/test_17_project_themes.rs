@@ -15,7 +15,6 @@ async fn test_17_project_themes_lifecycle_and_css_variables() -> anyhow::Result<
         &ctx.app,
         &cookie,
         format!("Theme E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

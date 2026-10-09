@@ -61,7 +61,6 @@ export * from './generated/CreateGitConnectionRequest';
 export * from './generated/CreateInvitationRequest';
 export * from './generated/CreateLanguageRequest';
 export * from './generated/CreateOpenApiDocumentRequest';
-export * from './generated/CreateOrganizationRequest';
 export * from './generated/CreatePageRequest';
 export * from './generated/CreateProjectIntegrationRequest';
 export * from './generated/CreateProjectRequest';
@@ -106,7 +105,6 @@ export * from './generated/IntegrationIdempotencyRecordResponse';
 // Integration
 export * from './generated/IntegrationProvider';
 export * from './generated/IntegrationWebhookDeliveryResponse';
-export * from './generated/InvitationResponse';
 export * from './generated/JwtAccessProviderResponse';
 export * from './generated/LanguageCoverage';
 // Language
@@ -114,7 +112,6 @@ export * from './generated/LanguageResponse';
 export * from './generated/LoginResponse';
 export * from './generated/MarkAllNotificationsReadRequest';
 export * from './generated/MarkNotificationReadRequest';
-export * from './generated/MemberResponse';
 export * from './generated/MemberRole';
 export * from './generated/NotificationCountResponse';
 export * from './generated/NotificationResponse';
@@ -126,8 +123,6 @@ export * from './generated/OpenApiDocumentResponse';
 export * from './generated/OpenApiDocumentWithPaths';
 export * from './generated/OpenApiParsingResult';
 export * from './generated/OpenApiPathInfo';
-// Organization / Workspace
-export * from './generated/OrganizationResponse';
 export * from './generated/PageListItem';
 // Page
 export * from './generated/PageResponse';
@@ -217,7 +212,6 @@ export * from './generated/UpdateExportScheduleRequest';
 export * from './generated/UpdateGitConnectionRequest';
 export * from './generated/UpdateLanguageRequest';
 export * from './generated/UpdateOpenApiDocumentRequest';
-export * from './generated/UpdateOrganizationRequest';
 export * from './generated/UpdatePageRequest';
 export * from './generated/UpdateProjectIntegrationRequest';
 export * from './generated/UpdateProjectRequest';
@@ -234,3 +228,4 @@ export * from './generated/WorkspaceAnalyticsResponse';
 export * from './generated/WorkspaceMemberItem';
 export * from './generated/WorkspaceMembersResponse';
 export * from './generated/WorkspaceMemberUser';
+export * from './generated/WorkspaceSettingsResponse';

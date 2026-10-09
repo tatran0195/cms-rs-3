@@ -56,10 +56,13 @@ test.describe('versions', () => {
   test('switching versions shows each version’s own tree', async ({ editor, project }) => {
     const onlyInMain = uniqueName('Main Only');
     await editor.goto(project.id);
+    await editor.createVersion('v-alt');
+
+    await editor.switchVersion('main');
     await editor.createPage('en');
     await editor.setTitle(onlyInMain);
 
-    await editor.createVersion('v-alt');
+    await editor.switchVersion('v-alt');
     await editor.expectPageAbsent(onlyInMain, 'en');
 
     await editor.switchVersion('main');
@@ -67,7 +70,7 @@ test.describe('versions', () => {
   });
 
   test('publishing while a non-default version is selected still releases the default version',
-    async ({ page, editor, publish, site, project, db }) => {
+    async ({ page, editor, publish, releases, project, db }) => {
       const title = uniqueName('Branch Publish');
       const mainBody = `main-body-${Date.now()}`;
       const v2Body = `v2-body-${Date.now()}`;
@@ -76,6 +79,7 @@ test.describe('versions', () => {
       await editor.createPage('en');
       await editor.setTitle(title);
       await editor.setBody(`# ${title}\n\n${mainBody}\n`);
+      await editor.waitForSaved();
 
       await editor.createVersion('v2-branch');
       await editor.setBody(`# ${title}\n\n${v2Body}\n`);
@@ -87,7 +91,7 @@ test.describe('versions', () => {
 
       // Which branch did the release actually capture? Ask the release, not the UI.
       const deployment = await db.one(
-        `SELECT d.branch_id, b.name AS branch_name, b.is_default
+        `SELECT d.id, d.branch_id, b.name AS branch_name, b.is_default
            FROM "Deployment" d JOIN "Branch" b ON b.id = d.branch_id
           WHERE d.project_id = $1 AND d.status = 'ACTIVE'
           ORDER BY d.created_at DESC LIMIT 1`,
@@ -96,8 +100,8 @@ test.describe('versions', () => {
       expect(deployment.branch_name).toBe('main');
       expect(deployment.is_default).toBe('true');
 
-      await site.open(project.id, slugOf(title));
-      await site.expectContains(mainBody);
+      const livePath = `/${slugOf(title)}`;
+      expect(await releases.snapshotPageText(deployment.id, livePath)).toContain(mainBody);
       void page;
     });
 

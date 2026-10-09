@@ -3,14 +3,13 @@
 use chrono::{DateTime, Utc};
 use cms_entity::mcp::McpAuditEvent;
 use cms_error::AppError;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
 use uuid::Uuid;
 
 /// Database representation of an MCP audit event row
 #[derive(Debug, FromRow)]
 struct McpAuditEventRow {
     id: String,
-    organization_id: Option<String>,
     project_id: Option<String>,
     user_id: Option<String>,
     operation: String,
@@ -24,7 +23,6 @@ impl From<McpAuditEventRow> for McpAuditEvent {
     fn from(row: McpAuditEventRow) -> Self {
         Self {
             id: row.id,
-            organization_id: row.organization_id,
             project_id: row.project_id,
             user_id: row.user_id,
             operation: row.operation,
@@ -55,16 +53,32 @@ impl McpAuditEventQueries {
         Ok(row.map(|r| r.into()))
     }
 
-    /// Get MCP audit events by organization
-    pub async fn get_by_organization(
+    /// List MCP audit events
+    pub async fn list(
         pool: &PgPool,
-        org_id: &str,
+        project_id: Option<&str>,
+        user_id: Option<&str>,
+        operation: Option<&str>,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<McpAuditEvent>, AppError> {
         let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT * FROM \"McpAuditEvent\" WHERE organization_id = $1");
-        query_builder.push_bind(org_id);
+            QueryBuilder::new("SELECT * FROM \"McpAuditEvent\" WHERE 1=1");
+
+        if let Some(project_id) = project_id {
+            query_builder.push(" AND project_id = ");
+            query_builder.push_bind(project_id);
+        }
+
+        if let Some(user_id) = user_id {
+            query_builder.push(" AND user_id = ");
+            query_builder.push_bind(user_id);
+        }
+
+        if let Some(operation) = operation {
+            query_builder.push(" AND operation = ");
+            query_builder.push_bind(operation);
+        }
 
         query_builder.push(" ORDER BY created_at DESC");
 
@@ -87,10 +101,44 @@ impl McpAuditEventQueries {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
+    /// Count MCP audit events
+    pub async fn count(
+        pool: &PgPool,
+        project_id: Option<&str>,
+        user_id: Option<&str>,
+        operation: Option<&str>,
+    ) -> Result<i64, AppError> {
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new("SELECT COUNT(*) FROM \"McpAuditEvent\" WHERE 1=1");
+
+        if let Some(project_id) = project_id {
+            query_builder.push(" AND project_id = ");
+            query_builder.push_bind(project_id);
+        }
+
+        if let Some(user_id) = user_id {
+            query_builder.push(" AND user_id = ");
+            query_builder.push_bind(user_id);
+        }
+
+        if let Some(operation) = operation {
+            query_builder.push(" AND operation = ");
+            query_builder.push_bind(operation);
+        }
+
+        let count: i64 = query_builder
+            .build()
+            .fetch_one(pool)
+            .await
+            .map_err(|e| AppError::Database(e.into()))?
+            .get::<i64, _>(0);
+
+        Ok(count)
+    }
+
     /// Create a new MCP audit event
     pub async fn create(
         pool: &PgPool,
-        organization_id: Option<&str>,
         project_id: Option<&str>,
         user_id: Option<&str>,
         operation: &str,
@@ -103,13 +151,12 @@ impl McpAuditEventQueries {
 
         let row = sqlx::query_as::<_, McpAuditEventRow>(
             r#"
-            INSERT INTO "McpAuditEvent" (id, organization_id, project_id, user_id, operation, request_id, response_status, error_message, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO "McpAuditEvent" (id, project_id, user_id, operation, request_id, response_status, error_message, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
             "#
         )
         .bind(&id)
-        .bind(organization_id)
         .bind(project_id)
         .bind(user_id)
         .bind(operation)
@@ -122,18 +169,6 @@ impl McpAuditEventQueries {
         .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(row.into())
-    }
-
-    /// Count MCP audit events by organization
-    pub async fn count_by_organization(pool: &PgPool, org_id: &str) -> Result<i64, AppError> {
-        let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM \"McpAuditEvent\" WHERE organization_id = $1")
-                .bind(org_id)
-                .fetch_one(pool)
-                .await
-                .map_err(|e| AppError::Database(e.into()))?;
-
-        Ok(count)
     }
 
     /// Delete an MCP audit event

@@ -4,4 +4,4 @@ import type { WorkspaceMemberUser } from "./WorkspaceMemberUser";
 /**
  * Workspace member item in /api/app/members
  */
-export type WorkspaceMemberItem = { id: string, organizationId: string, userId: string, role: string, createdAt: string, user: WorkspaceMemberUser, };
+export type WorkspaceMemberItem = { id: string, userId: string, role: string, createdAt: string, user: WorkspaceMemberUser, };

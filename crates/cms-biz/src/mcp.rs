@@ -57,7 +57,6 @@ impl McpService {
     /// Internal helper to record an audit event asynchronously without failing the operation.
     async fn record_audit_event(
         ctx: &BizContext,
-        org_id: Option<&str>,
         project_id: Option<&str>,
         user_id: Option<&str>,
         operation: &str,
@@ -66,7 +65,6 @@ impl McpService {
     ) {
         let _ = McpAuditEventQueries::create(
             &ctx.pool,
-            org_id,
             project_id,
             user_id,
             operation,
@@ -81,7 +79,6 @@ impl McpService {
     pub async fn search(
         ctx: &BizContext,
         user_id: Option<&str>,
-        org_id: Option<&str>,
         query: &str,
         project_id: &str,
         limit: Option<i64>,
@@ -124,7 +121,6 @@ impl McpService {
 
         Self::record_audit_event(
             ctx,
-            org_id,
             Some(project_id),
             user_id,
             operation_types::SEARCH,
@@ -140,7 +136,6 @@ impl McpService {
     pub async fn get_page(
         ctx: &BizContext,
         user_id: Option<&str>,
-        org_id: Option<&str>,
         project_id: &str,
         path: &str,
         branch_id: Option<&str>,
@@ -178,7 +173,6 @@ impl McpService {
 
         Self::record_audit_event(
             ctx,
-            org_id,
             Some(project_id),
             user_id,
             operation_types::GET_PAGE,
@@ -194,7 +188,6 @@ impl McpService {
     pub async fn list_pages(
         ctx: &BizContext,
         user_id: Option<&str>,
-        org_id: Option<&str>,
         project_id: &str,
         branch_id: Option<&str>,
         limit: Option<i64>,
@@ -237,7 +230,6 @@ impl McpService {
 
         Self::record_audit_event(
             ctx,
-            org_id,
             Some(project_id),
             user_id,
             operation_types::LIST_PAGES,
@@ -253,7 +245,6 @@ impl McpService {
     pub async fn get_project(
         ctx: &BizContext,
         user_id: Option<&str>,
-        org_id: Option<&str>,
         project_id: &str,
     ) -> Result<String, AppError> {
         let project = Self::check_project_access(ctx, project_id, user_id).await?;
@@ -268,7 +259,6 @@ impl McpService {
 
         Self::record_audit_event(
             ctx,
-            org_id,
             Some(project_id),
             user_id,
             operation_types::GET_PROJECT,
@@ -327,7 +317,6 @@ impl McpService {
 
         Self::record_audit_event(
             ctx,
-            None,
             None,
             user_id,
             operation_types::RESOURCE_LIST,
@@ -389,7 +378,6 @@ impl McpService {
 
         Self::record_audit_event(
             ctx,
-            None,
             Some(project_id),
             user_id,
             operation_types::RESOURCE_READ,
@@ -406,26 +394,31 @@ impl McpService {
     pub async fn list_audit_events(
         ctx: &BizContext,
         _user_id: &str,
-        organization_id: Option<&str>,
-        _project_id: Option<&str>,
-        _user_id_filter: Option<&str>,
-        _operation: Option<&str>,
-        _start_date: Option<chrono::DateTime<chrono::Utc>>,
-        _end_date: Option<chrono::DateTime<chrono::Utc>>,
+        project_id: Option<&str>,
+        user_id_filter: Option<&str>,
+        operation: Option<&str>,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<PaginatedResponse<McpAuditEventResponse>, AppError> {
-        let events = McpAuditEventQueries::get_by_organization(
+        let events = McpAuditEventQueries::list(
             &ctx.pool,
-            organization_id.unwrap_or(""),
+            project_id,
+            user_id_filter,
+            operation,
             limit,
             offset,
         )
         .await?;
-        let total = events.len() as u64;
+        let total = McpAuditEventQueries::count(
+            &ctx.pool,
+            project_id,
+            user_id_filter,
+            operation,
+        )
+        .await?;
         Ok(PaginatedResponse::new(
             events.into_iter().map(|e| e.into()).collect(),
-            total,
+            total as u64,
             1,
             20,
         ))

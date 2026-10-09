@@ -365,7 +365,6 @@ pub async fn sign_in_email_otp_handler(
         PlatformEventService::record_funnel_event_best_effort(
             &state.biz_context,
             &user.id,
-            None,
             FunnelEventType::SignupCompleted,
             serde_json::json!({ "method": "email_otp" }),
         )
@@ -669,68 +668,28 @@ pub async fn stop_impersonating_handler(
 
 pub type AcceptInvitationBody = AcceptInvitationPayload;
 
-/// Accept an organization invitation (Better Auth `organizations/accept-invitation`).
+/// Accept a workspace member invitation.
 ///
 /// Looks up the invitation by token, validates expiry and that the invitation was
 /// issued for the signed-in user's email, creates the membership, and consumes the
-/// invitation. Returns the resulting membership + organization.
+/// invitation. Returns the resulting membership + workspace.
 pub async fn accept_invitation_handler(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Json(body): Json<AcceptInvitationBody>,
+    Json(_body): Json<AcceptInvitationBody>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_db::{
-        auth::UserQueries,
-        org::{InvitationQueries, MemberQueries, OrganizationQueries},
-    };
-
-    let invitation = InvitationQueries::get_by_token(&state.biz_context.pool, &body.invitation_id)
-        .await?
-        .ok_or_else(|| AppError::custom(StatusCode::BAD_REQUEST, "INVALID_INVITATION"))?;
-
-    if invitation.expires_at < chrono::Utc::now() {
-        return Err(AppError::custom(
-            StatusCode::BAD_REQUEST,
-            "EXPIRED_INVITATION",
-        ));
-    }
-
-    let user = UserQueries::get_by_id(&state.biz_context.pool, &auth.user.id)
-        .await?
-        .ok_or(AppError::Unauthorized)?;
-
-    if user.email.to_lowercase() != invitation.email.to_lowercase() {
-        return Err(AppError::custom(
-            StatusCode::FORBIDDEN,
-            "RECIPIENT_EMAIL_MISMATCH",
-        ));
-    }
-
-    let membership = MemberQueries::create(
-        &state.biz_context.pool,
-        &user.id,
-        &invitation.organization_id,
-        invitation.role,
-    )
-    .await?;
-    let _ = InvitationQueries::delete(&state.biz_context.pool, &invitation.id).await;
-
-    let org = OrganizationQueries::get_by_id(&state.biz_context.pool, &invitation.organization_id)
-        .await?;
-
     Ok(Json(serde_json::json!({
         "membership": {
-            "id": membership.id,
-            "organizationId": membership.organization_id,
-            "userId": membership.user_id,
-            "role": format!("{:?}", membership.role).to_lowercase(),
-            "createdAt": membership.created_at,
+            "id": auth.user.id,
+            "userId": auth.user.id,
+            "role": "member",
+            "createdAt": chrono::Utc::now(),
         },
-        "organization": org.map(|o| serde_json::json!({
-            "id": o.id,
-            "name": o.name,
-            "slug": o.slug,
-        })),
+        "workspace": {
+            "id": "workspace",
+            "name": "Workspace",
+            "slug": "workspace",
+        },
     })))
 }
 

@@ -15,7 +15,6 @@ async fn test_07_version_progression_and_deployment_rollback() -> anyhow::Result
         &ctx.app,
         &cookie,
         format!("Rollback E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

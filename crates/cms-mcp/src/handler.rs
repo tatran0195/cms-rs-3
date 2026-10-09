@@ -55,7 +55,6 @@ impl CmsMcpHandler {
         let text = McpService::search(
             &self.ctx,
             self.security.user_id.as_deref(),
-            self.security.org_id.as_deref(),
             &args.query,
             &args.project_id,
             args.limit,
@@ -77,7 +76,6 @@ impl CmsMcpHandler {
         let text = McpService::get_page(
             &self.ctx,
             self.security.user_id.as_deref(),
-            self.security.org_id.as_deref(),
             &args.project_id,
             &args.path,
             args.branch_id.as_deref(),
@@ -100,7 +98,6 @@ impl CmsMcpHandler {
         let text = McpService::list_pages(
             &self.ctx,
             self.security.user_id.as_deref(),
-            self.security.org_id.as_deref(),
             &args.project_id,
             args.branch_id.as_deref(),
             args.limit,
@@ -122,7 +119,6 @@ impl CmsMcpHandler {
         let text = McpService::get_project(
             &self.ctx,
             self.security.user_id.as_deref(),
-            self.security.org_id.as_deref(),
             &args.project_id,
         )
         .await

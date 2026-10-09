@@ -39,7 +39,6 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
         &ctx.app,
         &owner_cookie,
         private_name,
-        &ctx.seed.organization_id,
         false,
     )
     .await?;
@@ -51,13 +50,12 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
         &ctx.app,
         &owner_cookie,
         public_name,
-        &ctx.seed.organization_id,
         true,
     )
     .await?;
     let public_id = required_string(&public_proj, "id", "public project")?;
 
-    // 3. Register a separate second user who is not a member of the organization
+    // 3. Register a separate second user who is not a member of the project
     let other_email = format!("other-{}@company.internal", Uuid::new_v4().simple());
     let (_, other_reg) = request(
         &ctx.app,

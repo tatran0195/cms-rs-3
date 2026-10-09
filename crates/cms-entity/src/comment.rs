@@ -133,7 +133,6 @@ impl From<CommentResponse> for Comment {
 pub struct CommentWithAuth {
     pub comment: Comment,
     pub project_id: Id,
-    pub organization_id: Id,
     pub member_role: Option<crate::common::MemberRole>,
     pub author_name: Option<String>,
     pub author_email: Option<String>,
@@ -141,7 +140,7 @@ pub struct CommentWithAuth {
 }
 
 impl CommentWithAuth {
-    /// Returns true if the user has at least the required role in the owning organization.
+    /// Returns true if the user has at least the required role in the owning project or workspace.
     pub fn has_min_role(&self, min_role: crate::common::MemberRole) -> bool {
         self.member_role.is_some_and(|r| r >= min_role)
     }
@@ -236,7 +235,6 @@ mod tests {
                 updated_at: now,
             },
             project_id: "proj-1".to_string(),
-            organization_id: "org-1".to_string(),
             member_role: role,
             author_name: Some("Jane Doe".to_string()),
             author_email: Some("jane@company.internal".to_string()),
@@ -274,7 +272,6 @@ mod tests {
                 updated_at: now,
             },
             project_id: "proj-100".to_string(),
-            organization_id: "org-200".to_string(),
             member_role: Some(MemberRole::Member),
             author_name: Some("Alice".to_string()),
             author_email: Some("alice@company.internal".to_string()),

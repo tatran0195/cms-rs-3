@@ -122,10 +122,10 @@ export class AuthResource {
   }
 
   /**
-   * Accepts organization invitation token
+   * Accepts invitation token
    */
   async acceptInvitation<T = { success?: boolean }>(payload: AcceptInvitationPayload): Promise<T> {
-    return this.http.post<T>('/api/auth/organizations/accept-invitation', payload);
+    return this.http.post<T>('/api/auth/invitations/accept', payload);
   }
 
   /**

@@ -58,7 +58,6 @@ struct CommentAuthRow {
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     project_id: String,
-    organization_id: String,
     member_role: Option<MemberRole>,
     author_name: Option<String>,
     author_email: Option<String>,
@@ -82,7 +81,6 @@ impl From<CommentAuthRow> for CommentWithAuth {
                 updated_at: row.updated_at,
             },
             project_id: row.project_id,
-            organization_id: row.organization_id,
             member_role: row.member_role,
             author_name: row.author_name,
             author_email: row.author_email,
@@ -107,15 +105,14 @@ impl CommentQueries {
                 c.id, c.page_id, c.user_id, c.reader_id, c.parent_id, c.content,
                 c.resolved, c.resolved_at, c.resolved_by, c.created_at, c.updated_at,
                 p.project_id,
-                pr.organization_id,
-                m.role as member_role,
+                pm.role as member_role,
                 u.name as author_name,
                 u.email as author_email,
                 u.image as author_image
             FROM "Comment" c
             JOIN "Page" p ON c.page_id = p.id
             JOIN "Project" pr ON p.project_id = pr.id
-            LEFT JOIN "Member" m ON pr.organization_id = m.organization_id AND m.user_id = $2
+            LEFT JOIN "ProjectMember" pm ON pr.id = pm.project_id AND pm.user_id = $2
             LEFT JOIN "User" u ON c.user_id = u.id
             WHERE c.id = $1
             "#,

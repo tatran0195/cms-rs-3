@@ -122,7 +122,7 @@ describe('Paraglide message catalogs', () => {
   });
 
   it('keeps canonical and Vite generation on per-message modules used by direct imports', () => {
-    const viteConfig = readFileSync(resolve(import.meta.dirname, '../../../apps/app/vite.config.ts'), 'utf8');
+    const viteConfig = readFileSync(resolve(import.meta.dirname, '../../../apps/studio/vite.config.ts'), 'utf8');
     expect(packageJson.scripts.setup).toContain('--output-structure message-modules');
     expect(viteConfig).toContain("outputStructure: 'message-modules'");
   });

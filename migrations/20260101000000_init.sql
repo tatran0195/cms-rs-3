@@ -63,57 +63,18 @@ CREATE TABLE IF NOT EXISTS "ApiKey" (
 );
 
 -- ============================================
--- Tenancy (Organizations & Members)
--- ============================================
-
-CREATE TABLE IF NOT EXISTS "Organization" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    description TEXT,
-    logo TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TYPE "MemberRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'GUEST');
-
-CREATE TABLE IF NOT EXISTS "Member" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
-    organization_id TEXT NOT NULL REFERENCES "Organization"(id) ON DELETE CASCADE,
-    role "MemberRole" NOT NULL DEFAULT 'MEMBER',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, organization_id)
-);
-
-CREATE TABLE IF NOT EXISTS "Invitation" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT NOT NULL REFERENCES "Organization"(id) ON DELETE CASCADE,
-    email TEXT NOT NULL,
-    role "MemberRole" NOT NULL DEFAULT 'MEMBER',
-    token TEXT NOT NULL UNIQUE,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ============================================
 -- Core Product (Projects)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS "Project" (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT NOT NULL REFERENCES "Organization"(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    slug TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
     description TEXT,
     icon TEXT,
     is_public BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(organization_id, slug)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS "ProjectAddon" (
@@ -623,7 +584,6 @@ CREATE TABLE IF NOT EXISTS "Notification" (
 
 CREATE TABLE IF NOT EXISTS "PlatformEvent" (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT REFERENCES "Organization"(id) ON DELETE CASCADE,
     user_id TEXT REFERENCES "User"(id) ON DELETE CASCADE,
     event_type TEXT NOT NULL,
     metadata JSONB NOT NULL DEFAULT '{}',
@@ -631,62 +591,11 @@ CREATE TABLE IF NOT EXISTS "PlatformEvent" (
 );
 
 -- ============================================
--- Usage & Billing
+-- Analytics
 -- ============================================
-
-CREATE TABLE IF NOT EXISTS "UsagePlan" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    description TEXT,
-    price INTEGER NOT NULL DEFAULT 0,
-    billing_period TEXT NOT NULL, -- 'MONTHLY', 'YEARLY'
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "UsageMeter" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code TEXT NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    description TEXT,
-    unit TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "UsagePlanMeter" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    usage_plan_id TEXT NOT NULL REFERENCES "UsagePlan"(id) ON DELETE CASCADE,
-    usage_meter_id TEXT NOT NULL REFERENCES "UsageMeter"(id) ON DELETE CASCADE,
-    "limit" INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "UsageEntitlement" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    usage_meter_id TEXT NOT NULL REFERENCES "UsageMeter"(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    is_enabled BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "OrganizationUsagePlan" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT NOT NULL REFERENCES "Organization"(id) ON DELETE CASCADE,
-    usage_plan_id TEXT NOT NULL REFERENCES "UsagePlan"(id) ON DELETE CASCADE,
-    starts_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    ends_at TIMESTAMPTZ,
-    status TEXT NOT NULL DEFAULT 'ACTIVE',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 
 CREATE TABLE IF NOT EXISTS "AnalyticsEvent" (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT REFERENCES "Organization"(id) ON DELETE CASCADE,
     project_id TEXT REFERENCES "Project"(id) ON DELETE CASCADE,
     user_id TEXT REFERENCES "User"(id) ON DELETE CASCADE,
     event_type TEXT NOT NULL,
@@ -696,23 +605,12 @@ CREATE TABLE IF NOT EXISTS "AnalyticsEvent" (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Checkpoint table for idempotent usage ingestion
-CREATE TABLE IF NOT EXISTS "UsageCheckpoint" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    event_type TEXT NOT NULL,
-    entity_id TEXT NOT NULL,
-    period_start TIMESTAMPTZ NOT NULL,
-    processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(event_type, entity_id, period_start)
-);
-
 -- ============================================
 -- MCP Audit Events
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS "McpAuditEvent" (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT REFERENCES "Organization"(id) ON DELETE CASCADE,
     project_id TEXT REFERENCES "Project"(id) ON DELETE CASCADE,
     user_id TEXT REFERENCES "User"(id) ON DELETE CASCADE,
     operation TEXT NOT NULL,
@@ -754,17 +652,8 @@ CREATE INDEX IF NOT EXISTS idx_session_expires_at ON "Session"(expires_at);
 CREATE INDEX IF NOT EXISTS idx_account_user_id ON "Account"(user_id);
 CREATE INDEX IF NOT EXISTS idx_account_provider ON "Account"(provider, provider_account_id);
 
--- Organization indexes
-CREATE INDEX IF NOT EXISTS idx_organization_slug ON "Organization"(slug);
-
--- Member indexes
-CREATE INDEX IF NOT EXISTS idx_member_user_id ON "Member"(user_id);
-CREATE INDEX IF NOT EXISTS idx_member_org_id ON "Member"(organization_id);
-CREATE INDEX IF NOT EXISTS idx_member_user_org ON "Member"(user_id, organization_id);
-
 -- Project indexes
-CREATE INDEX IF NOT EXISTS idx_project_org_id ON "Project"(organization_id);
-CREATE INDEX IF NOT EXISTS idx_project_org_slug ON "Project"(organization_id, slug);
+CREATE INDEX IF NOT EXISTS idx_project_slug ON "Project"(slug);
 
 -- Branch indexes
 CREATE INDEX IF NOT EXISTS idx_branch_project_id ON "Branch"(project_id);
@@ -812,14 +701,9 @@ CREATE INDEX IF NOT EXISTS idx_notification_user_id ON "Notification"(user_id);
 CREATE INDEX IF NOT EXISTS idx_notification_status ON "Notification"(status);
 
 -- Analytics indexes
-CREATE INDEX IF NOT EXISTS idx_analytics_org_id ON "AnalyticsEvent"(organization_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_project_id ON "AnalyticsEvent"(project_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_id ON "AnalyticsEvent"(user_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON "AnalyticsEvent"(created_at);
 
--- Usage checkpoint indexes
-CREATE INDEX IF NOT EXISTS idx_usage_checkpoint ON "UsageCheckpoint"(event_type, entity_id, period_start);
-
 -- MCP audit indexes
-CREATE INDEX IF NOT EXISTS idx_mcp_audit_org_id ON "McpAuditEvent"(organization_id);
 CREATE INDEX IF NOT EXISTS idx_mcp_audit_created_at ON "McpAuditEvent"(created_at);

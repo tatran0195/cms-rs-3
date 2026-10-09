@@ -15,7 +15,6 @@ async fn test_08_custom_domain_lifecycle_and_tls_verification() -> anyhow::Resul
         &ctx.app,
         &cookie,
         format!("Domain E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

@@ -89,7 +89,15 @@ export const useDeletePage = (projectId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (pageId: string) => cmsClient.pages.delete(projectId, pageId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) }),
+    onSuccess: async (_data, pageId) => {
+      qc.removeQueries({ queryKey: queryKeys.pages.detail(projectId, pageId), exact: true });
+      await qc.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return key[0] === 'pages' && key[1] === projectId && key.length === 4;
+        },
+      });
+    },
   });
 };
 

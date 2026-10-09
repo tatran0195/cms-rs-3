@@ -44,7 +44,7 @@ pub async fn get_project_git_status_handler(
     };
 
     // Webhook secret retrieval or generation & persistence
-    let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+    let mut config = proj.config.unwrap_or_else(|| serde_json::json!({}));
     let existing_secret = config
         .get("git")
         .and_then(|g| g.get("webhookSecret"))
@@ -256,7 +256,7 @@ pub async fn action_project_git_handler(
             .await?
         };
 
-        let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+        let mut config = proj.config.unwrap_or_else(|| serde_json::json!({}));
         let existing_secret = config
             .get("git")
             .and_then(|g| g.get("webhookSecret"))
@@ -324,7 +324,7 @@ pub async fn action_project_git_handler(
     // Webhook secret regeneration / rotation:
     // Generate fresh CSPRNG secret, update Project.config (invalidating old secret), return new secret
     let secret = cms_auth::generate_webhook_secret();
-    let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+    let mut config = proj.config.unwrap_or_else(|| serde_json::json!({}));
     let mut git_obj = config
         .get("git")
         .cloned()
@@ -379,7 +379,7 @@ pub async fn delete_project_git_connection_handler(
             .await?;
     if let Some(conn) = conn {
         GitService::delete_connection(&state.biz_context, &auth.user.id, &conn.id).await?;
-        if let Some(mut config) = proj.project.config {
+        if let Some(mut config) = proj.config {
             if let Some(cfg_map) = config.as_object_mut() {
                 if cfg_map.remove("git").is_some() {
                     cms_db::project::ProjectQueries::update(

@@ -1,7 +1,7 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn } from 'node:child_process';
 
-const execFileAsync = promisify(execFile);
+
+
 
 /**
  * Direct PostgreSQL access, used for *independent verification* only.
@@ -28,26 +28,48 @@ export class Database {
   /** Run a read-only query and return rows as plain objects. */
   async query<T = Record<string, string>>(sql: string, params: unknown[] = []): Promise<T[]> {
     const rendered = interpolate(sql, params);
-    const { stdout } = await execFileAsync(
-      'psql',
-      ['-h', '127.0.0.1', '-p', String(new URL(this.url).port || 5432), '-U', userOf(this.url), '-d', dbOf(this.url), '-X', '-A', '-F', '', '-v', 'ON_ERROR_STOP=1', '-c', rendered],
-      { maxBuffer: 8 * 1024 * 1024, env: { ...process.env, PGCONNECT_TIMEOUT: '10' } },
-    );
-    // `-t` is deliberately absent: psql's header row is what names the columns.
-    // psql appends a "(N rows)" footer to stdout; it is not data.
+    const pass = passwordOf(this.url);
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      PGCLIENTENCODING: 'UTF8',
+      PGCONNECT_TIMEOUT: '10',
+      ...(pass ? { PGPASSWORD: pass } : {}),
+    };
+
+    const stdout = await new Promise<string>((resolve, reject) => {
+      const child = spawn(
+        'psql',
+        ['-h', '127.0.0.1', '-p', String(new URL(this.url).port || 5432), '-U', userOf(this.url), '-d', dbOf(this.url), '-X', '-A', '-F', '\t', '-v', 'ON_ERROR_STOP=1'],
+        { env, stdio: ['pipe', 'pipe', 'pipe'] },
+      );
+      let out = '';
+      let err = '';
+      child.stdout.on('data', (chunk) => (out += chunk.toString('utf8')));
+      child.stderr.on('data', (chunk) => (err += chunk.toString('utf8')));
+      child.on('error', reject);
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve(out);
+        } else {
+          reject(new Error(`psql failed (code ${code}): ${err}`));
+        }
+      });
+      child.stdin.write(rendered + '\n', 'utf8');
+      child.stdin.end();
+    });
+
     const lines = stdout
+      .replace(/\r/g, '')
       .split('\n')
       .filter((line) => line.trim().length > 0 && !/^\(\d+ rows?\)$/.test(line.trim()));
     if (lines.length === 0) {
       return [];
     }
-    const headers = lines[0]!.split('');
+    const headers = lines[0]!.split('\t').map((h) => h.trim());
     return lines.slice(1).map((line) => {
-      const cells = line.split('');
+      const cells = line.split('\t');
       const row: Record<string, string> = {};
       headers.forEach((header, index) => {
-        // psql renders booleans as t/f; present them as true/false so tests can
-        // compare against what the application actually stores.
         const cell = cells[index] ?? '';
         row[header] = cell === 't' ? 'true' : cell === 'f' ? 'false' : cell;
       });
@@ -76,6 +98,15 @@ function userOf(url: string): string {
     return decodeURIComponent(new URL(url).username || 'postgres');
   } catch {
     return 'postgres';
+  }
+}
+
+function passwordOf(url: string): string | undefined {
+  try {
+    const password = new URL(url).password;
+    return password ? decodeURIComponent(password) : undefined;
+  } catch {
+    return undefined;
   }
 }
 

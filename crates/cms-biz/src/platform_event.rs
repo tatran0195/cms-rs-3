@@ -47,13 +47,11 @@ impl PlatformEventService {
     /// Create a platform event
     pub async fn create_event(
         ctx: &BizContext,
-        org_id: Option<&str>,
         user_id: Option<&str>,
         request: CreatePlatformEventRequest,
     ) -> Result<PlatformEventResponse, AppError> {
         let event = PlatformEventQueries::create(
             &ctx.pool,
-            org_id,
             user_id,
             &request.event_type,
             request.metadata,
@@ -69,13 +67,11 @@ impl PlatformEventService {
     pub async fn record_funnel_event_best_effort(
         ctx: &BizContext,
         user_id: &str,
-        org_id: Option<&str>,
         event_type: FunnelEventType,
         metadata: serde_json::Value,
     ) {
         if let Err(error) = PlatformEventQueries::create(
             &ctx.pool,
-            org_id,
             Some(user_id),
             event_type.as_str(),
             metadata,
@@ -95,16 +91,15 @@ impl PlatformEventService {
     pub async fn list_events(
         ctx: &BizContext,
         _user_id: &str,
-        org_id: &str,
         event_type: Option<&str>,
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<PlatformEventResponse>, AppError> {
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
-        let events = PlatformEventQueries::get_by_organization(
+        let events = PlatformEventQueries::list(
             &ctx.pool,
-            Some(org_id),
+            None,
             event_type,
             Some(limit),
             Some(offset),
@@ -112,7 +107,7 @@ impl PlatformEventService {
         .await?;
 
         let total =
-            PlatformEventQueries::count_by_organization(&ctx.pool, Some(org_id), event_type)
+            PlatformEventQueries::count(&ctx.pool, None, event_type)
                 .await?;
 
         Ok(PaginatedResponse::new(

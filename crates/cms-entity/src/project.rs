@@ -13,7 +13,6 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct Project {
     pub id: Id,
-    pub organization_id: Id,
     pub name: String,
     pub slug: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -30,8 +29,6 @@ pub struct Project {
 /// Project create request
 #[derive(Debug, Clone, Deserialize, Serialize, Validate, utoipa::ToSchema, ts_rs::TS)]
 pub struct CreateProjectRequest {
-    #[serde(alias = "organizationId", default)]
-    pub organization_id: Option<Id>,
     #[validate(length(
         min = 1,
         max = 100,
@@ -96,8 +93,6 @@ pub struct ProjectCountResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectResponse {
     pub id: Id,
-    #[serde(alias = "organization_id")]
-    pub organization_id: Id,
     pub name: String,
     pub slug: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -120,7 +115,6 @@ impl From<Project> for ProjectResponse {
     fn from(project: Project) -> Self {
         Self {
             id: project.id,
-            organization_id: project.organization_id,
             name: project.name,
             slug: project.slug,
             description: project.description,
@@ -136,14 +130,6 @@ impl From<Project> for ProjectResponse {
             }),
         }
     }
-}
-
-/// Project with organization information
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
-pub struct ProjectWithOrgResponse {
-    #[serde(flatten)]
-    pub project: ProjectResponse,
-    pub organization: crate::org::OrganizationResponse,
 }
 
 /// Project settings (extended configuration)
@@ -221,8 +207,6 @@ impl From<ProjectAddon> for ProjectAddonResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct ListProjectsQuery {
     #[serde(default)]
-    pub organization_id: Option<Id>,
-    #[serde(default)]
     pub search: Option<String>,
     #[serde(default)]
     pub is_public: Option<bool>,
@@ -270,7 +254,6 @@ mod tests {
     fn test_project_response_conversion() {
         let project = Project {
             id: "proj-1".to_string(),
-            organization_id: "org-1".to_string(),
             name: "Test Project".to_string(),
             slug: "test-project".to_string(),
             description: Some("A test project".to_string()),

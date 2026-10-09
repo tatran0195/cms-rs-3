@@ -15,7 +15,6 @@
 //! - ai:* - AI provider errors
 //! - import:* - Import errors
 //! - provider:* - Third-party provider errors
-//! - entitlement:* - Entitlement and feature flag errors
 //! - addon:* - Addon errors
 //! - integration:* - Integration errors
 
@@ -155,10 +154,6 @@ pub enum AppError {
     #[error("Git operation failed: {0}")]
     GitOperationFailed(String),
 
-    // === Entitlement Errors ===
-    #[error("Entitlement disabled: {0}")]
-    EntitlementDisabled(String),
-
     // === MCP Errors ===
     #[error("MCP disabled")]
     McpDisabled,
@@ -281,9 +276,6 @@ impl AppError {
             AppError::ImportFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::GitOperationFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
 
-            // Entitlement Errors
-            AppError::EntitlementDisabled(_) => StatusCode::FORBIDDEN,
-
             // MCP Errors
             AppError::McpDisabled => StatusCode::SERVICE_UNAVAILABLE,
             AppError::McpError(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -355,8 +347,6 @@ impl AppError {
             AppError::ImportFailed(_) => "import:failed".to_string(),
             AppError::GitOperationFailed(_) => "import:git_operation_failed".to_string(),
 
-            AppError::EntitlementDisabled(_) => "entitlement:disabled".to_string(),
-
             AppError::McpDisabled => "mcp:disabled".to_string(),
             AppError::McpError(_) => "mcp:error".to_string(),
 
@@ -398,7 +388,6 @@ impl AppError {
             AppError::InvalidImportDocument(details) => Some(json!({ "details": details })),
             AppError::ImportFailed(details) => Some(json!({ "details": details })),
             AppError::GitOperationFailed(details) => Some(json!({ "details": details })),
-            AppError::EntitlementDisabled(details) => Some(json!({ "details": details })),
             AppError::McpError(details) => Some(json!({ "details": details })),
             AppError::IntegrationError(details) => Some(json!({ "details": details })),
             AppError::AddonError(details) => Some(json!({ "details": details })),
@@ -519,10 +508,6 @@ mod tests {
     #[test]
     fn test_error_codes() {
         assert_eq!(AppError::InvalidApiKey.error_code(), "auth:invalid_api_key");
-        assert_eq!(
-            AppError::EntitlementDisabled("test".to_string()).error_code(),
-            "entitlement:disabled"
-        );
         assert_eq!(
             AppError::SearchUnavailable("test".to_string()).error_code(),
             "search:unavailable"

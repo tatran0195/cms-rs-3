@@ -59,7 +59,7 @@ import {
   useUploadAsset,
 } from '@/hooks/api';
 import { typographyVars } from '@/shared/lib/typography';
-import { editorStore } from './stores/editor-store';
+import { editorStore, type EditorSyncStatus } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';
 import { draftPreviewHref } from './utils/draft-preview';
 
@@ -216,7 +216,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const unsupportedTags = useMemo(() => detectUnsupportedMdxTags(content), [content]);
   const effectiveMode = editorMode;
   // Save status is isolated inside atomic editorStore to prevent parent re-renders
-  const setStatus = useCallback((s: 'idle' | 'saving' | 'saved') => editorStore.setSyncStatus(s), []);
+  const setStatus = useCallback((s: EditorSyncStatus) => editorStore.setSyncStatus(s), []);
   const [addLangOpen, setAddLangOpen] = useState(false);
   // The page whose settings dialog is open — independent of the active editor
   // page, so opening a page's settings from the tree does NOT switch what you're
@@ -352,7 +352,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                 : current,
             );
           },
-          onError: () => setStatus('idle'),
+          onError: () => setStatus('error'),
         },
       );
     },
@@ -689,7 +689,12 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                     const langPages = filteredPagesByLanguage.get(lang.id) ?? [];
                     const langCollapsed = collapsedLangs.has(lang.id);
                     return (
-                      <div key={lang.id} className="mb-2">
+                      <div
+                        key={lang.id}
+                        className="mb-2"
+                        data-testid="language-section"
+                        data-language-code={lang.code}
+                      >
                         {/* Language section header — click the label to collapse/expand */}
                         <div className="group flex items-center justify-between rounded-md px-1 py-1.5 hover:bg-muted/40">
                           <button
@@ -940,10 +945,10 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                     confirmLabel: t('editor.deletePage'),
                     destructive: true,
                   });
-                  if (ok) {
-                    deletePage.mutate(page.id, {
-                      onSuccess: () => setSelectedId(null),
-                    });
+                  if (ok && page) {
+                    const toDelete = page.id;
+                    setSelectedId(null);
+                    await deletePage.mutateAsync(toDelete);
                   }
                 }}
               >

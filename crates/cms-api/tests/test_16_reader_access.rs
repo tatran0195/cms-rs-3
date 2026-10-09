@@ -15,7 +15,6 @@ async fn test_16_reader_access_audiences_and_grants() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("ReaderAccess E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         false,
     )
     .await?;

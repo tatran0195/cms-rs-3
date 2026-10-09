@@ -103,9 +103,8 @@ pub async fn get_project_settings_usage_handler(
 ) -> Result<Json<ApiResponse<ProjectUsageTelemetryResponse>>, AppError> {
     use cms_biz::project::ProjectService;
 
-    let project =
+    let _project =
         ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
-    let org_id = project.project.organization_id.clone();
 
     let pages = cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
         .await
@@ -127,13 +126,12 @@ pub async fn get_project_settings_usage_handler(
     )
     .await
     .unwrap_or(0);
-    let members = cms_db::org::MemberQueries::count_by_organization(
+    let members = cms_db::authz::ProjectMemberQueries::list_by_project(
         &state.biz_context.pool,
-        &org_id,
-        None,
-        None,
+        &project_id,
     )
     .await
+    .map(|m| m.len() as i64)
     .unwrap_or(0);
     let domains =
         cms_db::domain::DomainQueries::get_by_deployment(&state.biz_context.pool, &project_id)

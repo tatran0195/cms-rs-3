@@ -6,7 +6,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 #[tokio::test]
-#[ignore = "requires a disposable PostgreSQL database; run `cargo xtask e2e`"]
+#[ignore = "requires a disposable PostgreSQL database"]
 async fn test_10_project_settings_and_site_features() -> anyhow::Result<()> {
     let ctx = TestContext::setup().await?;
     let cookie = ctx.user_cookie();
@@ -15,7 +15,6 @@ async fn test_10_project_settings_and_site_features() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Settings E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

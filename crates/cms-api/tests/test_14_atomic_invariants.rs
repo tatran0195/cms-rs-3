@@ -14,7 +14,6 @@ async fn test_14_atomic_project_creation_invariants() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Atomic Invariants {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

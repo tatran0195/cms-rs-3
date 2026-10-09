@@ -8,7 +8,6 @@ use crate::common::Id;
 /// Track analytics event request
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct TrackAnalyticsEventRequest {
-    pub organization_id: Option<Id>,
     pub project_id: Option<Id>,
     pub user_id: Option<Id>,
     pub event_type: String,
@@ -26,7 +25,6 @@ pub type ListAnalyticsEventsQuery = AnalyticsQueryRequest;
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct AnalyticsEvent {
     pub id: Id,
-    pub organization_id: Option<Id>,
     pub project_id: Option<Id>,
     pub user_id: Option<Id>,
     pub event_type: String,
@@ -40,7 +38,6 @@ pub struct AnalyticsEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsEventResponse {
     pub id: Id,
-    pub organization_id: Option<Id>,
     pub project_id: Option<Id>,
     pub user_id: Option<Id>,
     pub event_type: String,
@@ -54,7 +51,6 @@ impl From<AnalyticsEvent> for AnalyticsEventResponse {
     fn from(event: AnalyticsEvent) -> Self {
         Self {
             id: event.id,
-            organization_id: event.organization_id,
             project_id: event.project_id,
             user_id: event.user_id,
             event_type: event.event_type,
@@ -69,8 +65,6 @@ impl From<AnalyticsEvent> for AnalyticsEventResponse {
 /// Analytics query request
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct AnalyticsQueryRequest {
-    #[serde(default)]
-    pub organization_id: Option<Id>,
     #[serde(default)]
     pub project_id: Option<Id>,
     #[serde(default)]

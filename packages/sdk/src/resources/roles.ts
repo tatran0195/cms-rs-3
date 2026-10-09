@@ -19,9 +19,9 @@ export interface FullPermissionCatalog {
 
 export type PermissionsMatrixState = Record<string, Partial<Record<PermissionAction, boolean>>>;
 
-export interface OrganizationRole {
+export interface WorkspaceRole {
   id: string;
-  organization_id: string;
+  workspace_id?: string;
   name: string;
   description?: string | null;
   is_default: boolean;
@@ -60,7 +60,7 @@ export interface RoleUsageResponse {
 }
 
 export class RolesResource {
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) { }
 
   /**
    * Get dynamic dual-domain permissions catalog
@@ -72,38 +72,38 @@ export class RolesResource {
   /**
    * List custom roles for a workspace
    */
-  async listWorkspaceRoles(orgId: string): Promise<OrganizationRole[]> {
-    return this.http.get<OrganizationRole[]>(`/api/v1/workspaces/${orgId}/roles`);
+  async listWorkspaceRoles(workspaceId: string): Promise<WorkspaceRole[]> {
+    return this.http.get<WorkspaceRole[]>(`/api/v1/workspaces/${workspaceId}/roles`);
   }
 
   /**
    * Create custom role for a workspace
    */
-  async createWorkspaceRole(orgId: string, payload: CreateRolePayload): Promise<OrganizationRole> {
-    return this.http.post<OrganizationRole>(`/api/v1/workspaces/${orgId}/roles`, payload);
+  async createWorkspaceRole(workspaceId: string, payload: CreateRolePayload): Promise<WorkspaceRole> {
+    return this.http.post<WorkspaceRole>(`/api/v1/workspaces/${workspaceId}/roles`, payload);
   }
 
   /**
    * Update custom role for a workspace
    */
-  async updateWorkspaceRole(orgId: string, roleId: string, payload: UpdateRolePayload): Promise<OrganizationRole> {
-    return this.http.patch<OrganizationRole>(`/api/v1/workspaces/${orgId}/roles/${roleId}`, payload);
+  async updateWorkspaceRole(workspaceId: string, roleId: string, payload: UpdateRolePayload): Promise<WorkspaceRole> {
+    return this.http.patch<WorkspaceRole>(`/api/v1/workspaces/${workspaceId}/roles/${roleId}`, payload);
   }
 
   /**
    * Get usage count for a workspace role
    */
-  async getWorkspaceRoleUsage(orgId: string, roleId: string): Promise<RoleUsageResponse> {
-    return this.http.get<RoleUsageResponse>(`/api/v1/workspaces/${orgId}/roles/${roleId}/usage`);
+  async getWorkspaceRoleUsage(workspaceId: string, roleId: string): Promise<RoleUsageResponse> {
+    return this.http.get<RoleUsageResponse>(`/api/v1/workspaces/${workspaceId}/roles/${roleId}/usage`);
   }
 
   /**
    * Delete a workspace role with optional reassignment target
    */
-  async deleteWorkspaceRole(orgId: string, roleId: string, targetRoleId?: string): Promise<{ success: boolean }> {
+  async deleteWorkspaceRole(workspaceId: string, roleId: string, targetRoleId?: string): Promise<{ success: boolean }> {
     const url = targetRoleId
-      ? `/api/v1/workspaces/${orgId}/roles/${roleId}?target_role_id=${encodeURIComponent(targetRoleId)}`
-      : `/api/v1/workspaces/${orgId}/roles/${roleId}`;
+      ? `/api/v1/workspaces/${workspaceId}/roles/${roleId}?target_role_id=${encodeURIComponent(targetRoleId)}`
+      : `/api/v1/workspaces/${workspaceId}/roles/${roleId}`;
     return this.http.delete<{ success: boolean }>(url);
   }
 

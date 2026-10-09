@@ -86,7 +86,6 @@ pub async fn create_publish_deployment(
     PlatformEventService::record_funnel_event_best_effort(
         &state.biz_context,
         user_id,
-        None,
         FunnelEventType::PublishClicked,
         serde_json::json!({
             "auto": false,
@@ -105,6 +104,13 @@ pub async fn list_project_deployments_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<DeploymentListItem>>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::ProjectAction::View,
+    )
+    .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
         &auth.user.id,
@@ -162,6 +168,13 @@ pub async fn get_latest_project_deployment_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Option<DeploymentListItem>>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::ProjectAction::View,
+    )
+    .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
         &auth.user.id,
@@ -222,6 +235,13 @@ pub async fn get_deployment_changes_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<DeploymentChangesResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::ProjectAction::View,
+    )
+    .await?;
     use cms_biz::deployment::DeploymentService;
 
     let deployments =
@@ -237,29 +257,107 @@ pub async fn get_deployment_changes_handler(
         .await
         .unwrap_or_default();
 
-    let changes: Vec<DeploymentChangeItem> = pages
-        .iter()
-        .map(|p| {
-            let status = if baseline.is_some() {
-                "modified"
-            } else {
-                "added"
-            };
-            DeploymentChangeItem {
-                id: p.id.clone(),
-                title: p.title.clone(),
-                path: p.path.clone(),
+    let changes: Vec<DeploymentChangeItem> = if baseline.is_none() {
+        pages
+            .into_iter()
+            .filter(|p| p.is_published)
+            .map(|p| DeploymentChangeItem {
+                id: p.id,
+                title: p.title,
+                path: p.path,
                 language_code: "en".to_string(),
                 kind: "PAGE".to_string(),
-                status: status.to_string(),
+                status: "added".to_string(),
                 fields: vec!["title".to_string(), "content".to_string()],
                 additions: 1,
                 deletions: 0,
                 lines: Vec::new(),
                 truncated: false,
+            })
+            .collect()
+    } else {
+        let baseline_pages: Vec<cms_entity::page::Page> = if let Some(base) = baseline {
+            cms_db::deployment::DeploymentQueries::get_snapshot_pages(
+                &state.biz_context.pool,
+                &base.id,
+                None,
+            )
+            .await
+            .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        let mut items = Vec::new();
+        let base_map: std::collections::HashMap<String, cms_entity::page::Page> = baseline_pages
+            .into_iter()
+            .map(|p| (p.id.clone(), p))
+            .collect();
+        let mut current_ids = std::collections::HashSet::new();
+
+        for p in pages {
+            current_ids.insert(p.id.clone());
+            if !p.is_published {
+                continue;
             }
-        })
-        .collect();
+            if let Some(base_p) = base_map.get(&p.id) {
+                if base_p.title != p.title
+                    || base_p.content != p.content
+                    || base_p.slug != p.slug
+                    || base_p.path != p.path
+                    || base_p.is_published != p.is_published
+                {
+                    items.push(DeploymentChangeItem {
+                        id: p.id,
+                        title: p.title,
+                        path: p.path,
+                        language_code: "en".to_string(),
+                        kind: "PAGE".to_string(),
+                        status: "modified".to_string(),
+                        fields: vec!["title".to_string(), "content".to_string()],
+                        additions: 1,
+                        deletions: 0,
+                        lines: Vec::new(),
+                        truncated: false,
+                    });
+                }
+            } else {
+                items.push(DeploymentChangeItem {
+                    id: p.id,
+                    title: p.title,
+                    path: p.path,
+                    language_code: "en".to_string(),
+                    kind: "PAGE".to_string(),
+                    status: "added".to_string(),
+                    fields: vec!["title".to_string(), "content".to_string()],
+                    additions: 1,
+                    deletions: 0,
+                    lines: Vec::new(),
+                    truncated: false,
+                });
+            }
+        }
+
+        for (base_id, base_p) in base_map {
+            if base_p.is_published && !current_ids.contains(&base_id) {
+                items.push(DeploymentChangeItem {
+                    id: base_p.id,
+                    title: base_p.title,
+                    path: base_p.path,
+                    language_code: "en".to_string(),
+                    kind: "PAGE".to_string(),
+                    status: "removed".to_string(),
+                    fields: vec!["title".to_string(), "content".to_string()],
+                    additions: 0,
+                    deletions: 1,
+                    lines: Vec::new(),
+                    truncated: false,
+                });
+            }
+        }
+
+        items
+    };
 
     Ok(Json(ApiResponse::new(DeploymentChangesResponse {
         changes,
@@ -290,7 +388,12 @@ pub async fn create_project_deployment_handler(
     state
         .gatehouse
         .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
+        .bind(
+            &session,
+            &auth_user,
+            &cms_authz::ProjectAction::Publish,
+            &(),
+        )
         .authorize(&target)
         .await
         .map_err(|_| AppError::Forbidden)?;
@@ -354,7 +457,12 @@ pub async fn rollback_deployment_handler(
     state
         .gatehouse
         .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
+        .bind(
+            &session,
+            &auth_user,
+            &cms_authz::ProjectAction::Publish,
+            &(),
+        )
         .authorize(&target)
         .await
         .map_err(|_| AppError::Forbidden)?;

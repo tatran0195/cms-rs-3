@@ -9,7 +9,6 @@ use crate::common::Id;
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct McpAuditEvent {
     pub id: Id,
-    pub organization_id: Option<Id>,
     pub project_id: Option<Id>,
     pub user_id: Option<Id>,
     pub operation: String,
@@ -23,7 +22,6 @@ pub struct McpAuditEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 pub struct McpAuditEventResponse {
     pub id: Id,
-    pub organization_id: Option<Id>,
     pub project_id: Option<Id>,
     pub user_id: Option<Id>,
     pub operation: String,
@@ -37,7 +35,6 @@ impl From<McpAuditEvent> for McpAuditEventResponse {
     fn from(event: McpAuditEvent) -> Self {
         Self {
             id: event.id,
-            organization_id: event.organization_id,
             project_id: event.project_id,
             user_id: event.user_id,
             operation: event.operation,
@@ -52,8 +49,6 @@ impl From<McpAuditEvent> for McpAuditEventResponse {
 /// List MCP audit events query
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct ListMcpAuditEventsQuery {
-    #[serde(default)]
-    pub organization_id: Option<Id>,
     #[serde(default)]
     pub project_id: Option<Id>,
     #[serde(default)]

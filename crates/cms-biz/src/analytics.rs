@@ -18,7 +18,6 @@ impl AnalyticsService {
     #[allow(clippy::too_many_arguments)]
     pub async fn record_event(
         ctx: &BizContext,
-        org_id: Option<&str>,
         project_id: Option<&str>,
         user_id: Option<&str>,
         event_type: &str,
@@ -27,7 +26,7 @@ impl AnalyticsService {
         user_agent: Option<&str>,
     ) -> Result<AnalyticsEventResponse, AppError> {
         let event = AnalyticsEventQueries::create(
-            &ctx.pool, org_id, project_id, user_id, event_type, metadata, ip_address, user_agent,
+            &ctx.pool, project_id, user_id, event_type, metadata, ip_address, user_agent,
         )
         .await?;
 
@@ -38,19 +37,14 @@ impl AnalyticsService {
     pub async fn query_events(
         ctx: &BizContext,
         _user_id: &str,
-        org_id: &str,
         request: AnalyticsQueryRequest,
         page: u64,
         page_size: u64,
     ) -> Result<AnalyticsQueryResponse, AppError> {
-        // If filtering by a specific project, verify it belongs to this organization
         if let Some(ref proj_id) = request.project_id {
-            let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
+            let _project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
                 .await?
                 .ok_or_else(|| AppError::NotFound(format!("Project {proj_id} not found")))?;
-            if project.organization_id != org_id {
-                return Err(AppError::Forbidden);
-            }
         }
 
         let limit = page_size as i64;
@@ -58,7 +52,6 @@ impl AnalyticsService {
 
         let events = AnalyticsEventQueries::query(
             &ctx.pool,
-            org_id,
             request.project_id.as_deref(),
             request.user_id.as_deref(),
             request.event_type.as_deref(),
@@ -71,7 +64,6 @@ impl AnalyticsService {
 
         let total = AnalyticsEventQueries::count(
             &ctx.pool,
-            org_id,
             request.project_id.as_deref(),
             request.user_id.as_deref(),
             request.event_type.as_deref(),
@@ -97,11 +89,10 @@ impl AnalyticsService {
     pub async fn get_summary(
         ctx: &BizContext,
         _user_id: &str,
-        org_id: &str,
         start_date: chrono::DateTime<chrono::Utc>,
         end_date: chrono::DateTime<chrono::Utc>,
     ) -> Result<serde_json::Value, AppError> {
-        AnalyticsQueries::get_summary(&ctx.pool, org_id, start_date, end_date).await
+        AnalyticsQueries::get_summary(&ctx.pool, start_date, end_date).await
     }
 
     /// Track an analytics event
@@ -111,7 +102,6 @@ impl AnalyticsService {
     ) -> Result<AnalyticsEventResponse, AppError> {
         Self::record_event(
             ctx,
-            request.organization_id.as_deref(),
             request.project_id.as_deref(),
             request.user_id.as_deref(),
             &request.event_type,
@@ -122,35 +112,15 @@ impl AnalyticsService {
         .await
     }
 
-    /// List analytics events with strict tenant boundary resolution
+    /// List analytics events
     pub async fn list_events(
         ctx: &BizContext,
         user_id: &str,
         query: cms_entity::analytics::ListAnalyticsEventsQuery,
     ) -> Result<cms_entity::common::PaginatedResponse<AnalyticsEventResponse>, AppError> {
-        let org_id = match query.organization_id.as_deref() {
-            Some(org) if !org.is_empty() => org.to_string(),
-            _ => {
-                if let Some(ref proj_id) = query.project_id {
-                    let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
-                        .await?
-                        .ok_or_else(|| {
-                            AppError::NotFound(format!("Project {proj_id} not found"))
-                        })?;
-                    project.organization_id
-                } else {
-                    let members =
-                        cms_db::org::MemberQueries::get_by_user(&ctx.pool, user_id).await?;
-                    members
-                        .first()
-                        .map(|m| m.organization_id.clone())
-                        .ok_or(AppError::Forbidden)?
-                }
-            }
-        };
         let page = query.page.unwrap_or(1) as u64;
         let page_size = query.page_size.unwrap_or(20) as u64;
-        let response = Self::query_events(ctx, user_id, &org_id, query, page, page_size).await?;
+        let response = Self::query_events(ctx, user_id, query, page, page_size).await?;
         Ok(cms_entity::common::PaginatedResponse::new(
             response.events,
             response.total as u64,
@@ -159,35 +129,15 @@ impl AnalyticsService {
         ))
     }
 
-    /// Query analytics with strict tenant boundary resolution
+    /// Query analytics
     pub async fn query_analytics(
         ctx: &BizContext,
         user_id: &str,
         request: AnalyticsQueryRequest,
     ) -> Result<AnalyticsQueryResponse, AppError> {
-        let org_id = match request.organization_id.as_deref() {
-            Some(org) if !org.is_empty() => org.to_string(),
-            _ => {
-                if let Some(ref proj_id) = request.project_id {
-                    let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
-                        .await?
-                        .ok_or_else(|| {
-                            AppError::NotFound(format!("Project {proj_id} not found"))
-                        })?;
-                    project.organization_id
-                } else {
-                    let members =
-                        cms_db::org::MemberQueries::get_by_user(&ctx.pool, user_id).await?;
-                    members
-                        .first()
-                        .map(|m| m.organization_id.clone())
-                        .ok_or(AppError::Forbidden)?
-                }
-            }
-        };
         let page = request.page.unwrap_or(1) as u64;
         let page_size = request.page_size.unwrap_or(20) as u64;
-        Self::query_events(ctx, user_id, &org_id, request, page, page_size).await
+        Self::query_events(ctx, user_id, request, page, page_size).await
     }
 
     /// Get dashboard for a project
@@ -212,14 +162,6 @@ impl AnalyticsService {
         AnalyticsQueries::get_page_views(&ctx.pool, &page.project_id, page_id).await
     }
 
-    /// Get organization stats
-    pub async fn get_organization_stats(
-        ctx: &BizContext,
-        org_id: &str,
-    ) -> Result<serde_json::Value, AppError> {
-        AnalyticsQueries::get_organization_stats(&ctx.pool, org_id).await
-    }
-
     /// Get system stats
     pub async fn get_system_stats(ctx: &BizContext) -> Result<serde_json::Value, AppError> {
         AnalyticsQueries::get_system_stats(&ctx.pool).await
@@ -235,7 +177,6 @@ pub async fn process_analytics_job(
         .get("event_type")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("Missing event_type".to_string()))?;
-    let org_id = payload.get("org_id").and_then(|v| v.as_str());
     let project_id = payload.get("project_id").and_then(|v| v.as_str());
     let user_id = payload.get("user_id").and_then(|v| v.as_str());
     let metadata = payload.get("metadata").cloned().unwrap_or_default();
@@ -243,7 +184,7 @@ pub async fn process_analytics_job(
     let user_agent = payload.get("user_agent").and_then(|v| v.as_str());
 
     AnalyticsEventQueries::create(
-        pool, org_id, project_id, user_id, event_type, metadata, ip_address, user_agent,
+        pool, project_id, user_id, event_type, metadata, ip_address, user_agent,
     )
     .await?;
 
@@ -272,11 +213,10 @@ mod tests {
             return;
         }
 
-        let org_id = format!("org-analytics-{}", Uuid::new_v4());
         let user_id = format!("user-analytics-{}", Uuid::new_v4());
         let now = chrono::Utc::now();
 
-        // Seed user, organization and member
+        // Seed user
         let _ = cms_db::sqlx::query(
             r#"INSERT INTO "User" (id, email, name, email_verified, role, created_at, updated_at)
                VALUES ($1, $2, 'Analytics User', TRUE, 'user', $3, $3)"#,
@@ -287,31 +227,10 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let _ = cms_db::sqlx::query(
-            r#"INSERT INTO "Organization" (id, name, slug, created_at, updated_at)
-               VALUES ($1, 'Analytics Org', $1, $2, $2)"#,
-        )
-        .bind(&org_id)
-        .bind(now)
-        .execute(&pool)
-        .await;
-
-        let _ = cms_db::sqlx::query(
-            r#"INSERT INTO "Member" (id, organization_id, user_id, role, created_at, updated_at)
-               VALUES ($1, $2, $3, 'OWNER', $4, $4)"#,
-        )
-        .bind(Uuid::new_v4().to_string())
-        .bind(&org_id)
-        .bind(&user_id)
-        .bind(now)
-        .execute(&pool)
-        .await;
-
-        // Seed 3 analytics events for this org
+        // Seed 3 analytics events
         for i in 0..3 {
             let _ = AnalyticsEventQueries::create(
                 &pool,
-                Some(&org_id),
                 None,
                 Some(&user_id),
                 "page_view",
@@ -338,10 +257,9 @@ mod tests {
             limit: None,
             page: Some(1),
             page_size: Some(2),
-            organization_id: Some(org_id.clone()),
         };
 
-        let res = AnalyticsService::query_events(&ctx, &user_id, &org_id, req, 1, 2)
+        let res = AnalyticsService::query_events(&ctx, &user_id, req, 1, 2)
             .await
             .expect("query_events should succeed");
 

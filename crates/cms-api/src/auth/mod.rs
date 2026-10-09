@@ -50,7 +50,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/verify-email", post(verify_email_handler))
         .route("/update-user", post(update_user_handler))
         .route(
-            "/organizations/accept-invitation",
+            "/invitations/accept",
             post(accept_invitation_handler),
         )
         .route("/sign-out", post(sign_out_better_auth_handler))

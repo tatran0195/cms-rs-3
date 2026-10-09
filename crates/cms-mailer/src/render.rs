@@ -78,16 +78,16 @@ pub fn render_email_verification_email(
     })
 }
 
-/// Render a notification email sent when a new member joins an organization.
+/// Render a notification email sent when a new member joins a workspace.
 pub fn render_member_joined_email(
     member_name: &str,
-    organization_name: &str,
+    workspace_name: &str,
     language: Option<EmailLanguage>,
 ) -> Result<RenderedEmail, minijinja::Error> {
     let lang = language.unwrap_or_default();
     let vars = &[
         ("memberName", member_name),
-        ("organizationName", organization_name),
+        ("workspaceName", workspace_name),
     ];
 
     let subject = translate(&lang, "email.memberJoined.subject", vars);
@@ -136,10 +136,10 @@ pub fn render_new_sign_in_email(
     })
 }
 
-/// Render an organization member invitation email.
+/// Render a workspace member invitation email.
 pub fn render_member_invitation_email(
     inviter_name: &str,
-    organization_name: &str,
+    workspace_name: &str,
     role: &str,
     accept_url: &str,
     days: u32,
@@ -149,7 +149,7 @@ pub fn render_member_invitation_email(
     let days_str = days.to_string();
     let vars = &[
         ("inviterName", inviter_name),
-        ("organizationName", organization_name),
+        ("workspaceName", workspace_name),
         ("role", role),
         ("days", days_str.as_str()),
     ];

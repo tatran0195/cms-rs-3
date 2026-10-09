@@ -27,14 +27,13 @@ pub mod language;
 pub mod mcp;
 pub mod notification;
 pub mod openapi;
-pub mod org;
 pub mod page;
 pub mod platform_event;
 pub mod project;
 pub mod reader_access;
 pub mod search;
 pub mod theme;
-pub mod usage;
+pub mod workspace;
 
 // Re-export commonly used types
 pub use analytics::*;
@@ -54,11 +53,10 @@ pub use language::*;
 pub use mcp::*;
 pub use notification::*;
 pub use openapi::*;
-pub use org::*;
 pub use page::*;
 pub use platform_event::*;
 pub use project::*;
 pub use reader_access::*;
 pub use search::*;
 pub use theme::*;
-pub use usage::*;
+pub use workspace::*;

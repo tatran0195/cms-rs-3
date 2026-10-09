@@ -15,7 +15,6 @@ async fn test_04_page_hierarchy_and_tree_reordering() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Hierarchy E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

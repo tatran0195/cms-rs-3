@@ -30,17 +30,11 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/users/{id}/unsuspend",
             post(parity::unsuspend_user_handler),
         )
-        .route(
-            "/organizations/invite",
-            post(parity::invite_organization_handler),
-        )
         .route("/sites/{id}/takedown", post(parity::takedown_site_handler))
         .route("/sites/{id}/restore", post(parity::restore_site_handler))
         .layer(admin_origin_layer);
 
     let read_routes = Router::new()
-        .route("/orgs", get(list_all_organizations_handler))
-        .route("/orgs/{id}/stats", get(get_organization_stats_handler))
         .route("/stats", get(get_system_stats_handler))
         .route("/health", get(get_system_health_handler))
         .route("/metrics", get(get_system_metrics_handler))

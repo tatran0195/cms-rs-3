@@ -15,7 +15,6 @@ async fn test_05_publishing_immutability_and_ssr() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Publish E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

@@ -14,7 +14,6 @@ async fn test_02_project_visibility_and_access_control() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Public E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;
@@ -25,17 +24,11 @@ async fn test_02_project_visibility_and_access_control() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Private E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         false,
     )
     .await?;
     let private_id = required_string(&private_project, "id", "private project")?;
     let private_slug = required_string(&private_project, "slug", "private project")?;
-
-    let org_slug: String = sqlx::query_scalar(r#"SELECT slug FROM "Organization" WHERE id = $1"#)
-        .bind(&ctx.seed.organization_id)
-        .fetch_one(&ctx.state.biz_context.pool)
-        .await?;
 
     let public_host = format!("{public_slug}.cms.app");
     let (unreleased_status, _) = site_request(&ctx.app, &public_host, "/").await?;
@@ -81,13 +74,13 @@ async fn test_02_project_visibility_and_access_control() -> anyhow::Result<()> {
         request(
             &ctx.app,
             Method::GET,
-            &format!("/api/public/projects/{org_slug}/{private_slug}"),
+            &format!("/api/public/projects/{private_slug}"),
             None,
             None,
         )
         .await?,
         StatusCode::NOT_FOUND,
-        "hide private project from legacy public route",
+        "hide private project from public route",
     )?;
 
     expect_status(

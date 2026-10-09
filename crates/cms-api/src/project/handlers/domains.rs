@@ -12,7 +12,7 @@ use cms_entity::{
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
-use super::common::{project_deployments, project_org_id};
+use super::common::{project_deployments, verify_project_access};
 use crate::{auth::AuthExtractor, validation::ValidatedJson};
 
 /// Look up a domain and confirm its owning deployment belongs to the project.
@@ -63,7 +63,7 @@ pub async fn list_project_domains_handler(
 ) -> Result<Json<ApiResponse<Vec<SpaDomainResponse>>>, AppError> {
     // Auth: confirm the caller can access the project, then gather domains across
     // all of the project's deployments (the domain model is deployment-scoped).
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     let deployments = project_deployments(&state, &project_id).await?;
 
     let mut items = Vec::new();
@@ -108,7 +108,7 @@ pub async fn add_project_domain_handler(
     Path(project_id): Path<ProjectId>,
     ValidatedJson(body): ValidatedJson<AddProjectDomainRequest>,
 ) -> Result<Json<ApiResponse<SpaDomainResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
 
     let hostname = body.domain.trim().trim_end_matches('.').to_lowercase();
     if hostname.is_empty() {
@@ -168,7 +168,7 @@ pub async fn delete_project_domain_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(ProjectId, String)>,
 ) -> Result<Json<ApiResponse<DeleteDomainResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     let _domain = require_domain_in_project(&state, &project_id, &id).await?;
     cms_db::domain::DomainQueries::delete(&state.biz_context.pool, &id).await?;
     state.invalidate_host_resolution_cache();
@@ -202,7 +202,7 @@ pub async fn verify_project_domain_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(ProjectId, String)>,
 ) -> Result<Json<ApiResponse<SpaDomainResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     let domain = require_domain_in_project(&state, &project_id, &id).await?;
     let is_verified = cms_biz::domain::DomainService::verify_domain_ownership(
         &state.biz_context,
@@ -248,7 +248,7 @@ pub async fn set_primary_project_domain_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(ProjectId, String)>,
 ) -> Result<Json<ApiResponse<SpaDomainResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     let domain = require_domain_in_project(&state, &project_id, &id).await?;
 
     let updated = cms_db::domain::DomainQueries::set_primary_for_deployment(

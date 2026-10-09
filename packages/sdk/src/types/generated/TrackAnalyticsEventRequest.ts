@@ -4,4 +4,4 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * Track analytics event request
  */
-export type TrackAnalyticsEventRequest = { organization_id: string | null, project_id: string | null, user_id: string | null, event_type: string, metadata: JsonValue, ip_address: string | null, user_agent: string | null, };
+export type TrackAnalyticsEventRequest = { project_id: string | null, user_id: string | null, event_type: string, metadata: JsonValue, ip_address: string | null, user_agent: string | null, };

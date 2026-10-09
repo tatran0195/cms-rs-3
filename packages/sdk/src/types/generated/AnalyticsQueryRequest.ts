@@ -3,4 +3,4 @@
 /**
  * Analytics query request
  */
-export type AnalyticsQueryRequest = { organization_id: string | null, project_id: string | null, user_id: string | null, event_type: string | null, start_date: string | null, end_date: string | null, group_by: string | null, limit: bigint | null, page: bigint | null, page_size: bigint | null, };
+export type AnalyticsQueryRequest = { project_id: string | null, user_id: string | null, event_type: string | null, start_date: string | null, end_date: string | null, group_by: string | null, limit: bigint | null, page: bigint | null, page_size: bigint | null, };

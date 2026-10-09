@@ -8,8 +8,6 @@ use utoipa::{
 #[openapi(
     paths(
         // Admin endpoints
-        crate::admin::handlers::list_all_organizations_handler,
-        crate::admin::handlers::get_organization_stats_handler,
         crate::admin::handlers::get_system_stats_handler,
         crate::admin::handlers::get_system_health_handler,
 
@@ -125,10 +123,6 @@ use utoipa::{
         crate::openapi::handlers::parse_openapi_document_handler,
         crate::openapi::handlers::get_openapi_content_handler,
 
-        // Org endpoints
-        crate::org::handlers::list_orgs_handler,
-        crate::org::handlers::create_org_handler,
-
         // Page endpoints
         crate::page::handlers::list_pages_handler,
         crate::page::handlers::create_page_handler,
@@ -193,18 +187,6 @@ use utoipa::{
         crate::theme::handlers::delete_theme_handler,
         crate::theme::handlers::get_theme_css_handler,
         crate::theme::handlers::set_project_theme_handler,
-
-        // Usage endpoints
-        crate::usage::handlers::list_usage_plans_handler,
-        crate::usage::handlers::get_usage_plan_handler,
-        crate::usage::handlers::list_usage_meters_handler,
-        crate::usage::handlers::get_usage_meter_handler,
-        crate::usage::handlers::list_usage_entitlements_handler,
-        crate::usage::handlers::get_organization_usage_plan_handler,
-        crate::usage::handlers::update_organization_usage_plan_handler,
-        crate::usage::handlers::track_usage_event_handler,
-        crate::usage::handlers::get_usage_summary_handler,
-
     ),
     info(
         title = "CMS API",
@@ -222,7 +204,6 @@ use utoipa::{
     ),
     tags(
         (name = "auth", description = "Authentication endpoints"),
-        (name = "orgs", description = "Organization management"),
         (name = "projects", description = "Project management"),
         (name = "pages", description = "Page management"),
         (name = "branches", description = "Branch management"),
@@ -236,7 +217,6 @@ use utoipa::{
         (name = "search", description = "Search functionality"),
         (name = "export", description = "Export functionality"),
         (name = "openapi", description = "OpenAPI document management"),
-        (name = "usage", description = "Usage tracking and plans"),
         (name = "notifications", description = "User notifications"),
         (name = "assets", description = "Asset management"),
         (name = "analytics", description = "Analytics tracking"),

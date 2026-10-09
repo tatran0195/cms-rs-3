@@ -170,6 +170,7 @@ export class EditorPage {
 
   /** Create a top-level page inside a language (sidebar "+" affordance). */
   async createPage(code: string): Promise<void> {
+    await this.ensureSidebarVisible();
     const section = this.language(code);
     await section.hover();
     await section.getByRole('button', { name: 'New page' }).click();
@@ -195,6 +196,7 @@ export class EditorPage {
    * author can name it; a person fills that in and saves, and so does this.
    */
   async createGroup(code: string, name?: string): Promise<string> {
+    await this.ensureSidebarVisible();
     const section = this.language(code);
     await section.hover();
     await section.getByRole('button', { name: 'New group' }).click();
@@ -213,6 +215,7 @@ export class EditorPage {
 
   /** Create a child page under an existing group node. */
   async createChildPage(groupTitle: string, code: string): Promise<void> {
+    await this.ensureSidebarVisible();
     const row = this.rowByTitle(groupTitle, code);
     await row.hover();
     await row.getByRole('button', { name: 'New page' }).click();
@@ -316,6 +319,10 @@ export class EditorPage {
 
   /** Type a title and wait for the product's debounced autosave to settle. */
   async setTitle(title: string): Promise<void> {
+    const current = await this.titleInput.inputValue().catch(() => null);
+    if (current === title) {
+      return;
+    }
     await this.fillTitle(title);
     await this.waitForSaved();
   }
@@ -393,7 +400,10 @@ export class EditorPage {
 
   async openPageSettings(): Promise<Locator> {
     await this.closeAnyDialog();
-    await this.ensureSidebarVisible();
+    const hidePages = this.page.getByRole('button', { name: 'Hide pages' });
+    if (await hidePages.isVisible().catch(() => false)) {
+      await hidePages.click();
+    }
     await this.page.getByRole('button', { name: 'Page settings' }).first().click();
     const dialog = this.page.getByRole('dialog').filter({ hasText: 'Page settings' });
     await expect(dialog).toBeVisible();
@@ -530,7 +540,7 @@ export class EditorPage {
 
   /** Open the version dropdown showing whichever version is active. */
   async openActiveVersionMenu(): Promise<Locator> {
-    await this.page.getByRole('button', { name: /^(main|default|v\d+)/i }).first().click();
+    await this.page.getByRole('button', { name: /^(main|default|v)/i }).first().click();
     const menu = this.page.getByRole('menu');
     await expect(menu).toBeVisible();
     return menu;

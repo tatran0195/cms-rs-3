@@ -8,6 +8,3 @@ CREATE INDEX IF NOT EXISTS "PlatformEvent_user_created_at_idx"
     ON "PlatformEvent" (user_id, created_at DESC)
     WHERE user_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS "PlatformEvent_org_created_at_idx"
-    ON "PlatformEvent" (organization_id, created_at DESC)
-    WHERE organization_id IS NOT NULL;

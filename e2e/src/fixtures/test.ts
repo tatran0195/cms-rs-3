@@ -22,7 +22,6 @@ import { BrowserApi } from '../support/browser-api';
 export interface Session {
   email: string;
   userId: string;
-  organizationId: string;
 }
 
 /**
@@ -167,10 +166,11 @@ export const test = workerFixtures.extend<TestFixtures>({
     await context.dispose();
   },
 
-  secondContext: async ({ browser, secondAuthor, mailbox }, use) => {
+  secondContext: async ({ browser, mailbox }, use) => {
+    const email = uniqueEmail('member2');
     const context = await browser.newContext();
     const page = await context.newPage();
-    await new SignInPage(page).signIn(secondAuthor.email, mailbox);
+    await new SignInPage(page).signIn(email, mailbox);
     await use(context);
     await context.close();
   },
@@ -190,31 +190,27 @@ async function ensureAccount(browser: Browser, email: string, mailbox: Mailbox):
   try {
     await new SignInPage(page).signIn(email, mailbox);
     const db = Database.fromEnv();
-    const row = await db.one<{ id: string; organization_id: string }>(
-      `SELECT u.id AS id,
-              COALESCE(m.organization_id, '') AS organization_id
+    const row = await db.one<{ id: string }>(
+      `SELECT u.id AS id
          FROM "User" u
-         LEFT JOIN "Member" m ON m.user_id = u.id
-        WHERE u.email = $1
-        ORDER BY m.created_at NULLS LAST
-        LIMIT 1`,
+        WHERE u.email = $1`,
       [email],
     );
-    return { email, userId: row.id, organizationId: row.organization_id };
+    return { email, userId: row.id };
   } finally {
     await context.close();
   }
 }
 
-async function userIdFor(email: string, mailbox: Mailbox, _since: number): Promise<{ userId: string; organizationId: string }> {
+async function userIdFor(email: string, mailbox: Mailbox, _since: number): Promise<{ userId: string }> {
   const db = Database.fromEnv();
-  const row = await db.one<{ id: string; organization_id: string }>(
-    `SELECT u.id AS id, COALESCE((SELECT organization_id FROM "Member" WHERE user_id = u.id LIMIT 1), '') AS organization_id
+  const row = await db.one<{ id: string }>(
+    `SELECT u.id AS id
        FROM "User" u WHERE u.email = $1`,
     [email],
   );
   void mailbox;
-  return { userId: row.id, organizationId: row.organization_id };
+  return { userId: row.id };
 }
 
 export type { Page };

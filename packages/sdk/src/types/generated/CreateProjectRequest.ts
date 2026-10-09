@@ -3,4 +3,4 @@
 /**
  * Project create request
  */
-export type CreateProjectRequest = { organization_id: string | null, name: string, description: string | null, icon: string | null, is_public: boolean, };
+export type CreateProjectRequest = { name: string, description: string | null, icon: string | null, is_public: boolean, };

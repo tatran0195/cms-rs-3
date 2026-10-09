@@ -98,21 +98,10 @@ impl ExportService {
         snapshot_id: &str,
         format: ExportFormat,
     ) -> Result<ExportJob, AppError> {
-        let snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, snapshot_id)
+        let _snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, snapshot_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
 
-        // Autumn-style active entitlement check: verify export feature is entitled
-        if let Ok(Some(proj)) =
-            cms_db::project::ProjectQueries::get_by_id(&ctx.pool, &snapshot.project_id).await
-        {
-            crate::entitlement::EntitlementService::require_feature_entitlement(
-                ctx,
-                &proj.organization_id,
-                "export",
-            )
-            .await?;
-        }
 
         let job =
             ExportJobQueries::create(&ctx.pool, snapshot_id, format, ExportStatus::Pending).await?;
@@ -1246,7 +1235,6 @@ mod tests {
         let pages = mock_pages();
         let project = cms_entity::project::Project {
             id: "proj-1".to_string(),
-            organization_id: "org-1".to_string(),
             name: "Test Project".to_string(),
             slug: "test-project".to_string(),
             description: Some("Description".to_string()),

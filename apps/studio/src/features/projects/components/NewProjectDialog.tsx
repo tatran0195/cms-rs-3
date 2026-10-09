@@ -17,7 +17,7 @@ export function NewProjectDialog({ open, onOpenChange }: { open: boolean; onOpen
     onSubmit: async ({ value }) => {
       await new Promise<void>((resolve) => {
         create.mutate(
-          { name: value.name.trim(), isPublic: true },
+          { name: value.name.trim(), isPublic: false },
           {
             onSuccess: () => {
               toast.success(t('newSite.created'));

@@ -55,15 +55,18 @@ fn export_all_typescript_bindings() {
     cms_entity::auth::UpdateUserPayload::export_all(&cfg).unwrap();
     cms_entity::auth::AcceptInvitationPayload::export_all(&cfg).unwrap();
 
-    // Org / Workspace
-    cms_entity::org::OrganizationResponse::export_all(&cfg).unwrap();
-    cms_entity::org::CreateOrganizationRequest::export_all(&cfg).unwrap();
-    cms_entity::org::UpdateOrganizationRequest::export_all(&cfg).unwrap();
-    cms_entity::org::MemberResponse::export_all(&cfg).unwrap();
-    cms_entity::org::WorkspaceMembersResponse::export_all(&cfg).unwrap();
-    cms_entity::org::WorkspaceAnalyticsResponse::export_all(&cfg).unwrap();
-    cms_entity::org::CreateInvitationRequest::export_all(&cfg).unwrap();
-    cms_entity::org::AcceptInvitationRequest::export_all(&cfg).unwrap();
+    // Workspace
+    cms_entity::workspace::WorkspaceSettingsResponse::export_all(&cfg).unwrap();
+    cms_entity::workspace::UpdateWorkspaceSettingsRequest::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceMemberUser::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceMemberItem::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceInvitationItem::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceMembersResponse::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceAnalyticsResponse::export_all(&cfg).unwrap();
+    cms_entity::workspace::InviteWorkspaceMemberRequest::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceInvitationResponse::export_all(&cfg).unwrap();
+    cms_entity::workspace::WorkspaceMutationResponse::export_all(&cfg).unwrap();
+    cms_entity::workspace::UpdateWorkspaceMemberRoleRequest::export_all(&cfg).unwrap();
 
     // Branch
     cms_entity::branch::BranchResponse::export_all(&cfg).unwrap();

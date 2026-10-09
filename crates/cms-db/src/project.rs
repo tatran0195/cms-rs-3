@@ -1,11 +1,7 @@
 //! Project database queries
 
 use chrono::{DateTime, Utc};
-use cms_entity::{
-    common::MemberRole,
-    org::Organization,
-    project::{Project, ProjectAddon, ProjectSettings},
-};
+use cms_entity::project::{Project, ProjectAddon, ProjectSettings};
 use cms_error::AppError;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row};
 use uuid::Uuid;
@@ -14,7 +10,6 @@ use uuid::Uuid;
 #[derive(Debug, FromRow)]
 struct ProjectRow {
     id: String,
-    organization_id: String,
     name: String,
     slug: String,
     description: Option<String>,
@@ -54,7 +49,6 @@ impl From<ProjectRow> for Project {
     fn from(row: ProjectRow) -> Self {
         Self {
             id: row.id,
-            organization_id: row.organization_id,
             name: row.name,
             slug: row.slug,
             description: row.description,
@@ -149,24 +143,6 @@ impl ProjectQueries {
     /// Get a project by slug
     pub async fn get_by_slug(
         pool: &PgPool,
-        organization_id: &str,
-        slug: &str,
-    ) -> Result<Option<Project>, AppError> {
-        let row = sqlx::query_as::<_, ProjectRow>(
-            "SELECT * FROM \"Project\" WHERE organization_id = $1 AND slug = $2",
-        )
-        .bind(organization_id)
-        .bind(slug)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
-
-        Ok(row.map(|r| r.into()))
-    }
-
-    /// Get a project by slug across any organization
-    pub async fn get_by_slug_global(
-        pool: &PgPool,
         slug: &str,
     ) -> Result<Option<Project>, AppError> {
         let row =
@@ -179,18 +155,24 @@ impl ProjectQueries {
         Ok(row.map(|r| r.into()))
     }
 
-    /// Get projects by organization
-    pub async fn get_by_organization(
+    /// Get a project by slug (alias for get_by_slug)
+    pub async fn get_by_slug_global(
         pool: &PgPool,
-        organization_id: &str,
+        slug: &str,
+    ) -> Result<Option<Project>, AppError> {
+        Self::get_by_slug(pool, slug).await
+    }
+
+    /// Get all projects
+    pub async fn get_all(
+        pool: &PgPool,
         is_public: Option<bool>,
         search: Option<&str>,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<Project>, AppError> {
         let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT * FROM \"Project\" WHERE organization_id = ");
-        query_builder.push_bind(organization_id);
+            QueryBuilder::new("SELECT * FROM \"Project\" WHERE 1=1");
 
         if let Some(is_public) = is_public {
             query_builder.push(" AND is_public = ");
@@ -226,16 +208,14 @@ impl ProjectQueries {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
-    /// Count projects by organization
-    pub async fn count_by_organization(
+    /// Count all projects
+    pub async fn count(
         pool: &PgPool,
-        organization_id: &str,
         is_public: Option<bool>,
         search: Option<&str>,
     ) -> Result<i64, AppError> {
         let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT COUNT(*) FROM \"Project\" WHERE organization_id = ");
-        query_builder.push_bind(organization_id);
+            QueryBuilder::new("SELECT COUNT(*) FROM \"Project\" WHERE 1=1");
 
         if let Some(is_public) = is_public {
             query_builder.push(" AND is_public = ");
@@ -265,8 +245,8 @@ impl ProjectQueries {
         let rows = sqlx::query_as::<_, ProjectRow>(
             r#"
             SELECT DISTINCT p.* FROM "Project" p
-            LEFT JOIN "Member" m ON p.organization_id = m.organization_id AND m.user_id = $1
-            WHERE p.is_public = true OR m.id IS NOT NULL
+            LEFT JOIN "ProjectMember" pm ON p.id = pm.project_id AND pm.user_id = $1
+            WHERE p.is_public = true OR pm.id IS NOT NULL
             ORDER BY p.created_at DESC
             "#,
         )
@@ -278,79 +258,19 @@ impl ProjectQueries {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
-    /// Create a project atomically along with default branch, default language, and default settings.
-    /// If `new_org_info` is `Some((org_name, org_slug, user_id))`, also creates the organization
-    /// and owner membership in the same transaction.
+    /// Create a project atomically along with default branch, default language, default settings,
+    /// and project owner member.
     pub async fn create_atomic(
         pool: &PgPool,
-        new_org_info: Option<(&str, &str, &str)>,
-        effective_org_id: &str,
         name: &str,
         slug: &str,
         description: Option<&str>,
         icon: Option<&str>,
         is_public: bool,
-    ) -> Result<(Project, Organization), AppError> {
+        creator_user_id: Option<&str>,
+    ) -> Result<Project, AppError> {
         let mut tx = pool.begin().await?;
         let now = Utc::now();
-
-        let org: Organization = if let Some((org_name, org_slug, user_id)) = new_org_info {
-            let org_row = sqlx::query_as::<_, crate::org::OrganizationRow>(
-                r#"
-                INSERT INTO "Organization" (id, name, slug, description, logo, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING *
-                "#,
-            )
-            .bind(effective_org_id)
-            .bind(org_name)
-            .bind(org_slug)
-            .bind::<Option<String>>(None)
-            .bind::<Option<String>>(None)
-            .bind(now)
-            .bind(now)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|e| {
-                if e.to_string().contains("duplicate key") {
-                    AppError::Conflict("Organization with this slug already exists".to_string())
-                } else {
-                    AppError::Database(e.into())
-                }
-            })?;
-
-            let member_id = Uuid::new_v4().to_string();
-            sqlx::query(
-                r#"
-                INSERT INTO "Member" (id, user_id, organization_id, role, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6)
-                "#,
-            )
-            .bind(&member_id)
-            .bind(user_id)
-            .bind(effective_org_id)
-            .bind(MemberRole::Owner)
-            .bind(now)
-            .bind(now)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| AppError::Database(e.into()))?;
-
-            crate::authz::OrgRoleQueries::seed_defaults_conn(&mut tx, effective_org_id).await?;
-
-            org_row.into()
-        } else {
-            let org_row = sqlx::query_as::<_, crate::org::OrganizationRow>(
-                "SELECT * FROM \"Organization\" WHERE id = $1",
-            )
-            .bind(effective_org_id)
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(|e| AppError::Database(e.into()))?
-            .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-
-            org_row.into()
-        };
 
         let project_id = Uuid::new_v4().to_string();
         let branch_id = Uuid::new_v4().to_string();
@@ -358,13 +278,12 @@ impl ProjectQueries {
 
         let row = sqlx::query_as::<_, ProjectRow>(
             r#"
-            INSERT INTO "Project" (id, organization_id, name, slug, description, icon, is_public, config, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, '{}', $8, $9)
+            INSERT INTO "Project" (id, name, slug, description, icon, is_public, config, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, '{}', $7, $8)
             RETURNING *
             "#,
         )
         .bind(&project_id)
-        .bind(effective_org_id)
         .bind(name)
         .bind(slug)
         .bind(description)
@@ -433,32 +352,48 @@ impl ProjectQueries {
         // Default project roles
         crate::authz::ProjectRoleQueries::seed_defaults_conn(&mut tx, &project_id).await?;
 
+        // Seed project owner member if creator is specified
+        if let Some(user_id) = creator_user_id {
+            let member_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                r#"
+                INSERT INTO "ProjectMember" (id, project_id, user_id, role, created_at, updated_at)
+                VALUES ($1, $2, $3, 'owner', $4, $4)
+                "#,
+            )
+            .bind(&member_id)
+            .bind(&project_id)
+            .bind(user_id)
+            .bind(now)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
+        }
+
         tx.commit().await?;
-        Ok((row.into(), org))
+        Ok(row.into())
     }
 
     /// Create a new project
     pub async fn create(
         pool: &PgPool,
-        organization_id: &str,
         name: &str,
         slug: &str,
         description: Option<&str>,
         icon: Option<&str>,
         is_public: bool,
+        creator_user_id: Option<&str>,
     ) -> Result<Project, AppError> {
-        let (project, _) = Self::create_atomic(
+        Self::create_atomic(
             pool,
-            None,
-            organization_id,
             name,
             slug,
             description,
             icon,
             is_public,
+            creator_user_id,
         )
-        .await?;
-        Ok(project)
+        .await
     }
 
     /// Update a project
@@ -564,14 +499,11 @@ impl ProjectQueries {
     /// Check if a project slug is available
     pub async fn is_slug_available(
         pool: &PgPool,
-        organization_id: &str,
         slug: &str,
         exclude_project_id: Option<&str>,
     ) -> Result<bool, AppError> {
         let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new("SELECT COUNT(*) FROM \"Project\" WHERE organization_id = ");
-        query_builder.push_bind(organization_id);
-        query_builder.push(" AND slug = ");
+            QueryBuilder::new("SELECT COUNT(*) FROM \"Project\" WHERE slug = ");
         query_builder.push_bind(slug);
 
         if let Some(exclude_id) = exclude_project_id {
@@ -587,38 +519,6 @@ impl ProjectQueries {
             .get::<i64, _>(0);
 
         Ok(count == 0)
-    }
-
-    /// Get projects by multiple organization IDs
-    pub async fn get_by_organizations(
-        pool: &PgPool,
-        org_ids: &[&str],
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<cms_entity::project::Project>, AppError> {
-        let rows = sqlx::query_as::<_, ProjectRow>(
-            "SELECT * FROM \"Project\" WHERE organization_id = ANY($1) ORDER BY created_at DESC \
-             LIMIT $2 OFFSET $3",
-        )
-        .bind(org_ids)
-        .bind(limit.unwrap_or(50))
-        .bind(offset.unwrap_or(0))
-        .fetch_all(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
-        Ok(rows.into_iter().map(|r| r.into()).collect())
-    }
-
-    /// Count projects across multiple organizations
-    pub async fn count_by_organizations(pool: &PgPool, org_ids: &[&str]) -> Result<i64, AppError> {
-        let row = sqlx::query(
-            "SELECT COUNT(*) as count FROM \"Project\" WHERE organization_id = ANY($1)",
-        )
-        .bind(org_ids)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
-        Ok(row.get::<i64, _>("count"))
     }
 }
 

@@ -1,6 +1,7 @@
 {
   "extends": "@cms/tsconfig/react.json",
   "compilerOptions": {
+    "types": [],
     "paths": {
       "@cms/design-system/*": ["./src/*"]
     }

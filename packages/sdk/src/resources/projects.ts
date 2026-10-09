@@ -74,7 +74,7 @@ export class ProjectsResource {
   /**
    * List projects
    */
-  async list(params?: { organizationId?: string; limit?: number; offset?: number }): Promise<ProjectResponse[]> {
+  async list(params?: { limit?: number; offset?: number }): Promise<ProjectResponse[]> {
     return this.http.get<ProjectResponse[]>('/api/projects', params);
   }
 

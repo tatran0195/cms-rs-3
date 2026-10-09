@@ -70,6 +70,7 @@ export function SignInForm({
     } catch (err: unknown) {
       const message = (err as { message?: string })?.message;
       setError(message || t('auth.otp.invalid'));
+      setOtp('');
     }
   };
 
@@ -134,6 +135,9 @@ export function SignInForm({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2" dir="ltr">
+            <p className="text-center text-muted-foreground text-sm">
+              {t('auth.otp.checkEmail', { email: normalizedEmail })}
+            </p>
             <Label htmlFor="otp">{t('auth.otp.label')}</Label>
             <InputOTP
               aria-invalid={Boolean(error)}

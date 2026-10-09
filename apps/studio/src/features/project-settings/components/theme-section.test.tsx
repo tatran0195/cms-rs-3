@@ -88,7 +88,6 @@ vi.mock('@cms/site', async (importOriginal) => {
 
 const project: Project = {
   id: 'project-a',
-  organizationId: 'org-a',
   name: 'Docs',
   slug: 'docs',
   description: null,

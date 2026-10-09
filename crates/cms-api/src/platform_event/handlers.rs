@@ -31,7 +31,6 @@ use crate::auth::AuthExtractor;
         ("cookieAuth" = []),
     ),
     params(
-        ("organization_id", Query, description = "Filter by organization ID"),
         ("user_id", Query, description = "Filter by user ID"),
         ("event_type", Query, description = "Filter by event type"),
         ("start_date", Query, description = "Filter by start date"),
@@ -50,14 +49,12 @@ pub async fn list_platform_events_handler(
     auth: AuthExtractor,
     Query(query): Query<ListPlatformEventsQuery>,
 ) -> Result<Json<PaginatedResponse<PlatformEventResponse>>, AppError> {
-    let org_id = query.organization_id.as_deref().unwrap_or("");
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = PlatformEventService::list_events(
         &state.biz_context,
         &auth.user.id,
-        org_id,
         query.event_type.as_deref(),
         page,
         page_size,
@@ -112,26 +109,6 @@ pub async fn create_platform_event_handler(
         return Err(AppError::Forbidden);
     }
 
-    let organization_id: Option<String> = serde_json::from_value(
-        request
-            .get("organization_id")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    )
-    .map_err(|_| AppError::BadRequest("Invalid organization_id".to_string()))?;
-    if let Some(organization_id) = organization_id.as_deref() {
-        let is_member = cms_db::org::MemberQueries::get_by_user_and_org(
-            &state.biz_context.pool,
-            &auth.user.id,
-            organization_id,
-        )
-        .await?
-        .is_some();
-        if !is_member {
-            return Err(AppError::Forbidden);
-        }
-    }
-
     let metadata: serde_json::Value = request
         .get("metadata")
         .cloned()
@@ -145,10 +122,8 @@ pub async fn create_platform_event_handler(
 
     let event = PlatformEventService::create_event(
         &state.biz_context,
-        organization_id.as_deref(),
         Some(&user_id),
         cms_entity::platform_event::CreatePlatformEventRequest {
-            organization_id: organization_id.clone(),
             user_id: Some(user_id.clone()),
             event_type,
             metadata,

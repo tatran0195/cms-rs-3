@@ -29,7 +29,7 @@ impl Action {
     }
 }
 
-/// Resources scoped to Workspace / Organization governance
+/// Resources scoped to Workspace governance
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkspaceResource {
@@ -286,18 +286,6 @@ impl PermissionCatalog<WorkspaceResource> {
     }
 }
 
-/// Custom role scoped to an Organization / Workspace
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]
-pub struct OrganizationRole {
-    pub id: String,
-    pub organization_id: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub is_default: bool,
-    pub permissions: WorkspacePermissions,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-}
 
 /// Custom role scoped to a Project
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]

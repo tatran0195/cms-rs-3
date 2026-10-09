@@ -64,3 +64,5 @@ desktop.ini
 target/
 tools/
 previews/
+playwright-report/
+test-results/

@@ -5,4 +5,4 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * Project response
  */
-export type ProjectResponse = { id: string, organizationId: string, name: string, slug: string, description: string | null, icon: string | null, isPublic: boolean, config: JsonValue | null, createdAt: string, updatedAt: string, count?: ProjectCountResponse | null, };
+export type ProjectResponse = { id: string, name: string, slug: string, description: string | null, icon: string | null, isPublic: boolean, config: JsonValue | null, createdAt: string, updatedAt: string, count?: ProjectCountResponse | null, };

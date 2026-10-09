@@ -15,7 +15,6 @@ async fn test_12_api_tokens_lifecycle_and_authentication() -> anyhow::Result<()>
         &ctx.app,
         &cookie,
         format!("ApiToken E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

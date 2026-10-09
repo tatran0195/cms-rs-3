@@ -101,10 +101,9 @@ impl FactSource<ProjectRelationship> for DbProjectRelationshipSource {
         for key in keys {
             let role_opt: Result<Option<String>, _> = sqlx::query_scalar(
                 r#"
-                SELECT m.role::text
-                FROM "Project" p
-                JOIN "Member" m ON p.organization_id = m.organization_id
-                WHERE p.id = $1 AND m.user_id = $2
+                SELECT pm.role::text
+                FROM "ProjectMember" pm
+                WHERE pm.project_id = $1 AND pm.user_id = $2
                 LIMIT 1
                 "#,
             )

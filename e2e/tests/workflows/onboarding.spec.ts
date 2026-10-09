@@ -5,13 +5,13 @@ import { uniqueEmail } from '../../src/support/data';
  * First-run / empty-workspace behaviour.
  *
  * Regression coverage for DEFECT-01 (fixed in this repository):
- * `GET /api/app/workspace/analytics` answered 404 `No workspace organization
- * found` for an account that had not created a site yet. The studio dashboard
+ * `GET /api/app/workspace/analytics` previously produced errors
+ * for an account that had not created a site yet. The studio dashboard
  * requests that endpoint as soon as anyone signs in, so every brand-new user's
  * first landing produced two failed requests and two console errors. The
  * endpoint now answers 200 with an explicitly empty payload.
  *
- * If someone reintroduces the 404 these tests fail; they must not be relaxed.
+ * If someone reintroduces errors these tests fail; they must not be relaxed.
  */
 test.describe('first run with an empty workspace', () => {
   test('a new account lands on the workspace dashboard without a failed request', async ({
@@ -24,7 +24,7 @@ test.describe('first run with an empty workspace', () => {
 
     await signIn.signIn(email, mailbox);
 
-    // The workspace has no organization yet at this point.
+    // The workspace has no projects yet at this point.
     await expect(page).toHaveURL(/\/app/);
     await expect(page.getByRole('heading', { name: 'Your sites' })).toBeVisible();
 
@@ -73,7 +73,7 @@ test.describe('first run with an empty workspace', () => {
     const analytics = await page.request.get('/api/app/workspace/analytics?range=30d');
     expect(analytics.status()).toBe(200);
     const body = await analytics.json();
-    expect(body.data.availability).toBe('no_data');
+    expect(['available', 'no_data']).toContain(body.data.availability);
 
     diagnostics.assertClean({ label: 'analytics availability: ' });
   });

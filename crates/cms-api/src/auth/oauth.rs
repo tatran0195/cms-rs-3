@@ -315,7 +315,6 @@ pub async fn oauth_callback_handler(
             PlatformEventService::record_funnel_event_best_effort(
                 &state.biz_context,
                 &user.id,
-                None,
                 FunnelEventType::SignupCompleted,
                 json!({ "method": provider.as_str() }),
             )

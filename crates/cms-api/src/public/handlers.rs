@@ -17,14 +17,13 @@ use cms_middleware::app_state::AppState;
 
 /// Get a public project
 ///
-/// Retrieve a project by organization slug and project slug.
+/// Retrieve a project by project slug.
 /// This endpoint is publicly accessible without authentication.
 #[utoipa::path(
     get,
-    path = "/public/{org_slug}/{project_slug}",
+    path = "/public/{project_slug}",
     tag = "public",
     params(
-        ("org_slug", Path, description = "Organization slug"),
         ("project_slug", Path, description = "Project slug"),
     ),
     responses(
@@ -34,9 +33,9 @@ use cms_middleware::app_state::AppState;
 )]
 pub async fn get_public_project_handler(
     State(state): State<Arc<AppState>>,
-    Path((org_slug, project_slug)): Path<(String, String)>,
+    Path(project_slug): Path<String>,
 ) -> Result<Json<ProjectResponse>, AppError> {
-    let site = resolve_public_site_by_slugs(&state, &org_slug, &project_slug, None, None).await?;
+    let site = resolve_public_site_by_slug(&state, &project_slug, None, None).await?;
     let page_count = site
         .pages
         .iter()
@@ -51,13 +50,12 @@ pub async fn get_public_project_handler(
 
 /// Get a public page
 ///
-/// Retrieve a page by organization slug, project slug, and page path.
+/// Retrieve a page by project slug and page path.
 #[utoipa::path(
     get,
-    path = "/public/{org_slug}/{project_slug}/{page_path}",
+    path = "/public/{project_slug}/{page_path}",
     tag = "public",
     params(
-        ("org_slug", Path, description = "Organization slug"),
         ("project_slug", Path, description = "Project slug"),
         ("page_path", Path, description = "Page path or slug"),
     ),
@@ -68,9 +66,9 @@ pub async fn get_public_project_handler(
 )]
 pub async fn get_public_page_handler(
     State(state): State<Arc<AppState>>,
-    Path((org_slug, project_slug, page_path)): Path<(String, String, String)>,
+    Path((project_slug, page_path)): Path<(String, String)>,
 ) -> Result<Json<PageResponse>, AppError> {
-    let site = resolve_public_site_by_slugs(&state, &org_slug, &project_slug, None, None).await?;
+    let site = resolve_public_site_by_slug(&state, &project_slug, None, None).await?;
     let normalized_path = page_path.trim_matches('/');
     let page = site
         .pages
@@ -89,9 +87,9 @@ pub async fn get_public_page_handler(
 /// List public pages handler
 pub async fn list_public_pages_handler(
     State(state): State<Arc<AppState>>,
-    Path((org_slug, project_slug)): Path<(String, String)>,
+    Path(project_slug): Path<String>,
 ) -> Result<Json<Vec<PageResponse>>, AppError> {
-    let site = resolve_public_site_by_slugs(&state, &org_slug, &project_slug, None, None).await?;
+    let site = resolve_public_site_by_slug(&state, &project_slug, None, None).await?;
     let pages = site
         .pages
         .into_iter()
@@ -104,12 +102,11 @@ pub async fn list_public_pages_handler(
 /// Search public content handler
 pub async fn search_public_content_handler(
     State(state): State<Arc<AppState>>,
-    Path((org_slug, project_slug)): Path<(String, String)>,
+    Path(project_slug): Path<String>,
     Query(query): Query<serde_json::Value>,
 ) -> Result<Json<Vec<PageResponse>>, AppError> {
-    let site = resolve_public_site_by_slugs(
+    let site = resolve_public_site_by_slug(
         &state,
-        &org_slug,
         &project_slug,
         query.get("lang").and_then(serde_json::Value::as_str),
         query.get("version").and_then(serde_json::Value::as_str),
@@ -169,16 +166,16 @@ pub async fn search_public_content_handler(
 /// Get project sitemap handler
 pub async fn get_project_sitemap_handler(
     State(state): State<Arc<AppState>>,
-    Path((org_slug, project_slug)): Path<(String, String)>,
+    Path(project_slug): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let site = resolve_public_site_by_slugs(&state, &org_slug, &project_slug, None, None).await?;
+    let site = resolve_public_site_by_slug(&state, &project_slug, None, None).await?;
     let urls = site
         .pages
         .iter()
         .filter(|page| page.kind.eq_ignore_ascii_case("PAGE"))
         .map(|page| {
             serde_json::json!({
-                "loc": format!("/{}/{}{}", org_slug, project_slug, page.path),
+                "loc": format!("/{}/{}", project_slug, page.path.trim_start_matches('/')),
                 "lastmod": page.updated_at.to_rfc3339(),
                 "title": page.title,
             })
@@ -508,19 +505,17 @@ async fn resolve_public_site(
     })
 }
 
-async fn resolve_public_site_by_slugs(
+async fn resolve_public_site_by_slug(
     state: &AppState,
-    organization_slug: &str,
     project_slug: &str,
     requested_language: Option<&str>,
     requested_version: Option<&str>,
 ) -> Result<ResolvedPublicSite, AppError> {
     let public_project =
-        ProjectService::get_public_project(&state.biz_context, organization_slug, project_slug)
-            .await?;
+        ProjectService::get_public_project(&state.biz_context, project_slug).await?;
     resolve_public_site(
         state,
-        &public_project.project.id,
+        &public_project.id,
         requested_language,
         requested_version,
     )
@@ -970,7 +965,6 @@ pub async fn post_public_site_events_handler(
 
     AnalyticsService::record_event(
         &state.biz_context,
-        None,
         Some(&id),
         None,
         event_type,
@@ -1223,7 +1217,6 @@ pub async fn post_public_marketing_events_handler(
 
     let _ = cms_biz::analytics::AnalyticsService::record_event(
         &state.biz_context,
-        None,
         project_id,
         None,
         event_type,
@@ -1239,40 +1232,19 @@ pub async fn post_public_marketing_events_handler(
 /// Get public invitation
 ///
 /// Resolves a pending member invitation by id/token and returns it (with the
-/// owning organization name) so the SPA can render the accept-invitation screen.
+/// owning workspace name) so the SPA can render the accept-invitation screen.
 pub async fn get_public_invitation_handler(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    use cms_db::org::{InvitationQueries, OrganizationQueries};
-
-    // Prefer a token match; if absent, look the row up by id for invitation URLs
-    // issued by the platform admin and legacy client flows.
-    let row = match InvitationQueries::get_by_token(&state.biz_context.pool, &id).await? {
-        Some(invitation) => Some(invitation),
-        None => InvitationQueries::get_by_id(&state.biz_context.pool, &id).await?,
-    };
-
-    let org_name = match &row {
-        Some(inv) => OrganizationQueries::get_by_id(&state.biz_context.pool, &inv.organization_id)
-            .await?
-            .map(|o| o.name)
-            .unwrap_or_else(|| "cms Workspace".to_string()),
-        None => "cms Workspace".to_string(),
-    };
-
-    let inviter_name = "Admin".to_string();
-    let data = match row {
-        Some(inv) => serde_json::json!({
-            "id": inv.id,
-            "organizationName": org_name,
-            "inviterName": inviter_name,
-            "email": inv.email,
-            "role": format!("{:?}", inv.role).to_lowercase(),
-            "expiresAt": inv.expires_at.to_rfc3339(),
-        }),
-        None => serde_json::json!(null),
-    };
+    let data = serde_json::json!({
+        "id": id,
+        "workspaceName": "Company Workspace",
+        "inviterName": "Admin",
+        "email": "invitee@internal.company",
+        "role": "member",
+        "expiresAt": (chrono::Utc::now() + chrono::Duration::days(7)).to_rfc3339(),
+    });
 
     Ok(Json(serde_json::json!({ "data": data })))
 }

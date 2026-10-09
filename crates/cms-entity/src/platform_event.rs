@@ -9,7 +9,6 @@ use crate::common::Id;
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PlatformEvent {
     pub id: Id,
-    pub organization_id: Option<Id>,
     pub user_id: Option<Id>,
     pub event_type: String,
     pub metadata: serde_json::Value,
@@ -20,7 +19,6 @@ pub struct PlatformEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct PlatformEventResponse {
     pub id: Id,
-    pub organization_id: Option<Id>,
     pub user_id: Option<Id>,
     pub event_type: String,
     pub metadata: serde_json::Value,
@@ -31,7 +29,6 @@ impl From<PlatformEvent> for PlatformEventResponse {
     fn from(event: PlatformEvent) -> Self {
         Self {
             id: event.id,
-            organization_id: event.organization_id,
             user_id: event.user_id,
             event_type: event.event_type,
             metadata: event.metadata,
@@ -44,8 +41,6 @@ impl From<PlatformEvent> for PlatformEventResponse {
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct CreatePlatformEventRequest {
     #[serde(default)]
-    pub organization_id: Option<Id>,
-    #[serde(default)]
     pub user_id: Option<Id>,
     pub event_type: String,
     #[serde(default)]
@@ -56,10 +51,7 @@ pub struct CreatePlatformEventRequest {
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct ListPlatformEventsQuery {
     #[serde(default)]
-    pub organization_id: Option<Id>,
-    #[serde(default)]
     pub user_id: Option<Id>,
-    #[serde(default)]
     pub event_type: Option<String>,
     #[serde(default)]
     pub start_date: Option<DateTime<Utc>>,
@@ -73,8 +65,6 @@ pub struct ListPlatformEventsQuery {
 
 /// Platform event type constants
 pub mod event_types {
-    pub const ORG_CREATED: &str = "organization.created";
-    pub const ORG_DELETED: &str = "organization.deleted";
     pub const PROJECT_CREATED: &str = "project.created";
     pub const PROJECT_DELETED: &str = "project.deleted";
     pub const USER_INVITED: &str = "user.invited";

@@ -10,7 +10,6 @@ use uuid::Uuid;
 #[derive(Debug, FromRow)]
 struct PlatformEventRow {
     id: String,
-    organization_id: Option<String>,
     user_id: Option<String>,
     event_type: String,
     metadata: serde_json::Value,
@@ -21,7 +20,6 @@ impl From<PlatformEventRow> for PlatformEvent {
     fn from(row: PlatformEventRow) -> Self {
         Self {
             id: row.id,
-            organization_id: row.organization_id,
             user_id: row.user_id,
             event_type: row.event_type,
             metadata: row.metadata,
@@ -34,7 +32,6 @@ impl From<PlatformEventRow> for PlatformEventResponse {
     fn from(row: PlatformEventRow) -> Self {
         Self {
             id: row.id,
-            organization_id: row.organization_id,
             user_id: row.user_id,
             event_type: row.event_type,
             metadata: row.metadata,
@@ -62,10 +59,10 @@ impl PlatformEventQueries {
         Ok(row.map(|r| r.into()))
     }
 
-    /// Get platform events by organization
-    pub async fn get_by_organization(
+    /// List platform events
+    pub async fn list(
         pool: &PgPool,
-        org_id: Option<&str>,
+        user_id: Option<&str>,
         event_type: Option<&str>,
         limit: Option<i64>,
         offset: Option<i64>,
@@ -73,9 +70,9 @@ impl PlatformEventQueries {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT * FROM \"PlatformEvent\" WHERE 1=1");
 
-        if let Some(org_id) = org_id {
-            query_builder.push(" AND organization_id = ");
-            query_builder.push_bind(org_id);
+        if let Some(user_id) = user_id {
+            query_builder.push(" AND user_id = ");
+            query_builder.push_bind(user_id);
         }
 
         if let Some(event_type) = event_type {
@@ -104,18 +101,18 @@ impl PlatformEventQueries {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
-    /// Count platform events by organization
-    pub async fn count_by_organization(
+    /// Count platform events
+    pub async fn count(
         pool: &PgPool,
-        org_id: Option<&str>,
+        user_id: Option<&str>,
         event_type: Option<&str>,
     ) -> Result<i64, AppError> {
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new("SELECT COUNT(*) FROM \"PlatformEvent\" WHERE 1=1");
 
-        if let Some(org_id) = org_id {
-            query_builder.push(" AND organization_id = ");
-            query_builder.push_bind(org_id);
+        if let Some(user_id) = user_id {
+            query_builder.push(" AND user_id = ");
+            query_builder.push_bind(user_id);
         }
 
         if let Some(event_type) = event_type {
@@ -136,7 +133,6 @@ impl PlatformEventQueries {
     /// Create a new platform event
     pub async fn create(
         pool: &PgPool,
-        organization_id: Option<&str>,
         user_id: Option<&str>,
         event_type: &str,
         metadata: serde_json::Value,
@@ -146,13 +142,12 @@ impl PlatformEventQueries {
 
         let row = sqlx::query_as::<_, PlatformEventRow>(
             r#"
-            INSERT INTO "PlatformEvent" (id, organization_id, user_id, event_type, metadata, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO "PlatformEvent" (id, user_id, event_type, metadata, created_at)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             "#
         )
         .bind(&id)
-        .bind(organization_id)
         .bind(user_id)
         .bind(event_type)
         .bind(metadata)

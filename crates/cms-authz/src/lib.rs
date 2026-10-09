@@ -70,11 +70,11 @@
 //! let document = Document { owner_id: 7 };
 //! let admin = User { id: 1, roles: vec!["admin"] };
 //! let owner = User { id: 7, roles: vec!["user"] };
-//! let guest = User { id: 2, roles: vec!["user"] };
+//! let viewer = User { id: 2, roles: vec!["user"] };
 //!
 //! assert!(checker.bind(&session, &admin, &ReadAction, &()).check(&document).await.is_granted());
 //! assert!(checker.bind(&session, &owner, &ReadAction, &()).check(&document).await.is_granted());
-//! assert!(!checker.bind(&session, &guest, &ReadAction, &()).check(&document).await.is_granted());
+//! assert!(!checker.bind(&session, &viewer, &ReadAction, &()).check(&document).await.is_granted());
 //! # });
 //! ```
 //!

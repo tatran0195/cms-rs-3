@@ -45,7 +45,8 @@ function AcceptInviteContent({ invitationId }: { invitationId: string }) {
     navigate({ to: '/app' });
   };
 
-  const subtitle = info?.organizationName ? t('auth.invite.joinPrompt', { org: info.organizationName }) : t('auth.invite.subtitle');
+  const workspaceName = info?.workspaceName;
+  const subtitle = workspaceName ? t('auth.invite.joinPrompt', { org: workspaceName }) : t('auth.invite.subtitle');
 
   if (isPending || invitation.isPending) {
     return (

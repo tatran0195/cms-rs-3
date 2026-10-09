@@ -82,7 +82,6 @@ impl AuthService {
         PlatformEventService::record_funnel_event_best_effort(
             ctx,
             &user.id,
-            None,
             FunnelEventType::SignupCompleted,
             serde_json::json!({ "method": "password" }),
         )

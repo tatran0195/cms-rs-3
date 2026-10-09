@@ -51,7 +51,6 @@ export interface Language {
 
 export interface Project {
   id: string;
-  organizationId: string;
   name: string;
   slug: string;
   description: string | null;

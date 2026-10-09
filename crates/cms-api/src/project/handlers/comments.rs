@@ -7,7 +7,7 @@ use axum::{
 use cms_entity::{
     comment::{CommentUserResponse, ProjectCommentResponse},
     common::ApiResponse,
-    org::WorkspaceMutationResponse,
+    workspace::WorkspaceMutationResponse,
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;

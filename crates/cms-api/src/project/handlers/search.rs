@@ -52,7 +52,6 @@ pub async fn get_project_search_settings_handler(
     ensure_project_settings(&state, &project_id).await?;
 
     let search_config = proj
-        .project
         .config
         .as_ref()
         .and_then(|c| c.get("search"))
@@ -142,7 +141,7 @@ pub async fn update_project_search_settings_handler(
     .await?;
 
     // Deep merge search settings into Project.config
-    let mut config = proj.project.config.unwrap_or_else(|| serde_json::json!({}));
+    let mut config = proj.config.unwrap_or_else(|| serde_json::json!({}));
     let mut search_obj = config
         .get("search")
         .cloned()

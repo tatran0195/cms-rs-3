@@ -30,6 +30,8 @@ pub struct CreateBranchRequest {
     pub description: Option<String>,
     #[serde(default)]
     pub is_protected: bool,
+    #[serde(default, alias = "fromBranchId", alias = "from_branch_id")]
+    pub from_branch_id: Option<String>,
 }
 
 /// Branch update request

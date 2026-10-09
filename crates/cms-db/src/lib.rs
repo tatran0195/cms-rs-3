@@ -24,14 +24,12 @@ pub mod language;
 pub mod mcp;
 pub mod notification;
 pub mod openapi;
-pub mod org;
 pub mod page;
 pub mod platform_event;
 pub mod project;
 pub mod reader_access;
 pub mod search_index;
 pub mod theme;
-pub mod usage;
 
 use cms_error::AppError;
 pub use sqlx;
@@ -126,10 +124,11 @@ mod tests {
                 res.err()
             );
 
-            let mem_res = crate::org::MemberQueries::get_by_user(&pool, "nonexistent-user").await;
+            let mem_res =
+                crate::authz::ProjectMemberQueries::list_by_project(&pool, "nonexistent-project").await;
             assert!(
                 mem_res.is_ok(),
-                "Member get should succeed: {:?}",
+                "ProjectMember list should succeed: {:?}",
                 mem_res.err()
             );
         }

@@ -411,7 +411,6 @@ mod tests {
 
         let project = Project {
             id: "proj-1".to_string(),
-            organization_id: "org-1".to_string(),
             name: "Test Project".to_string(),
             slug: "test-project".to_string(),
             description: Some("A test project".to_string()),

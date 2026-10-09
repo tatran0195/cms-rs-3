@@ -249,7 +249,7 @@ impl CommentService {
 #[cfg(test)]
 mod tests {
     use cms_authz::GatehouseState;
-    use cms_db::{branch::BranchQueries, org::MemberQueries, project::ProjectQueries};
+    use cms_db::{branch::BranchQueries, project::ProjectQueries};
     use uuid::Uuid;
 
     use super::*;
@@ -306,21 +306,17 @@ mod tests {
         .execute(&pool)
         .await;
 
-        let org_id = Uuid::new_v4().to_string();
-        let org_name = format!("Comment Test Org {}", Uuid::new_v4());
-        let org_slug = format!("comment-org-{}", Uuid::new_v4());
         let proj_name = format!("Comment Test Proj {}", Uuid::new_v4());
         let proj_slug = format!("comment-proj-{}", Uuid::new_v4());
 
-        let (project, _org) = match ProjectQueries::create_atomic(
+        let project = match ProjectQueries::create_atomic(
             &pool,
-            Some((&org_name, &org_slug, &author_id)),
-            &org_id,
             &proj_name,
             &proj_slug,
             None,
             None,
             false,
+            Some(&author_id),
         )
         .await
         {
@@ -328,10 +324,16 @@ mod tests {
             Err(_) => return,
         };
 
-        // Add other_id as Admin in org
-        let _ = MemberQueries::create(&pool, &other_id, &org_id, MemberRole::Admin)
-            .await
-            .expect("Failed to add other user as admin");
+        // Add other_id as Admin in project
+        let _ = cms_db::authz::ProjectMemberQueries::create(
+            &pool,
+            &project.id,
+            &other_id,
+            "admin",
+            None,
+        )
+        .await
+        .expect("Failed to add other user as admin");
 
         let default_branch = BranchQueries::get_default(&pool, &project.id)
             .await
@@ -377,7 +379,6 @@ mod tests {
         let auth_record = auth_res.unwrap();
         assert_eq!(auth_record.comment.id, comment.id);
         assert_eq!(auth_record.project_id, project.id);
-        assert_eq!(auth_record.organization_id, org_id);
         assert!(auth_record.member_role.is_some());
         assert_eq!(auth_record.author_name.as_deref(), Some("Author User"));
         assert!(auth_record.is_author(&author_id));
@@ -475,14 +476,6 @@ mod tests {
             .await;
         let _ = cms_db::sqlx::query("DELETE FROM \"Project\" WHERE id = $1")
             .bind(&project.id)
-            .execute(&pool)
-            .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Member\" WHERE organization_id = $1")
-            .bind(&org_id)
-            .execute(&pool)
-            .await;
-        let _ = cms_db::sqlx::query("DELETE FROM \"Organization\" WHERE id = $1")
-            .bind(&org_id)
             .execute(&pool)
             .await;
         for uid in [&author_id, &other_id, &unauth_id] {

@@ -118,11 +118,43 @@ pub async fn merge_project_branch_handler(
         .filter(|branch| branch.project_id == project_id)
         .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
 
-    let commit_message = format!("Merge branch {}", branch.name);
+    if branch.is_default {
+        return Err(AppError::Conflict(
+            "Cannot merge the default branch into itself".to_string(),
+        ));
+    }
+
+    let default_branch = cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &project_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Default branch not found".to_string()))?;
+
+    let mut tx = state.biz_context.pool.begin().await?;
+
+    sqlx::query("DELETE FROM \"Page\" WHERE project_id = $1 AND branch_id = $2")
+        .bind(&project_id)
+        .bind(&default_branch.id)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query("UPDATE \"Page\" SET branch_id = $1 WHERE project_id = $2 AND branch_id = $3")
+        .bind(&default_branch.id)
+        .bind(&project_id)
+        .bind(&branch.id)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query("DELETE FROM \"Branch\" WHERE id = $1")
+        .bind(&branch.id)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    let commit_message = format!("Promote {} into {}", branch.name, default_branch.name);
     let deployment = super::deployments::create_publish_deployment(
         &state,
         &project_id,
-        &branch.id,
+        &default_branch.id,
         &auth.user.id,
         &commit_message,
         serde_json::json!({}),

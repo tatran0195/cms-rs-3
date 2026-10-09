@@ -107,8 +107,8 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
     message: string;
   }
   const redirectIssues: RedirectIssue[] = pending?.redirectIssues ?? [];
-  const publishBlocked = loadingChanges || preflightFailed || redirectIssues.length > 0;
   const hasBaseline = pending?.hasBaseline ?? true;
+  const publishBlocked = loadingChanges || preflightFailed || redirectIssues.length > 0 || (hasBaseline && count === 0);
   const changeKey = useCallback((change: PendingChange) => `${change.id}:${change.status}`, []);
   const selectedChange: PendingChange | null = sorted.find((change) => changeKey(change) === selectedKey) ?? sorted[0] ?? null;
 

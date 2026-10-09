@@ -5,12 +5,12 @@ use axum::{
     Json,
 };
 use cms_entity::{
-    auth::ProjectApiKeyResponse, common::ApiResponse, org::WorkspaceMutationResponse,
+    auth::ProjectApiKeyResponse, common::ApiResponse, workspace::WorkspaceMutationResponse,
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
-use super::common::project_org_id;
+use super::common::verify_project_access;
 use crate::auth::AuthExtractor;
 
 /// Render a stored API key as the SPA's `ApiKey` shape. `secret` is only supplied
@@ -61,7 +61,7 @@ pub async fn list_project_api_keys_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<ProjectApiKeyResponse>>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     let keys =
         cms_db::auth::ApiKeyQueries::get_all_for_user_raw(&state.biz_context.pool, &auth.user.id)
             .await?;
@@ -79,7 +79,7 @@ pub async fn create_project_api_key_handler(
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<ProjectApiKeyResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     let name = body
         .get("name")
         .and_then(|v| v.as_str())
@@ -107,7 +107,7 @@ pub async fn delete_project_api_key_handler(
     auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
     cms_biz::auth::AuthService::delete_api_key(&state.biz_context, &auth.user.id, &id).await?;
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
@@ -125,7 +125,7 @@ pub async fn rotate_project_api_key_handler(
     Path((project_id, id)): Path<(String, String)>,
     Json(_body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<ProjectApiKeyResponse>>, AppError> {
-    let _org_id = project_org_id(&state, &auth, &project_id).await?;
+    verify_project_access(&state, &auth, &project_id).await?;
 
     let existing = cms_db::auth::ApiKeyQueries::get_by_id(&state.biz_context.pool, &id)
         .await?

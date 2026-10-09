@@ -3,4 +3,4 @@
 /**
  * Accept invitation request
  */
-export type AcceptInvitationRequest = { token: string, password: string | null, };
+export type AcceptInvitationRequest = { token: string, name: string | null, };

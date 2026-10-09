@@ -1,25 +1,6 @@
--- Migration: Custom Roles and Project Membership
--- Enables independent 2D permission matrices for Workspaces (Organizations) and Projects
+-- Migration: Project Custom Roles and Membership
+-- Enables independent role permission matrices for Projects
 
--- 1. Workspace Custom Roles
-CREATE TABLE IF NOT EXISTS "OrganizationRole" (
-    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id TEXT NOT NULL REFERENCES "Organization"(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    is_default BOOLEAN NOT NULL DEFAULT false,
-    permissions JSONB NOT NULL DEFAULT '{}',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(organization_id, name)
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS "organization_role_default_uq" 
-    ON "OrganizationRole"(organization_id) 
-    WHERE is_default = true;
-
-ALTER TABLE "Member" 
-    ADD COLUMN IF NOT EXISTS role_id TEXT REFERENCES "OrganizationRole"(id) ON DELETE SET NULL;
 
 -- 2. Project Custom Roles
 CREATE TABLE IF NOT EXISTS "ProjectRole" (

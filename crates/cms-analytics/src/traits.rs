@@ -8,7 +8,6 @@ pub trait AnalyticsStore: Send + Sync {
     /// Record an analytics event
     async fn record_event(
         &self,
-        org_id: Option<&str>,
         project_id: Option<&str>,
         user_id: Option<&str>,
         event_type: &str,
@@ -20,7 +19,6 @@ pub trait AnalyticsStore: Send + Sync {
     /// Query analytics events
     async fn query_events(
         &self,
-        org_id: Option<&str>,
         project_id: Option<&str>,
         user_id: Option<&str>,
         event_type: Option<&str>,
@@ -33,7 +31,6 @@ pub trait AnalyticsStore: Send + Sync {
     /// Get summary statistics
     async fn get_summary(
         &self,
-        org_id: &str,
         start_date: chrono::DateTime<chrono::Utc>,
         end_date: chrono::DateTime<chrono::Utc>,
     ) -> Result<serde_json::Value, AppError>;

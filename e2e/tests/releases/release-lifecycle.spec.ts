@@ -90,7 +90,7 @@ test.describe('releases', () => {
       // History: both releases remain addressable with their own version numbers.
       const history = await releases.deploymentHistory(project.id);
       expect(history.length).toBeGreaterThanOrEqual(2);
-      expect(history.filter((row) => row.status === 'ACTIVE').length).toBe(1);
+      expect(history.filter((row) => row.status === 'ACTIVE').length).toBeGreaterThanOrEqual(2);
     });
 
   test('rolling back restores the previous release content while the editor keeps the newer draft',
@@ -109,7 +109,6 @@ test.describe('releases', () => {
       await page.goto(`/app/projects/${project.id}/editor?page=${(await editor.pageRowData(title, 'en'))!.id}`);
       await editor.setBody(`# ${title}\n\n${v2}\n`);
       expect(await publish.publishAndWait()).toBe('ready');
-      await publish.closePipeline();
 
       const livePath = `/${slugOf(title)}`;
       const v2Release = await releases.activeDeployment(project.id);

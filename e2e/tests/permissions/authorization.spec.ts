@@ -4,29 +4,32 @@ import { uniqueEmail, uniqueName } from '../../src/support/data';
 /**
  * Authorization boundaries.
  *
- * The product stores per-site membership but resolves effective project role
- * from organization membership. These tests probe that seam from the outside:
+ * The product stores per-site membership and enforces project authorization via Gatehouse.
+ * These tests probe that seam from the outside:
  * a genuinely separate account must not be able to reach or mutate a site it was
  * never given, and every refusal must leave the content untouched.
  */
 test.describe('permissions', () => {
   test('a signed-out visitor is refused the editor, the settings and the API', async ({
-    page,
+    browser,
     project,
     diagnostics,
   }) => {
+    const visitor = await browser.newContext();
+    const visitorPage = await visitor.newPage();
     for (const path of [`/app/projects/${project.id}/editor`, `/app/projects/${project.id}/settings`]) {
-      await page.goto(path);
-      await expect(page).toHaveURL(/\/sign-in/, { timeout: 30_000 });
+      await visitorPage.goto(path);
+      await expect(visitorPage).toHaveURL(/\/sign-in/, { timeout: 30_000 });
     }
 
     // The API must refuse too, not just the SPA router.
-    const result = await page.evaluate(async (id) => {
+    const result = await visitorPage.evaluate(async (id) => {
       const response = await fetch(`/api/app/projects/${id}/pages`, { credentials: 'include' });
       return response.status;
     }, project.id);
     expect(result, 'unauthenticated API access must be refused').toBeGreaterThanOrEqual(400);
     diagnostics.assertClean({ label: 'anonymous access: ' });
+    await visitor.close();
   });
 
   test('an unrelated account cannot open another team’s project', async ({ page, secondContext, project, diagnostics }) => {
@@ -112,6 +115,7 @@ test.describe('permissions', () => {
     project,
   }) => {
     const intruder = await secondContext.newPage();
+    await intruder.goto('/app');
     const status = await intruder.evaluate(async (id) => {
       const response = await fetch(`/api/app/projects/${id}/deployments`, { credentials: 'include' });
       return response.status;
@@ -140,6 +144,7 @@ test.describe('permissions', () => {
   test('a brand new account starts with no projects and creates its own workspace', async ({
     page,
     dashboard,
+    author,
     db,
     diagnostics,
   }) => {
@@ -151,11 +156,11 @@ test.describe('permissions', () => {
     const site = await dashboard.createSite(name);
     expect(site.id).toBeTruthy();
 
-    const membership = await db.one(
-      `SELECT m.role FROM "Member" m JOIN "Project" p ON p.organization_id = m.organization_id WHERE p.id = $1`,
+    const membership = await db.one<{ role: string }>(
+      `SELECT pm.role FROM "ProjectMember" pm WHERE pm.project_id = $1`,
       [site.id],
     );
-    expect(membership.role).toBe('OWNER');
+    expect(membership.role.toLowerCase()).toBe('owner');
     void uniqueEmail;
     diagnostics.assertClean({ label: 'new workspace: ' });
   });

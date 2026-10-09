@@ -15,7 +15,6 @@ async fn test_13_translation_linking_and_alternate_language_navigation() -> anyh
         &ctx.app,
         &cookie,
         format!("TransLinking E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

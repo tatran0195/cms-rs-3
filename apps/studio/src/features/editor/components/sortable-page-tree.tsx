@@ -553,6 +553,11 @@ const RowPresentation = memo(function RowPresentation({
         !overlay && !active && 'text-foreground/80 hover:bg-muted hover:text-foreground',
       )}
       style={{ marginInlineStart: depth * INDENT }}
+      data-testid={overlay ? undefined : 'page-row'}
+      data-page-id={node.id}
+      data-page-kind={node.kind}
+      data-page-slug={node.slug}
+      data-page-path={node.path}
     >
       <button
         type="button"

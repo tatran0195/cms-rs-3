@@ -63,25 +63,13 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/domains/tls-authorize",
             get(authorize_custom_domain_tls_handler),
         )
+        .route("/projects/{project_slug}", get(get_public_project_handler))
         .route(
-            "/projects/{org_slug}/{project_slug}",
-            get(get_public_project_handler),
-        )
-        .route(
-            "/pages/{org_slug}/{project_slug}/{*page_path}",
+            "/pages/{project_slug}/{*page_path}",
             get(get_public_page_handler),
         )
-        .route(
-            "/pages/{org_slug}/{project_slug}",
-            get(list_public_pages_handler),
-        )
-        .route(
-            "/search/{org_slug}/{project_slug}",
-            get(search_public_content_handler),
-        )
-        .route(
-            "/sitemap/{org_slug}/{project_slug}",
-            get(get_project_sitemap_handler),
-        )
+        .route("/pages/{project_slug}", get(list_public_pages_handler))
+        .route("/search/{project_slug}", get(search_public_content_handler))
+        .route("/sitemap/{project_slug}", get(get_project_sitemap_handler))
         .with_state(state)
 }

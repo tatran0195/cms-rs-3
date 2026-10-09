@@ -42,6 +42,13 @@ pub async fn list_project_pages_handler(
     Path(project_id): Path<ProjectId>,
     Query(mut query): Query<cms_entity::page::ListPagesQuery>,
 ) -> Result<Json<ApiResponse<Vec<PageListItem>>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::ProjectAction::View,
+    )
+    .await?;
     query.project_id = project_id.to_string();
     if query.branch_id.is_empty() {
         if let Ok(Some(b)) =
@@ -120,6 +127,13 @@ pub async fn create_project_page_handler(
     Path(project_id): Path<ProjectId>,
     ValidatedJson(mut request): ValidatedJson<cms_entity::page::CreatePageRequest>,
 ) -> Result<Json<ApiResponse<PageResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::ProjectAction::Edit,
+    )
+    .await?;
     request.project_id = project_id.to_string();
     if request.branch_id.is_empty() {
         if let Ok(Some(b)) =
@@ -183,6 +197,13 @@ pub async fn get_project_page_handler(
     ),
     AppError,
 > {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::ProjectAction::View,
+    )
+    .await?;
     let mut page =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
             .await?;
@@ -242,6 +263,13 @@ pub async fn update_project_page_handler(
     ),
     AppError,
 > {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::ProjectAction::Edit,
+    )
+    .await?;
     let existing =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
             .await?;
@@ -310,6 +338,13 @@ pub async fn delete_project_page_handler(
     auth: AuthExtractor,
     Path((project_id, page_id)): Path<(ProjectId, PageId)>,
 ) -> Result<Json<ApiResponse<DeletePageResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::ProjectAction::Edit,
+    )
+    .await?;
     let page =
         cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
             .await?;

@@ -4491,8 +4491,8 @@ mod policy_builder_tests {
             })
             .build();
 
-        let guest = BatchSubject {
-            role: "guest".into(),
+        let viewer = BatchSubject {
+            role: "viewer".into(),
         };
         let action = BatchAction;
         let resources: Vec<BatchResource> = (0..10)
@@ -4504,7 +4504,7 @@ mod policy_builder_tests {
         let items = make_items(&resources);
 
         let session = EvaluationSession::new();
-        let bctx = batch_ctx(&session, &guest, &action, &ctx, &items);
+        let bctx = batch_ctx(&session, &viewer, &action, &ctx, &items);
         let results = policy.evaluate_batch(&bctx).await;
 
         assert_eq!(results.len(), 10);
@@ -4537,7 +4537,7 @@ mod policy_builder_tests {
             .build();
 
         let subject = BatchSubject {
-            role: "guest".into(),
+            role: "viewer".into(),
         };
         let action = BatchAction;
         let resources = (0..10)
@@ -5107,7 +5107,7 @@ mod policy_builder_tests {
 
         // The first predicate decides whether the second one is reached at all.
         for (role, expect_granted, expect_second_calls) in
-            [("staff", true, 1usize), ("guest", false, 0usize)]
+            [("staff", true, 1usize), ("viewer", false, 0usize)]
         {
             let first_calls = Arc::new(AtomicUsize::new(0));
             let second_calls = Arc::new(AtomicUsize::new(0));

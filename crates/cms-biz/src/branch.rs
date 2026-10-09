@@ -29,6 +29,12 @@ impl BranchService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
+        if let Some(ref from_branch_id) = request.from_branch_id {
+            if !from_branch_id.trim().is_empty() {
+                return Self::duplicate_branch(ctx, _user_id, from_branch_id.trim(), &request.name).await;
+            }
+        }
+
         // Generate a unique slug atomically with unique constraint retry
         let base_slug = request.name.trim().to_lowercase().replace(' ', "-");
         let base_slug = if base_slug.is_empty() {

@@ -70,8 +70,9 @@ export function useSignOut(client: CmsClient) {
   return useMutation({
     mutationFn: () => authService.signOut(client),
     onSuccess: () => {
+      queryClient.cancelQueries();
       queryClient.setQueryData(authKeys.session(), null);
-      queryClient.clear();
+      queryClient.removeQueries({ type: 'inactive' });
     },
   });
 }

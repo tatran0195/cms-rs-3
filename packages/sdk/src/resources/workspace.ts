@@ -1,5 +1,5 @@
 import type { HttpClient } from '../http';
-import type { OrganizationResponse, OrgId, WorkspaceMembersResponse } from '../types';
+import type { WorkspaceMembersResponse, WorkspaceSettingsResponse } from '../types';
 
 export interface WorkspaceAnalyticsData {
   availability: string;
@@ -23,12 +23,9 @@ export class WorkspaceResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * Get workspace / organization details
+   * Get workspace details
    */
-  async get<T = OrganizationResponse>(orgId?: OrgId): Promise<T> {
-    if (orgId) {
-      return this.http.get<T>(`/api/organizations/${orgId}`);
-    }
+  async get<T = WorkspaceSettingsResponse>(): Promise<T> {
     return this.http.get<T>('/api/app/workspace');
   }
 
@@ -42,10 +39,7 @@ export class WorkspaceResource {
   /**
    * Get workspace team members
    */
-  async getMembers<T = WorkspaceMembersResponse>(orgId?: OrgId): Promise<T> {
-    if (orgId) {
-      return this.http.get<T>(`/api/organizations/${orgId}/members`);
-    }
+  async getMembers<T = WorkspaceMembersResponse>(): Promise<T> {
     return this.http.get<T>('/api/app/members');
   }
 
@@ -74,16 +68,9 @@ export class WorkspaceResource {
    * Get cross-project workspace analytics overview
    */
   async getAnalytics<T = WorkspaceAnalyticsData>(
-    orgIdOrParams?: OrgId | { range?: string; timezone?: string },
     params?: { period?: string; range?: string; timezone?: string },
   ): Promise<T> {
-    if (typeof orgIdOrParams === 'string') {
-      return this.http.get<T>('/api/app/analytics/overview', {
-        organizationId: orgIdOrParams,
-        ...params,
-      });
-    }
-    return this.http.get<T>('/api/app/workspace/analytics', orgIdOrParams ?? params);
+    return this.http.get<T>('/api/app/workspace/analytics', params);
   }
 
   /**
@@ -94,7 +81,7 @@ export class WorkspaceResource {
   }
 
   /**
-   * Delete current workspace organization
+   * Delete current workspace
    */
   async delete<T = { success: boolean; id: string }>(): Promise<T> {
     return this.http.delete<T>('/api/app/workspace');

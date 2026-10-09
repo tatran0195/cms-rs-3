@@ -427,7 +427,7 @@ pub struct UpdateUserPayload {
     pub image: Option<String>,
 }
 
-/// Accept organization invitation payload
+/// Accept invitation payload
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AcceptInvitationPayload {

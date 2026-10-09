@@ -6,7 +6,7 @@ use axum::{
 };
 use cms_entity::{
     common::ApiResponse,
-    org::WorkspaceMutationResponse,
+    workspace::WorkspaceMutationResponse,
     reader_access::{
         ProjectAudienceItem, ProjectJwtProviderItem, ProjectJwtTestResponse,
         ProjectReaderAccessResponse, ProjectReaderEmergencyRevokeResponse,

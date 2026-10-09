@@ -15,7 +15,6 @@ async fn test_09_preview_branches_and_isolation() -> anyhow::Result<()> {
         &ctx.app,
         &cookie,
         format!("Branch E2E {}", Uuid::new_v4().simple()),
-        &ctx.seed.organization_id,
         true,
     )
     .await?;

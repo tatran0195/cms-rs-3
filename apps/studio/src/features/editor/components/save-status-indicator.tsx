@@ -1,5 +1,5 @@
 import { useT } from '@cms/i18n/react';
-import { Check, Loader2 } from 'lucide-react';
+import { AlertCircle, Check, Loader2 } from 'lucide-react';
 import { memo } from 'react';
 import { useEditorStore } from '../stores/editor-store';
 
@@ -27,6 +27,11 @@ export const SaveStatusIndicator = memo(function SaveStatusIndicator() {
         <>
           <Check className="size-3 text-primary" />
           <span>{t('editor.savedShort')}</span>
+        </>
+      ) : syncStatus === 'error' ? (
+        <>
+          <AlertCircle className="size-3 text-destructive" />
+          <span className="text-destructive">Not saved</span>
         </>
       ) : null}
     </span>

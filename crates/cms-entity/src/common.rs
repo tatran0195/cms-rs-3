@@ -336,7 +336,7 @@ impl SuccessResponse {
     }
 }
 
-/// Member role in an organization
+/// Member role in a project or workspace
 #[derive(
     Debug,
     Clone,
@@ -353,12 +353,9 @@ impl SuccessResponse {
 )]
 #[serde(rename_all = "lowercase")]
 pub enum MemberRole {
-    Guest,
-    /// Viewer = read-only access (alias for Guest level in access checks)
-    Viewer,
-    /// Editor = full content edit (alias for Member level in access checks)
-    Editor,
     #[default]
+    Viewer,
+    Editor,
     Member,
     Admin,
     Owner,
@@ -366,7 +363,12 @@ pub enum MemberRole {
 
 impl sqlx::Type<sqlx::Postgres> for MemberRole {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
-        sqlx::postgres::PgTypeInfo::with_name("\"MemberRole\"")
+        sqlx::postgres::PgTypeInfo::with_name("text")
+    }
+    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+        *ty == sqlx::postgres::PgTypeInfo::with_name("text")
+            || *ty == sqlx::postgres::PgTypeInfo::with_name("varchar")
+            || *ty == sqlx::postgres::PgTypeInfo::with_name("\"MemberRole\"")
     }
 }
 
@@ -379,7 +381,6 @@ impl<'r> sqlx::Decode<'r, sqlx::Postgres> for MemberRole {
             "OWNER" | "owner" => Ok(MemberRole::Owner),
             "ADMIN" | "admin" => Ok(MemberRole::Admin),
             "MEMBER" | "member" => Ok(MemberRole::Member),
-            "GUEST" | "guest" => Ok(MemberRole::Guest),
             "VIEWER" | "viewer" => Ok(MemberRole::Viewer),
             "EDITOR" | "editor" => Ok(MemberRole::Editor),
             other => Err(format!("unknown MemberRole: {}", other).into()),
@@ -396,7 +397,7 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for MemberRole {
             MemberRole::Owner => "OWNER",
             MemberRole::Admin => "ADMIN",
             MemberRole::Member | MemberRole::Editor => "MEMBER",
-            MemberRole::Guest | MemberRole::Viewer => "GUEST",
+            MemberRole::Viewer => "VIEWER",
         };
         <&str as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&s, buf)
     }

@@ -48,7 +48,6 @@ pub struct GetProjectParams {
 #[derive(Debug, Clone)]
 pub struct McpSecurityContext {
     pub user_id: Option<String>,
-    pub org_id: Option<String>,
     pub scopes: Vec<String>,
     pub is_admin: bool,
 }
@@ -58,7 +57,6 @@ impl McpSecurityContext {
     pub fn anonymous() -> Self {
         Self {
             user_id: None,
-            org_id: None,
             scopes: vec![],
             is_admin: false,
         }
@@ -68,7 +66,6 @@ impl McpSecurityContext {
     pub fn system() -> Self {
         Self {
             user_id: Some("system".to_string()),
-            org_id: None,
             scopes: vec!["*".to_string()],
             is_admin: true,
         }
@@ -78,7 +75,6 @@ impl McpSecurityContext {
     pub fn for_user(user_id: impl Into<String>, scopes: Vec<String>) -> Self {
         Self {
             user_id: Some(user_id.into()),
-            org_id: None,
             scopes,
             is_admin: false,
         }
