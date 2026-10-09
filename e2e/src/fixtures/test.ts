@@ -16,6 +16,13 @@ import { EditorPage } from '../pages/editor.page';
 import { PublishControl } from '../pages/publish.page';
 import { PublicSite } from '../pages/site.page';
 import { SignInPage } from '../pages/signin.page';
+import { AcceptInvitationPage } from '../pages/invitation.page';
+import { SitesPage } from '../pages/sites.page';
+import { AnalyticsPage } from '../pages/analytics.page';
+import { WorkspaceSettingsPage } from '../pages/workspace-settings.page';
+import { ProjectWorkspacePage } from '../pages/project-workspace.page';
+import { PreviewPage } from '../pages/preview.page';
+import { ProjectSettingsPage } from '../pages/project-settings.page';
 import { ForgedApi } from '../support/forged-api';
 import { BrowserApi } from '../support/browser-api';
 
@@ -51,6 +58,14 @@ export interface TestFixtures {
   editor: EditorPage;
   publish: PublishControl;
   site: PublicSite;
+  authenticatedPage: Page;
+  invitation: AcceptInvitationPage;
+  sites: SitesPage;
+  analytics: AnalyticsPage;
+  workspaceSettings: WorkspaceSettingsPage;
+  projectWorkspace: ProjectWorkspacePage;
+  preview: PreviewPage;
+  projectSettings: ProjectSettingsPage;
   /** Signed-in author account created (and logged in) for this test. */
   author: Session;
   /** A fresh documentation site owned by the test's author. */
@@ -120,6 +135,39 @@ export const test = workerFixtures.extend<TestFixtures>({
 
   site: async ({ page }, use) => {
     await use(new PublicSite(page));
+  },
+
+  authenticatedPage: async ({ page, signIn }, use) => {
+    await signIn.loginViaApi('admin@example.com', 'Password123!', '/app');
+    await use(page);
+  },
+
+  invitation: async ({ page }, use) => {
+    await use(new AcceptInvitationPage(page));
+  },
+
+  sites: async ({ page }, use) => {
+    await use(new SitesPage(page));
+  },
+
+  analytics: async ({ page }, use) => {
+    await use(new AnalyticsPage(page));
+  },
+
+  workspaceSettings: async ({ page }, use) => {
+    await use(new WorkspaceSettingsPage(page));
+  },
+
+  projectWorkspace: async ({ page }, use) => {
+    await use(new ProjectWorkspacePage(page));
+  },
+
+  preview: async ({ page }, use) => {
+    await use(new PreviewPage(page));
+  },
+
+  projectSettings: async ({ page }, use) => {
+    await use(new ProjectSettingsPage(page));
   },
 
   // ── Accounts ──────────────────────────────────────────────────────────────
