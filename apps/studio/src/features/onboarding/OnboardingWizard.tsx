@@ -109,7 +109,7 @@ export function OnboardingWizard() {
       });
 
       toast.success('Platform initialized successfully! Welcome to your workspace.');
-      await navigate({ to: '/app' });
+      window.location.href = '/app';
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to complete initial setup');
     }

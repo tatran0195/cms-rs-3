@@ -72,7 +72,6 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     router = router.nest("/mcp", mcp::router(state.clone()));
     router = router.nest("/members", workspace::members_router(state.clone()));
     router = router.nest("/workspace", workspace::workspace_router(state.clone()));
-    router = router.nest("/public/setup", setup::router(state.clone()));
 
     // App and canonical v1 subrouters
     let app_router = Router::new()
