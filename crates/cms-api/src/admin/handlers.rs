@@ -19,9 +19,9 @@ async fn require_system_admin(state: &AppState, auth: &AuthExtractor) -> Result<
     {
         auth_user.is_admin = true;
     }
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     state
-        .gatehouse
+        .authz()
         .platform_checker
         .bind(&session, &auth_user, &cms_authz::PlatformAction::AccessAdmin, &())
         .authorize(&())

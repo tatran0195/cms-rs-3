@@ -89,14 +89,14 @@ pub async fn create_deployment_handler(
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: request.project_id.clone(),
         is_public: false,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
         .authorize(&target)

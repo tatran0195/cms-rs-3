@@ -20,7 +20,7 @@ trusted_proxy_hops = 1
 
 [database]
 # PostgreSQL connection URL
-url = "postgres://postgres:postgres@localhost:5432/cms"
+url = "postgres://postgres:postgres!Tsvs7345@localhost:5432/cms"
 # Maximum connection pool size
 max_pool_size = 20
 # Connection acquisition timeout in seconds

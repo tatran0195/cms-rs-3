@@ -35,14 +35,14 @@ impl McpService {
         }
 
         if let Some(uid) = user_id {
-            let session = ctx.gatehouse.session();
-            let auth_user = ctx.gatehouse.to_auth_user(uid, "");
+            let session = ctx.authz.session();
+            let auth_user = ctx.authz.to_auth_user(uid, "");
             let target = cms_authz::ProjectTarget {
                 id: project.id.to_string(),
                 is_public: project.is_public,
                 owner_id: None,
             };
-            ctx.gatehouse
+            ctx.authz
                 .project_checker
                 .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
                 .authorize(&target)

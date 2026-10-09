@@ -635,6 +635,25 @@ CREATE TABLE IF NOT EXISTS "ProjectSettings" (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS "Theme" (
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id TEXT NOT NULL REFERENCES "Project"(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    primary_color TEXT NOT NULL DEFAULT '#3B82F6',
+    secondary_color TEXT NOT NULL DEFAULT '#60A5FA',
+    background_color TEXT NOT NULL DEFAULT '#FFFFFF',
+    text_color TEXT NOT NULL DEFAULT '#111827',
+    font_family TEXT,
+    logo_url TEXT,
+    favicon_url TEXT,
+    config JSONB,
+    is_global BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_theme_project_id ON "Theme"(project_id);
+
 -- ============================================
 -- Indices for performance
 -- ============================================

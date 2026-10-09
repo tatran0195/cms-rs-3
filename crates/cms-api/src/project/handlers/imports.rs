@@ -17,14 +17,14 @@ pub async fn import_mintlify_handler(
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project_id.clone(),
         is_public: false,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
         .authorize(&target)
@@ -44,14 +44,14 @@ pub async fn import_ghost_handler(
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project_id.clone(),
         is_public: false,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
         .authorize(&target)

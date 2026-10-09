@@ -43,8 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing::info!("Connecting to PostgreSQL database...");
     let pool = cms_db::create_pool(&database_url).await?;
 
-    let gatehouse = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
-    let ctx = Arc::new(BizContext::new(pool, gatehouse));
+    let authz = Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![]));
+    let ctx = Arc::new(BizContext::new(pool, authz));
     let security = McpSecurityContext::system();
 
     tracing::info!("Starting cms-mcp stdio transport...");

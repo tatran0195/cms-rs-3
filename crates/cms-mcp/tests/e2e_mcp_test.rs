@@ -5,8 +5,8 @@ use cms_mcp::{create_mcp_http_service, McpSecurityContext};
 #[tokio::test]
 async fn test_mcp_http_service_e2e_handshake() {
     let pool = cms_db::sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
-    let gatehouse = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
-    let ctx = Arc::new(BizContext::new(pool, gatehouse));
+    let authz = Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![]));
+    let ctx = Arc::new(BizContext::new(pool, authz));
     let service = create_mcp_http_service(ctx, McpSecurityContext::system());
 
     let app = axum::Router::new().nest_service("/mcp", service);

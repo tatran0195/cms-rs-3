@@ -42,14 +42,14 @@ pub async fn authorize_project(
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
     let auth_user = auth.to_auth_user(state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project.id.clone(),
         is_public: project.is_public,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &action, &())
         .authorize(&target)

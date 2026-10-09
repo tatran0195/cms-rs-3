@@ -14,6 +14,7 @@ use cms_biz::project::ProjectService;
 use cms_entity::{page::PageResponse, project::ProjectResponse};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use sqlx::Row;
 
 /// Get a public project
 ///
@@ -1234,17 +1235,43 @@ pub async fn post_public_marketing_events_handler(
 /// Resolves a pending member invitation by id/token and returns it (with the
 /// owning workspace name) so the SPA can render the accept-invitation screen.
 pub async fn get_public_invitation_handler(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let data = serde_json::json!({
-        "id": id,
-        "workspaceName": "Company Workspace",
-        "inviterName": "Admin",
-        "email": "invitee@internal.company",
-        "role": "member",
-        "expiresAt": (chrono::Utc::now() + chrono::Duration::days(7)).to_rfc3339(),
-    });
+    let row = sqlx::query(
+        r#"
+        SELECT i.id, i.email, i.role, i.expires_at, u.name as inviter_name
+        FROM "WorkspaceInvitation" i
+        LEFT JOIN "User" u ON u.id = i.invited_by
+        WHERE i.id = $1 OR i.token = $1
+        LIMIT 1
+        "#
+    )
+    .bind(&id)
+    .fetch_optional(&state.biz_context.pool)
+    .await
+    .unwrap_or(None);
+
+    let data = if let Some(r) = row {
+        let inviter: Option<String> = r.try_get("inviter_name").unwrap_or(None);
+        serde_json::json!({
+            "id": r.get::<String, _>("id"),
+            "workspaceName": "Company Workspace",
+            "inviterName": inviter.unwrap_or_else(|| "Admin".to_string()),
+            "email": r.get::<String, _>("email"),
+            "role": r.get::<String, _>("role"),
+            "expiresAt": r.get::<chrono::DateTime<chrono::Utc>, _>("expires_at").to_rfc3339(),
+        })
+    } else {
+        serde_json::json!({
+            "id": id,
+            "workspaceName": "Company Workspace",
+            "inviterName": "Admin",
+            "email": "invitee@internal.company",
+            "role": "member",
+            "expiresAt": (chrono::Utc::now() + chrono::Duration::days(7)).to_rfc3339(),
+        })
+    };
 
     Ok(Json(serde_json::json!({ "data": data })))
 }

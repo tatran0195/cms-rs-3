@@ -30,11 +30,15 @@ pub struct AppState {
     pub mailer: Arc<dyn cms_biz::email::Mailer>,
     /// Generation counter used to invalidate cached host-to-project resolutions.
     pub host_resolution_generation: Arc<AtomicU64>,
-    /// Gatehouse authorization state
-    pub gatehouse: Arc<cms_authz::GatehouseState>,
 }
 
 impl AppState {
+    /// Returns a reference to the authorization engine state.
+    #[inline]
+    pub fn authz(&self) -> &Arc<cms_authz::AuthzState> {
+        &self.biz_context.authz
+    }
+
     /// Create AppState from full configuration
     pub async fn from_config(config: &Config) -> Result<Self, AppError> {
         Self::validate_config(config)?;
@@ -44,11 +48,11 @@ impl AppState {
         let storage: Arc<dyn Storage> = Arc::from(storage_box);
         let job_queue = cms_queue::create_job_queue_with_pool(&config.queue, pool.clone()).await?;
         let search_engine = cms_search::create_search_engine(&config.search)?;
-        let gatehouse = Arc::new(cms_authz::GatehouseState::new(
+        let authz = Arc::new(cms_authz::AuthzState::new(
             pool.clone(),
             config.auth.system_admin_emails.clone(),
         ));
-        let biz_context = BizContext::new(pool, gatehouse);
+        let biz_context = BizContext::new(pool, authz);
         let mailer = cms_biz::email::create_mailer(config.mailer.as_ref())?;
 
         Ok(Self::new_with_mailer(
@@ -88,7 +92,6 @@ impl AppState {
         search_engine: Arc<dyn cms_search::SearchEngine>,
         mailer: Arc<dyn cms_biz::email::Mailer>,
     ) -> Self {
-        let gatehouse = biz_context.gatehouse.clone();
         Self {
             config: Arc::new(config),
             biz_context,
@@ -97,7 +100,6 @@ impl AppState {
             search_engine,
             mailer,
             host_resolution_generation: Arc::new(AtomicU64::new(0)),
-            gatehouse,
         }
     }
 

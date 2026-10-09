@@ -65,10 +65,21 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/projects/{project_slug}", get(get_public_project_handler))
         .route(
-            "/pages/{project_slug}/{*page_path}",
+            "/projects/{project_slug}/pages",
+            get(list_public_pages_handler),
+        )
+        .route(
+            "/projects/{project_slug}/pages/{*page_path}",
             get(get_public_page_handler),
         )
-        .route("/pages/{project_slug}", get(list_public_pages_handler))
+        .route(
+            "/projects/{project_slug}/search",
+            get(search_public_content_handler),
+        )
+        .route(
+            "/projects/{project_slug}/sitemap",
+            get(get_project_sitemap_handler),
+        )
         .route("/search/{project_slug}", get(search_public_content_handler))
         .route("/sitemap/{project_slug}", get(get_project_sitemap_handler))
         .with_state(state)

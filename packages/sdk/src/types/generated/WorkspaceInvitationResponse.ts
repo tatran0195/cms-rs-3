@@ -3,4 +3,4 @@
 /**
  * Workspace invitation created response
  */
-export type WorkspaceInvitationResponse = { id: string, email: string, role: string, expiresAt: string, createdAt: string, };
+export type WorkspaceInvitationResponse = { id: string, email: string, role: string, token: string | null, expiresAt: string, createdAt: string, };

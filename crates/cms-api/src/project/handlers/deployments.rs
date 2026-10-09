@@ -104,13 +104,8 @@ pub async fn list_project_deployments_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<DeploymentListItem>>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::ProjectAction::View,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::ProjectAction::View)
+        .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
         &auth.user.id,
@@ -168,13 +163,8 @@ pub async fn get_latest_project_deployment_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Option<DeploymentListItem>>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::ProjectAction::View,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::ProjectAction::View)
+        .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
         &auth.user.id,
@@ -235,13 +225,8 @@ pub async fn get_deployment_changes_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<DeploymentChangesResponse>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::ProjectAction::View,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::ProjectAction::View)
+        .await?;
     use cms_biz::deployment::DeploymentService;
 
     let deployments =
@@ -374,19 +359,19 @@ pub async fn create_project_deployment_handler(
     Json(body): Json<TriggerPublishRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
     // 1. Verify project exists
-    let _project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id)
+    let project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project_id.clone(),
-        is_public: false,
+        is_public: project.is_public,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(
             &session,
@@ -448,14 +433,14 @@ pub async fn rollback_deployment_handler(
     Path((project_id, target_deployment_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project_id.clone(),
         is_public: false,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(
             &session,

@@ -111,6 +111,8 @@ pub struct WorkspaceInvitationResponse {
     pub id: String,
     pub email: String,
     pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
     pub expires_at: String,
     pub created_at: String,
 }

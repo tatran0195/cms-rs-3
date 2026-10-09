@@ -99,14 +99,14 @@ pub async fn merge_project_branch_handler(
     Path((project_id, branch_id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<DeploymentListItem>>, AppError> {
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project_id.clone(),
         is_public: false,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
         .authorize(&target)

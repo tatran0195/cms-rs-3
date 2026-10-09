@@ -384,14 +384,14 @@ pub async fn reorder_project_pages_handler(
     ValidatedJson(payload): ValidatedJson<cms_entity::page::ReorderPageTreeRequest>,
 ) -> Result<Json<ApiResponse<ReorderPageTreeResponse>>, AppError> {
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     let target = cms_authz::ProjectTarget {
         id: project_id.to_string(),
         is_public: false,
         owner_id: None,
     };
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
         .authorize(&target)

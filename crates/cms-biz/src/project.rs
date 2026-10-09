@@ -497,7 +497,7 @@ mod tests {
 
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![])),
         );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let project_id = format!("test-proj-{}", Uuid::new_v4());
@@ -572,7 +572,7 @@ mod tests {
 
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![])),
         );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let project_id = format!("test-proj-{}", Uuid::new_v4());
@@ -644,7 +644,7 @@ mod tests {
 
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![])),
         );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
@@ -794,7 +794,7 @@ mod tests {
 
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![])),
         );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
@@ -956,7 +956,7 @@ mod tests {
 
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![])),
         );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
@@ -1161,7 +1161,7 @@ mod tests {
         // Add admin with owner role
         let _ = cms_db::authz::ProjectMemberQueries::create(&pool, &project.id, &admin_id, "owner", None).await;
 
-        let authz = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
+        let authz = Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![]));
         let ctx = BizContext::new(pool.clone(), authz);
 
         // 1. Viewer user attempts to create integration -> InsufficientRole (Admin required)
@@ -1269,7 +1269,7 @@ mod tests {
 
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![])),
         );
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());

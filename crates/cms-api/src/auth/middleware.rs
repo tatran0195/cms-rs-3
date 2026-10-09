@@ -29,9 +29,9 @@ pub struct AuthExtractor {
 }
 
 impl AuthExtractor {
-    /// Convert to Gatehouse AuthUser representation
+    /// Convert to Authz AuthUser representation
     pub fn to_auth_user(&self, state: &AppState) -> cms_authz::AuthUser {
-        state.gatehouse.to_auth_user(self.user.id.to_string(), &self.user.email)
+        state.authz().to_auth_user(self.user.id.to_string(), &self.user.email)
     }
 }
 

@@ -248,7 +248,7 @@ impl CommentService {
 
 #[cfg(test)]
 mod tests {
-    use cms_authz::GatehouseState;
+    use cms_authz::AuthzState;
     use cms_db::{branch::BranchQueries, project::ProjectQueries};
     use uuid::Uuid;
 
@@ -401,10 +401,10 @@ mod tests {
         assert_eq!(unauth_record.member_role, None);
         assert!(!unauth_record.has_min_role(MemberRole::Viewer));
 
-        // 4. Test CommentService RBAC with GatehouseState
+        // 4. Test CommentService RBAC with AuthzState
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(GatehouseState::new(pool.clone(), vec![])),
+            std::sync::Arc::new(AuthzState::new(pool.clone(), vec![])),
         );
 
         // Author can get comment

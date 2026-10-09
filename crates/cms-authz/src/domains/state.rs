@@ -1,7 +1,7 @@
 //! Long-lived application authorization state.
 
-use std::sync::Arc;
 use sqlx::PgPool;
+use std::sync::Arc;
 
 use crate::{
     checker::PermissionChecker,
@@ -10,11 +10,13 @@ use crate::{
 
 use super::{
     platform::{build_platform_checker, AuthUser, PlatformDomain},
-    project::{build_project_checker, DbProjectRelationshipSource, ProjectDomain, ProjectRelationship},
+    project::{
+        build_project_checker, DbProjectRelationshipSource, ProjectDomain, ProjectRelationship,
+    },
 };
 
 /// Long-lived authorization state holding checkers and fact registries.
-pub struct GatehouseState {
+pub struct AuthzState {
     /// Permission checker for PlatformDomain.
     pub platform_checker: PermissionChecker<PlatformDomain>,
     /// Permission checker for ProjectDomain.
@@ -25,8 +27,8 @@ pub struct GatehouseState {
     pub system_admin_emails: Vec<String>,
 }
 
-impl GatehouseState {
-    /// Creates a new GatehouseState backed by the given database pool and admin email list.
+impl AuthzState {
+    /// Creates a new AuthzState backed by the given database pool and admin email list.
     pub fn new(pool: PgPool, system_admin_emails: Vec<String>) -> Self {
         let relationship_source = Arc::new(DbProjectRelationshipSource::new(pool));
         let fact_registry = FactRegistry::builder()

@@ -193,7 +193,7 @@ pub async fn process_analytics_job(
 
 #[cfg(test)]
 mod tests {
-    use cms_authz::GatehouseState;
+    use cms_authz::AuthzState;
     use uuid::Uuid;
 
     use super::*;
@@ -243,7 +243,7 @@ mod tests {
 
         let ctx = BizContext {
             pool: pool.clone(),
-            gatehouse: std::sync::Arc::new(GatehouseState::new(pool, vec![])),
+            authz: std::sync::Arc::new(AuthzState::new(pool, vec![])),
         };
 
         // Query with page_size = 2, so the returned events will be 2, but total must be at least 3

@@ -130,6 +130,7 @@ pub async fn invite_project_member_handler(
         id: invitation_id,
         email,
         role: role_str,
+        token: None,
         expires_at: expires.to_rfc3339(),
         created_at: now.to_rfc3339(),
     })))

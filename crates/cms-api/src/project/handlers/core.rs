@@ -55,7 +55,7 @@ pub async fn list_projects_handler(
     .await?;
 
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
 
     let targets: Vec<cms_authz::ProjectTarget> = candidates
         .data
@@ -68,7 +68,7 @@ pub async fn list_projects_handler(
         .collect();
 
     let authorized_targets = state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
         .try_filter(targets)
@@ -158,9 +158,9 @@ pub async fn get_project_handler(
     };
 
     let auth_user = auth.to_auth_user(&state);
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     state
-        .gatehouse
+        .authz()
         .project_checker
         .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
         .authorize(&target)

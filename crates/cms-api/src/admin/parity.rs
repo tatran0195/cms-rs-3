@@ -21,16 +21,16 @@ async fn require_admin(state: &AppState, user_id: &str) -> Result<(), AppError> 
     let user = cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, user_id)
         .await?
         .ok_or(AppError::Unauthorized)?;
-    let mut auth_user = state.gatehouse.to_auth_user(&user.id, &user.email);
+    let mut auth_user = state.authz().to_auth_user(&user.id, &user.email);
     if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, user_id)
         .await
         .unwrap_or(false)
     {
         auth_user.is_admin = true;
     }
-    let session = state.gatehouse.session();
+    let session = state.authz().session();
     state
-        .gatehouse
+        .authz()
         .platform_checker
         .bind(&session, &auth_user, &cms_authz::PlatformAction::AccessAdmin, &())
         .authorize(&())

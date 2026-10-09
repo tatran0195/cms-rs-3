@@ -1,4 +1,4 @@
-//! Better Auth compatible OAuth social sign-in.
+//! OAuth social sign-in.
 //!
 //! The SPA calls `signIn.social({provider, callbackURL})` which POSTs
 //! `/api/auth/sign-in/social` and receives an authorize URL; the browser is

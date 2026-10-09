@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as authRouteRouteImport } from './routes/(auth)/route'
+import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
@@ -43,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const authRouteRoute = authRouteRouteImport.update({
   id: '/(auth)',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptInvitationRoute = AcceptInvitationRouteImport.update({
+  id: '/accept-invitation',
+  path: '/accept-invitation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRouteRoute = AppRouteRouteImport.update({
@@ -175,6 +181,7 @@ const AppProjectsProjectIdSettingsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppdashboardRouteRouteWithChildren
+  '/accept-invitation': typeof AcceptInvitationRoute
   '/sites/$projectId': typeof SitesProjectIdRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/reset-password': typeof authResetPasswordRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppdashboardIndexRoute
+  '/accept-invitation': typeof AcceptInvitationRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/reset-password': typeof authResetPasswordRoute
   '/sign-in': typeof authSignInRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/(auth)': typeof authRouteRouteWithChildren
   '/app': typeof AppRouteRouteWithChildren
+  '/accept-invitation': typeof AcceptInvitationRoute
   '/app/(dashboard)': typeof AppdashboardRouteRouteWithChildren
   '/sites/$projectId': typeof SitesProjectIdRouteRouteWithChildren
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/accept-invitation'
     | '/sites/$projectId'
     | '/forgot-password'
     | '/reset-password'
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
+    | '/accept-invitation'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/'
     | '/(auth)'
     | '/app'
+    | '/accept-invitation'
     | '/app/(dashboard)'
     | '/sites/$projectId'
     | '/(auth)/forgot-password'
@@ -334,6 +346,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   authRouteRoute: typeof authRouteRouteWithChildren
   AppRouteRoute: typeof AppRouteRouteWithChildren
+  AcceptInvitationRoute: typeof AcceptInvitationRoute
   SitesProjectIdRouteRoute: typeof SitesProjectIdRouteRouteWithChildren
   AcceptInviteInvitationIdRoute: typeof AcceptInviteInvitationIdRoute
   GitPreviewTokenRoute: typeof GitPreviewTokenRoute
@@ -353,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof authRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invitation': {
+      id: '/accept-invitation'
+      path: '/accept-invitation'
+      fullPath: '/accept-invitation'
+      preLoaderRoute: typeof AcceptInvitationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -620,6 +640,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   authRouteRoute: authRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
+  AcceptInvitationRoute: AcceptInvitationRoute,
   SitesProjectIdRouteRoute: SitesProjectIdRouteRouteWithChildren,
   AcceptInviteInvitationIdRoute: AcceptInviteInvitationIdRoute,
   GitPreviewTokenRoute: GitPreviewTokenRoute,

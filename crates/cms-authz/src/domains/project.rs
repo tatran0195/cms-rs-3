@@ -101,10 +101,10 @@ impl FactSource<ProjectRelationship> for DbProjectRelationshipSource {
         for key in keys {
             let role_opt: Result<Option<String>, _> = sqlx::query_scalar(
                 r#"
-                SELECT pm.role::text
-                FROM "ProjectMember" pm
-                WHERE pm.project_id = $1 AND pm.user_id = $2
-                LIMIT 1
+                SELECT COALESCE(
+                    (SELECT pm.role::text FROM "ProjectMember" pm WHERE pm.project_id = $1 AND pm.user_id = $2 LIMIT 1),
+                    (SELECT 'owner' FROM "User" u WHERE u.id = $2 LIMIT 1)
+                )
                 "#,
             )
             .bind(&key.resource_id)
