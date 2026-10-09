@@ -3,14 +3,16 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "e2e"
   ],
   "scripts": {
     "build": "bun run build:packages && bun --filter @cms/studio build",
     "build:packages": "bun --filter \"./packages/*\" build",
     "typecheck": "bun --filter '*' typecheck",
     "test": "bun --filter '*' test",
-    "test:e2e": "bun --filter=@cms/studio run test:e2e",
+    "test:e2e": "bun --filter=@cms/e2e run test",
+    "test:e2e:pages": "bun --filter=@cms/e2e run test tests/pages/",
     "check": "ultracite check",
     "fix": "ultracite fix",
     "lint": "ultracite check",
