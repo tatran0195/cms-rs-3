@@ -195,11 +195,23 @@ pub async fn get_public_meta_handler(
     let github = oauth.and_then(|o| o.github.as_ref()).is_some();
     let google = oauth.and_then(|o| o.google.as_ref()).is_some();
 
+    let (is_initialized, requires_setup) = cms_db::SetupQueries::get_setup_status(&state.biz_context.pool)
+        .await
+        .unwrap_or((false, true));
+
+    let allow_public_signup = cms_db::SetupQueries::is_public_signup_allowed(&state.biz_context.pool)
+        .await
+        .unwrap_or(false);
+
     Ok(Json(serde_json::json!({
         "providers": {
             "google": google,
             "github": github
-        }
+        },
+        "signupDisabled": !allow_public_signup,
+        "isInitialized": is_initialized,
+        "requiresSetup": requires_setup,
+        "version": env!("CARGO_PKG_VERSION")
     })))
 }
 

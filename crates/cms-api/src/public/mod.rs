@@ -17,6 +17,8 @@ pub fn router(state: Arc<AppState>) -> Router {
     use axum::routing::post;
     Router::new()
         .route("/meta", get(get_public_meta_handler))
+        .route("/setup/status", get(crate::setup::handlers::get_setup_status_handler))
+        .route("/setup/complete", post(crate::setup::handlers::complete_setup_handler))
         .route(
             "/marketing-events",
             post(post_public_marketing_events_handler),

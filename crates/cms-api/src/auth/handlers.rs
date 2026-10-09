@@ -89,6 +89,24 @@ pub async fn register_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
+    let allow_public_signup = cms_db::SetupQueries::is_public_signup_allowed(&state.biz_context.pool)
+        .await
+        .unwrap_or(false);
+
+    if !allow_public_signup {
+        let has_invitation = sqlx::query_scalar::<_, bool>(
+            r#"SELECT EXISTS(SELECT 1 FROM "WorkspaceInvitation" WHERE email = $1 AND expires_at > NOW())"#,
+        )
+        .bind(&request.email)
+        .fetch_one(&state.biz_context.pool)
+        .await
+        .unwrap_or(false);
+
+        if !has_invitation {
+            return Err(AppError::Forbidden);
+        }
+    }
+
     // Delegate to auth service
     let user = AuthService::register(
         &state.biz_context,
