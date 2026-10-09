@@ -189,6 +189,14 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
     let platform_admin_email = format!("e2e-admin-{}@example.invalid", Uuid::new_v4());
     let now = Utc::now();
 
+    sqlx::query(
+        r#"INSERT INTO "SystemSettings" (id, is_initialized, allow_public_signup)
+           VALUES ('default', false, true)
+           ON CONFLICT (id) DO UPDATE SET allow_public_signup = true"#,
+    )
+    .execute(&state.biz_context.pool)
+    .await?;
+
     let registered_user = expect_status(
         request(
             &registration_app,

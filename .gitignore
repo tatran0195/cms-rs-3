@@ -66,3 +66,4 @@ tools/
 previews/
 playwright-report/
 test-results/
+crates/**/data/
