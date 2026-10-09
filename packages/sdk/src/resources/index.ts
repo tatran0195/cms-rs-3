@@ -18,3 +18,4 @@ export * from './reader-access';
 export * from './search';
 export * from './workspace';
 export * from './roles';
+export * from './setup';

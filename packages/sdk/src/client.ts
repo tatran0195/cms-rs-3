@@ -21,6 +21,7 @@ import {
   SearchResource,
   WorkspaceResource,
   RolesResource,
+  SetupResource,
 } from './resources';
 
 export type CmsClientOptions = HttpClientOptions;
@@ -48,6 +49,7 @@ export class CmsClient {
   readonly public: PublicResource;
   readonly auth: AuthResource;
   readonly roles: RolesResource;
+  readonly setup: SetupResource;
 
   constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
     this.http = existingHttp ?? new HttpClient(options);
@@ -72,6 +74,7 @@ export class CmsClient {
     this.public = new PublicResource(this.http);
     this.auth = new AuthResource(this.http);
     this.roles = new RolesResource(this.http);
+    this.setup = new SetupResource(this.http);
   }
 
   /**
