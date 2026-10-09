@@ -18,7 +18,7 @@ test.describe('First-Time Application Onboarding & Setup Flow', () => {
     await page.goto('/');
     await page.waitForURL('**/onboarding');
     await expect(page.getByText('First-Time Platform Setup')).toBeVisible();
-    await expect(page.getByText('Admin Account')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Admin Account' })).toBeVisible();
   });
 
   test('Redirects uninitialized instances from /sign-in to /onboarding', async ({ page }) => {

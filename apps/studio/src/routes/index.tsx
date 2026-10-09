@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, isRedirect, redirect } from '@tanstack/react-router';
 import { cmsClient } from '@/shared/services/cms-client';
 
 export const Route = createFileRoute('/')({
@@ -9,7 +9,7 @@ export const Route = createFileRoute('/')({
         throw redirect({ to: '/onboarding' });
       }
     } catch (e) {
-      if ((e as { isRedirect?: boolean }).isRedirect) throw e;
+      if (isRedirect(e)) throw e;
     }
     throw redirect({ to: '/app' });
   },

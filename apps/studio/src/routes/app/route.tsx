@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Outlet, redirect } from '@tanstack/react-router';
+import { createFileRoute, isRedirect, Navigate, Outlet, redirect } from '@tanstack/react-router';
 import { getSession, useSession } from '@/features/auth';
 import { ProjectProvider } from '@/features/projects';
 import { SupportAccessBanner } from '@/features/workspace';
@@ -13,7 +13,7 @@ export const Route = createFileRoute('/app')({
         throw redirect({ to: '/onboarding' });
       }
     } catch (e) {
-      if ((e as { isRedirect?: boolean }).isRedirect) throw e;
+      if (isRedirect(e)) throw e;
     }
 
     const routeSession = await getSession();
