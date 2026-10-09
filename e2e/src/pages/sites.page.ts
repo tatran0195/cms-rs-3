@@ -27,9 +27,9 @@ export class SitesPage {
     }
   }
 
-  async openSite(name: string): Promise<void> {
-    const siteLink = this.page.locator('a, tr, [role="row"]', { hasText: name }).first();
-    await siteLink.click();
+  async openSite(name = 'Company Docs'): Promise<void> {
+    const siteCard = this.page.locator('button.group, button, a', { hasText: name }).first();
+    await siteCard.click();
     await this.page.waitForURL(/\/app\/projects\//, { timeout: 15_000 });
   }
 }

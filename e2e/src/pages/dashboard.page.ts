@@ -22,7 +22,7 @@ export class DashboardPage {
   async openQuickSearch(): Promise<void> {
     const searchTrigger = this.page.locator('button:has-text("Search…"), button:has-text("Ctrl K"), [aria-label*="Search"]').first();
     await searchTrigger.click();
-    await expect(this.page.locator('[role="dialog"], [data-cmdk-root], input[placeholder*="Search"]')).toBeVisible({ timeout: 10_000 });
+    await expect(this.page.locator('[role="dialog"], [data-cmdk-root]').first()).toBeVisible({ timeout: 10_000 });
   }
 
   async navigateToSites(): Promise<void> {
