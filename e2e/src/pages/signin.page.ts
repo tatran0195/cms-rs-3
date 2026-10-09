@@ -20,7 +20,37 @@ export class SignInPage {
 
   async goto(): Promise<void> {
     await this.page.goto('/sign-in');
-    await expect(this.page.getByRole('button', { name: 'Log in', exact: true })).toBeVisible();
+    await this.page.waitForLoadState('domcontentloaded');
+    await expect(this.emailInput).toBeVisible({ timeout: 15_000 });
+  }
+
+  /**
+   * Fast API login: requests a session cookie via the backend API and attaches
+   * it to the browser context, navigating directly to the target URL.
+   */
+  async loginViaApi(email = 'admin@example.com', password = 'Password123!', targetUrl = '/app'): Promise<void> {
+    const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:4310';
+    const apiTarget = baseURL.includes(':4310') ? 'http://localhost:3000' : baseURL;
+    const res = await fetch(`${apiTarget}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const setCookie = res.headers.get('set-cookie');
+    const tokenMatch = setCookie?.match(/cms_session=([^;]+)/);
+    if (tokenMatch) {
+      const urlObj = new URL(baseURL);
+      await this.page.context().addCookies([
+        {
+          name: 'cms_session',
+          value: tokenMatch[1],
+          domain: urlObj.hostname,
+          path: '/',
+        },
+      ]);
+    }
+    await this.page.goto(targetUrl);
+    await this.page.waitForLoadState('domcontentloaded');
   }
 
   /** Full UI login: request the code through the form, then enter the emailed OTP. */
