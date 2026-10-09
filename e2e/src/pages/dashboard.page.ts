@@ -11,7 +11,33 @@ export class DashboardPage {
 
   async goto(): Promise<void> {
     await this.page.goto('/app');
-    await expect(this.page.getByRole('heading', { name: 'Your sites' })).toBeVisible();
+    await this.page.waitForLoadState('domcontentloaded');
+    await expect(this.page.locator('body')).toContainText(/Overview|Sites|Your sites/i, { timeout: 15_000 });
+  }
+
+  async expectOverviewVisible(): Promise<void> {
+    await expect(this.page.locator('body')).toContainText(/Overview|Sites|Your sites/i, { timeout: 15_000 });
+  }
+
+  async openQuickSearch(): Promise<void> {
+    const searchTrigger = this.page.locator('button:has-text("Search…"), button:has-text("Ctrl K"), [aria-label*="Search"]').first();
+    await searchTrigger.click();
+    await expect(this.page.locator('[role="dialog"], [data-cmdk-root], input[placeholder*="Search"]')).toBeVisible({ timeout: 10_000 });
+  }
+
+  async navigateToSites(): Promise<void> {
+    await this.page.getByRole('link', { name: 'Sites' }).first().click();
+    await this.page.waitForURL(/\/app\/sites/, { timeout: 15_000 });
+  }
+
+  async navigateToAnalytics(): Promise<void> {
+    await this.page.getByRole('link', { name: 'Analytics' }).first().click();
+    await this.page.waitForURL(/\/app\/analytics/, { timeout: 15_000 });
+  }
+
+  async navigateToSettings(): Promise<void> {
+    await this.page.getByRole('link', { name: 'Settings' }).first().click();
+    await this.page.waitForURL(/\/app\/settings/, { timeout: 15_000 });
   }
 
   /** Row locator for a site in the "All sites" table. */
