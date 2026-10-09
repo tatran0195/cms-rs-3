@@ -29,9 +29,11 @@ pub mod platform_event;
 pub mod project;
 pub mod reader_access;
 pub mod search_index;
+pub mod setup;
 pub mod theme;
 
 use cms_error::AppError;
+pub use setup::SetupQueries;
 pub use sqlx;
 use sqlx::postgres::PgPoolOptions;
 

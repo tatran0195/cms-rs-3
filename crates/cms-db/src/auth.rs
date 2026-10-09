@@ -11,14 +11,14 @@ use uuid::Uuid;
 
 /// Database representation of a user row
 #[derive(Debug, FromRow)]
-struct UserRow {
-    id: String,
-    email: String,
-    name: Option<String>,
-    image: Option<String>,
-    email_verified: bool,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+pub(crate) struct UserRow {
+    pub id: String,
+    pub email: String,
+    pub name: Option<String>,
+    pub image: Option<String>,
+    pub email_verified: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// Database representation of a session row

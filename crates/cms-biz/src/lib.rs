@@ -30,12 +30,14 @@ pub mod project;
 pub mod queue;
 pub mod reader_access;
 pub mod search;
+pub mod setup;
 pub mod theme;
 
 // Re-export commonly used types
 pub use cms_db::PgPool;
 pub use cms_entity::*;
 pub use cms_error::AppError;
+pub use setup::SetupService;
 
 /// Business context passed to most biz functions
 ///
