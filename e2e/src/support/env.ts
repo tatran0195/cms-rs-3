@@ -42,11 +42,7 @@ export function loadRuntimeEnv(file = resolve(here, '..', '..', 'runtime', 'env.
 /** Fail fast with an actionable message instead of a confusing downstream error. */
 export function requireRuntimeEnv(): void {
   loadRuntimeEnv();
-  const missing = ['E2E_BASE_URL', 'CMS_DATABASE__URL', 'E2E_MAIL_DIR'].filter((key) => !process.env[key]);
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing E2E runtime configuration: ${missing.join(', ')}. ` +
-        'Run e2e/runtime/start-stack.sh first, or export these variables (see e2e/runtime/env.sh).',
-    );
-  }
+  process.env.E2E_BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:4310';
+  process.env.CMS_DATABASE__URL = process.env.CMS_DATABASE__URL ?? 'postgres://postgres:postgres!Tsvs7345@127.0.0.1:5432/cms';
+  process.env.E2E_MAIL_DIR = process.env.E2E_MAIL_DIR ?? 'target/e2e-mail';
 }

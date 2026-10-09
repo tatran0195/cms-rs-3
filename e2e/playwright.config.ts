@@ -30,7 +30,7 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync('/home/user/pw-browsers'
  * the runtime for little extra signal). WebKit is opt-in as well and needs its own
  * system libraries, which the minimal image does not ship.
  */
-const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000';
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:4310';
 const isCI = !!process.env.CI;
 
 /** Which browser projects to define. Chromium always; the others on request. */
