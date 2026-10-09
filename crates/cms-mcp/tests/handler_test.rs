@@ -8,7 +8,8 @@ use rmcp::ServerHandler;
 
 fn create_test_handler(security: McpSecurityContext) -> CmsMcpHandler {
     let pool = cms_db::sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
-    let ctx = Arc::new(BizContext::new(pool, Arc::new(cms_authz::NoopAuthz)));
+    let gatehouse = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
+    let ctx = Arc::new(BizContext::new(pool, gatehouse));
     CmsMcpHandler::new(ctx, security)
 }
 
@@ -91,7 +92,8 @@ async fn test_server_handler_get_info() {
 #[tokio::test]
 async fn test_create_mcp_http_service() {
     let pool = cms_db::sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap();
-    let ctx = Arc::new(BizContext::new(pool, Arc::new(cms_authz::NoopAuthz)));
+    let gatehouse = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
+    let ctx = Arc::new(BizContext::new(pool, gatehouse));
     let service = cms_mcp::create_mcp_http_service(ctx, McpSecurityContext::system());
     let _router: axum::Router = axum::Router::new().nest_service("/api/mcp", service);
 }

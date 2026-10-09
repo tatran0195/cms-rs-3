@@ -3,12 +3,9 @@
 //! This module contains business logic for analytics tracking.
 
 use cms_db::analytics::{AnalyticsEventQueries, AnalyticsQueries};
-use cms_entity::{
-    analytics::{
-        AnalyticsDashboardResponse, AnalyticsEventResponse, AnalyticsQueryRequest,
-        AnalyticsQueryResponse,
-    },
-    common::MemberRole,
+use cms_entity::analytics::{
+    AnalyticsDashboardResponse, AnalyticsEventResponse, AnalyticsQueryRequest,
+    AnalyticsQueryResponse,
 };
 
 use crate::{AppError, BizContext};
@@ -40,15 +37,12 @@ impl AnalyticsService {
     /// Query analytics events
     pub async fn query_events(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         request: AnalyticsQueryRequest,
         page: u64,
         page_size: u64,
     ) -> Result<AnalyticsQueryResponse, AppError> {
-        // Check if user has admin role in the organization
-        ctx.authz.require_org_admin(user_id, org_id).await?;
-
         // If filtering by a specific project, verify it belongs to this organization
         if let Some(ref proj_id) = request.project_id {
             let project = cms_db::project::ProjectQueries::get_by_id(&ctx.pool, proj_id)
@@ -102,14 +96,11 @@ impl AnalyticsService {
     /// Get analytics summary
     pub async fn get_summary(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         start_date: chrono::DateTime<chrono::Utc>,
         end_date: chrono::DateTime<chrono::Utc>,
     ) -> Result<serde_json::Value, AppError> {
-        // Check if user has admin role in the organization
-        ctx.authz.require_org_admin(user_id, org_id).await?;
-
         AnalyticsQueries::get_summary(&ctx.pool, org_id, start_date, end_date).await
     }
 
@@ -202,28 +193,21 @@ impl AnalyticsService {
     /// Get dashboard for a project
     pub async fn get_dashboard(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<AnalyticsDashboardResponse, AppError> {
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
-
         AnalyticsQueries::get_dashboard(&ctx.pool, project_id).await
     }
 
     /// Get page views scoped by project and authorized by user
     pub async fn get_page_views(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         page_id: &str,
     ) -> Result<serde_json::Value, AppError> {
         let page = cms_db::page::PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Page {page_id} not found")))?;
-        ctx.authz
-            .require_project_role(user_id, &page.project_id, MemberRole::Viewer)
-            .await?;
 
         AnalyticsQueries::get_page_views(&ctx.pool, &page.project_id, page_id).await
     }
@@ -268,7 +252,7 @@ pub async fn process_analytics_job(
 
 #[cfg(test)]
 mod tests {
-    use cms_authz::ProductionAuthz;
+    use cms_authz::GatehouseState;
     use uuid::Uuid;
 
     use super::*;
@@ -340,7 +324,7 @@ mod tests {
 
         let ctx = BizContext {
             pool: pool.clone(),
-            authz: std::sync::Arc::new(ProductionAuthz::new(pool)),
+            gatehouse: std::sync::Arc::new(GatehouseState::new(pool, vec![])),
         };
 
         // Query with page_size = 2, so the returned events will be 2, but total must be at least 3

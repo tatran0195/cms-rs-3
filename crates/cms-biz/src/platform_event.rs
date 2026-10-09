@@ -94,15 +94,12 @@ impl PlatformEventService {
     /// List platform events
     pub async fn list_events(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         event_type: Option<&str>,
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<PlatformEventResponse>, AppError> {
-        // Check if user has admin role in the organization
-        ctx.authz.require_org_admin(user_id, org_id).await?;
-
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
         let events = PlatformEventQueries::get_by_organization(
@@ -129,15 +126,12 @@ impl PlatformEventService {
     /// Get a platform event by ID
     pub async fn get_event(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         event_id: &str,
     ) -> Result<PlatformEventResponse, AppError> {
         let event = PlatformEventQueries::get_by_id(&ctx.pool, event_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Event not found".to_string()))?;
-        if let Some(org_id) = &event.organization_id {
-            ctx.authz.require_org_admin(user_id, org_id).await?;
-        }
         Ok(event.into())
     }
 

@@ -305,3 +305,24 @@ export const useImportFromGhost = (projectId: string) => {
     },
   });
 };
+
+export const useTransferWorkspaceOwnership = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (memberId: string) => await cmsClient.workspace.transferOwnership(memberId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.members.all() });
+      qc.invalidateQueries({ queryKey: queryKeys.workspace.settings() });
+    },
+  });
+};
+
+export const useDeleteWorkspace = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => await cmsClient.workspace.delete(),
+    onSuccess: () => {
+      qc.clear();
+    },
+  });
+};

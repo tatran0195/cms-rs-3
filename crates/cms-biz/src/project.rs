@@ -8,7 +8,7 @@ use cms_db::{
     project::{ProjectAddonQueries, ProjectQueries, ProjectSettingsQueries},
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     project::{
         CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectAddonResponse,
         ProjectResponse, ProjectSettings, ProjectWithOrgResponse, UpdateProjectRequest,
@@ -44,7 +44,6 @@ impl ProjectService {
                 (new_org_id, Some((org_name, org_slug, user_id.to_string())))
             }
         } else {
-            ctx.authz.require_org_member(user_id, org_id).await?;
             (org_id.to_string(), None)
         };
 
@@ -115,18 +114,12 @@ impl ProjectService {
     /// Get a project by ID
     pub async fn get_project(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<ProjectWithOrgResponse, AppError> {
         let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        // Either through organization membership or reader access
-        ctx.authz
-            .require_org_member(user_id, &project.organization_id)
-            .await?;
 
         let org = cms_db::org::OrganizationQueries::get_by_id(&ctx.pool, &project.organization_id)
             .await?
@@ -162,16 +155,13 @@ impl ProjectService {
     /// Get a project by slug
     pub async fn get_project_by_slug(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_slug: &str,
         project_slug: &str,
     ) -> Result<ProjectWithOrgResponse, AppError> {
         let org = cms_db::org::OrganizationQueries::get_by_slug(&ctx.pool, org_slug)
             .await?
             .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
-
-        // Check if user has access to the organization
-        ctx.authz.require_org_member(user_id, &org.id).await?;
 
         let project = ProjectQueries::get_by_slug(&ctx.pool, &org.id, project_slug)
             .await?
@@ -186,18 +176,13 @@ impl ProjectService {
     /// Update a project
     pub async fn update_project(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: UpdateProjectRequest,
     ) -> Result<ProjectResponse, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the organization
-        ctx.authz
-            .require_org_admin(user_id, &project.organization_id)
-            .await?;
 
         let updated = ProjectQueries::update(
             &ctx.pool,
@@ -217,22 +202,12 @@ impl ProjectService {
     /// Delete a project
     pub async fn delete_project(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<bool, AppError> {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Require DangerZone Delete permission on the project
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                project_id,
-                cms_entity::authz::ProjectResource::DangerZone,
-                cms_entity::authz::Action::Delete,
-            )
-            .await?;
 
         ProjectQueries::delete(&ctx.pool, project_id).await
     }
@@ -240,15 +215,12 @@ impl ProjectService {
     /// List projects for an organization
     pub async fn list_projects(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         query: ListProjectsQuery,
         page: u64,
         page_size: u64,
     ) -> Result<ListProjectsResponse, AppError> {
-        // Check if user is a member of the organization
-        ctx.authz.require_org_member(user_id, org_id).await?;
-
         let offset = page.saturating_sub(1) * page_size;
         let projects = ProjectQueries::get_by_organization(
             &ctx.pool,
@@ -313,17 +285,12 @@ impl ProjectService {
     /// Get project settings
     pub async fn get_project_settings(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<ProjectSettings, AppError> {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         let settings = ProjectSettingsQueries::get(&ctx.pool, project_id)
             .await?
@@ -344,18 +311,13 @@ impl ProjectService {
     /// Update project settings
     pub async fn update_project_settings(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: UpdateProjectSettingsRequest,
     ) -> Result<ProjectSettings, AppError> {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         let settings = ProjectSettingsQueries::upsert(
             &ctx.pool,
@@ -374,17 +336,12 @@ impl ProjectService {
     /// List project addons
     pub async fn list_project_addons(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<ProjectAddonResponse>, AppError> {
-        let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
+        let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_org_member(user_id, &project.organization_id)
-            .await?;
 
         let addons = ProjectAddonQueries::get_by_project(&ctx.pool, project_id).await?;
 
@@ -394,7 +351,7 @@ impl ProjectService {
     /// Create a project addon
     pub async fn create_project_addon(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         addon_type: &str,
         config: serde_json::Value,
@@ -403,11 +360,6 @@ impl ProjectService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         let addon =
             ProjectAddonQueries::create(&ctx.pool, project_id, addon_type, config, is_enabled)
@@ -419,7 +371,7 @@ impl ProjectService {
     /// Update a project addon
     pub async fn update_project_addon(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         addon_id: &str,
         config: Option<serde_json::Value>,
@@ -435,11 +387,6 @@ impl ProjectService {
             ));
         }
 
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &addon.project_id, MemberRole::Admin)
-            .await?;
-
         let updated = ProjectAddonQueries::update(&ctx.pool, addon_id, config, is_enabled).await?;
 
         Ok(updated.into())
@@ -448,7 +395,7 @@ impl ProjectService {
     /// Delete a project addon
     pub async fn delete_project_addon(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         addon_id: &str,
     ) -> Result<bool, AppError> {
@@ -461,11 +408,6 @@ impl ProjectService {
                 "Addon not found for this project".to_string(),
             ));
         }
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &addon.project_id, MemberRole::Admin)
-            .await?;
 
         ProjectAddonQueries::delete(&ctx.pool, addon_id).await
     }
@@ -635,7 +577,7 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let project_id = format!("test-proj-{}", Uuid::new_v4());
         let foreign_project_id = format!("test-foreign-proj-{}", Uuid::new_v4());
@@ -722,7 +664,7 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let project_id = format!("test-proj-{}", Uuid::new_v4());
         let foreign_project_id = format!("test-foreign-proj-{}", Uuid::new_v4());
@@ -806,7 +748,7 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -967,7 +909,7 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -1134,7 +1076,7 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();
@@ -1356,7 +1298,7 @@ mod tests {
         // Add admin with Admin role
         let _ = MemberQueries::create(&pool, &admin_id, &org.id, MemberRole::Admin).await;
 
-        let authz = Arc::new(cms_authz::ProductionAuthz::new(pool.clone()));
+        let authz = Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![]));
         let ctx = BizContext::new(pool.clone(), authz);
 
         // 1. Guest user attempts to create integration -> InsufficientRole (Admin required)
@@ -1466,7 +1408,7 @@ mod tests {
             return;
         }
 
-        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::NoopAuthz));
+        let ctx = BizContext::new(pool.clone(), std::sync::Arc::new(cms_authz::GatehouseState::new(pool.clone(), vec![])));
         let user_id = format!("test-user-{}", Uuid::new_v4());
         let user_email = format!("test-{}@internal.company", Uuid::new_v4());
         let now = chrono::Utc::now();

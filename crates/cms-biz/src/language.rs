@@ -13,7 +13,7 @@ use cms_db::{
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     language::{
         CreateLanguageRequest, LanguageCoverage, LanguageResponse, ListLanguagesQuery,
         ListLanguagesResponse, ProjectTranslationResponse, SetDefaultLanguageRequest,
@@ -30,15 +30,12 @@ impl LanguageService {
     /// Create a project language using a validated, canonical BCP-47 tag.
     pub async fn create_language(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         request: CreateLanguageRequest,
     ) -> Result<LanguageResponse, AppError> {
         ProjectQueries::get_by_id(&ctx.pool, &request.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &request.project_id, MemberRole::Admin)
-            .await?;
 
         let code = canonical_language_tag(&request.code)?;
         let name = request.name.trim();
@@ -88,15 +85,12 @@ impl LanguageService {
     /// Read a language after checking project membership.
     pub async fn get_language(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         language_id: &str,
     ) -> Result<LanguageResponse, AppError> {
         let language = LanguageQueries::get_by_id(&ctx.pool, language_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &language.project_id, MemberRole::Viewer)
-            .await?;
         Ok(language.into())
     }
 
@@ -104,16 +98,13 @@ impl LanguageService {
     /// null clears its language-specific chrome overrides.
     pub async fn update_language(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         language_id: &str,
         request: UpdateLanguageRequest,
     ) -> Result<LanguageResponse, AppError> {
-        let language = LanguageQueries::get_by_id(&ctx.pool, language_id)
+        let _language = LanguageQueries::get_by_id(&ctx.pool, language_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &language.project_id, MemberRole::Admin)
-            .await?;
 
         if let Some(name) = request.name.as_deref() {
             let name = name.trim();
@@ -153,22 +144,19 @@ impl LanguageService {
     /// intentionally removed by the database's ON DELETE CASCADE constraints.
     pub async fn delete_language(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         language_id: &str,
     ) -> Result<bool, AppError> {
-        let language = LanguageQueries::get_by_id(&ctx.pool, language_id)
+        let _language = LanguageQueries::get_by_id(&ctx.pool, language_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &language.project_id, MemberRole::Admin)
-            .await?;
         LanguageQueries::delete(&ctx.pool, language_id).await
     }
 
     /// List languages with real translations and default-branch coverage data.
     pub async fn list_languages(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         query: ListLanguagesQuery,
         page: u64,
         page_size: u64,
@@ -176,9 +164,6 @@ impl LanguageService {
         ProjectQueries::get_by_id(&ctx.pool, &query.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &query.project_id, MemberRole::Viewer)
-            .await?;
 
         let offset = page.saturating_sub(1).saturating_mul(page_size);
         let languages = LanguageQueries::get_by_project(
@@ -233,15 +218,12 @@ impl LanguageService {
     /// Set a language as the project default.
     pub async fn set_default_language(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         request: SetDefaultLanguageRequest,
     ) -> Result<LanguageResponse, AppError> {
-        let language = LanguageQueries::get_by_id(&ctx.pool, &request.language_id)
+        let _language = LanguageQueries::get_by_id(&ctx.pool, &request.language_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &language.project_id, MemberRole::Admin)
-            .await?;
         Ok(
             LanguageQueries::set_default(&ctx.pool, &request.language_id)
                 .await?
@@ -252,15 +234,12 @@ impl LanguageService {
     /// Get project translations.
     pub async fn get_project_translations(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<ProjectTranslationResponse>, AppError> {
         ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
         Ok(
             ProjectTranslationQueries::get_by_project(&ctx.pool, project_id)
                 .await?
@@ -273,7 +252,7 @@ impl LanguageService {
     /// Create or update the localized name/description for a language.
     pub async fn upsert_project_translation(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         language_id: &str,
         name: Option<&str>,
@@ -282,9 +261,6 @@ impl LanguageService {
         ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
         let language = LanguageQueries::get_by_id(&ctx.pool, language_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Language not found".to_string()))?;
@@ -317,15 +293,12 @@ impl LanguageService {
     /// Delete a project translation.
     pub async fn delete_project_translation(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         translation_id: &str,
     ) -> Result<bool, AppError> {
-        let translation = ProjectTranslationQueries::get_by_id(&ctx.pool, translation_id)
+        let _translation = ProjectTranslationQueries::get_by_id(&ctx.pool, translation_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Translation not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &translation.project_id, MemberRole::Admin)
-            .await?;
         ProjectTranslationQueries::delete(&ctx.pool, translation_id).await
     }
 }

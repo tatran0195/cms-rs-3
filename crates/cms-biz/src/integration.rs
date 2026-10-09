@@ -5,12 +5,9 @@
 use cms_db::integration::{
     IntegrationAuditEventQueries, IntegrationIdempotencyRecordQueries, ProjectIntegrationQueries,
 };
-use cms_entity::{
-    common::MemberRole,
-    integration::{
-        CreateProjectIntegrationRequest, IntegrationProvider, ProjectIntegrationResponse,
-        UpdateProjectIntegrationRequest,
-    },
+use cms_entity::integration::{
+    CreateProjectIntegrationRequest, IntegrationProvider, ProjectIntegrationResponse,
+    UpdateProjectIntegrationRequest,
 };
 
 use crate::{AppError, BizContext};
@@ -25,11 +22,6 @@ impl IntegrationService {
         user_id: &str,
         request: CreateProjectIntegrationRequest,
     ) -> Result<ProjectIntegrationResponse, AppError> {
-        // Enforce Admin role for creating integrations
-        ctx.authz
-            .require_project_role(user_id, &request.project_id, MemberRole::Admin)
-            .await?;
-
         let integration = ProjectIntegrationQueries::create(
             &ctx.pool,
             &request.project_id,
@@ -60,17 +52,12 @@ impl IntegrationService {
     /// Get integration by ID
     pub async fn get_integration(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         integration_id: &str,
     ) -> Result<ProjectIntegrationResponse, AppError> {
         let integration = ProjectIntegrationQueries::get_by_id(&ctx.pool, integration_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
-
-        // Enforce Viewer role for reading integration
-        ctx.authz
-            .require_project_role(user_id, &integration.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(integration.into())
     }
@@ -78,14 +65,9 @@ impl IntegrationService {
     /// List integrations for a project
     pub async fn list_integrations(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<ProjectIntegrationResponse>, AppError> {
-        // Enforce Viewer role for reading integrations
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
-
         let integrations = ProjectIntegrationQueries::get_by_project(&ctx.pool, project_id).await?;
 
         Ok(integrations.into_iter().map(|i| i.into()).collect())
@@ -98,14 +80,9 @@ impl IntegrationService {
         integration_id: &str,
         request: UpdateProjectIntegrationRequest,
     ) -> Result<ProjectIntegrationResponse, AppError> {
-        let integration = ProjectIntegrationQueries::get_by_id(&ctx.pool, integration_id)
+        let _integration = ProjectIntegrationQueries::get_by_id(&ctx.pool, integration_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
-
-        // Enforce Admin role for updating integrations
-        ctx.authz
-            .require_project_role(user_id, &integration.project_id, MemberRole::Admin)
-            .await?;
 
         let changes_json = serde_json::to_value(&request).unwrap_or_default();
         let updated = ProjectIntegrationQueries::update(
@@ -141,14 +118,9 @@ impl IntegrationService {
         user_id: &str,
         integration_id: &str,
     ) -> Result<bool, AppError> {
-        let integration = ProjectIntegrationQueries::get_by_id(&ctx.pool, integration_id)
+        let _integration = ProjectIntegrationQueries::get_by_id(&ctx.pool, integration_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Integration not found".to_string()))?;
-
-        // Enforce Admin role for deleting integrations
-        ctx.authz
-            .require_project_role(user_id, &integration.project_id, MemberRole::Admin)
-            .await?;
 
         let deleted = ProjectIntegrationQueries::delete(&ctx.pool, integration_id).await?;
 
@@ -173,15 +145,10 @@ impl IntegrationService {
     /// Get integration by project and provider
     pub async fn get_integration_by_provider(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         provider: IntegrationProvider,
     ) -> Result<Vec<ProjectIntegrationResponse>, AppError> {
-        // Enforce Viewer role for reading integrations
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
-
         let integrations =
             ProjectIntegrationQueries::get_by_project_and_provider(&ctx.pool, project_id, provider)
                 .await?;
@@ -263,9 +230,6 @@ impl IntegrationService {
         integration_id: &str,
     ) -> Result<serde_json::Value, AppError> {
         let integration = Self::get_integration(ctx, user_id, integration_id).await?;
-        ctx.authz
-            .require_project_role(user_id, &integration.project_id, MemberRole::Admin)
-            .await?;
 
         // Extract candidate webhook target URL
         let target_url = integration

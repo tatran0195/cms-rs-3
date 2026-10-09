@@ -14,14 +14,12 @@ impl EntitlementService {
     /// Create an entitlement
     pub async fn create_entitlement(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         usage_meter_id: &str,
         name: &str,
         description: Option<&str>,
         is_enabled: bool,
     ) -> Result<UsageEntitlement, AppError> {
-        ctx.authz.require_system_admin(user_id).await?;
-
         let entitlement = UsageEntitlementQueries::create(
             &ctx.pool,
             usage_meter_id,
@@ -49,14 +47,12 @@ impl EntitlementService {
     /// Update an entitlement
     pub async fn update_entitlement(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         entitlement_id: &str,
         name: Option<&str>,
         description: Option<&str>,
         is_enabled: Option<bool>,
     ) -> Result<UsageEntitlement, AppError> {
-        ctx.authz.require_system_admin(user_id).await?;
-
         let entitlement = UsageEntitlementQueries::update(
             &ctx.pool,
             entitlement_id,
@@ -72,11 +68,9 @@ impl EntitlementService {
     /// Delete an entitlement
     pub async fn delete_entitlement(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         entitlement_id: &str,
     ) -> Result<bool, AppError> {
-        ctx.authz.require_system_admin(user_id).await?;
-
         UsageEntitlementQueries::delete(&ctx.pool, entitlement_id).await
     }
 

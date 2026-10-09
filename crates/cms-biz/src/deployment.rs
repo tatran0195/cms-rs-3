@@ -11,7 +11,7 @@ use cms_db::{
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     deployment::{
         CreateDeploymentRequest, DeploymentResponse, DeploymentStatus, UpdateDeploymentRequest,
     },
@@ -28,7 +28,7 @@ impl DeploymentService {
     /// Create a new deployment
     pub async fn create_deployment(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: CreateDeploymentRequest,
     ) -> Result<DeploymentResponse, AppError> {
@@ -48,11 +48,6 @@ impl DeploymentService {
             ));
         }
 
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
-
         let deployment =
             DeploymentQueries::create(&ctx.pool, project_id, branch_id, DeploymentStatus::Pending)
                 .await?;
@@ -66,17 +61,12 @@ impl DeploymentService {
     /// Get a deployment
     pub async fn get_deployment(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
     ) -> Result<DeploymentResponse, AppError> {
         let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(deployment.into())
     }
@@ -84,7 +74,7 @@ impl DeploymentService {
     /// List deployments for a project
     pub async fn list_deployments(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         page: u64,
         page_size: u64,
@@ -92,11 +82,6 @@ impl DeploymentService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1);
         let offset = page.saturating_sub(1) * limit;
@@ -122,18 +107,13 @@ impl DeploymentService {
     /// Update a deployment
     pub async fn update_deployment(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
         request: UpdateDeploymentRequest,
     ) -> Result<DeploymentResponse, AppError> {
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         // If branch is changing, verify it exists
         if let Some(ref branch_id) = request.branch_id {
@@ -152,17 +132,12 @@ impl DeploymentService {
     /// Delete a deployment
     pub async fn delete_deployment(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
     ) -> Result<bool, AppError> {
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         DeploymentQueries::delete(&ctx.pool, deployment_id).await
     }
@@ -180,16 +155,12 @@ impl DeploymentService {
     /// Retry a deployment
     pub async fn retry_deployment(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
     ) -> Result<DeploymentResponse, AppError> {
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         // Reset deployment to pending so it can be re-processed
         let updated =
@@ -202,16 +173,12 @@ impl DeploymentService {
     /// Cancel a deployment
     pub async fn cancel_deployment(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
     ) -> Result<DeploymentResponse, AppError> {
         let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         // Only cancel if currently pending or building
         let can_cancel = matches!(
@@ -236,18 +203,13 @@ impl DeploymentService {
     /// Create a custom domain
     pub async fn create_domain(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
         request: CreateDomainRequest,
     ) -> Result<DomainResponse, AppError> {
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         // Normalize before lookup so case, IDNA and trailing-dot variants cannot
         // bypass availability checks; the unique database constraint remains the
@@ -272,21 +234,16 @@ impl DeploymentService {
     /// Get a domain
     pub async fn get_domain(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         domain_id: &str,
     ) -> Result<DomainResponse, AppError> {
         let domain = DomainQueries::get_by_id(&ctx.pool, domain_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Domain not found".to_string()))?;
 
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, &domain.deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, &domain.deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(domain.into())
     }
@@ -294,17 +251,12 @@ impl DeploymentService {
     /// List domains for a deployment
     pub async fn list_domains(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         deployment_id: &str,
     ) -> Result<Vec<DomainResponse>, AppError> {
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Viewer)
-            .await?;
 
         let domains = DomainQueries::get_by_deployment(&ctx.pool, deployment_id).await?;
 
@@ -314,7 +266,7 @@ impl DeploymentService {
     /// Update a domain
     pub async fn update_domain(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         domain_id: &str,
         request: UpdateDomainRequest,
     ) -> Result<DomainResponse, AppError> {
@@ -322,14 +274,9 @@ impl DeploymentService {
             .await?
             .ok_or_else(|| AppError::NotFound("Domain not found".to_string()))?;
 
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, &domain.deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, &domain.deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         // Cannot make a non-primary domain primary if another domain is already primary
         if request.is_primary == Some(true) && !domain.is_primary {
@@ -361,21 +308,16 @@ impl DeploymentService {
     /// Delete a domain
     pub async fn delete_domain(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         domain_id: &str,
     ) -> Result<bool, AppError> {
         let domain = DomainQueries::get_by_id(&ctx.pool, domain_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Domain not found".to_string()))?;
 
-        let deployment = DeploymentQueries::get_by_id(&ctx.pool, &domain.deployment_id)
+        let _deployment = DeploymentQueries::get_by_id(&ctx.pool, &domain.deployment_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &deployment.project_id, MemberRole::Admin)
-            .await?;
 
         // Cannot delete the primary domain
         if domain.is_primary {

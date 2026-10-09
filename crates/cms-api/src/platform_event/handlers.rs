@@ -120,11 +120,16 @@ pub async fn create_platform_event_handler(
     )
     .map_err(|_| AppError::BadRequest("Invalid organization_id".to_string()))?;
     if let Some(organization_id) = organization_id.as_deref() {
-        state
-            .biz_context
-            .authz
-            .require_org_member(&auth.user.id, organization_id)
-            .await?;
+        let is_member = cms_db::org::MemberQueries::get_by_user_and_org(
+            &state.biz_context.pool,
+            &auth.user.id,
+            organization_id,
+        )
+        .await?
+        .is_some();
+        if !is_member {
+            return Err(AppError::Forbidden);
+        }
     }
 
     let metadata: serde_json::Value = request

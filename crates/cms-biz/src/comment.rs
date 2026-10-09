@@ -22,14 +22,9 @@ impl CommentService {
         request: CreateCommentRequest,
     ) -> Result<CommentResponse, AppError> {
         // Verify page exists
-        let page = PageQueries::get_by_id(&ctx.pool, page_id)
+        let _page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        // Check if user has access to view the page
-        ctx.authz
-            .require_project_role(user_id, &page.project_id, MemberRole::Viewer)
-            .await?;
 
         // Verify parent comment exists and belongs to the same page
         if let Some(parent_id) = &request.parent_id {
@@ -56,11 +51,8 @@ impl CommentService {
         Ok(comment.into())
     }
 
-    /// Helper to enforce required role using in-memory member role or falling back to authz
-    async fn require_role(
-        ctx: &BizContext,
-        user_id: &str,
-        project_id: &str,
+    /// Helper to enforce required role using in-memory member role
+    fn require_role(
         member_role: Option<MemberRole>,
         min_role: MemberRole,
     ) -> Result<(), AppError> {
@@ -69,10 +61,7 @@ impl CommentService {
                 return Ok(());
             }
         }
-        // Fall back to ctx.authz (handles NoopAuthz in test suites and potential system admin overrides)
-        ctx.authz
-            .require_project_role(user_id, project_id, min_role)
-            .await
+        Err(AppError::Forbidden)
     }
 
     /// Get a comment by ID
@@ -85,14 +74,7 @@ impl CommentService {
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        Self::require_role(
-            ctx,
-            user_id,
-            &auth_record.project_id,
-            auth_record.member_role,
-            MemberRole::Viewer,
-        )
-        .await?;
+        Self::require_role(auth_record.member_role, MemberRole::Viewer)?;
 
         Ok(auth_record.comment.into())
     }
@@ -100,7 +82,7 @@ impl CommentService {
     /// List comments for a page
     pub async fn list_comments(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         page_id: &str,
         parent_id: Option<&str>,
         resolved: Option<bool>,
@@ -111,11 +93,6 @@ impl CommentService {
         let _page_entity = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        // Check if user has access to the page
-        ctx.authz
-            .require_project_role(user_id, &_page_entity.project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
@@ -161,23 +138,9 @@ impl CommentService {
 
         // Author can update if they have Viewer access; non-author requires Admin
         if !auth_record.is_author(user_id) {
-            Self::require_role(
-                ctx,
-                user_id,
-                &auth_record.project_id,
-                auth_record.member_role,
-                MemberRole::Admin,
-            )
-            .await?;
+            Self::require_role(auth_record.member_role, MemberRole::Admin)?;
         } else {
-            Self::require_role(
-                ctx,
-                user_id,
-                &auth_record.project_id,
-                auth_record.member_role,
-                MemberRole::Viewer,
-            )
-            .await?;
+            Self::require_role(auth_record.member_role, MemberRole::Viewer)?;
         }
 
         let updated = CommentQueries::update(
@@ -212,23 +175,9 @@ impl CommentService {
 
         // Author can delete if they have Viewer access; non-author requires Admin
         if !auth_record.is_author(user_id) {
-            Self::require_role(
-                ctx,
-                user_id,
-                &auth_record.project_id,
-                auth_record.member_role,
-                MemberRole::Admin,
-            )
-            .await?;
+            Self::require_role(auth_record.member_role, MemberRole::Admin)?;
         } else {
-            Self::require_role(
-                ctx,
-                user_id,
-                &auth_record.project_id,
-                auth_record.member_role,
-                MemberRole::Viewer,
-            )
-            .await?;
+            Self::require_role(auth_record.member_role, MemberRole::Viewer)?;
         }
 
         CommentQueries::delete(&ctx.pool, comment_id).await
@@ -244,14 +193,7 @@ impl CommentService {
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        Self::require_role(
-            ctx,
-            user_id,
-            &auth_record.project_id,
-            auth_record.member_role,
-            MemberRole::Admin,
-        )
-        .await?;
+        Self::require_role(auth_record.member_role, MemberRole::Admin)?;
 
         let updated = CommentQueries::update(&ctx.pool, comment_id, None, Some(true)).await?;
 
@@ -268,14 +210,7 @@ impl CommentService {
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        Self::require_role(
-            ctx,
-            user_id,
-            &auth_record.project_id,
-            auth_record.member_role,
-            MemberRole::Admin,
-        )
-        .await?;
+        Self::require_role(auth_record.member_role, MemberRole::Admin)?;
 
         let updated = CommentQueries::update(&ctx.pool, comment_id, None, Some(false)).await?;
 
@@ -292,14 +227,7 @@ impl CommentService {
             .await?
             .ok_or_else(|| AppError::NotFound("Comment not found".to_string()))?;
 
-        Self::require_role(
-            ctx,
-            user_id,
-            &auth_record.project_id,
-            auth_record.member_role,
-            MemberRole::Viewer,
-        )
-        .await?;
+        Self::require_role(auth_record.member_role, MemberRole::Viewer)?;
 
         let replies = CommentQueries::get_by_page(
             &ctx.pool,
@@ -320,7 +248,7 @@ impl CommentService {
 
 #[cfg(test)]
 mod tests {
-    use cms_authz::ProductionAuthz;
+    use cms_authz::GatehouseState;
     use cms_db::{branch::BranchQueries, org::MemberQueries, project::ProjectQueries};
     use uuid::Uuid;
 
@@ -472,10 +400,10 @@ mod tests {
         assert_eq!(unauth_record.member_role, None);
         assert!(!unauth_record.has_min_role(MemberRole::Viewer));
 
-        // 4. Test CommentService RBAC with ProductionAuthz
+        // 4. Test CommentService RBAC with GatehouseState
         let ctx = BizContext::new(
             pool.clone(),
-            std::sync::Arc::new(ProductionAuthz::new(pool.clone())),
+            std::sync::Arc::new(GatehouseState::new(pool.clone(), vec![])),
         );
 
         // Author can get comment

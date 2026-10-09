@@ -98,15 +98,20 @@ pub async fn merge_project_branch_handler(
     auth: AuthExtractor,
     Path((project_id, branch_id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<DeploymentListItem>>, AppError> {
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project_id.clone(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            &project_id,
-            cms_entity::common::MemberRole::Admin,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     let branch = cms_db::branch::BranchQueries::get_by_id(&state.biz_context.pool, &branch_id)
         .await?

@@ -3,10 +3,7 @@
 //! This module contains business logic for theme management.
 
 use cms_db::{project::ProjectQueries, theme::ThemeQueries};
-use cms_entity::{
-    common::MemberRole,
-    theme::{CreateThemeRequest, ThemeResponse, UpdateThemeRequest},
-};
+use cms_entity::theme::{CreateThemeRequest, ThemeResponse, UpdateThemeRequest};
 
 use crate::{AppError, BizContext};
 
@@ -17,7 +14,7 @@ impl ThemeService {
     /// Create a theme
     pub async fn create_theme(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: CreateThemeRequest,
     ) -> Result<ThemeResponse, AppError> {
@@ -25,11 +22,6 @@ impl ThemeService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         let theme = ThemeQueries::create(
             &ctx.pool,
@@ -46,17 +38,12 @@ impl ThemeService {
     /// Get a theme
     pub async fn get_theme(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         theme_id: &str,
     ) -> Result<ThemeResponse, AppError> {
         let theme = ThemeQueries::get_by_id(&ctx.pool, theme_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Theme not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &theme.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(theme.into())
     }
@@ -64,17 +51,12 @@ impl ThemeService {
     /// List themes for a project
     pub async fn list_themes(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<ThemeResponse>, AppError> {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let themes = ThemeQueries::get_by_project(&ctx.pool, project_id).await?;
 
@@ -84,18 +66,13 @@ impl ThemeService {
     /// Update a theme
     pub async fn update_theme(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         theme_id: &str,
         request: UpdateThemeRequest,
     ) -> Result<ThemeResponse, AppError> {
-        let theme = ThemeQueries::get_by_id(&ctx.pool, theme_id)
+        let _theme = ThemeQueries::get_by_id(&ctx.pool, theme_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Theme not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &theme.project_id, MemberRole::Admin)
-            .await?;
 
         let updated = ThemeQueries::update(
             &ctx.pool,
@@ -112,17 +89,12 @@ impl ThemeService {
     /// Delete a theme
     pub async fn delete_theme(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         theme_id: &str,
     ) -> Result<bool, AppError> {
         let theme = ThemeQueries::get_by_id(&ctx.pool, theme_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Theme not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &theme.project_id, MemberRole::Admin)
-            .await?;
 
         // Cannot delete global theme
         if theme.is_global {
@@ -137,16 +109,12 @@ impl ThemeService {
     /// Get theme CSS variables
     pub async fn get_theme_css(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         theme_id: &str,
     ) -> Result<cms_entity::theme::ThemeCssVariables, AppError> {
         let theme = ThemeQueries::get_by_id(&ctx.pool, theme_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Theme not found".to_string()))?;
-
-        ctx.authz
-            .require_project_role(user_id, &theme.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(theme.into())
     }
@@ -158,10 +126,6 @@ impl ThemeService {
         project_id: &str,
         theme_id: &str,
     ) -> Result<ThemeResponse, AppError> {
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
-
         let theme = Self::get_theme(ctx, user_id, theme_id).await?;
 
         cms_db::project::ProjectSettingsQueries::upsert(

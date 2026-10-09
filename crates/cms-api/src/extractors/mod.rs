@@ -11,9 +11,6 @@ use cms_error::AppError;
 
 use crate::{auth::AuthExtractor, AppState};
 
-pub mod authz;
-pub use authz::*;
-
 /// User ID extractor from authenticated session
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserId(pub EntityUserId);
@@ -113,113 +110,6 @@ where
     }
 }
 
-/// Tenant context containing verified authenticated user, organization, and membership role
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TenantContext {
-    pub user_id: EntityUserId,
-    pub org_id: EntityOrgId,
-    pub role: MemberRole,
-}
-
-impl TenantContext {
-    pub fn new(
-        user_id: impl Into<EntityUserId>,
-        org_id: impl Into<EntityOrgId>,
-        role: MemberRole,
-    ) -> Self {
-        Self {
-            user_id: user_id.into(),
-            org_id: org_id.into(),
-            role,
-        }
-    }
-
-    /// Check if the member role satisfies the minimum required role
-    pub fn has_min_role(&self, min_role: MemberRole) -> bool {
-        self.role >= min_role
-    }
-
-    /// Require at least the specified role, returning AppError::InsufficientRole on failure
-    pub fn require_min_role(&self, min_role: MemberRole) -> Result<(), AppError> {
-        if self.has_min_role(min_role) {
-            Ok(())
-        } else {
-            Err(AppError::InsufficientRole(format!(
-                "User requires at least {:?} role for organization {}",
-                min_role, self.org_id
-            )))
-        }
-    }
-}
-
-impl From<cms_authz::TenantContext> for TenantContext {
-    fn from(ctx: cms_authz::TenantContext) -> Self {
-        Self {
-            user_id: ctx.user_id,
-            org_id: ctx.org_id,
-            role: ctx.role,
-        }
-    }
-}
-
-impl<S> FromRequestParts<S> for TenantContext
-where
-    S: Send + Sync,
-{
-    type Rejection = AppError;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let app_state = parts
-            .extensions
-            .get::<Arc<AppState>>()
-            .ok_or_else(|| AppError::Internal(anyhow::anyhow!("AppState not found in extensions")))?
-            .clone();
-
-        let auth = AuthExtractor::from_request_parts(parts, state).await?;
-
-        let org_id = resolve_org_id(parts, Some(&app_state.biz_context.pool))
-            .await?
-            .ok_or_else(|| {
-                AppError::InvalidInput("Organization context is required".to_string())
-            })?;
-
-        let authz_ctx = app_state
-            .biz_context
-            .authz
-            .get_tenant_context(&auth.user.id, &org_id)
-            .await?;
-
-        Ok(authz_ctx.into())
-    }
-}
-
-/// Optional tenant context extractor for endpoints where organization context is optional
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct OptionalTenantContext(pub Option<TenantContext>);
-
-impl Deref for OptionalTenantContext {
-    type Target = Option<TenantContext>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<S> FromRequestParts<S> for OptionalTenantContext
-where
-    S: Send + Sync,
-{
-    type Rejection = AppError;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        match TenantContext::from_request_parts(parts, state).await {
-            Ok(ctx) => Ok(Self(Some(ctx))),
-            Err(AppError::InvalidInput(_)) => Ok(Self(None)),
-            Err(e) => Err(e),
-        }
-    }
-}
-
 /// Unified Request Context representing request-scoped identity and telemetry metadata
 #[derive(Debug, Clone)]
 pub struct RequestContext {
@@ -276,13 +166,14 @@ where
 
         let mut role = None;
         if let (Some(ref uid), Some(ref oid), Some(ref s)) = (&user_id, &org_id_opt, &app_state) {
-            if let Ok(tenant_ctx) = s
-                .biz_context
-                .authz
-                .get_tenant_context(uid.as_str(), oid.as_str())
-                .await
+            if let Ok(Some(member)) = cms_db::org::MemberQueries::get_by_user_and_org(
+                &s.biz_context.pool,
+                uid.as_str(),
+                oid.as_str(),
+            )
+            .await
             {
-                role = Some(tenant_ctx.role);
+                role = Some(member.role);
             }
         }
 
@@ -399,15 +290,5 @@ mod tests {
 
         let resolved = resolve_org_id(&parts, None).await.unwrap();
         assert_eq!(resolved, Some("org-query-789".to_string()));
-    }
-
-    #[test]
-    fn test_tenant_context_role_checks() {
-        let tc = TenantContext::new("user_1", "org_1", MemberRole::Admin);
-        assert!(tc.has_min_role(MemberRole::Viewer));
-        assert!(tc.has_min_role(MemberRole::Admin));
-        assert!(!tc.has_min_role(MemberRole::Owner));
-        assert!(tc.require_min_role(MemberRole::Admin).is_ok());
-        assert!(tc.require_min_role(MemberRole::Owner).is_err());
     }
 }

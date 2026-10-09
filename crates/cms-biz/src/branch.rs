@@ -4,12 +4,11 @@
 
 use cms_db::{branch::BranchQueries, page::PageQueries, project::ProjectQueries};
 use cms_entity::{
-    authz::{Action, ProjectResource},
     branch::{
         BranchResponse, BranchWithProjectResponse, CreateBranchRequest, ListBranchesQuery,
         ListBranchesResponse, SetDefaultBranchRequest, UpdateBranchRequest,
     },
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
 };
 
 use crate::{AppError, BizContext};
@@ -21,7 +20,7 @@ impl BranchService {
     /// Create a new branch
     pub async fn create_branch(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: CreateBranchRequest,
     ) -> Result<BranchWithProjectResponse, AppError> {
@@ -29,11 +28,6 @@ impl BranchService {
         let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to create branches in this project
-        ctx.authz
-            .require_project_permission(user_id, project_id, ProjectResource::Branches, Action::Create)
-            .await?;
 
         // Generate a unique slug atomically with unique constraint retry
         let base_slug = request.name.trim().to_lowercase().replace(' ', "-");
@@ -86,17 +80,12 @@ impl BranchService {
     /// Get a branch by ID
     pub async fn get_branch(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         branch_id: &str,
     ) -> Result<BranchWithProjectResponse, AppError> {
         let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &branch.project_id, MemberRole::Viewer)
-            .await?;
 
         let project = ProjectQueries::get_by_id(&ctx.pool, &branch.project_id)
             .await?
@@ -111,18 +100,13 @@ impl BranchService {
     /// Get a branch by slug
     pub async fn get_branch_by_slug(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         slug: &str,
     ) -> Result<BranchWithProjectResponse, AppError> {
         let project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let branch = BranchQueries::get_by_slug(&ctx.pool, project_id, slug)
             .await?
@@ -137,18 +121,13 @@ impl BranchService {
     /// Update a branch
     pub async fn update_branch(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         branch_id: &str,
         request: UpdateBranchRequest,
     ) -> Result<BranchResponse, AppError> {
         let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_permission(user_id, &branch.project_id, ProjectResource::Branches, Action::Edit)
-            .await?;
 
         // If name is changing, check for slug conflicts
         if let Some(ref name) = request.name {
@@ -193,17 +172,12 @@ impl BranchService {
     /// Delete a branch
     pub async fn delete_branch(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         branch_id: &str,
     ) -> Result<bool, AppError> {
         let branch = BranchQueries::get_by_id(&ctx.pool, branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_permission(user_id, &branch.project_id, ProjectResource::Branches, Action::Delete)
-            .await?;
 
         // Cannot delete the default branch
         if branch.is_default {
@@ -233,7 +207,7 @@ impl BranchService {
     /// List branches for a project
     pub async fn list_branches(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         query: ListBranchesQuery,
         page: u64,
         page_size: u64,
@@ -241,11 +215,6 @@ impl BranchService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, &query.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &query.project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1);
         let offset = page.saturating_sub(1) * limit;
@@ -274,20 +243,12 @@ impl BranchService {
     /// Set the default branch for a project
     pub async fn set_default_branch(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         request: SetDefaultBranchRequest,
     ) -> Result<BranchResponse, AppError> {
         let branch = BranchQueries::get_by_id(&ctx.pool, &request.branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &branch.project_id, MemberRole::Admin)
-            .await?;
-
-        // Cannot set a protected branch as default if user doesn't have permission
-        // (This check might be redundant since we already require admin)
 
         let updated =
             BranchQueries::set_default(&ctx.pool, &request.branch_id, &branch.project_id).await?;
@@ -298,18 +259,13 @@ impl BranchService {
     /// Duplicate a branch (create a copy with all pages)
     pub async fn duplicate_branch(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         source_branch_id: &str,
         name: &str,
     ) -> Result<BranchWithProjectResponse, AppError> {
         let source_branch = BranchQueries::get_by_id(&ctx.pool, source_branch_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Source branch not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &source_branch.project_id, MemberRole::Editor)
-            .await?;
 
         let project = ProjectQueries::get_by_id(&ctx.pool, &source_branch.project_id)
             .await?

@@ -19,7 +19,7 @@ use cms_db::{
     },
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     reader_access::{
         AudienceGrantResponse, AudienceResponse, CreateAudienceRequest, CreateInvitationRequest,
         CreateReaderRequest, JwtAccessProvider, ReaderAudienceResponse, ReaderAuditLog,
@@ -80,7 +80,7 @@ impl ReaderAccessService {
     /// Create an audience
     pub async fn create_audience(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: CreateAudienceRequest,
     ) -> Result<AudienceResponse, AppError> {
@@ -88,11 +88,6 @@ impl ReaderAccessService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         let audience = AudienceQueries::create(
             &ctx.pool,
@@ -108,17 +103,12 @@ impl ReaderAccessService {
     /// Get an audience by ID
     pub async fn get_audience(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
     ) -> Result<AudienceResponse, AppError> {
         let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(audience.into())
     }
@@ -126,17 +116,12 @@ impl ReaderAccessService {
     /// List audiences for a project
     pub async fn list_audiences(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<AudienceResponse>, AppError> {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let audiences = AudienceQueries::get_by_project(&ctx.pool, project_id).await?;
 
@@ -146,19 +131,14 @@ impl ReaderAccessService {
     /// Update an audience
     pub async fn update_audience(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
         name: Option<&str>,
         description: Option<&str>,
     ) -> Result<AudienceResponse, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         let updated = AudienceQueries::update(&ctx.pool, audience_id, name, description).await?;
 
@@ -168,17 +148,12 @@ impl ReaderAccessService {
     /// Delete an audience
     pub async fn delete_audience(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
     ) -> Result<bool, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         AudienceQueries::delete(&ctx.pool, audience_id).await
     }
@@ -186,18 +161,13 @@ impl ReaderAccessService {
     /// Add a reader to an audience
     pub async fn add_reader_to_audience(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
         reader_id: &str,
     ) -> Result<ReaderAudienceResponse, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         let reader_audience =
             ReaderAudienceQueries::create(&ctx.pool, reader_id, audience_id).await?;
@@ -208,18 +178,13 @@ impl ReaderAccessService {
     /// Remove a reader from an audience
     pub async fn remove_reader_from_audience(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
         reader_id: &str,
     ) -> Result<bool, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         ReaderAudienceQueries::delete(&ctx.pool, reader_id, audience_id).await
     }
@@ -227,7 +192,7 @@ impl ReaderAccessService {
     /// Create an audience grant
     pub async fn create_audience_grant(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
         project_id: &str,
         branch_id: Option<&str>,
@@ -236,11 +201,6 @@ impl ReaderAccessService {
         let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the audience's source project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         // Fetch source project
         let audience_project = ProjectQueries::get_by_id(&ctx.pool, &audience.project_id)
@@ -258,11 +218,6 @@ impl ReaderAccessService {
                 "Audience and target project must belong to the same organization".to_string(),
             ));
         }
-
-        // Check if user has admin role in the target project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         // Verify branch belongs to the target project if specified
         if let Some(bid) = branch_id {
@@ -303,21 +258,12 @@ impl ReaderAccessService {
     /// Delete an audience grant
     pub async fn delete_audience_grant(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         grant_id: &str,
     ) -> Result<bool, AppError> {
-        let grant = AudienceGrantQueries::get_by_id(&ctx.pool, grant_id)
+        let _grant = AudienceGrantQueries::get_by_id(&ctx.pool, grant_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Grant not found".to_string()))?;
-
-        let audience = AudienceQueries::get_by_id(&ctx.pool, &grant.audience_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         AudienceGrantQueries::delete(&ctx.pool, grant_id).await
     }
@@ -325,18 +271,13 @@ impl ReaderAccessService {
     /// Create an invitation
     pub async fn create_invitation(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
         request: CreateInvitationRequest,
     ) -> Result<ReaderInvitationResponse, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         // Generate a token
         let token = Uuid::new_v4().to_string();
@@ -399,17 +340,12 @@ impl ReaderAccessService {
     /// List invitations for an audience
     pub async fn list_invitations(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
     ) -> Result<Vec<ReaderInvitationResponse>, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         let invitations = ReaderInvitationQueries::get_by_audience(&ctx.pool, audience_id).await?;
 
@@ -419,16 +355,12 @@ impl ReaderAccessService {
     /// List grants for an audience
     pub async fn list_audience_grants(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         audience_id: &str,
     ) -> Result<Vec<AudienceGrantResponse>, AppError> {
-        let audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
+        let _audience = AudienceQueries::get_by_id(&ctx.pool, audience_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Viewer)
-            .await?;
 
         let grants = AudienceGrantQueries::get_by_audience(&ctx.pool, audience_id).await?;
         Ok(grants.into_iter().map(|g| g.into()).collect())
@@ -455,21 +387,12 @@ impl ReaderAccessService {
     /// Revoke an invitation
     pub async fn revoke_invitation(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         invitation_id: &str,
     ) -> Result<bool, AppError> {
-        let invitation = ReaderInvitationQueries::get_by_id(&ctx.pool, invitation_id)
+        let _invitation = ReaderInvitationQueries::get_by_id(&ctx.pool, invitation_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Invitation not found".to_string()))?;
-
-        let audience = AudienceQueries::get_by_id(&ctx.pool, &invitation.audience_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &audience.project_id, MemberRole::Admin)
-            .await?;
 
         ReaderInvitationQueries::delete(&ctx.pool, invitation_id).await
     }

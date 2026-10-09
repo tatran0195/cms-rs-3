@@ -46,12 +46,12 @@ pub use cms_error::AppError;
 #[derive(Clone)]
 pub struct BizContext {
     pub pool: PgPool,
-    pub authz: std::sync::Arc<dyn cms_authz::Authz>,
+    pub gatehouse: std::sync::Arc<cms_authz::GatehouseState>,
 }
 
 impl BizContext {
     /// Create a new BizContext
-    pub fn new(pool: PgPool, authz: std::sync::Arc<dyn cms_authz::Authz>) -> Self {
-        Self { pool, authz }
+    pub fn new(pool: PgPool, gatehouse: std::sync::Arc<cms_authz::GatehouseState>) -> Self {
+        Self { pool, gatehouse }
     }
 }

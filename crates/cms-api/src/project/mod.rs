@@ -195,23 +195,6 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/{project_id}/members/invitations/{id}",
             delete(cancel_project_invitation_handler),
         )
-        // Project custom roles
-        .route(
-            "/{project_id}/roles",
-            get(crate::authz::list_project_roles_handler)
-                .post(crate::authz::create_project_role_handler),
-        )
-        .route(
-            "/{project_id}/roles/{role_id}",
-            get(crate::authz::get_project_role_handler)
-                .put(crate::authz::update_project_role_handler)
-                .patch(crate::authz::update_project_role_handler)
-                .delete(crate::authz::delete_project_role_handler),
-        )
-        .route(
-            "/{project_id}/roles/{role_id}/usage",
-            get(crate::authz::get_project_role_usage_handler),
-        )
         // Project comments
         .route("/{project_id}/comments", get(list_project_comments_handler))
         .route(

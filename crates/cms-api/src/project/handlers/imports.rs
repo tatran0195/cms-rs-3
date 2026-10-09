@@ -16,15 +16,20 @@ pub async fn import_mintlify_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project_id.clone(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            &project_id,
-            cms_entity::common::MemberRole::Admin,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     Err(AppError::custom(
         axum::http::StatusCode::NOT_IMPLEMENTED,
@@ -38,15 +43,20 @@ pub async fn import_ghost_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project_id.clone(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            &project_id,
-            cms_entity::common::MemberRole::Admin,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     Err(AppError::custom(
         axum::http::StatusCode::NOT_IMPLEMENTED,

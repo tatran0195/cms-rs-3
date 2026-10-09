@@ -18,6 +18,11 @@ pub fn workspace_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(get_workspace_settings_handler))
         .route("/", patch(update_workspace_settings_handler))
+        .route("/", delete(delete_workspace_handler))
+        .route(
+            "/transfer-ownership",
+            post(transfer_workspace_ownership_handler),
+        )
         .route("/analytics", get(get_workspace_analytics_handler))
         .with_state(state)
 }

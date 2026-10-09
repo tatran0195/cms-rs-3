@@ -1,0 +1,510 @@
+use async_trait::async_trait;
+use std::borrow::Cow;
+use std::fmt;
+use std::hash::Hash;
+use std::num::NonZeroUsize;
+use std::sync::Arc;
+
+/// A typed fact key that can be loaded through an [`crate::EvaluationSession`].
+///
+/// Keys are flat, cloneable, and hashable so the session can deduplicate and
+/// cache fact loads for the lifetime of a single [`crate::EvaluationSession`].
+///
+/// Caching is scoped to that session, not the process. Gatehouse has no
+/// built-in notion of a "request"; the caller decides how long a session lives
+/// and, by convention, scopes it to one authorization pass (for an HTTP
+/// service, typically one inbound request). Cached facts and cached errors are
+/// dropped when the session is dropped, so permission revocations or backend
+/// changes are observed by the next session rather than being held in a
+/// process-global cache.
+pub trait FactKey: Eq + Hash + Clone + fmt::Debug + Send + Sync + 'static {
+    /// The value returned by a [`FactSource`] for this key.
+    type Value: Clone + Send + Sync + 'static;
+
+    /// Stable fact name used only in diagnostics and tracing.
+    ///
+    /// The session registry is keyed by [`std::any::TypeId`], not by this name, so two
+    /// unrelated key types with the same name do not share a source or cache.
+    const NAME: &'static str;
+
+    /// Renders the key for diagnostics: the [`crate::FactProvenance::key`]
+    /// string recorded when this key is loaded through
+    /// [`crate::EvalCtx::fact`] and friends.
+    ///
+    /// Defaults to the `Debug` representation. Override it when the key has
+    /// an established audit form (as [`RelationshipQuery`] does) — the
+    /// rendered string reaches evaluation traces, `tracing` subscribers, and
+    /// serialized audit logs, so treat it as audit surface.
+    fn render(&self) -> String {
+        format!("{self:?}")
+    }
+}
+
+/// Private error type backing [`FactLoadError::backend_message`] and
+/// [`FactLoadError::backend_with_message`]: a caller-authored message that is
+/// safe to record in audit output, optionally wrapping the underlying error.
+#[derive(Debug)]
+struct MessageError {
+    message: String,
+    source: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+impl fmt::Display for MessageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for MessageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source
+            .as_deref()
+            .map(|source| source as &(dyn std::error::Error + 'static))
+    }
+}
+
+/// The [`FactLoadError::audit_detail`] text for a backend error that carries
+/// no caller-authored message.
+pub(crate) const REDACTED_BACKEND_DETAIL: &str =
+    "backend error (message withheld from audit output)";
+
+/// Error raised while loading a fact.
+///
+/// [`fmt::Display`] and [`fmt::Debug`] include a wrapped backend error's own
+/// text, so they are for operational logs only. [`Self::audit_detail`] is the
+/// audit-safe form that Gatehouse records in traces.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum FactLoadError {
+    /// No source is registered for the requested fact key type.
+    SourceNotRegistered {
+        /// Diagnostic fact name from [`FactKey::NAME`].
+        fact_name: &'static str,
+    },
+    /// A source violated the one-result-per-input-key contract.
+    SourceContractViolation {
+        /// Diagnostic fact name from [`FactKey::NAME`].
+        fact_name: &'static str,
+        /// Number of keys passed to the source.
+        expected: usize,
+        /// Number of results returned by the source.
+        actual: usize,
+    },
+    /// The future driving a fact load was dropped before the load completed.
+    ///
+    /// When several evaluations await the same key, one of them drives the load
+    /// and the others wait on its result. If that driving future is cancelled —
+    /// for example, the surrounding request times out and its future is
+    /// dropped — the load is reported as cancelled. The session caches this
+    /// error for the affected keys and wakes any waiters, so the evaluation
+    /// fails closed and the next session retries from scratch. For this reason a
+    /// fact-loaded session should not be shared across independent requests: a
+    /// cancellation in one would surface here for the others.
+    LoaderCancelled {
+        /// Diagnostic fact name from [`FactKey::NAME`].
+        fact_name: &'static str,
+    },
+    /// The registered source reported a backend error.
+    ///
+    /// Backend errors are held behind [`Arc`], so cloned
+    /// [`FactLoadResult::Error`] values share the same error object rather than
+    /// requiring the backend error type itself to be cloneable.
+    Backend(Arc<dyn std::error::Error + Send + Sync>),
+}
+
+/// Stable, value-erased classification of a [`FactLoadError`].
+///
+/// Use this when a machine needs to choose an operational response without
+/// parsing [`FactLoadError`]'s human-readable [`fmt::Display`] output. The
+/// classification deliberately does not promise that every backend error is
+/// transient: callers can distinguish backend failures from Gatehouse source
+/// wiring and contract failures, then apply their own retry policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+#[non_exhaustive]
+pub enum FactLoadErrorKind {
+    /// No source is registered for the requested fact key type.
+    SourceNotRegistered,
+    /// A source returned the wrong number of results.
+    SourceContractViolation,
+    /// The future driving the load was cancelled.
+    LoaderCancelled,
+    /// The registered source reported a backend error.
+    Backend,
+}
+
+impl FactLoadError {
+    /// Wraps a backend error.
+    ///
+    /// The error is wrapped transparently: this error's [`fmt::Display`]
+    /// shows its message and [`std::error::Error::source`] forwards its
+    /// cause. Audit output withholds the message: [`Self::audit_detail`] and
+    /// [`crate::FactProvenance::detail`] record a fixed placeholder. Database and client errors can quote row values or
+    /// connection details, and traces are routinely logged and serialized.
+    /// Use [`Self::backend_with_message`] to record a safe description.
+    pub fn backend(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Backend(Arc::new(error))
+    }
+
+    /// Wraps a human-readable backend error message.
+    ///
+    /// The message is recorded verbatim in audit output, so it must not
+    /// contain secrets or data copied from the backend error.
+    pub fn backend_message(message: impl Into<String>) -> Self {
+        Self::backend(MessageError {
+            message: message.into(),
+            source: None,
+        })
+    }
+
+    /// Wraps a backend error behind a caller-authored message.
+    ///
+    /// `message` is what audit output records and what [`fmt::Display`]
+    /// shows. `source` is returned by [`std::error::Error::source`] for
+    /// operational logging and is never copied into the trace.
+    pub fn backend_with_message(
+        message: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        Self::backend(MessageError {
+            message: message.into(),
+            source: Some(Box::new(source)),
+        })
+    }
+
+    /// Returns the text recorded in audit output for this error.
+    ///
+    /// Gatehouse-raised errors describe themselves. A backend error built with
+    /// [`Self::backend_message`] or [`Self::backend_with_message`] records its
+    /// caller-authored message, as does a `FactLoadError` wrapped in
+    /// another; any other backend error records a fixed placeholder instead
+    /// of its own message.
+    pub fn audit_detail(&self) -> Cow<'_, str> {
+        match self {
+            Self::Backend(error) => {
+                if let Some(message) = error.downcast_ref::<MessageError>() {
+                    Cow::Borrowed(message.message.as_str())
+                } else if let Some(inner) = error.downcast_ref::<FactLoadError>() {
+                    inner.audit_detail()
+                } else {
+                    Cow::Borrowed(REDACTED_BACKEND_DETAIL)
+                }
+            }
+            _ => Cow::Owned(self.to_string()),
+        }
+    }
+
+    /// Returns the stable machine-readable classification of this error.
+    pub fn kind(&self) -> FactLoadErrorKind {
+        match self {
+            Self::SourceNotRegistered { .. } => FactLoadErrorKind::SourceNotRegistered,
+            Self::SourceContractViolation { .. } => FactLoadErrorKind::SourceContractViolation,
+            Self::LoaderCancelled { .. } => FactLoadErrorKind::LoaderCancelled,
+            Self::Backend(_) => FactLoadErrorKind::Backend,
+        }
+    }
+}
+
+impl fmt::Display for FactLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SourceNotRegistered { fact_name } => {
+                write!(f, "No fact source registered for '{fact_name}'")
+            }
+            Self::SourceContractViolation {
+                fact_name,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "Fact source '{fact_name}' returned {actual} results for {expected} keys"
+            ),
+            Self::LoaderCancelled { fact_name } => {
+                write!(f, "Fact load for '{fact_name}' was cancelled")
+            }
+            Self::Backend(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for FactLoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Backend(error) => error.source(),
+            _ => None,
+        }
+    }
+}
+
+/// Result of loading one fact.
+///
+/// This is shaped like `Result<Option<V>, FactLoadError>` — `Found`, `Missing`,
+/// and `Error` map onto `Ok(Some)`, `Ok(None)`, and `Err`. A dedicated enum is
+/// used instead so the three outcomes read as domain concepts at policy call
+/// sites (`FactLoadResult::Missing` rather than `Ok(None)`), so "the fact does
+/// not exist" is never visually conflated with "the load failed" — a
+/// distinction that matters for fail-closed authorization — and so the type can
+/// gain variants later without breaking a `Result` alias callers rely on.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum FactLoadResult<V> {
+    /// The fact exists and has the given value.
+    Found(V),
+    /// The fact source was reached, but no value exists for the key.
+    Missing,
+    /// Loading failed. Policies that require the fact should map this to an
+    /// indeterminate decision.
+    Error(FactLoadError),
+}
+
+/// A batched source for one fact key type.
+///
+/// Sources can be shared across many request sessions. The source owns
+/// backend-specific serialization and I/O; the session owns per-request
+/// deduplication, caching, chunking, and in-flight coalescing.
+///
+/// `FactSource` is gatehouse's request-scoped DataLoader-style primitive:
+/// the session deduplicates inputs, holds a per-session cache, and joins
+/// concurrent in-flight loads for the same key, then hands one or more
+/// unique-key slices to [`Self::load_many`] (chunked by
+/// [`Self::max_batch_size`]). If your application already runs a
+/// DataLoader implementation — `async_graphql::dataloader` (from the
+/// `async-graphql` crate), the `ultra-batch` crate, or any home-grown
+/// batcher — call it directly from inside `load_many`. The two layers
+/// compose: gatehouse owns the per-request fact graph for one
+/// authorization pass; the underlying loader owns batching across the rest
+/// of the request, request coalescing across many concurrent passes, and
+/// any longer-lived caching.
+///
+/// # Beyond relationship facts: `(subject, scope) → resolved-id` lookups
+///
+/// `FactSource` is not relationship-shaped. Any per-request lookup whose
+/// answer is fixed for the request — "what customer does this org map to",
+/// "what tenant config applies to this caller", "what billing plan is in
+/// force right now" — can be a fact key. Define a [`FactKey`] for the
+/// question, register a source that resolves it, and have the policy ask
+/// the session instead of calling the backing service directly. The session
+/// then guarantees one round trip per unique key per request, regardless of
+/// how many policies or items in a list endpoint consult it.
+///
+/// ```rust
+/// use async_trait::async_trait;
+/// use cms_authz::{FactKey, FactLoadResult, FactSource};
+///
+/// /// "Which customer is this org billed under?" — same answer for every
+/// /// item in a list-of-invoices request.
+/// #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+/// struct CustomerForOrg(uuid::Uuid);
+///
+/// impl FactKey for CustomerForOrg {
+///     const NAME: &'static str = "customer_for_org";
+///     type Value = Option<uuid::Uuid>;
+/// }
+///
+/// struct HierarchyFacts(/* Arc<dyn HierarchyService> */);
+///
+/// #[async_trait]
+/// impl FactSource<CustomerForOrg> for HierarchyFacts {
+///     async fn load_many(
+///         &self,
+///         keys: &[CustomerForOrg],
+///     ) -> Vec<FactLoadResult<Option<uuid::Uuid>>> {
+///         // One backend call covering every unique org in the batch.
+///         // Return one result per input key, in input order.
+///         keys.iter()
+///             .map(|_| FactLoadResult::Found(None))  // resolve from backend
+///             .collect()
+///     }
+/// }
+/// ```
+///
+/// Inside the policy, the canonical pattern is:
+///
+/// ```rust
+/// # use async_trait::async_trait;
+/// # use cms_authz::{EvalCtx, FactKey, FactLoadResult, GrantResult, Policy, PolicyDomain};
+/// # use std::borrow::Cow;
+/// # struct User { org_id: uuid::Uuid }
+/// # struct Invoice { customer_id: uuid::Uuid }
+/// # struct InvoiceAccess;
+/// # impl PolicyDomain for InvoiceAccess {
+/// #     type Subject = User;
+/// #     type Action = ();
+/// #     type Resource = Invoice;
+/// #     type Context = ();
+/// # }
+/// # #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+/// # struct CustomerForOrg(uuid::Uuid);
+/// # impl FactKey for CustomerForOrg {
+/// #     const NAME: &'static str = "customer_for_org";
+/// #     type Value = Option<uuid::Uuid>;
+/// # }
+/// # struct BillingCustomer;
+/// # #[async_trait]
+/// # impl Policy<InvoiceAccess> for BillingCustomer {
+/// async fn evaluate(
+///     &self,
+///     ctx: &EvalCtx<'_, InvoiceAccess>,
+/// ) -> GrantResult {
+///     match ctx.fact(CustomerForOrg(ctx.subject.org_id)).await {
+///         FactLoadResult::Found(Some(customer_id)) if customer_id == ctx.resource.customer_id => {
+///             ctx.grant("subject's org bills under the invoice's customer")
+///         }
+///         _ => ctx.not_applicable("not the billing customer"),
+///     }
+/// }
+/// # fn policy_type(&self) -> Cow<'static, str> { Cow::Borrowed("BillingCustomer") }
+/// # }
+/// ```
+///
+/// [`crate::EvalCtx::fact`] records the consulted fact as
+/// [`crate::FactProvenance`] and the context's result helpers attach it, so
+/// provenance is correct by construction — and a failed load reported
+/// through `ctx.not_applicable` is upgraded to an indeterminate result,
+/// which lets [`crate::AccessEvaluation::is_indeterminate`] distinguish a
+/// failed load from an ordinary authorization denial. Policies that load
+/// outside the context (via [`crate::EvalCtx::session`]) can still record
+/// provenance manually with
+/// [`FactProvenance::from_load_result`](crate::FactProvenance::from_load_result)
+/// and [`crate::EvalCtx::record`].
+///
+/// The built-in [`RebacPolicy`](crate::RebacPolicy) generalises this idiom
+/// for relationship-shaped facts; the same plumbing handles arbitrary
+/// `(subject, scope) → value` lookups when you define your own key.
+#[async_trait]
+pub trait FactSource<K>: Send + Sync
+where
+    K: FactKey,
+{
+    /// Loads one result per key, in input order.
+    ///
+    /// The session deduplicates before calling a source, so `keys` are unique
+    /// within each call. Implementations must return exactly one
+    /// [`FactLoadResult`] per input key, in the same order. The session expands
+    /// results back to caller-visible order, including duplicate keys.
+    ///
+    /// A wrong-length result is detected and surfaced as
+    /// [`FactLoadError::SourceContractViolation`]. **Order is the
+    /// implementor's responsibility**: the session has no way to detect a
+    /// result vector that has the right length but reorders entries — those
+    /// will be silently misattributed to the wrong keys. SQL implementations
+    /// should use `WITH ORDINALITY` (or an equivalent re-ordering step)
+    /// against the input slice; map-returning DataLoaders must re-index back
+    /// to the input order before returning.
+    async fn load_many(&self, keys: &[K]) -> Vec<FactLoadResult<K::Value>>;
+
+    /// Maximum number of keys this source wants to load in one call.
+    fn max_batch_size(&self) -> Option<NonZeroUsize> {
+        None
+    }
+}
+
+/// Error raised while installing fact sources into a request session.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum FactSourceRegistrationError {
+    /// The session is the process-wide empty session and cannot accept sources.
+    SharedEmptySession {
+        /// Diagnostic fact name from [`FactKey::NAME`].
+        fact_name: &'static str,
+    },
+    /// A source is already registered for this exact fact key type.
+    AlreadyRegistered {
+        /// Diagnostic fact name from [`FactKey::NAME`].
+        fact_name: &'static str,
+    },
+    /// Loads for this fact key type are currently in flight.
+    InFlight {
+        /// Diagnostic fact name from [`FactKey::NAME`].
+        fact_name: &'static str,
+    },
+}
+
+impl fmt::Display for FactSourceRegistrationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SharedEmptySession { .. } => write!(
+                f,
+                "EvaluationSession::shared_empty() cannot install fact sources; use FactRegistry::session() for fact-backed checks",
+            ),
+            Self::AlreadyRegistered { fact_name } => write!(
+                f,
+                "fact source for '{fact_name}' is already registered in this FactRegistry",
+            ),
+            Self::InFlight { .. } => write!(
+                f,
+                "fact sources should not be registered or replaced while loads for the same key type are in flight",
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FactSourceRegistrationError {}
+
+/// Canonical fact key for relationship (ReBAC) lookups.
+///
+/// A `RelationshipQuery` encodes one yes/no question: does `subject_id` have
+/// `relation` to `resource_id`? It is the [`FactKey`] used by the built-in
+/// [`crate::RebacPolicy`], with [`FactKey::Value`] = `bool` — a registered
+/// [`FactSource`] answers `true` when the relationship exists and `false`
+/// otherwise.
+///
+/// The three identifier types are generic so callers can use their own
+/// strongly-typed ids and relation enums rather than stringly-typed keys.
+/// Because the session registry is keyed by the concrete Rust type (see
+/// [`crate::EvaluationSession`]), two logically distinct relationship graphs
+/// that share the same `RelationshipQuery<…>` instantiation resolve to the same
+/// source; give them distinct id or relation types if they must be backed
+/// separately.
+///
+/// For relationships that carry a payload (a rank, weight, or scope set) rather
+/// than a plain boolean, define a custom [`FactKey`] with `Value =
+/// YourPayload` instead of using this type.
+///
+/// # Example
+///
+/// ```rust
+/// # use cms_authz::RelationshipQuery;
+/// #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// enum Relation {
+///     Owner,
+///     Viewer,
+/// }
+///
+/// let query = RelationshipQuery {
+///     subject_id: "user:42".to_string(),
+///     resource_id: "doc:7".to_string(),
+///     relation: Relation::Owner,
+/// };
+/// assert_eq!(query.relation, Relation::Owner);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RelationshipQuery<SubjectId, ResourceId, Relation> {
+    /// Subject identifier.
+    pub subject_id: SubjectId,
+    /// Resource identifier.
+    pub resource_id: ResourceId,
+    /// Relationship being checked.
+    pub relation: Relation,
+}
+
+impl<SubjectId, ResourceId, Relation> FactKey for RelationshipQuery<SubjectId, ResourceId, Relation>
+where
+    SubjectId: Eq + Hash + Clone + fmt::Debug + Send + Sync + 'static,
+    ResourceId: Eq + Hash + Clone + fmt::Debug + Send + Sync + 'static,
+    Relation: Eq + Hash + Clone + fmt::Debug + fmt::Display + Send + Sync + 'static,
+{
+    type Value = bool;
+
+    const NAME: &'static str = "relationship";
+
+    /// Renders the relationship in its established audit form,
+    /// `subject -[relation]-> resource`, preserving the key string recorded
+    /// on provenance by pre-0.6 `RebacPolicy` versions.
+    fn render(&self) -> String {
+        format!(
+            "{:?} -[{}]-> {:?}",
+            self.subject_id, self.relation, self.resource_id
+        )
+    }
+}

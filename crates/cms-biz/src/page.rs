@@ -8,7 +8,6 @@ use cms_db::{
     PgPool,
 };
 use cms_entity::{
-    authz::{Action, ProjectResource},
     common::PaginatedResponse,
     page::{
         CreatePageRequest, GetPageTreeResponse, ListPagesQuery, ListPagesResponse, PageResponse,
@@ -98,14 +97,6 @@ impl PageService {
             return Err(AppError::Conflict(
                 "Branch does not belong to this project".to_string(),
             ));
-        }
-        ctx.authz
-            .require_project_permission(user_id, project_id, ProjectResource::Pages, Action::Create)
-            .await?;
-        if request.is_published {
-            ctx.authz
-                .require_project_permission(user_id, project_id, ProjectResource::Pages, Action::Publish)
-                .await?;
         }
 
         let title = request.title.trim();
@@ -283,22 +274,12 @@ impl PageService {
     /// Get a page by ID
     pub async fn get_page(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         page_id: &str,
     ) -> Result<PageResponse, AppError> {
         let page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        // Check if user has read permission on project pages
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                &page.project_id,
-                ProjectResource::Pages,
-                Action::Read,
-            )
-            .await?;
 
         Ok(page.into())
     }
@@ -306,7 +287,7 @@ impl PageService {
     /// Get a page by path
     pub async fn get_page_by_path(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         branch_id: &str,
         path: &str,
@@ -325,16 +306,6 @@ impl PageService {
             ));
         }
 
-        // Check if user has read permission on project pages
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                project_id,
-                ProjectResource::Pages,
-                Action::Read,
-            )
-            .await?;
-
         let page = PageQueries::get_by_path(&ctx.pool, project_id, branch_id, path)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
@@ -345,7 +316,7 @@ impl PageService {
     /// List pages in a project and branch
     pub async fn list_pages(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         query: ListPagesQuery,
         page: u64,
         page_size: u64,
@@ -363,16 +334,6 @@ impl PageService {
                 "Branch does not belong to this project".to_string(),
             ));
         }
-
-        // Check if user has read permission on project pages
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                &query.project_id,
-                ProjectResource::Pages,
-                Action::Read,
-            )
-            .await?;
 
         let offset = page.saturating_sub(1) * page_size;
         let pages = PageQueries::get_by_project_branch_and_language(
@@ -405,7 +366,7 @@ impl PageService {
     /// Get the full page tree for a project and branch
     pub async fn get_page_tree(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         branch_id: &str,
         is_published: Option<bool>,
@@ -424,16 +385,6 @@ impl PageService {
             ));
         }
 
-        // Check if user has read permission on project pages
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                project_id,
-                ProjectResource::Pages,
-                Action::Read,
-            )
-            .await?;
-
         let tree = PageQueries::get_tree(&ctx.pool, project_id, branch_id, is_published).await?;
 
         Ok(tree)
@@ -450,14 +401,6 @@ impl PageService {
         let page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                &page.project_id,
-                ProjectResource::Pages,
-                Action::Edit,
-            )
-            .await?;
         let project = ProjectQueries::get_by_id(&ctx.pool, &page.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
@@ -613,16 +556,6 @@ impl PageService {
             .hidden
             .map(|hidden| !hidden)
             .or(request.is_published);
-        if is_published == Some(true) && !page.is_published {
-            ctx.authz
-                .require_project_permission(
-                    user_id,
-                    &page.project_id,
-                    ProjectResource::Pages,
-                    Action::Publish,
-                )
-                .await?;
-        }
         let updated = PageQueries::update(
             &ctx.pool,
             page_id,
@@ -661,22 +594,12 @@ impl PageService {
     /// Delete a page
     pub async fn delete_page(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         page_id: &str,
     ) -> Result<bool, AppError> {
-        let page = PageQueries::get_by_id(&ctx.pool, page_id)
+        let _page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        // Check if user has access to delete the page
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                &page.project_id,
-                ProjectResource::Pages,
-                Action::Delete,
-            )
-            .await?;
 
         // Page deletion reparents direct children to the root and recomputes all
         // materialized paths transactionally. Path collisions or corrupt trees
@@ -687,7 +610,7 @@ impl PageService {
     /// Reorder pages
     pub async fn reorder_pages(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         branch_id: &str,
         request: ReorderPagesRequest,
@@ -703,16 +626,6 @@ impl PageService {
                 ));
             }
         }
-
-        // Check if user has edit permission on project pages
-        ctx.authz
-            .require_project_permission(
-                user_id,
-                project_id,
-                ProjectResource::Pages,
-                Action::Edit,
-            )
-            .await?;
 
         let reordered = PageQueries::reorder(&ctx.pool, &request.page_ids).await?;
 

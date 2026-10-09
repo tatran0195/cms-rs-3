@@ -28,6 +28,13 @@ pub struct AuthExtractor {
     pub auth_method: AuthMethod,
 }
 
+impl AuthExtractor {
+    /// Convert to Gatehouse AuthUser representation
+    pub fn to_auth_user(&self, state: &AppState) -> cms_authz::AuthUser {
+        state.gatehouse.to_auth_user(self.user.id.to_string(), &self.user.email)
+    }
+}
+
 /// Authentication method used
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMethod {
@@ -248,78 +255,6 @@ impl IntoResponse for RoleRejection {
     fn into_response(self) -> Response {
         (StatusCode::FORBIDDEN, "Insufficient permissions").into_response()
     }
-}
-
-/// Check if user has required role in organization
-pub async fn require_org_role(
-    user_id: &str,
-    org_id: &str,
-    required_role: cms_entity::common::MemberRole,
-    state: &Arc<AppState>,
-) -> Result<(), AppError> {
-    match required_role {
-        cms_entity::common::MemberRole::Owner => {
-            state
-                .biz_context
-                .authz
-                .require_org_owner(user_id, org_id)
-                .await
-        }
-        cms_entity::common::MemberRole::Admin => {
-            state
-                .biz_context
-                .authz
-                .require_org_admin(user_id, org_id)
-                .await
-        }
-        _ => {
-            state
-                .biz_context
-                .authz
-                .require_org_member(user_id, org_id)
-                .await
-        }
-    }
-}
-
-/// Check if user has required role in project
-pub async fn require_project_role(
-    user_id: &str,
-    project_id: &str,
-    required_role: cms_entity::common::MemberRole,
-    state: &Arc<AppState>,
-) -> Result<(), AppError> {
-    state
-        .biz_context
-        .authz
-        .require_project_role(user_id, project_id, required_role)
-        .await
-}
-
-/// Check if user is owner of organization
-pub async fn require_org_owner(
-    user_id: &str,
-    org_id: &str,
-    state: &Arc<AppState>,
-) -> Result<(), AppError> {
-    state
-        .biz_context
-        .authz
-        .require_org_owner(user_id, org_id)
-        .await
-}
-
-/// Check if user is owner of project
-pub async fn require_project_owner(
-    user_id: &str,
-    project_id: &str,
-    state: &Arc<AppState>,
-) -> Result<(), AppError> {
-    state
-        .biz_context
-        .authz
-        .require_project_role(user_id, project_id, cms_entity::common::MemberRole::Owner)
-        .await
 }
 
 #[cfg(test)]

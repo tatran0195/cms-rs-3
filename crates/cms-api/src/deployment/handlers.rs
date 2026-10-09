@@ -88,15 +88,20 @@ pub async fn create_deployment_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: request.project_id.clone(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            &request.project_id,
-            cms_entity::common::MemberRole::Admin,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     let branch_id = if let Some(ref bid) = request.branch_id {
         let branch = cms_db::branch::BranchQueries::get_by_id(&state.biz_context.pool, bid)

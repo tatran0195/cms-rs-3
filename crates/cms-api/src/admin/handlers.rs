@@ -18,6 +18,24 @@ use cms_middleware::app_state::AppState;
 
 use crate::auth::AuthExtractor;
 
+async fn require_system_admin(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
+    let mut auth_user = auth.to_auth_user(state);
+    if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, &auth.user.id)
+        .await
+        .unwrap_or(false)
+    {
+        auth_user.is_admin = true;
+    }
+    let session = state.gatehouse.session();
+    state
+        .gatehouse
+        .platform_checker
+        .bind(&session, &auth_user, &cms_authz::PlatformAction::AccessAdmin, &())
+        .authorize(&())
+        .await
+        .map_err(|_| AppError::Forbidden)
+}
+
 /// List all organizations (admin only)
 ///
 /// Returns a paginated list of all organizations in the system.
@@ -46,11 +64,7 @@ pub async fn list_all_organizations_handler(
     auth: AuthExtractor,
     Query(query): Query<serde_json::Value>,
 ) -> Result<Json<PaginatedResponse<OrganizationResponse>>, AppError> {
-    state
-        .biz_context
-        .authz
-        .require_system_admin(&auth.user.id)
-        .await?;
+    require_system_admin(&state, &auth).await?;
 
     let page = query.get("page").and_then(|v| v.as_u64()).unwrap_or(1);
     let page_size = query
@@ -93,11 +107,7 @@ pub async fn get_organization_stats_handler(
     auth: AuthExtractor,
     Path(org_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    state
-        .biz_context
-        .authz
-        .require_system_admin(&auth.user.id)
-        .await?;
+    require_system_admin(&state, &auth).await?;
 
     let stats =
         cms_biz::analytics::AnalyticsService::get_organization_stats(&state.biz_context, &org_id)
@@ -129,11 +139,7 @@ pub async fn get_system_stats_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    state
-        .biz_context
-        .authz
-        .require_system_admin(&auth.user.id)
-        .await?;
+    require_system_admin(&state, &auth).await?;
 
     let stats = cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context).await?;
 
@@ -163,11 +169,7 @@ pub async fn get_system_health_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    state
-        .biz_context
-        .authz
-        .require_system_admin(&auth.user.id)
-        .await?;
+    require_system_admin(&state, &auth).await?;
 
     let health =
         cms_biz::platform_event::PlatformEventService::get_system_health(&state.biz_context)

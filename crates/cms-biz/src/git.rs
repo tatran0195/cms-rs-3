@@ -13,7 +13,7 @@ use cms_db::{
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     git::{
         CreateGitConnectionRequest, GitConflict, GitConnection, GitConnectionResponse,
         GitFileState, GitPreview, GitProvider, GitPullRequest, GitSyncOperationResponse,
@@ -30,7 +30,7 @@ impl GitService {
     /// Create a new Git connection
     pub async fn create_connection(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         request: CreateGitConnectionRequest,
     ) -> Result<GitConnectionResponse, AppError> {
@@ -38,11 +38,6 @@ impl GitService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         // Check if a connection already exists for this project
         let existing = GitConnectionQueries::get_by_project(&ctx.pool, project_id).await?;
@@ -68,14 +63,9 @@ impl GitService {
     /// Get Git connection for a project
     pub async fn get_connection(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Option<GitConnectionResponse>, AppError> {
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
-
         let connection = GitConnectionQueries::get_by_project(&ctx.pool, project_id).await?;
 
         Ok(connection.map(|c| c.into()))
@@ -84,18 +74,13 @@ impl GitService {
     /// Update Git connection
     pub async fn update_connection(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         connection_id: &str,
         request: UpdateGitConnectionRequest,
     ) -> Result<GitConnectionResponse, AppError> {
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Admin)
-            .await?;
 
         let updated = GitConnectionQueries::update(
             &ctx.pool,
@@ -112,17 +97,12 @@ impl GitService {
     /// Delete Git connection
     pub async fn delete_connection(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         connection_id: &str,
     ) -> Result<bool, AppError> {
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Admin)
-            .await?;
 
         GitConnectionQueries::delete(&ctx.pool, connection_id).await
     }
@@ -130,18 +110,13 @@ impl GitService {
     /// Trigger a sync operation
     pub async fn trigger_sync(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         connection_id: &str,
         operation_type: GitSyncOperationType,
     ) -> Result<GitSyncOperationResponse, AppError> {
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Editor)
-            .await?;
 
         let operation = GitSyncOperationQueries::create(
             &ctx.pool,
@@ -157,21 +132,16 @@ impl GitService {
     /// Get sync operation status
     pub async fn get_sync_operation(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         operation_id: &str,
     ) -> Result<GitSyncOperationResponse, AppError> {
         let operation = GitSyncOperationQueries::get_by_id(&ctx.pool, operation_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Sync operation not found".to_string()))?;
 
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, &operation.connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, &operation.connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(operation.into())
     }
@@ -179,19 +149,14 @@ impl GitService {
     /// List sync operations for a connection
     pub async fn list_sync_operations(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         connection_id: &str,
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<GitSyncOperationResponse>, AppError> {
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
@@ -216,31 +181,21 @@ impl GitService {
     /// Get file state
     pub async fn get_file_state(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         path: &str,
     ) -> Result<Option<GitFileState>, AppError> {
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
-
         GitFileStateQueries::get_by_path(&ctx.pool, project_id, path).await
     }
 
     /// List conflicts
     pub async fn list_conflicts(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<GitConflict>, AppError> {
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Editor)
-            .await?;
-
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
         let conflicts =
@@ -275,11 +230,6 @@ impl GitService {
             ));
         }
 
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &conflict.project_id, MemberRole::Editor)
-            .await?;
-
         let updated =
             GitConflictQueries::resolve(&ctx.pool, conflict_id, user_id, resolved_content).await?;
 
@@ -289,19 +239,14 @@ impl GitService {
     /// Get pull requests
     pub async fn list_pull_requests(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         connection_id: &str,
         page: u64,
         page_size: u64,
     ) -> Result<PaginatedResponse<GitPullRequest>, AppError> {
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
@@ -321,21 +266,16 @@ impl GitService {
     /// Get previews for a pull request
     pub async fn list_previews(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         pull_request_id: &str,
     ) -> Result<Vec<GitPreview>, AppError> {
-        let pr = GitPullRequestQueries::get_by_id(&ctx.pool, pull_request_id)
+        let _pr = GitPullRequestQueries::get_by_id(&ctx.pool, pull_request_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Pull request not found".to_string()))?;
 
-        let connection = GitConnectionQueries::get_by_id(&ctx.pool, &pr.connection_id)
+        let _connection = GitConnectionQueries::get_by_id(&ctx.pool, &_pr.connection_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &connection.project_id, MemberRole::Viewer)
-            .await?;
 
         GitPreviewQueries::get_by_pull_request(&ctx.pool, pull_request_id).await
     }
@@ -353,13 +293,9 @@ impl GitService {
     /// Get sync status for a project
     pub async fn get_sync_status(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<serde_json::Value, AppError> {
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
-
         let connection = GitConnectionQueries::get_by_project(&ctx.pool, project_id).await?;
         if let Some(conn) = connection {
             let operations =

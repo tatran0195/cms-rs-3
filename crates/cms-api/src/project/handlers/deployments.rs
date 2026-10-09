@@ -280,16 +280,20 @@ pub async fn create_project_deployment_handler(
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-    // Check project role (MemberRole::Member or higher)
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project_id.clone(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            &project_id,
-            cms_entity::common::MemberRole::Member,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     // 2. Resolve the default branch and fail clearly if the project is corrupt.
     let default_branch =
@@ -340,15 +344,20 @@ pub async fn rollback_deployment_handler(
     auth: AuthExtractor,
     Path((project_id, target_deployment_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project_id.clone(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            &project_id,
-            cms_entity::common::MemberRole::Member,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     let target = cms_db::deployment::DeploymentQueries::get_by_id(
         &state.biz_context.pool,

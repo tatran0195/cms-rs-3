@@ -367,3 +367,74 @@ pub async fn cancel_workspace_invitation_handler(
         id,
     })))
 }
+
+/// Transfer workspace ownership
+pub async fn transfer_workspace_ownership_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
+    use cms_db::org::MemberQueries;
+
+    let org_id = resolve_workspace_org(&state, &auth.user.id).await?;
+    let target_member_id = body
+        .get("memberId")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::InvalidInput("memberId is required".to_string()))?
+        .to_string();
+
+    // Verify caller is current owner of organization
+    let caller_member = MemberQueries::get_by_user_and_org(&state.biz_context.pool, &auth.user.id, &org_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Caller membership not found".to_string()))?;
+    if caller_member.role != cms_entity::common::MemberRole::Owner {
+        return Err(AppError::Forbidden);
+    }
+
+    // Promote target member to Owner
+    cms_biz::org::OrgService::update_member_role(
+        &state.biz_context,
+        &auth.user.id,
+        &org_id,
+        &target_member_id,
+        cms_entity::common::MemberRole::Owner,
+    )
+    .await?;
+
+    if caller_member.id != target_member_id {
+        let _ = cms_biz::org::OrgService::update_member_role(
+            &state.biz_context,
+            &auth.user.id,
+            &org_id,
+            &caller_member.id,
+            cms_entity::common::MemberRole::Admin,
+        )
+        .await;
+    }
+
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id: target_member_id,
+    })))
+}
+
+/// Delete workspace organization
+pub async fn delete_workspace_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
+    let org_id = resolve_workspace_org(&state, &auth.user.id).await?;
+    let caller_member = cms_db::org::MemberQueries::get_by_user_and_org(&state.biz_context.pool, &auth.user.id, &org_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Caller membership not found".to_string()))?;
+    if caller_member.role != cms_entity::common::MemberRole::Owner {
+        return Err(AppError::Forbidden);
+    }
+
+    cms_biz::org::OrgService::delete_organization(&state.biz_context, &auth.user.id, &org_id).await?;
+
+    Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
+        success: true,
+        id: org_id,
+    })))
+}

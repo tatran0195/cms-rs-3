@@ -984,6 +984,10 @@ export type GitConfig = z.infer<typeof gitConfigSchema>;
 
 export const updateWorkspaceSettingsBody = z
   .object({
+    name: z.string().min(1).max(100).optional(),
+    description: z.string().max(500).optional(),
+    logo: z.string().optional(),
+    logoUrl: z.string().optional(),
     notifications: boundedRecord(z.boolean()).optional(),
     integrations: boundedRecord(z.unknown()).optional(),
     git: gitConfigSchema.optional(),

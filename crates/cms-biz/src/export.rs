@@ -14,7 +14,7 @@ use cms_db::{
     project::ProjectQueries,
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     export::{
         CreateExportRequest, ExportArtifact, ExportFormat, ExportJob, ExportSchedule,
         ExportSnapshot, ExportStatus,
@@ -31,18 +31,13 @@ impl ExportService {
     /// Create an export snapshot
     pub async fn create_export_snapshot(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         request: CreateExportRequest,
     ) -> Result<ExportSnapshot, AppError> {
         // Verify project exists
         let _project = ProjectQueries::get_by_id(&ctx.pool, &request.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &request.project_id, MemberRole::Viewer)
-            .await?;
 
         let snapshot = ExportSnapshotQueries::create(
             &ctx.pool,
@@ -58,17 +53,12 @@ impl ExportService {
     /// Get an export snapshot
     pub async fn get_export_snapshot(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         snapshot_id: &str,
     ) -> Result<ExportSnapshot, AppError> {
         let snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, snapshot_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &snapshot.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(snapshot)
     }
@@ -76,7 +66,7 @@ impl ExportService {
     /// List export snapshots for a project
     pub async fn list_export_snapshots(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         page: u64,
         page_size: u64,
@@ -84,11 +74,6 @@ impl ExportService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
@@ -109,18 +94,13 @@ impl ExportService {
     /// Create an export job
     pub async fn create_export_job(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         snapshot_id: &str,
         format: ExportFormat,
     ) -> Result<ExportJob, AppError> {
         let snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, snapshot_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &snapshot.project_id, MemberRole::Viewer)
-            .await?;
 
         // Autumn-style active entitlement check: verify export feature is entitled
         if let Ok(Some(proj)) =
@@ -143,21 +123,16 @@ impl ExportService {
     /// Get an export job
     pub async fn get_export_job(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         job_id: &str,
     ) -> Result<ExportJob, AppError> {
         let job = ExportJobQueries::get_by_id(&ctx.pool, job_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export job not found".to_string()))?;
 
-        let snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, &job.snapshot_id)
+        let _snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, &job.snapshot_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &snapshot.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(job)
     }
@@ -165,7 +140,7 @@ impl ExportService {
     /// List export jobs for a project
     pub async fn list_export_jobs(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         page: u64,
         page_size: u64,
@@ -173,11 +148,6 @@ impl ExportService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
@@ -193,21 +163,16 @@ impl ExportService {
     /// Get export artifacts for a job
     pub async fn get_export_artifacts(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         job_id: &str,
     ) -> Result<Vec<ExportArtifact>, AppError> {
         let job = ExportJobQueries::get_by_id(&ctx.pool, job_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export job not found".to_string()))?;
 
-        let snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, &job.snapshot_id)
+        let _snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, &job.snapshot_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &snapshot.project_id, MemberRole::Viewer)
-            .await?;
 
         ExportArtifactQueries::get_by_job(&ctx.pool, job_id).await
     }
@@ -216,7 +181,7 @@ impl ExportService {
     #[allow(clippy::too_many_arguments)]
     pub async fn create_export_schedule(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         format: ExportFormat,
         frequency: &str,
@@ -227,11 +192,6 @@ impl ExportService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Admin)
-            .await?;
 
         let schedule = ExportScheduleQueries::create(
             &ctx.pool,
@@ -251,17 +211,12 @@ impl ExportService {
     /// Get an export schedule
     pub async fn get_export_schedule(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         schedule_id: &str,
     ) -> Result<ExportSchedule, AppError> {
         let schedule = ExportScheduleQueries::get_by_id(&ctx.pool, schedule_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export schedule not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &schedule.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(schedule)
     }
@@ -269,17 +224,12 @@ impl ExportService {
     /// Delete an export schedule
     pub async fn delete_export_schedule(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         schedule_id: &str,
     ) -> Result<bool, AppError> {
-        let schedule = ExportScheduleQueries::get_by_id(&ctx.pool, schedule_id)
+        let _schedule = ExportScheduleQueries::get_by_id(&ctx.pool, schedule_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export schedule not found".to_string()))?;
-
-        // Check if user has admin role in the project
-        ctx.authz
-            .require_project_role(user_id, &schedule.project_id, MemberRole::Admin)
-            .await?;
 
         ExportScheduleQueries::delete(&ctx.pool, schedule_id).await
     }
@@ -303,28 +253,22 @@ impl ExportService {
     /// List export schedules for a project
     pub async fn list_export_schedules(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<ExportSchedule>, AppError> {
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
         ExportScheduleQueries::get_by_project(&ctx.pool, project_id).await
     }
 
     /// Update export schedule
     pub async fn update_export_schedule(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         schedule_id: &str,
         request: cms_entity::export::UpdateExportScheduleRequest,
     ) -> Result<ExportSchedule, AppError> {
-        let schedule = ExportScheduleQueries::get_by_id(&ctx.pool, schedule_id)
+        let _schedule = ExportScheduleQueries::get_by_id(&ctx.pool, schedule_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export schedule not found".to_string()))?;
-        ctx.authz
-            .require_project_role(user_id, &schedule.project_id, MemberRole::Admin)
-            .await?;
         let updated = ExportScheduleQueries::update(
             &ctx.pool,
             schedule_id,

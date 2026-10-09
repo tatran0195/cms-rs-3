@@ -9,7 +9,7 @@ use chrono::Utc;
 use cms_db::{asset::AssetQueries, page::PageQueries, project::ProjectQueries};
 use cms_entity::{
     asset::{AssetResponse, CreateAssetRequest},
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
 };
 use cms_storage::Storage;
 
@@ -22,7 +22,7 @@ impl AssetService {
     /// Upload an asset
     pub async fn upload_asset(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         storage: Arc<dyn Storage>,
         project_id: &str,
         page_id: Option<&str>,
@@ -45,11 +45,6 @@ impl AssetService {
                 ));
             }
         }
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Editor)
-            .await?;
 
         // Generate storage key
         let storage_key = format!(
@@ -87,17 +82,12 @@ impl AssetService {
     /// Get an asset
     pub async fn get_asset(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         asset_id: &str,
     ) -> Result<AssetResponse, AppError> {
         let asset = AssetQueries::get_by_id(&ctx.pool, asset_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Asset not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &asset.project_id, MemberRole::Viewer)
-            .await?;
 
         Ok(asset.into())
     }
@@ -105,7 +95,7 @@ impl AssetService {
     /// List assets for a project
     pub async fn list_assets(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         page: u64,
         page_size: u64,
@@ -113,11 +103,6 @@ impl AssetService {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Viewer)
-            .await?;
 
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
@@ -137,17 +122,12 @@ impl AssetService {
     /// List assets for a page
     pub async fn list_assets_for_page(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         page_id: &str,
     ) -> Result<Vec<AssetResponse>, AppError> {
-        let page = PageQueries::get_by_id(&ctx.pool, page_id)
+        let _page = PageQueries::get_by_id(&ctx.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &page.project_id, MemberRole::Viewer)
-            .await?;
 
         let assets = AssetQueries::get_by_page(&ctx.pool, page_id).await?;
 
@@ -157,18 +137,13 @@ impl AssetService {
     /// Update an asset
     pub async fn update_asset(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         asset_id: &str,
         alt_text: Option<&str>,
     ) -> Result<AssetResponse, AppError> {
-        let asset = AssetQueries::get_by_id(&ctx.pool, asset_id)
+        let _asset = AssetQueries::get_by_id(&ctx.pool, asset_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Asset not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &asset.project_id, MemberRole::Editor)
-            .await?;
 
         let updated = AssetQueries::update(&ctx.pool, asset_id, alt_text).await?;
 
@@ -178,18 +153,13 @@ impl AssetService {
     /// Delete an asset
     pub async fn delete_asset(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         storage: Arc<dyn Storage>,
         asset_id: &str,
     ) -> Result<bool, AppError> {
         let asset = AssetQueries::get_by_id(&ctx.pool, asset_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Asset not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_role(user_id, &asset.project_id, MemberRole::Editor)
-            .await?;
 
         // Delete from storage
         storage.delete(&asset.storage_key).await?;
@@ -201,16 +171,13 @@ impl AssetService {
     /// Create asset record
     pub async fn create_asset(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
         page_id: Option<&str>,
         file_name: &str,
         content_type: &str,
         alt_text: Option<&str>,
     ) -> Result<AssetResponse, AppError> {
-        ctx.authz
-            .require_project_role(user_id, project_id, MemberRole::Editor)
-            .await?;
         let storage_key = format!(
             "assets/{}/{}/{}",
             project_id,

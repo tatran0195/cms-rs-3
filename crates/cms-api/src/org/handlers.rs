@@ -84,11 +84,16 @@ pub async fn get_org_handler(
     Path(org_id): Path<Id>,
 ) -> Result<Json<OrganizationResponse>, AppError> {
     // Check access
-    state
-        .biz_context
-        .authz
-        .require_org_member(&auth.user.id, &org_id)
-        .await?;
+    let is_member = cms_db::org::MemberQueries::get_by_user_and_org(
+        &state.biz_context.pool,
+        &auth.user.id,
+        &org_id,
+    )
+    .await?
+    .is_some();
+    if !is_member {
+        return Err(AppError::Forbidden);
+    }
 
     let org = OrgService::get_organization(&state.biz_context, &org_id).await?;
 

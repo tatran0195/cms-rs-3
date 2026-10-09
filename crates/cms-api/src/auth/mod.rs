@@ -63,7 +63,6 @@ pub fn router(state: Arc<AppState>) -> Router {
 
 // Re-export middleware types
 pub use middleware::{
-    require_org_owner, require_org_role, require_project_owner, require_project_role,
     AuthExtractor, AuthMethod, AuthRejection, OptionalAuthExtractor, RequireAuthMiddleware,
     RequireRoleMiddleware, RoleRejection,
 };

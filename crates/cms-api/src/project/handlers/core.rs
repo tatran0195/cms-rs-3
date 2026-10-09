@@ -18,7 +18,7 @@ use cms_entity::{
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
-use crate::{auth::AuthExtractor, extractors::OptionalTenantContext, validation::ValidatedJson};
+use crate::{auth::AuthExtractor, validation::ValidatedJson};
 
 /// List all projects for the authenticated user
 ///
@@ -46,7 +46,7 @@ pub async fn list_projects_handler(
     auth: AuthExtractor,
     Query(query): Query<ListProjectsQuery>,
 ) -> Result<Json<ApiResponse<Vec<ProjectResponse>>>, AppError> {
-    let result = ProjectService::list_all_projects_for_user(
+    let candidates = ProjectService::list_all_projects_for_user(
         &state.biz_context,
         &auth.user.id,
         query.page.unwrap_or(1),
@@ -54,7 +54,45 @@ pub async fn list_projects_handler(
     )
     .await?;
 
-    Ok(Json(ApiResponse::from(result)))
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+
+    let targets: Vec<cms_authz::ProjectTarget> = candidates
+        .data
+        .iter()
+        .map(|p| cms_authz::ProjectTarget {
+            id: p.id.to_string(),
+            is_public: p.is_public,
+            owner_id: None,
+        })
+        .collect();
+
+    let authorized_targets = state
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
+        .try_filter(targets)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
+
+    let allowed_ids: std::collections::HashSet<String> =
+        authorized_targets.into_iter().map(|t| t.id).collect();
+
+    let filtered: Vec<ProjectResponse> = candidates
+        .data
+        .into_iter()
+        .filter(|p| allowed_ids.contains(&p.id.to_string()))
+        .collect();
+
+    let total = filtered.len() as u64;
+    let paginated = cms_entity::common::PaginatedResponse::new(
+        filtered,
+        total,
+        candidates.page,
+        candidates.page_size,
+    );
+
+    Ok(Json(ApiResponse::from(paginated)))
 }
 
 /// Create a new project
@@ -80,14 +118,9 @@ pub async fn list_projects_handler(
 pub async fn create_project_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    tenant: OptionalTenantContext,
     ValidatedJson(request): ValidatedJson<CreateProjectRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<ProjectWithOrgResponse>>), AppError> {
-    let org_id = tenant
-        .as_ref()
-        .map(|t| t.org_id.to_string())
-        .or_else(|| request.organization_id.clone())
-        .unwrap_or_default();
+    let org_id = request.organization_id.clone().unwrap_or_default();
     let project =
         ProjectService::create_project(&state.biz_context, &auth.user.id, &org_id, request).await?;
 
@@ -120,6 +153,22 @@ pub async fn get_project_handler(
 ) -> Result<Json<ApiResponse<ProjectWithOrgResponse>>, AppError> {
     let project =
         ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+
+    let target = cms_authz::ProjectTarget {
+        id: project.project.id.to_string(),
+        is_public: project.project.is_public,
+        owner_id: None,
+    };
+
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    state
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     Ok(Json(ApiResponse::new(project)))
 }

@@ -30,3 +30,7 @@ export { VariablesSection } from './components/variables-section';
 export { isSectionId, ProjectSettingsPage, type ProjectSettingsPageProps, type SectionId, type SettingsGroupId } from './ProjectSettingsPage';
 export * from './services/settings-api';
 export { isWorkspaceSettingsTab, WorkspaceSettingsPage, type WorkspaceSettingsPageProps, type WorkspaceSettingsTab } from './WorkspaceSettingsPage';
+export { WorkspaceGeneralTab } from './components/workspace-general-tab';
+export { WorkspaceMembersTab } from './components/workspace-members-tab';
+export { WorkspaceRolesTab } from './components/workspace-roles-tab';
+export { WorkspaceDangerTab } from './components/workspace-danger-tab';

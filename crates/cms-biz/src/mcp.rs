@@ -7,7 +7,7 @@ use cms_db::{
     branch::BranchQueries, mcp::McpAuditEventQueries, page::PageQueries, project::ProjectQueries,
 };
 use cms_entity::{
-    common::{MemberRole, PaginatedResponse},
+    common::PaginatedResponse,
     mcp::{operation_types, McpAuditEventResponse, McpResourceItem},
     project::Project,
 };
@@ -35,9 +35,19 @@ impl McpService {
         }
 
         if let Some(uid) = user_id {
-            ctx.authz
-                .require_project_role(uid, project_id, MemberRole::Viewer)
-                .await?;
+            let session = ctx.gatehouse.session();
+            let auth_user = ctx.gatehouse.to_auth_user(uid, "");
+            let target = cms_authz::ProjectTarget {
+                id: project.id.to_string(),
+                is_public: project.is_public,
+                owner_id: None,
+            };
+            ctx.gatehouse
+                .project_checker
+                .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
+                .authorize(&target)
+                .await
+                .map_err(|_| AppError::Forbidden)?;
             Ok(project)
         } else {
             Err(AppError::Forbidden)

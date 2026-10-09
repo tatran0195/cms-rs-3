@@ -18,14 +18,9 @@ impl OpenApiService {
     /// Create a new OpenAPI document
     pub async fn create_document(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         request: CreateOpenApiDocumentRequest,
     ) -> Result<OpenApiDocumentResponse, AppError> {
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, &request.project_id)
-            .await?;
-
         // Check if a document with this URL already exists for this project
         let existing =
             OpenApiDocumentQueries::get_by_url(&ctx.pool, &request.url, &request.project_id)
@@ -51,17 +46,12 @@ impl OpenApiService {
     /// Get OpenAPI document by ID
     pub async fn get_document(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         document_id: &str,
     ) -> Result<OpenApiDocumentResponse, AppError> {
         let document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("OpenAPI document not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, &document.project_id)
-            .await?;
 
         Ok(document.into())
     }
@@ -69,14 +59,9 @@ impl OpenApiService {
     /// List OpenAPI documents for a project
     pub async fn list_documents(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         project_id: &str,
     ) -> Result<Vec<OpenApiDocumentResponse>, AppError> {
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, project_id)
-            .await?;
-
         let documents = OpenApiDocumentQueries::get_by_project(&ctx.pool, project_id).await?;
 
         Ok(documents.into_iter().map(|d| d.into()).collect())
@@ -85,18 +70,13 @@ impl OpenApiService {
     /// Update an OpenAPI document
     pub async fn update_document(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         document_id: &str,
         request: UpdateOpenApiDocumentRequest,
     ) -> Result<OpenApiDocumentResponse, AppError> {
-        let document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
+        let _document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("OpenAPI document not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, &document.project_id)
-            .await?;
 
         let updated = OpenApiDocumentQueries::update(
             &ctx.pool,
@@ -112,17 +92,12 @@ impl OpenApiService {
     /// Delete an OpenAPI document
     pub async fn delete_document(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         document_id: &str,
     ) -> Result<bool, AppError> {
-        let document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
+        let _document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("OpenAPI document not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, &document.project_id)
-            .await?;
 
         OpenApiDocumentQueries::delete(&ctx.pool, document_id).await
     }
@@ -130,17 +105,12 @@ impl OpenApiService {
     /// Parse an OpenAPI document (fetch and parse the content)
     pub async fn parse_document(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         request: ParseOpenApiDocumentRequest,
     ) -> Result<OpenApiParsingResult, AppError> {
         let document = OpenApiDocumentQueries::get_by_id(&ctx.pool, &request.id)
             .await?
             .ok_or_else(|| AppError::NotFound("OpenAPI document not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, &document.project_id)
-            .await?;
 
         // Fetch the OpenAPI document from the URL
         let content = match fetch_openapi_content(&document.url).await {
@@ -182,17 +152,12 @@ impl OpenApiService {
     /// Get OpenAPI document with paths
     pub async fn get_document_with_paths(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         document_id: &str,
     ) -> Result<OpenApiDocumentResponse, AppError> {
         let document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("OpenAPI document not found".to_string()))?;
-
-        // Check if user has access to the project
-        ctx.authz
-            .require_project_access(user_id, &document.project_id)
-            .await?;
 
         Ok(document.into())
     }
@@ -200,16 +165,12 @@ impl OpenApiService {
     /// Get OpenAPI document content
     pub async fn get_document_content(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         document_id: &str,
     ) -> Result<serde_json::Value, AppError> {
         let document = OpenApiDocumentQueries::get_by_id(&ctx.pool, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("OpenAPI document not found".to_string()))?;
-
-        ctx.authz
-            .require_project_access(user_id, &document.project_id)
-            .await?;
 
         if let Some(content_str) = document.content {
             if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content_str) {

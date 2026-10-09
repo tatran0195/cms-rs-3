@@ -117,15 +117,12 @@ impl UsageService {
     /// Assign usage plan to organization
     pub async fn assign_usage_plan(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         plan_id: &str,
         starts_at: chrono::DateTime<chrono::Utc>,
         ends_at: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<OrganizationUsagePlanResponse, AppError> {
-        // Check if user has admin permissions for the organization
-        ctx.authz.require_org_admin(user_id, org_id).await?;
-
         let _plan = UsagePlanQueries::get_by_id(&ctx.pool, plan_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Usage plan not found".to_string()))?;
@@ -148,12 +145,9 @@ impl UsageService {
     /// Get organization's usage plan
     pub async fn get_organization_usage_plan(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
     ) -> Result<Option<OrganizationUsagePlanResponse>, AppError> {
-        // Check if user has access to the organization
-        ctx.authz.require_org_member(user_id, org_id).await?;
-
         let org_plan = OrganizationUsagePlanQueries::get_by_organization(&ctx.pool, org_id).await?;
 
         Ok(org_plan.map(|p| p.into()))
@@ -162,12 +156,10 @@ impl UsageService {
     /// Update organization's usage plan
     pub async fn update_organization_usage_plan(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         usage_plan_id: &str,
     ) -> Result<OrganizationUsagePlanResponse, AppError> {
-        ctx.authz.require_org_admin(user_id, org_id).await?;
-
         let _plan = UsagePlanQueries::get_by_id(&ctx.pool, usage_plan_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Usage plan not found".to_string()))?;
@@ -190,15 +182,12 @@ impl UsageService {
     /// Set entitlement for organization
     pub async fn set_entitlement(
         ctx: &BizContext,
-        user_id: &str,
+        _user_id: &str,
         org_id: &str,
         feature_code: &str,
         is_enabled: bool,
         _limit_value: Option<i64>,
     ) -> Result<UsageEntitlementResponse, AppError> {
-        // Check if user has admin permissions for the organization
-        ctx.authz.require_org_admin(user_id, org_id).await?;
-
         let entitlement = UsageEntitlementQueries::create_or_update(
             &ctx.pool,
             org_id,
@@ -271,7 +260,6 @@ impl UsageService {
         user_id: &str,
         org_id: &str,
     ) -> Result<serde_json::Value, AppError> {
-        ctx.authz.require_org_admin(user_id, org_id).await?;
         let plan = Self::get_organization_usage_plan(ctx, user_id, org_id).await?;
         Ok(serde_json::json!({
             "organization_id": org_id,

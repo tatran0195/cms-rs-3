@@ -85,4 +85,18 @@ export class WorkspaceResource {
     }
     return this.http.get<T>('/api/app/workspace/analytics', orgIdOrParams ?? params);
   }
+
+  /**
+   * Transfer workspace ownership to another member
+   */
+  async transferOwnership<T = { success: boolean; id: string }>(memberId: string): Promise<T> {
+    return this.http.post<T>('/api/app/workspace/transfer-ownership', { memberId });
+  }
+
+  /**
+   * Delete current workspace organization
+   */
+  async delete<T = { success: boolean; id: string }>(): Promise<T> {
+    return this.http.delete<T>('/api/app/workspace');
+  }
 }

@@ -348,15 +348,20 @@ pub async fn reorder_project_pages_handler(
     Path(project_id): Path<ProjectId>,
     ValidatedJson(payload): ValidatedJson<cms_entity::page::ReorderPageTreeRequest>,
 ) -> Result<Json<ApiResponse<ReorderPageTreeResponse>>, AppError> {
+    let auth_user = auth.to_auth_user(&state);
+    let session = state.gatehouse.session();
+    let target = cms_authz::ProjectTarget {
+        id: project_id.to_string(),
+        is_public: false,
+        owner_id: None,
+    };
     state
-        .biz_context
-        .authz
-        .require_project_role(
-            &auth.user.id,
-            project_id.as_str(),
-            cms_entity::common::MemberRole::Editor,
-        )
-        .await?;
+        .gatehouse
+        .project_checker
+        .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
+        .authorize(&target)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
 
     let reorder_items: Vec<(String, Option<String>, i32)> = payload
         .items
