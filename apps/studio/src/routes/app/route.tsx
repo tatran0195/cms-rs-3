@@ -3,9 +3,19 @@ import { getSession, useSession } from '@/features/auth';
 import { ProjectProvider } from '@/features/projects';
 import { SupportAccessBanner } from '@/features/workspace';
 import { AppProviders, PageLoader, QueryProvider } from '@/shared';
+import { cmsClient } from '@/shared/services/cms-client';
 
 export const Route = createFileRoute('/app')({
   beforeLoad: async () => {
+    try {
+      const status = await cmsClient.setup.getStatus();
+      if (status.requiresSetup) {
+        throw redirect({ to: '/onboarding' });
+      }
+    } catch (e) {
+      if ((e as { isRedirect?: boolean }).isRedirect) throw e;
+    }
+
     const routeSession = await getSession();
     if (!routeSession) {
       throw redirect({ to: '/sign-in' });
