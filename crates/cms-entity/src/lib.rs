@@ -32,6 +32,7 @@ pub mod platform_event;
 pub mod project;
 pub mod reader_access;
 pub mod search;
+pub mod setup;
 pub mod theme;
 pub mod workspace;
 
@@ -58,5 +59,7 @@ pub use platform_event::*;
 pub use project::*;
 pub use reader_access::*;
 pub use search::*;
+pub use setup::*;
 pub use theme::*;
 pub use workspace::*;
+
