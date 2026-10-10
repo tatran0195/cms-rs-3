@@ -21,7 +21,7 @@ async function seed() {
   console.log('3. Creating default project...');
   const projRes = await fetch(`${BASE_URL}/api/app/projects`, {
     method: 'POST',
-    headers: { 'Cookie': cookie, 'Content-Type': 'application/json' },
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Company Docs', slug: 'company-docs', description: 'Internal Documentation Platform' }),
   });
   const projData = await projRes.json();
@@ -31,7 +31,7 @@ async function seed() {
   console.log('4. Creating welcome page...');
   const pageRes = await fetch(`${BASE_URL}/api/app/projects/${projectId}/pages`, {
     method: 'POST',
-    headers: { 'Cookie': cookie, 'Content-Type': 'application/json' },
+    headers: { Cookie: cookie, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       title: 'Welcome',
       slug: 'welcome',

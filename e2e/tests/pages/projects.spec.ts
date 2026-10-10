@@ -13,7 +13,7 @@ test.describe('Project Workspace & Studio Pages', () => {
     projectId = match ? match[1] : '';
   });
 
-  test('loads project overview hub', async ({ authenticatedPage, projectWorkspace }) => {
+  test('loads project overview hub', async ({ authenticatedPage: _authenticatedPage, projectWorkspace }) => {
     await projectWorkspace.goto(projectId);
     await projectWorkspace.expectLoaded();
   });
@@ -23,7 +23,7 @@ test.describe('Project Workspace & Studio Pages', () => {
     await expect(authenticatedPage.locator('body')).toContainText(/Settings|Preview|Pages/i, { timeout: 15_000 });
   });
 
-  test('loads document preview at /preview', async ({ authenticatedPage, preview }) => {
+  test('loads document preview at /preview', async ({ authenticatedPage: _authenticatedPage, preview }) => {
     await preview.goto(projectId);
     await preview.expectPreviewLoaded();
   });
@@ -33,7 +33,10 @@ test.describe('Project Workspace & Studio Pages', () => {
     await expect(authenticatedPage.locator('body')).toContainText(/Analytics|Traffic|Views/i, { timeout: 15_000 });
   });
 
-  test('loads project settings and asserts strictly no billing section exists', async ({ authenticatedPage, projectSettings }) => {
+  test('loads project settings and asserts strictly no billing section exists', async ({
+    authenticatedPage: _authenticatedPage,
+    projectSettings,
+  }) => {
     await projectSettings.goto(projectId, 'general');
     await projectSettings.expectLoaded();
     await projectSettings.assertNoBillingSection();

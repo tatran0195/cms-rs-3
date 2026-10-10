@@ -1,4 +1,4 @@
-import { WorkspaceRolesSection } from "@/features/workspace";
+import { WorkspaceRolesSection } from '@/features/workspace';
 
 export function WorkspaceRolesTab() {
   return (

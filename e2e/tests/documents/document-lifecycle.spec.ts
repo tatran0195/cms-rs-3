@@ -9,13 +9,7 @@ import { uniqueName } from '../../src/support/data';
  * repeated submission and stale writes.
  */
 test.describe('documents', () => {
-  test('creates a page, types a title and body, and the draft survives a reload', async ({
-    page,
-    editor,
-    project,
-    db,
-    diagnostics,
-  }) => {
+  test('creates a page, types a title and body, and the draft survives a reload', async ({ page, editor, project, db, diagnostics }) => {
     const title = uniqueName('Product Documentation');
     const marker = `intro-${Date.now()}`;
 
@@ -33,10 +27,7 @@ test.describe('documents', () => {
     await editor.setMode('markdown');
     await expect(editor.markdownBody).toHaveValue(new RegExp(escapeRegExp(marker)));
     // …then independent verification in the database.
-    const stored = await db.one(
-      `SELECT title, slug, path, is_published FROM "Page" WHERE project_id = $1 AND title = $2`,
-      [project.id, title],
-    );
+    const stored = await db.one(`SELECT title, slug, path, is_published FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
     // The slug is derived from the title the author typed (DEFECT-04: it used
     // to stay "untitled" forever), then normalised the way the product does.
     expect(stored.slug).toBe(slugify(title));
@@ -44,11 +35,7 @@ test.describe('documents', () => {
     diagnostics.assertClean({ label: 'create document: ' });
   });
 
-  test('a second page with the same title gets a distinct slug instead of overwriting', async ({
-    editor,
-    project,
-    db,
-  }) => {
+  test('a second page with the same title gets a distinct slug instead of overwriting', async ({ editor, project, db }) => {
     const title = uniqueName('Duplicate');
     await editor.goto(project.id);
 
@@ -60,10 +47,7 @@ test.describe('documents', () => {
     await editor.setTitle(title);
     await editor.waitForSaved();
 
-    const rows = await db.query(`SELECT slug, path FROM "Page" WHERE project_id = $1 AND title = $2 ORDER BY created_at`, [
-      project.id,
-      title,
-    ]);
+    const rows = await db.query(`SELECT slug, path FROM "Page" WHERE project_id = $1 AND title = $2 ORDER BY created_at`, [project.id, title]);
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((r) => r.slug)).size).toBe(2);
     // The uniquification is deterministic: base slug, then -1.
@@ -72,11 +56,7 @@ test.describe('documents', () => {
     await editor.expectPageVisible(title, 'en');
   });
 
-  test('page settings persist slug and description and change the public path', async ({
-    editor,
-    project,
-    db,
-  }) => {
+  test('page settings persist slug and description and change the public path', async ({ editor, project, db }) => {
     const title = uniqueName('Settings');
     await editor.goto(project.id);
     await editor.createPage('en');
@@ -88,26 +68,20 @@ test.describe('documents', () => {
     const dialog = await editor.openPageSettings();
     await expect(dialog.getByLabel('Slug', { exact: true })).toHaveValue('custom-slug');
     await expect(dialog.getByLabel('Description', { exact: true })).toHaveValue('A short summary.');
-    await dialog.getByRole('button', { name: 'Cancel' }).click().catch(async () => {
-      await dialog.getByRole('button', { name: 'Close' }).click();
-    });
+    await dialog
+      .getByRole('button', { name: 'Cancel' })
+      .click()
+      .catch(async () => {
+        await dialog.getByRole('button', { name: 'Close' }).click();
+      });
 
-    const stored = await db.one(`SELECT slug, path, description FROM "Page" WHERE project_id = $1 AND title = $2`, [
-      project.id,
-      title,
-    ]);
+    const stored = await db.one(`SELECT slug, path, description FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
     expect(stored.slug).toBe('custom-slug');
     expect(stored.path).toBe('/custom-slug');
     expect(stored.description).toBe('A short summary.');
   });
 
-  test('an empty title is refused rather than silently saving a blank document', async ({
-    editor,
-    project,
-    db,
-    page,
-    diagnostics,
-  }) => {
+  test('an empty title is refused rather than silently saving a blank document', async ({ editor, project, db, page, diagnostics }) => {
     await editor.goto(project.id);
     await editor.createPage('en');
     // A freshly created page has nothing to autosave yet, so wait for the
@@ -122,17 +96,14 @@ test.describe('documents', () => {
     // Give the debounced autosave more than its window, then confirm nothing landed.
     await expect
       .poll(async () => db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = ''`, [project.id]), {
-        timeout: 6_000,
+        timeout: 6000,
       })
       .toBe(0);
     const after = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [project.id]);
     expect(after).toBe(before);
 
     // The stored title is untouched: a rejected save changes nothing.
-    const stored = await db.one(
-      `SELECT title FROM "Page" WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1`,
-      [project.id],
-    );
+    const stored = await db.one(`SELECT title FROM "Page" WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1`, [project.id]);
     expect(stored.title, 'a rejected title must not overwrite the stored one').not.toBe('   ');
 
     // The author is told, and their text is not thrown away while they fix it.
@@ -143,12 +114,7 @@ test.describe('documents', () => {
     diagnostics.assertClean({ label: 'blank title: ' });
   });
 
-  test('deleting a page removes it from the tree, the database and the editor', async ({
-    editor,
-    project,
-    db,
-    diagnostics,
-  }) => {
+  test('deleting a page removes it from the tree, the database and the editor', async ({ editor, project, db, diagnostics }) => {
     const keep = uniqueName('Keeper');
     const drop = uniqueName('Dropped');
     await editor.goto(project.id);
@@ -165,10 +131,7 @@ test.describe('documents', () => {
 
     await editor.expectPageAbsent(drop, 'en');
     await editor.expectPageVisible(keep, 'en');
-    const remaining = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2`, [
-      project.id,
-      drop,
-    ]);
+    const remaining = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, drop]);
     expect(remaining).toBe(0);
     diagnostics.assertClean({ label: 'delete document: ' });
   });
@@ -186,16 +149,9 @@ test.describe('documents', () => {
     expect(rows).toBe(1);
   });
 
-  test('a double click on "New page" produces exactly one document', async ({
-    editor,
-    project,
-    db,
-    diagnostics,
-  }) => {
+  test('a double click on "New page" produces exactly one document', async ({ editor, project, db, diagnostics }) => {
     await editor.goto(project.id);
-    const before = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [
-      project.id,
-    ]);
+    const before = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [project.id]);
 
     // The impatient double click a real user makes. The button is disabled
     // while the create is in flight, so the second click must not queue up a
@@ -203,36 +159,24 @@ test.describe('documents', () => {
     await editor.createPageTwice('en');
 
     await expect
-      .poll(
-        async () => db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [project.id]),
-        { timeout: 20_000 },
-      )
+      .poll(async () => db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [project.id]), { timeout: 20_000 })
       .toBe(before + 1);
 
     // Give any second request a chance to land before declaring success.
     await expect
-      .poll(
-        async () => db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [project.id]),
-        { timeout: 5_000 },
-      )
+      .poll(async () => db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1`, [project.id]), { timeout: 5000 })
       .toBe(before + 1);
     diagnostics.assertClean({ label: 'double click create: ' });
   });
 
-  test('two browser tabs editing the same document converge on the last writer', async ({
-    page,
-    editor,
-    project,
-    db,
-    diagnostics,
-  }) => {
+  test('two browser tabs editing the same document converge on the last writer', async ({ page, editor, project, db, diagnostics }) => {
     const title = uniqueName('Contended');
     await editor.goto(project.id);
     await editor.createPage('en');
     await editor.setTitle(title);
     await editor.waitForSaved();
 
-    const pageId = (await editor.pageRowData(title, 'en'))!.id;
+    const pageId = (await editor.pageRowData(title, 'en'))?.id;
     const contextB = page.context();
     const tabB = await contextB.newPage();
     const editorB = new (await import('../../src/pages/editor.page')).EditorPage(tabB);
@@ -266,10 +210,7 @@ test.describe('documents', () => {
 
     await editor.updatePageSettings({ hidden: true });
 
-    const stored = await db.one(`SELECT is_published FROM "Page" WHERE project_id = $1 AND title = $2`, [
-      project.id,
-      title,
-    ]);
+    const stored = await db.one(`SELECT is_published FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
     expect(stored.is_published, 'hidden pages must not be published').toBe('false');
     await editor.expectPageVisible(title, 'en');
   });

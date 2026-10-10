@@ -1,6 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import * as React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { PermissionMatrix } from './PermissionMatrix';
 import type { PermissionCatalog, PermissionsMatrixState } from './types';
 
@@ -16,13 +15,7 @@ const testCatalog: PermissionCatalog = {
 describe('PermissionMatrix', () => {
   it('renders table with action headers and resource rows', () => {
     const value: PermissionsMatrixState = {};
-    render(
-      <PermissionMatrix
-        catalog={testCatalog}
-        value={value}
-        readonly
-      />
-    );
+    render(<PermissionMatrix catalog={testCatalog} value={value} readonly />);
 
     expect(screen.getByTestId('permission-matrix')).toBeInTheDocument();
     expect(screen.getByTestId('resource-row-pages')).toBeInTheDocument();
@@ -34,13 +27,7 @@ describe('PermissionMatrix', () => {
     const value: PermissionsMatrixState = {
       pages: { read: true, create: false },
     };
-    render(
-      <PermissionMatrix
-        catalog={testCatalog}
-        value={value}
-        readonly
-      />
-    );
+    render(<PermissionMatrix catalog={testCatalog} value={value} readonly />);
 
     expect(screen.getByTestId('check-pages-read')).toBeInTheDocument();
     expect(screen.getByTestId('dash-pages-create')).toBeInTheDocument();
@@ -51,13 +38,7 @@ describe('PermissionMatrix', () => {
     const value: PermissionsMatrixState = {
       pages: { read: true },
     };
-    render(
-      <PermissionMatrix
-        catalog={testCatalog}
-        value={value}
-        onChange={onChange}
-      />
-    );
+    render(<PermissionMatrix catalog={testCatalog} value={value} onChange={onChange} />);
 
     const checkbox = screen.getByTestId('cell-checkbox-pages-create');
     fireEvent.click(checkbox);
@@ -70,13 +51,7 @@ describe('PermissionMatrix', () => {
   it('toggles column permissions in bulk across all supported resources', () => {
     const onChange = vi.fn();
     const value: PermissionsMatrixState = {};
-    render(
-      <PermissionMatrix
-        catalog={testCatalog}
-        value={value}
-        onChange={onChange}
-      />
-    );
+    render(<PermissionMatrix catalog={testCatalog} value={value} onChange={onChange} />);
 
     const columnToggle = screen.getByTestId('column-toggle-read');
     fireEvent.click(columnToggle);
@@ -99,14 +74,7 @@ describe('PermissionMatrix', () => {
       },
     ];
 
-    render(
-      <PermissionMatrix
-        catalog={testCatalog}
-        value={value}
-        categories={categories}
-        onChange={onChange}
-      />
-    );
+    render(<PermissionMatrix catalog={testCatalog} value={value} categories={categories} onChange={onChange} />);
 
     expect(screen.getByText('Content Management')).toBeInTheDocument();
     const categoryToggle = screen.getByTestId('category-toggle-content');

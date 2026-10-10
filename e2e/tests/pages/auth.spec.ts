@@ -14,7 +14,7 @@ test.describe('Auth Pages & Invitation Flow', () => {
     await expect(page.getByLabel(/email/i)).toBeVisible();
   });
 
-  test('resolves invitation details on /accept-invitation with token', async ({ page, invitation }) => {
+  test('resolves invitation details on /accept-invitation with token', async ({ invitation }) => {
     await invitation.goto('test-token');
     await invitation.expectInvitationVisible();
   });

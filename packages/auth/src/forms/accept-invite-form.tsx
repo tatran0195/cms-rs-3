@@ -12,13 +12,7 @@ export interface AcceptInviteFormProps {
   onNavigateSignIn?: () => void;
 }
 
-export function AcceptInviteForm({
-  client,
-  invitationId,
-  recipientEmail,
-  onSuccess,
-  onNavigateSignIn,
-}: AcceptInviteFormProps) {
+export function AcceptInviteForm({ client, invitationId, recipientEmail, onSuccess, onNavigateSignIn }: AcceptInviteFormProps) {
   const t = useT();
   const [error, setError] = useState<string | null>(null);
 

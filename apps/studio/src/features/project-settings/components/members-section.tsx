@@ -310,7 +310,8 @@ export function MembersSection({ projectId }: { projectId: string }) {
                                   { memberId: member.id },
                                   {
                                     onSuccess: () => toast.success(t('settings.members.toast.ownershipTransferred')),
-                                    onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.members.toast.transferError')),
+                                    onError: (error) =>
+                                      toast.error(error instanceof Error ? error.message : t('settings.members.toast.transferError')),
                                   },
                                 );
                               }}
@@ -369,7 +370,9 @@ export function MembersSection({ projectId }: { projectId: string }) {
                   </div>
                 );
               })}
-              {members.length === 0 ? <p className="border-border border-t py-3 text-muted-foreground text-sm">{t('settings.members.empty')}</p> : null}
+              {members.length === 0 ? (
+                <p className="border-border border-t py-3 text-muted-foreground text-sm">{t('settings.members.empty')}</p>
+              ) : null}
 
               {invitations.length > 0 ? (
                 <>

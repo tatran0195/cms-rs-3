@@ -1,16 +1,11 @@
 'use client';
 
-import * as React from 'react';
 import { CheckMini } from '@cms/icons';
+import * as React from 'react';
 import { Checkbox, type CheckboxCheckedState } from '@/components/checkbox';
 import { Text } from '@/components/text';
 import { clx } from '@/utils/clx';
-import type {
-  PermissionAction,
-  PermissionCatalog,
-  PermissionsMatrixState,
-  ResourceCategory,
-} from './types';
+import type { PermissionAction, PermissionCatalog, PermissionsMatrixState, ResourceCategory } from './types';
 
 export interface PermissionMatrixProps {
   catalog: PermissionCatalog;
@@ -49,9 +44,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
     return map;
   }, [catalog.resources]);
 
-  const allResourceKeys = React.useMemo(() => {
-    return catalog.resources.map((r) => r.key);
-  }, [catalog.resources]);
+  const allResourceKeys = React.useMemo(() => catalog.resources.map((r) => r.key), [catalog.resources]);
 
   // Compute category grouping
   const groupedSections = React.useMemo(() => {
@@ -174,10 +167,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
 
   return (
     <div
-      className={clx(
-        'w-full border border-ui-border-base rounded-lg overflow-hidden bg-ui-bg-base text-ui-fg-base',
-        className
-      )}
+      className={clx('w-full border border-ui-border-base rounded-lg overflow-hidden bg-ui-bg-base text-ui-fg-base', className)}
       data-testid="permission-matrix"
     >
       <div className="overflow-x-auto">
@@ -190,9 +180,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                 return (
                   <th key={act} className="py-3 px-3 text-center min-w-[80px]">
                     <div className="flex flex-col items-center justify-center gap-1.5">
-                      <span className="text-xs uppercase tracking-wider font-semibold">
-                        {ACTION_LABELS[act] || act}
-                      </span>
+                      <span className="text-xs uppercase tracking-wider font-semibold">{ACTION_LABELS[act] || act}</span>
                       {!readonly && (
                         <Checkbox
                           checked={checkedState}
@@ -212,10 +200,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
               <React.Fragment key={section.id}>
                 {section.label && (
                   <tr className="bg-ui-bg-subtle/50 font-semibold text-ui-fg-subtle">
-                    <td
-                      colSpan={catalog.actions.length + 1}
-                      className="py-2.5 px-4"
-                    >
+                    <td colSpan={catalog.actions.length + 1} className="py-2.5 px-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {!readonly && (
@@ -245,19 +230,11 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                   const desc = resourceDescriptions[resKey];
 
                   return (
-                    <tr
-                      key={resKey}
-                      className="hover:bg-ui-bg-subtle/30 transition-colors"
-                      data-testid={`resource-row-${resKey}`}
-                    >
+                    <tr key={resKey} className="hover:bg-ui-bg-subtle/30 transition-colors" data-testid={`resource-row-${resKey}`}>
                       <td className="py-2.5 px-4">
                         <div className="flex flex-col">
-                          <span className="font-medium text-ui-fg-base capitalize">
-                            {label}
-                          </span>
-                          {desc && (
-                            <span className="text-xs text-ui-fg-muted">{desc}</span>
-                          )}
+                          <span className="font-medium text-ui-fg-base capitalize">{label}</span>
+                          {desc && <span className="text-xs text-ui-fg-muted">{desc}</span>}
                         </div>
                       </td>
                       {catalog.actions.map((act) => {
@@ -265,14 +242,9 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                         const isGranted = !!value[resKey]?.[act];
 
                         return (
-                          <td
-                            key={act}
-                            className="py-2.5 px-3 text-center align-middle"
-                          >
+                          <td key={act} className="py-2.5 px-3 text-center align-middle">
                             {!isSupported ? (
-                              <span className="text-ui-fg-muted opacity-40 select-none">
-                                —
-                              </span>
+                              <span className="text-ui-fg-muted opacity-40 select-none">—</span>
                             ) : readonly ? (
                               isGranted ? (
                                 <span
@@ -282,19 +254,14 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                                   <CheckMini className="w-4 h-4" />
                                 </span>
                               ) : (
-                                <span
-                                  className="text-ui-fg-muted select-none"
-                                  data-testid={`dash-${resKey}-${act}`}
-                                >
+                                <span className="text-ui-fg-muted select-none" data-testid={`dash-${resKey}-${act}`}>
                                   —
                                 </span>
                               )
                             ) : (
                               <Checkbox
                                 checked={isGranted}
-                                onCheckedChange={(c) =>
-                                  handleCellToggle(resKey, act, !!c)
-                                }
+                                onCheckedChange={(c) => handleCellToggle(resKey, act, !!c)}
                                 aria-label={`${act} on ${label}`}
                                 data-testid={`cell-checkbox-${resKey}-${act}`}
                               />

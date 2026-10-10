@@ -58,9 +58,7 @@ export function AppearanceStep({ data, onChange }: AppearanceStepProps) {
     <div className="space-y-6">
       <div className="space-y-3">
         <Label className="text-sm font-semibold">Default Platform Theme</Label>
-        <p className="text-xs text-muted-foreground">
-          Select the initial visual appearance for new visitors and team members.
-        </p>
+        <p className="text-xs text-muted-foreground">Select the initial visual appearance for new visitors and team members.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {THEME_OPTIONS.map((opt) => {
@@ -74,9 +72,7 @@ export function AppearanceStep({ data, onChange }: AppearanceStepProps) {
                 onClick={() => handleSelectTheme(opt.id)}
                 className={cn(
                   'flex flex-col text-left p-4 rounded-xl border transition-all',
-                  isSelected
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                    : 'border-border hover:bg-muted/40',
+                  isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/40',
                 )}
               >
                 <div className="flex items-center justify-between w-full">
@@ -95,9 +91,7 @@ export function AppearanceStep({ data, onChange }: AppearanceStepProps) {
 
       <div className="space-y-3 pt-2">
         <Label className="text-sm font-semibold">Default Interface Language</Label>
-        <p className="text-xs text-muted-foreground">
-          The fallback localization language used for user navigation and system prompts.
-        </p>
+        <p className="text-xs text-muted-foreground">The fallback localization language used for user navigation and system prompts.</p>
 
         <Select
           items={LOCALE_ITEMS}

@@ -1,6 +1,5 @@
-import { defineConfig, devices, type Project } from '@playwright/test';
 import { existsSync } from 'node:fs';
-
+import { defineConfig, devices, type Project } from '@playwright/test';
 import { loadRuntimeEnv } from './src/support/env';
 
 // The stack launcher and the test runner must agree on ports, database and
@@ -62,16 +61,12 @@ export default defineConfig({
   workers: isCI ? 2 : Number(process.env.E2E_WORKERS ?? 3),
   timeout: 180_000,
   expect: { timeout: 15_000 },
-  reporter: [
-    ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results/results.json' }],
-  ],
+  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'test-results/results.json' }]],
   use: {
     baseURL,
     actionTimeout: 20_000,
     navigationTimeout: 45_000,
-    trace: 'retain-on-failure',
+    trace: isCI ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
     video: isCI ? 'retain-on-failure' : 'off',
     locale: 'en-US',

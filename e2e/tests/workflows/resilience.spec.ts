@@ -6,13 +6,7 @@ import { uniqueName } from '../../src/support/data';
  * recovery after a rejected operation, and boundary data.
  */
 test.describe('resilience', () => {
-  test('a rejected create leaves no partial state and the corrected retry succeeds', async ({
-    page,
-    editor,
-    project,
-    db,
-    diagnostics,
-  }) => {
+  test('a rejected create leaves no partial state and the corrected retry succeeds', async ({ page, editor, project, db, diagnostics }) => {
     await editor.goto(project.id);
 
     // Attempt an over-long slug through page settings: the product must refuse it.
@@ -41,19 +35,17 @@ test.describe('resilience', () => {
     diagnostics.assertClean({ label: 'recovery: ' });
   });
 
-  test('double-submitting the publish action produces one release, not two', async ({
-    page,
-    editor,
-    publish,
-    project,
-    db,
-  }) => {
+  test('double-submitting the publish action produces one release, not two', async ({ page, editor, publish, project, db }) => {
     await editor.goto(project.id);
     await editor.createPage('en');
     await editor.setTitle(uniqueName('Double Publish'));
 
     const dialog = await publish.openDialog();
-    await expect(dialog.getByText('Checking for changes…')).toBeHidden({ timeout: 30_000 }).catch(() => {});
+    await expect(dialog.getByText('Checking for changes…'))
+      .toBeHidden({ timeout: 30_000 })
+      .catch(() => {
+        /* ignore */
+      });
     const publishNow = dialog.getByRole('button', { name: 'Publish now' });
     await expect(publishNow).toBeEnabled();
     // Mashed button, as an impatient user does before the modal closes.
@@ -76,7 +68,7 @@ test.describe('resilience', () => {
     await editor.setTitle(title);
     await editor.waitForSaved();
 
-    await page.goto(`/app/projects/${project.id}/editor?page=${(await editor.pageRowData(title, 'en'))!.id}`);
+    await page.goto(`/app/projects/${project.id}/editor?page=${(await editor.pageRowData(title, 'en'))?.id}`);
     await editor.deleteOpenPage();
     await editor.expectPageAbsent(title, 'en');
 
@@ -89,12 +81,7 @@ test.describe('resilience', () => {
     expect(rows).toBe(0);
   });
 
-  test('a refresh immediately after typing keeps the draft that was on screen', async ({
-    page,
-    editor,
-    project,
-    db,
-  }) => {
+  test('a refresh immediately after typing keeps the draft that was on screen', async ({ page, editor, project, db }) => {
     const title = uniqueName('Unsaved Then Reloaded');
     await editor.goto(project.id);
     await editor.createPage('en');
@@ -111,10 +98,13 @@ test.describe('resilience', () => {
     await editor.openPage(title, 'en');
     await editor.setMode('markdown');
     await expect
-      .poll(async () => {
-        const row = await db.one(`SELECT content FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
-        return row.content;
-      }, { timeout: 20_000 })
+      .poll(
+        async () => {
+          const row = await db.one(`SELECT content FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
+          return row.content;
+        },
+        { timeout: 20_000 },
+      )
       .toContain(uniqueLine);
   });
 
@@ -128,12 +118,12 @@ test.describe('resilience', () => {
       '| 1 | 2 |',
       '',
       '```ts',
-      "const x: number = 1;",
+      'const x: number = 1;',
       '```',
       '',
       'Unicode: 日本語 · Tiếng Việt · עברית · 🎉',
       '',
-      "Apostrophe's & <angle> \"quotes\" 100% #hash",
+      'Apostrophe\'s & <angle> "quotes" 100% #hash',
     ].join('\n');
 
     await editor.goto(project.id);
@@ -153,25 +143,21 @@ test.describe('resilience', () => {
     await expect(editor.markdownBody).toHaveValue(/日本語/);
 
     // A very long single line is accepted without truncation of the payload.
-    const longLine = 'x'.repeat(5_000);
+    const longLine = 'x'.repeat(5000);
     await editor.markdownBody.fill(`${body}\n\n${longLine}\n`);
     await editor.waitForSaved();
     await expect
-      .poll(async () => {
-        const row = await db.one(`SELECT content FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
-        return row.content.length;
-      }, { timeout: 20_000 })
-      .toBeGreaterThan(5_000);
+      .poll(
+        async () => {
+          const row = await db.one(`SELECT content FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, title]);
+          return row.content.length;
+        },
+        { timeout: 20_000 },
+      )
+      .toBeGreaterThan(5000);
   });
 
-  test('script-like content is stored but never executed on the published site', async ({
-    page,
-    editor,
-    publish,
-    site,
-    project,
-    diagnostics,
-  }) => {
+  test('script-like content is stored but never executed on the published site', async ({ page, editor, publish, site, project, diagnostics }) => {
     const title = uniqueName('Injection Probe');
     const markerId = `cmsE2eXss${Date.now()}`;
     await editor.goto(project.id);
@@ -185,7 +171,7 @@ test.describe('resilience', () => {
         '',
         `<script>window.${markerId} = 'executed'</script>`,
         '',
-        '<img src=x onerror="window.' + markerId + " = 'executed'\">",
+        `<img src=x onerror="window.${markerId} = 'executed'">`,
       ].join('\n'),
     );
 
@@ -197,12 +183,15 @@ test.describe('resilience', () => {
     await site.expectNoScriptExecution(markerId);
 
     const html = await site.rawHtml();
-    expect(html.includes('<script>window.' + markerId), 'raw script tags must be sanitised').toBe(false);
+    expect(html.includes(`<script>window.${markerId}`), 'raw script tags must be sanitised').toBe(false);
     void page;
     diagnostics.assertClean({ label: 'xss: ' });
   });
 });
 
 function slugOf(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

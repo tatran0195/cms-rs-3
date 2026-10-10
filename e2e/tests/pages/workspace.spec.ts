@@ -6,22 +6,22 @@ test.describe('Workspace Navigation & Dashboards', () => {
     await expect(authenticatedPage).toHaveURL(/\/app/);
   });
 
-  test('dashboard renders overview sections and stats', async ({ authenticatedPage, dashboard }) => {
+  test('dashboard renders overview sections and stats', async ({ authenticatedPage: _authenticatedPage, dashboard }) => {
     await dashboard.goto();
     await dashboard.expectOverviewVisible();
   });
 
-  test('quick search modal opens and displays input', async ({ authenticatedPage, dashboard }) => {
+  test('quick search modal opens and displays input', async ({ authenticatedPage: _authenticatedPage, dashboard }) => {
     await dashboard.goto();
     await dashboard.openQuickSearch();
   });
 
-  test('sites list page renders at /app/sites', async ({ authenticatedPage, sites }) => {
+  test('sites list page renders at /app/sites', async ({ authenticatedPage: _authenticatedPage, sites }) => {
     await sites.goto();
     await sites.expectSitesListVisible();
   });
 
-  test('cross-project analytics renders metrics at /app/analytics', async ({ authenticatedPage, analytics }) => {
+  test('cross-project analytics renders metrics at /app/analytics', async ({ authenticatedPage: _authenticatedPage, analytics }) => {
     await analytics.goto();
     await analytics.expectAnalyticsVisible();
   });

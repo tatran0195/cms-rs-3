@@ -103,13 +103,7 @@ export function SignUpForm({
     <div className="flex flex-col gap-4">
       {!codeSent && googleEnabled ? (
         <>
-          <Button
-            className="mb-4 w-full gap-2"
-            disabled={isGoogleSubmitting}
-            onClick={signUpWithGoogle}
-            type="button"
-            variant="outline"
-          >
+          <Button className="mb-4 w-full gap-2" disabled={isGoogleSubmitting} onClick={signUpWithGoogle} type="button" variant="outline">
             <GoogleIcon className="size-4" />
             {isGoogleSubmitting ? t('auth.google.submitting') : t('auth.google.signUp')}
           </Button>

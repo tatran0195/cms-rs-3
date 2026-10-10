@@ -67,9 +67,7 @@ export class WorkspaceResource {
   /**
    * Get cross-project workspace analytics overview
    */
-  async getAnalytics<T = WorkspaceAnalyticsData>(
-    params?: { period?: string; range?: string; timezone?: string },
-  ): Promise<T> {
+  async getAnalytics<T = WorkspaceAnalyticsData>(params?: { period?: string; range?: string; timezone?: string }): Promise<T> {
     return this.http.get<T>('/api/app/workspace/analytics', params);
   }
 

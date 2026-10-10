@@ -1,20 +1,14 @@
-import * as React from 'react';
 import { Badge } from '@cms/design-system/components/ui/badge';
 import { Button } from '@cms/design-system/components/ui/button';
 import { useConfirm } from '@cms/design-system/components/ui/confirm';
-import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { PermissionsMatrixState, ResourceCategory } from '@cms/design-system/components/ui/permission-matrix';
-import { RoleEditorPanel } from './role-editor-panel';
+import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { ProjectRole } from '@cms/sdk';
 import { Edit2, Plus, Shield, Trash2 } from 'lucide-react';
+import * as React from 'react';
 import { toast } from 'sonner';
-import {
-  useCreateProjectRole,
-  useDeleteProjectRole,
-  usePermissionCatalog,
-  useProjectRoles,
-  useUpdateProjectRole,
-} from '@/hooks/api';
+import { useCreateProjectRole, useDeleteProjectRole, usePermissionCatalog, useProjectRoles, useUpdateProjectRole } from '@/hooks/api';
+import { RoleEditorPanel } from './role-editor-panel';
 
 const PROJECT_CATEGORIES: ResourceCategory[] = [
   {
@@ -189,9 +183,7 @@ export function ProjectRolesSection({ projectId }: ProjectRolesSectionProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-semibold text-base tracking-tight">Project Custom Roles</h3>
-          <p className="mt-0.5 text-muted-foreground text-xs">
-            Manage custom roles and 2D permission matrices specific to this project.
-          </p>
+          <p className="mt-0.5 text-muted-foreground text-xs">Manage custom roles and 2D permission matrices specific to this project.</p>
         </div>
         <Button onClick={handleOpenCreate} disabled={!projectId || isRolesPending} size="sm">
           <Plus className="size-4" /> New Role
@@ -211,7 +203,8 @@ export function ProjectRolesSection({ projectId }: ProjectRolesSectionProps) {
             </div>
             <h4 className="font-medium text-sm">No custom project roles yet</h4>
             <p className="mt-1 text-muted-foreground text-xs max-w-sm">
-              Custom project roles allow you to grant permissions (e.g. publish pages, manage branches, or view analytics) without granting admin privileges.
+              Custom project roles allow you to grant permissions (e.g. publish pages, manage branches, or view analytics) without granting admin
+              privileges.
             </p>
             <Button className="mt-4" onClick={handleOpenCreate} size="sm" variant="outline">
               <Plus className="size-4" /> Create first project role
@@ -242,9 +235,7 @@ export function ProjectRolesSection({ projectId }: ProjectRolesSectionProps) {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-md truncate">
-                      {role.description || '—'}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-md truncate">{role.description || '—'}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
                         {permissionCount} granted

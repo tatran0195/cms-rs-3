@@ -1,7 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-
-
 export type EditorMode = 'visual' | 'wysiwyg' | 'markdown';
 
 export interface PageRow {
@@ -63,11 +61,7 @@ export class EditorPage {
   }
 
   /** Add a language and confirm the product rejected it (dialog stays open). */
-  async addCustomLanguageExpectingRejection(
-    code: string,
-    label: string,
-    message: RegExp,
-  ): Promise<void> {
+  async addCustomLanguageExpectingRejection(code: string, label: string, message: RegExp): Promise<void> {
     await this.addCustomLanguage(code, label);
     await this.page.getByText(message).first().waitFor({ timeout: 20_000 });
   }
@@ -165,7 +159,9 @@ export class EditorPage {
   }
 
   rowByTitle(title: string, code?: string): Locator {
-    return this.rows(code).filter({ has: this.page.getByRole('button', { name: title, exact: true }) }).first();
+    return this.rows(code)
+      .filter({ has: this.page.getByRole('button', { name: title, exact: true }) })
+      .first();
   }
 
   /** Create a top-level page inside a language (sidebar "+" affordance). */
@@ -173,8 +169,16 @@ export class EditorPage {
     await this.ensureSidebarVisible();
     const section = this.language(code);
     await section.hover();
+    const responsePromise = this.page.waitForResponse(
+      (res) => res.url().includes('/pages') && res.request().method() === 'POST' && res.status() < 400,
+      { timeout: 30_000 },
+    );
     await section.getByRole('button', { name: 'New page' }).click();
+    const response = await responsePromise;
+    const data = await response.json().catch(() => null);
     await expect(this.page.getByRole('button', { name: 'Delete page' })).toBeVisible({ timeout: 30_000 });
+    const expectedTitle = data?.data?.title ?? data?.title ?? 'Untitled';
+    await expect(this.titleInput).toHaveValue(expectedTitle, { timeout: 30_000 });
   }
 
   /**
@@ -218,8 +222,16 @@ export class EditorPage {
     await this.ensureSidebarVisible();
     const row = this.rowByTitle(groupTitle, code);
     await row.hover();
+    const responsePromise = this.page.waitForResponse(
+      (res) => res.url().includes('/pages') && res.request().method() === 'POST' && res.status() < 400,
+      { timeout: 30_000 },
+    );
     await row.getByRole('button', { name: 'New page' }).click();
+    const response = await responsePromise;
+    const data = await response.json().catch(() => null);
     await expect(this.page.getByRole('button', { name: 'Delete page' })).toBeVisible({ timeout: 30_000 });
+    const expectedTitle = data?.data?.title ?? data?.title ?? 'Untitled';
+    await expect(this.titleInput).toHaveValue(expectedTitle, { timeout: 30_000 });
   }
 
   /**
@@ -419,7 +431,11 @@ export class EditorPage {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       if ((await overlay.count()) === 0) return;
       await this.page.keyboard.press('Escape');
-      await expect(overlay).toHaveCount(0, { timeout: 5_000 }).catch(() => {});
+      await expect(overlay)
+        .toHaveCount(0, { timeout: 5000 })
+        .catch(() => {
+          /* ignore */
+        });
     }
   }
 
@@ -430,9 +446,7 @@ export class EditorPage {
     return dialog;
   }
 
-  async updatePageSettings(
-    patch: { slug?: string; title?: string; description?: string; hidden?: boolean },
-  ): Promise<void> {
+  async updatePageSettings(patch: { slug?: string; title?: string; description?: string; hidden?: boolean }): Promise<void> {
     const dialog = await this.openPageSettings();
     if (patch.title !== undefined) await dialog.getByLabel('Title', { exact: true }).fill(patch.title);
     if (patch.slug !== undefined) await dialog.getByLabel('Slug', { exact: true }).fill(patch.slug);
@@ -450,7 +464,7 @@ export class EditorPage {
       // a person clicks the visible track (equivalently, its label), so drive
       // it the same way.
       const hidden = general.locator('#page-hidden');
-      const already = (await hidden.isChecked().catch(() => false));
+      const already = await hidden.isChecked().catch(() => false);
       if (already !== patch.hidden) {
         await general.getByText('Hidden', { exact: true }).click();
       }
@@ -498,11 +512,7 @@ export class EditorPage {
    * another language, an id belonging to another project). The request itself is
    * the product's real endpoint with the real session cookie.
    */
-  async updatePageViaBrowserApi(
-    projectId: string,
-    pageId: string,
-    patch: Record<string, unknown>,
-  ): Promise<{ status: number; body: string }> {
+  async updatePageViaBrowserApi(projectId: string, pageId: string, patch: Record<string, unknown>): Promise<{ status: number; body: string }> {
     return this.page.evaluate(
       async ({ projectId: project, pageId: id, patch: payload }) => {
         const response = await fetch(`/api/app/projects/${project}/pages/${id}`, {
@@ -540,7 +550,10 @@ export class EditorPage {
 
   /** Open the version dropdown showing whichever version is active. */
   async openActiveVersionMenu(): Promise<Locator> {
-    await this.page.getByRole('button', { name: /^(main|default|v)/i }).first().click();
+    await this.page
+      .getByRole('button', { name: /^(main|default|v)/i })
+      .first()
+      .click();
     const menu = this.page.getByRole('menu');
     await expect(menu).toBeVisible();
     return menu;
@@ -548,7 +561,10 @@ export class EditorPage {
 
   async switchVersion(name: string): Promise<void> {
     await this.openActiveVersionMenu();
-    await this.page.getByRole('menuitem', { name: new RegExp(`^${escapeRegExp(name)}$`) }).first().click();
+    await this.page
+      .getByRole('menuitem', { name: new RegExp(`^${escapeRegExp(name)}$`) })
+      .first()
+      .click();
     await expect(this.page.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}$`) }).first()).toBeVisible();
   }
 

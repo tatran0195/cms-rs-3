@@ -41,12 +41,7 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               >
                 {isCompleted ? <Check className="size-4 sm:size-5 stroke-[2.5]" /> : <Icon className="size-4 sm:size-5" />}
               </div>
-              <span
-                className={cn(
-                  'mt-2 hidden text-xs font-medium sm:block',
-                  isCurrent ? 'text-foreground font-semibold' : 'text-muted-foreground',
-                )}
-              >
+              <span className={cn('mt-2 hidden text-xs font-medium sm:block', isCurrent ? 'text-foreground font-semibold' : 'text-muted-foreground')}>
                 {step.title}
               </span>
             </div>

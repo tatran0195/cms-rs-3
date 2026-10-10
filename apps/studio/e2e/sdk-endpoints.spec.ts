@@ -7,7 +7,7 @@ test.describe('SDK & Studio App Endpoints Verification', () => {
   let client: ReturnType<typeof createCmsClient>;
 
   test.beforeAll(async ({ request }) => {
-    session = await createAuthenticatedSession(request);
+    session = await createAuthenticatedSession(request, { asAdmin: true });
     client = createCmsClient({
       baseUrl: 'http://localhost:4310',
       headers: {

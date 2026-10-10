@@ -33,9 +33,7 @@ export function AuthPoliciesStep({ data, onChange, configuredOauthProviders }: A
             onClick={() => onChange({ allowPublicSignup: false })}
             className={cn(
               'flex flex-col text-left p-4 rounded-xl border transition-all',
-              !data.allowPublicSignup
-                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                : 'border-border hover:bg-muted/40',
+              !data.allowPublicSignup ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/40',
             )}
           >
             <div className="flex items-center justify-between w-full">
@@ -55,9 +53,7 @@ export function AuthPoliciesStep({ data, onChange, configuredOauthProviders }: A
             onClick={() => onChange({ allowPublicSignup: true })}
             className={cn(
               'flex flex-col text-left p-4 rounded-xl border transition-all',
-              data.allowPublicSignup
-                ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                : 'border-border hover:bg-muted/40',
+              data.allowPublicSignup ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/40',
             )}
           >
             <div className="flex items-center justify-between w-full">
@@ -82,14 +78,9 @@ export function AuthPoliciesStep({ data, onChange, configuredOauthProviders }: A
               <MailCheck className="size-4 text-muted-foreground" />
               <span className="text-sm font-medium">Require Email Verification</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Users must confirm their email address before accessing published workspaces.
-            </p>
+            <p className="text-xs text-muted-foreground">Users must confirm their email address before accessing published workspaces.</p>
           </div>
-          <Switch
-            checked={data.requireEmailVerification}
-            onCheckedChange={(checked) => onChange({ requireEmailVerification: checked })}
-          />
+          <Switch checked={data.requireEmailVerification} onCheckedChange={(checked) => onChange({ requireEmailVerification: checked })} />
         </div>
       </div>
 
@@ -100,17 +91,12 @@ export function AuthPoliciesStep({ data, onChange, configuredOauthProviders }: A
             {configuredOauthProviders.map((provider) => {
               const isEnabled = data.enabledOauthProviders.includes(provider);
               return (
-                <div
-                  key={provider}
-                  className="flex items-center justify-between rounded-xl border border-border p-3.5 bg-card"
-                >
+                <div key={provider} className="flex items-center justify-between rounded-xl border border-border p-3.5 bg-card">
                   <div className="flex items-center gap-3">
                     <UserCheck className="size-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium capitalize">{provider} Authentication</p>
-                      <p className="text-xs text-muted-foreground">
-                        Allow team members to sign in with their {provider} identity.
-                      </p>
+                      <p className="text-xs text-muted-foreground">Allow team members to sign in with their {provider} identity.</p>
                     </div>
                   </div>
                   <Switch checked={isEnabled} onCheckedChange={() => toggleOauth(provider)} />

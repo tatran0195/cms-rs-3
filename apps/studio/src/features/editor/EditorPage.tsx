@@ -59,7 +59,7 @@ import {
   useUploadAsset,
 } from '@/hooks/api';
 import { typographyVars } from '@/shared/lib/typography';
-import { editorStore, type EditorSyncStatus } from './stores/editor-store';
+import { type EditorSyncStatus, editorStore } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';
 import { draftPreviewHref } from './utils/draft-preview';
 
@@ -689,12 +689,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                     const langPages = filteredPagesByLanguage.get(lang.id) ?? [];
                     const langCollapsed = collapsedLangs.has(lang.id);
                     return (
-                      <div
-                        key={lang.id}
-                        className="mb-2"
-                        data-testid="language-section"
-                        data-language-code={lang.code}
-                      >
+                      <div key={lang.id} className="mb-2" data-testid="language-section" data-language-code={lang.code}>
                         {/* Language section header — click the label to collapse/expand */}
                         <div className="group flex items-center justify-between rounded-md px-1 py-1.5 hover:bg-muted/40">
                           <button
@@ -858,6 +853,26 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                     <Plus className="size-4" /> {t('editor.newPage')}
                   </Button>
                 ) : null}
+                <Button
+                  variant="outline"
+                  className="cursor-pointer text-destructive"
+                  aria-label={t('editor.deletePage')}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: t('editor.deletePage'),
+                      description: t('editor.deletePageConfirm'),
+                      confirmLabel: t('editor.deletePage'),
+                      destructive: true,
+                    });
+                    if (ok) {
+                      const toDelete = selectedGroup.id;
+                      setSelectedId(null);
+                      await deletePage.mutateAsync(toDelete);
+                    }
+                  }}
+                >
+                  <Trash2 className="size-4" /> {t('editor.deletePage')}
+                </Button>
               </div>
             </div>
           </section>

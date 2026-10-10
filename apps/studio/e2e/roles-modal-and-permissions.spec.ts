@@ -1,10 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const PROJECT_ID = '6b2b9c0b-13a9-40ba-8805-a72a94952fce';
 const SCREENSHOT_PATH = 'C:/Users/Admin/.gemini/antigravity-ide/brain/4c81e34a-3fb3-497c-a5f6-0b7a282bd027/role_modal_open.png';
 
 test.describe('Role Creation Unified Modal & Multi-Account Permission Enforcement', () => {
-
   test('1. Role Creation: Unified Modal Dialog UI, Accessibility & Workflow', async ({ browser }) => {
     const context = await browser.newContext();
     await context.addCookies([
@@ -287,5 +286,4 @@ test.describe('Role Creation Unified Modal & Multi-Account Permission Enforcemen
     });
     expect(createRoleRes.status()).toBe(403);
   });
-
 });

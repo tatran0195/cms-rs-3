@@ -100,13 +100,7 @@ export function SignInForm({
     <div className="flex flex-col gap-4">
       {!codeSent && googleEnabled ? (
         <>
-          <Button
-            className="mb-4 w-full gap-2"
-            disabled={isGoogleSubmitting}
-            onClick={signInWithGoogle}
-            type="button"
-            variant="outline"
-          >
+          <Button className="mb-4 w-full gap-2" disabled={isGoogleSubmitting} onClick={signInWithGoogle} type="button" variant="outline">
             <GoogleIcon className="size-4" />
             {isGoogleSubmitting ? t('auth.google.submitting') : t('auth.google.signIn')}
           </Button>
@@ -135,9 +129,7 @@ export function SignInForm({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2" dir="ltr">
-            <p className="text-center text-muted-foreground text-sm">
-              {t('auth.otp.checkEmail', { email: normalizedEmail })}
-            </p>
+            <p className="text-center text-muted-foreground text-sm">{t('auth.otp.checkEmail', { email: normalizedEmail })}</p>
             <Label htmlFor="otp">{t('auth.otp.label')}</Label>
             <InputOTP
               aria-invalid={Boolean(error)}

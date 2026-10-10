@@ -1,16 +1,10 @@
-import type {
-  CreateRolePayload,
-  FullPermissionCatalog,
-  ProjectRole,
-  UpdateRolePayload,
-  WorkspaceRole,
-} from '@cms/sdk';
+import type { CreateRolePayload, FullPermissionCatalog, ProjectRole, UpdateRolePayload, WorkspaceRole } from '@cms/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cmsClient } from '@/shared/services/cms-client';
 
 export const rolesQueryKeys = {
   catalog: () => ['permissions', 'catalog'] as const,
-  workspaceRoles: (workspaceId: string = 'workspace') => ['workspace', workspaceId, 'roles'] as const,
+  workspaceRoles: (workspaceId = 'workspace') => ['workspace', workspaceId, 'roles'] as const,
   projectRoles: (projectId: string) => ['project', projectId, 'roles'] as const,
 };
 
@@ -22,7 +16,7 @@ export function usePermissionCatalog() {
   });
 }
 
-export function useWorkspaceRoles(workspaceId: string = 'workspace') {
+export function useWorkspaceRoles(workspaceId = 'workspace') {
   return useQuery<WorkspaceRole[]>({
     queryKey: rolesQueryKeys.workspaceRoles(workspaceId),
     queryFn: () => cmsClient.roles.listWorkspaceRoles(workspaceId),
@@ -30,36 +24,32 @@ export function useWorkspaceRoles(workspaceId: string = 'workspace') {
   });
 }
 
-export function useCreateWorkspaceRole(workspaceId: string = 'workspace') {
+export function useCreateWorkspaceRole(workspaceId = 'workspace') {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateRolePayload) => {
-      return cmsClient.roles.createWorkspaceRole(workspaceId, payload);
-    },
+    mutationFn: (payload: CreateRolePayload) => cmsClient.roles.createWorkspaceRole(workspaceId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(workspaceId) });
     },
   });
 }
 
-export function useUpdateWorkspaceRole(workspaceId: string = 'workspace') {
+export function useUpdateWorkspaceRole(workspaceId = 'workspace') {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) => {
-      return cmsClient.roles.updateWorkspaceRole(workspaceId, roleId, payload);
-    },
+    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) =>
+      cmsClient.roles.updateWorkspaceRole(workspaceId, roleId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(workspaceId) });
     },
   });
 }
 
-export function useDeleteWorkspaceRole(workspaceId: string = 'workspace') {
+export function useDeleteWorkspaceRole(workspaceId = 'workspace') {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ roleId, targetRoleId }: { roleId: string; targetRoleId?: string }) => {
-      return cmsClient.roles.deleteWorkspaceRole(workspaceId, roleId, targetRoleId);
-    },
+    mutationFn: ({ roleId, targetRoleId }: { roleId: string; targetRoleId?: string }) =>
+      cmsClient.roles.deleteWorkspaceRole(workspaceId, roleId, targetRoleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rolesQueryKeys.workspaceRoles(workspaceId) });
     },
@@ -77,9 +67,7 @@ export function useProjectRoles(projectId: string) {
 export function useCreateProjectRole(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateRolePayload) => {
-      return cmsClient.roles.createProjectRole(projectId, payload);
-    },
+    mutationFn: (payload: CreateRolePayload) => cmsClient.roles.createProjectRole(projectId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rolesQueryKeys.projectRoles(projectId) });
     },
@@ -89,9 +77,8 @@ export function useCreateProjectRole(projectId: string) {
 export function useUpdateProjectRole(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) => {
-      return cmsClient.roles.updateProjectRole(projectId, roleId, payload);
-    },
+    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRolePayload }) =>
+      cmsClient.roles.updateProjectRole(projectId, roleId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rolesQueryKeys.projectRoles(projectId) });
     },
@@ -101,9 +88,8 @@ export function useUpdateProjectRole(projectId: string) {
 export function useDeleteProjectRole(projectId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ roleId, targetRoleId }: { roleId: string; targetRoleId?: string }) => {
-      return cmsClient.roles.deleteProjectRole(projectId, roleId, targetRoleId);
-    },
+    mutationFn: ({ roleId, targetRoleId }: { roleId: string; targetRoleId?: string }) =>
+      cmsClient.roles.deleteProjectRole(projectId, roleId, targetRoleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rolesQueryKeys.projectRoles(projectId) });
     },

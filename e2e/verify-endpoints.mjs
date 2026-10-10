@@ -16,7 +16,7 @@ async function main() {
 
   // 2. Create or get test project & page
   const projectsRes = await fetch(`${BASE_URL}/api/app/projects`, {
-    headers: { 'Cookie': sessionCookie },
+    headers: { Cookie: sessionCookie },
   });
   const projectsData = await projectsRes.json();
   let project = projectsData.data?.[0];
@@ -24,7 +24,7 @@ async function main() {
   if (!project) {
     const createProjectRes = await fetch(`${BASE_URL}/api/app/projects`, {
       method: 'POST',
-      headers: { 'Cookie': sessionCookie, 'Content-Type': 'application/json' },
+      headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Verification Project', slug: 'verification-project' }),
     });
     const created = await createProjectRes.json();
@@ -35,7 +35,7 @@ async function main() {
 
   // Get or create page
   const pagesRes = await fetch(`${BASE_URL}/api/app/projects/${projectId}/pages`, {
-    headers: { 'Cookie': sessionCookie },
+    headers: { Cookie: sessionCookie },
   });
   const pagesData = await pagesRes.json();
   let page = pagesData.data?.[0];
@@ -43,7 +43,7 @@ async function main() {
   if (!page) {
     const createPageRes = await fetch(`${BASE_URL}/api/app/projects/${projectId}/pages`, {
       method: 'POST',
-      headers: { 'Cookie': sessionCookie, 'Content-Type': 'application/json' },
+      headers: { Cookie: sessionCookie, 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Verify Page', slug: 'verify-page', path: '/verify-page', content: '# Verified' }),
     });
     const createdPage = await createPageRes.json();
@@ -65,9 +65,12 @@ async function main() {
     const rawPath = parts[1].trim();
 
     // Substitute path parameters
-    let path = rawPath
+    const path = rawPath
       .replace(':projectId', projectId)
-      .replace(':id', (rawPath.includes('projects/:id') ? projectId : (rawPath.includes('pages/:id') ? pageId : (rawPath.includes('members/:id') ? userId : 'test-id'))))
+      .replace(
+        ':id',
+        rawPath.includes('projects/:id') ? projectId : rawPath.includes('pages/:id') ? pageId : rawPath.includes('members/:id') ? userId : 'test-id',
+      )
       .replace(':addonId', 'test-addon')
       .replace(':scheduleId', 'test-schedule')
       .replace(':artifactId', 'test-artifact')
@@ -78,7 +81,7 @@ async function main() {
       .replace(':readerId', 'test-reader');
 
     const headers = {
-      'Cookie': sessionCookie,
+      Cookie: sessionCookie,
       'Content-Type': 'application/json',
     };
 
@@ -110,7 +113,9 @@ async function main() {
         if (status === 404 && (responseBody.includes('"error"') || responseBody.includes('"message"'))) {
           isResourceNotFound = true;
         }
-      } catch {}
+      } catch {
+        /* ignore */
+      }
 
       // Working criteria:
       // Status < 400: Successful execution
@@ -154,7 +159,7 @@ async function main() {
     try {
       const res = await fetch(`${BASE_URL}${ep.path}`, {
         method: ep.method,
-        headers: { 'Cookie': sessionCookie },
+        headers: { Cookie: sessionCookie },
       });
       const text = await res.text();
       results.push({
@@ -185,10 +190,10 @@ async function main() {
   let md = '# API Endpoints Verification Report\n\n';
   md += `**Test Timestamp**: ${new Date().toISOString()}\n`;
   md += `**Total Endpoints Tested**: ${results.length}\n`;
-  const wired = results.filter(r => r.isWired).length;
-  const working = results.filter(r => r.isWorking).length;
-  md += `**Wired Endpoints**: ${wired}/${results.length} (${((wired/results.length)*100).toFixed(1)}%)\n`;
-  md += `**Working / Validated**: ${working}/${results.length} (${((working/results.length)*100).toFixed(1)}%)\n\n`;
+  const wired = results.filter((r) => r.isWired).length;
+  const working = results.filter((r) => r.isWorking).length;
+  md += `**Wired Endpoints**: ${wired}/${results.length} (${((wired / results.length) * 100).toFixed(1)}%)\n`;
+  md += `**Working / Validated**: ${working}/${results.length} (${((working / results.length) * 100).toFixed(1)}%)\n\n`;
 
   md += '| # | Method | Endpoint Route | Status Code | Wired | Working | Response Note |\n';
   md += '|---|---|---|---|---|---|---|\n';

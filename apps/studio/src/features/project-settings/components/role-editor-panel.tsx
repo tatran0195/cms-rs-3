@@ -1,18 +1,17 @@
 'use client';
 
 export {
-  RoleEditorModal,
-  RoleEditorPanel,
-  type RoleEditorModalProps,
-  type RoleEditorPanelProps,
-} from '@cms/design-system/components/ui/role-editor-panel';
-
-export {
-  PermissionMatrix,
   type PermissionAction,
   type PermissionCatalog,
   type PermissionCatalogResource,
+  PermissionMatrix,
+  type PermissionMatrixProps,
   type PermissionsMatrixState,
   type ResourceCategory,
-  type PermissionMatrixProps,
 } from '@cms/design-system/components/ui/permission-matrix';
+export {
+  RoleEditorModal,
+  type RoleEditorModalProps,
+  RoleEditorPanel,
+  type RoleEditorPanelProps,
+} from '@cms/design-system/components/ui/role-editor-panel';

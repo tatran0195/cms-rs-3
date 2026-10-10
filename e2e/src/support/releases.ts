@@ -30,9 +30,7 @@ export class ReleaseInspector {
   }
 
   /** Every release ever created, newest first. */
-  async deploymentHistory(
-    projectId: string,
-  ): Promise<Array<{ id: string; version: string; status: string; created_at: string }>> {
+  async deploymentHistory(projectId: string): Promise<Array<{ id: string; version: string; status: string; created_at: string }>> {
     return this.db.query(
       `SELECT d.id AS id, COALESCE(s.version::text, '') AS version,
               d.status::text AS status, d.created_at AS created_at
@@ -45,10 +43,7 @@ export class ReleaseInspector {
 
   /** Every page path frozen into a release, with its stored title. */
   async snapshotPaths(deploymentId: string): Promise<Array<{ path: string; title: string; kind: string }>> {
-    return this.db.query(
-      `SELECT path, title, kind FROM "DeploymentSnapshotPageIndex" WHERE deployment_id = $1 ORDER BY path`,
-      [deploymentId],
-    );
+    return this.db.query(`SELECT path, title, kind FROM "DeploymentSnapshotPageIndex" WHERE deployment_id = $1 ORDER BY path`, [deploymentId]);
   }
 
   /** The full text of one frozen page, as a reader would receive it. */

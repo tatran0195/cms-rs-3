@@ -1,13 +1,13 @@
-import { useState } from 'react';
 import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
-import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
+import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { useT } from '@cms/i18n/react';
-import { Copy, Check, FolderGit2, Users } from 'lucide-react';
+import { Check, Copy, FolderGit2, Users } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { useWorkspaceSettings, useUpdateWorkspaceSettings } from '@/hooks/api';
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/hooks/api';
 import { copyToClipboard } from '@/shared';
 import { SettingsSection } from './section';
 
@@ -103,16 +103,19 @@ export function WorkspaceGeneralTab() {
 
             <div className="grid gap-1.5">
               <Label htmlFor="ws-desc">Description</Label>
-              <Textarea id="ws-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Brief description of this workspace" />
+              <Textarea
+                id="ws-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Brief description of this workspace"
+              />
             </div>
           </div>
         </SettingsSection>
       </form>
 
-      <SettingsSection
-        title="Workspace Overview"
-        description="Operational metrics for this workspace."
-      >
+      <SettingsSection title="Workspace Overview" description="Operational metrics for this workspace.">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
             <div className="p-2 rounded-md bg-primary/10 text-primary">

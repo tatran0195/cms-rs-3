@@ -1,12 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-export type WorkspaceTab =
-  | 'account'
-  | 'appearance'
-  | 'workspace-general'
-  | 'workspace-members'
-  | 'workspace-roles'
-  | 'workspace-danger';
+export type WorkspaceTab = 'account' | 'appearance' | 'workspace-general' | 'workspace-members' | 'workspace-roles' | 'workspace-danger';
 
 /**
  * Page object model for /app/settings.

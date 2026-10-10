@@ -111,12 +111,7 @@ function AcceptInviteContent({ invitationId }: { invitationId: string }) {
         ) : (
           <>
             <p className="text-center text-muted-foreground text-sm">{t('auth.invite.acceptPrompt')}</p>
-            <AcceptInviteForm
-              client={cmsClient}
-              invitationId={invitationId}
-              recipientEmail={info.email}
-              onSuccess={handleSuccess}
-            />
+            <AcceptInviteForm client={cmsClient} invitationId={invitationId} recipientEmail={info.email} onSuccess={handleSuccess} />
           </>
         )}
         <Link className="text-center text-muted-foreground text-sm hover:underline" to="/app">

@@ -28,8 +28,7 @@ export function loadRuntimeEnv(file = resolve(here, '..', '..', 'runtime', 'env.
       // Only expand from what the environment already holds.
       const expanded = rawValue.replace(
         /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g,
-        (_, name: string, fallback: string | undefined) =>
-          process.env[name] ?? fallback ?? '',
+        (_, name: string, fallback: string | undefined) => process.env[name] ?? fallback ?? '',
       );
       value = expanded;
     }

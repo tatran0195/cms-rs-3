@@ -31,6 +31,7 @@ export { Input } from './components/input';
 export { Kbd } from './components/kbd';
 export { Label } from './components/label';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
+export * from './components/permissions';
 export { Popover } from './components/popover';
 export { ProgressAccordion } from './components/progress-accordion';
 export { ProgressTabs } from './components/progress-tabs';
@@ -47,7 +48,6 @@ export { Textarea } from './components/textarea';
 export { Toast } from './components/toast';
 export { Toaster } from './components/toaster';
 export { Tooltip, TooltipProvider } from './components/tooltip';
-export * from './components/permissions';
 // Hooks
 export { usePrompt } from './hooks/use-prompt';
 export { useToggleState } from './hooks/use-toggle-state';

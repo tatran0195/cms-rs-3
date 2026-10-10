@@ -1,4 +1,3 @@
-import { cmsClient } from '@/shared/services/cms-client';
 import {
   authKeys,
   authService,
@@ -15,6 +14,7 @@ import {
   useVerifyEmail as useAuthVerifyEmail,
   useVerifyEmailOtp as useAuthVerifyEmailOtp,
 } from '@cms/auth';
+import { cmsClient } from '@/shared/services/cms-client';
 
 export { AcceptInvitePage } from './AcceptInvitePage';
 export { AuthLayout } from './components/AuthLayout';
@@ -23,9 +23,9 @@ export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { ResetPasswordPage } from './ResetPasswordPage';
 export { SignInPage } from './SignInPage';
 export { SignUpPage } from './SignUpPage';
-export { VerifyEmailPage } from './VerifyEmailPage';
 export { authDocumentTitle } from './utils/auth-document-title';
 export { isEmailNotVerifiedError } from './utils/auth-errors';
+export { VerifyEmailPage } from './VerifyEmailPage';
 
 export const sessionQueryKey = authKeys.session();
 
@@ -43,5 +43,5 @@ export const useAcceptInvitation = () => useAuthAcceptInvitation(cmsClient);
 export const useStopImpersonating = () => useAuthStopImpersonating(cmsClient);
 
 export const getSession = () => authService.getSession(cmsClient);
-export { authService, authKeys };
 export type { AuthSession, AuthSessionData, AuthUser } from '@cms/auth';
+export { authKeys, authService };

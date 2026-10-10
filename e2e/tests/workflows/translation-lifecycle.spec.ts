@@ -11,14 +11,7 @@ import { uniqueName } from '../../src/support/data';
  * languages in one snapshot.
  */
 test.describe('translation lifecycle', () => {
-  test('the same logical document exists in two languages and both are released', async ({
-    page,
-    editor,
-    publish,
-    site,
-    project,
-    db,
-  }) => {
+  test('the same logical document exists in two languages and both are released', async ({ page: _page, editor, publish, site, project, db }) => {
     const enTitle = uniqueName('Install');
     const viTitle = uniqueName('Cài đặt');
     const enBody = `en-${Date.now()}`;
@@ -80,14 +73,7 @@ test.describe('translation lifecycle', () => {
     await site.expectContains('english-only');
   });
 
-  test('changing the default language changes which representation the root serves', async ({
-    page,
-    editor,
-    publish,
-    site,
-    project,
-    db,
-  }) => {
+  test('changing the default language changes which representation the root serves', async ({ page, editor, publish, site, project, db }) => {
     const enTitle = uniqueName('English Doc');
     const frTitle = uniqueName('Doc Français');
     const enBody = `default-en-${Date.now()}`;
@@ -124,11 +110,7 @@ test.describe('translation lifecycle', () => {
     await site.expectContains(frBody);
   });
 
-  test('a group can exist in one language while its sibling group exists in another', async ({
-    editor,
-    project,
-    db,
-  }) => {
+  test('a group can exist in one language while its sibling group exists in another', async ({ editor, project, db }) => {
     const enGroup = uniqueName('English Group');
     const viGroup = uniqueName('Nhóm Việt');
 
@@ -148,12 +130,7 @@ test.describe('translation lifecycle', () => {
     expect(rows.map((row) => row.code).sort()).toEqual(['en', 'vi']);
   });
 
-  test('an RTL language renders with the right direction and is reachable', async ({
-    editor,
-    publish,
-    site,
-    project,
-  }) => {
+  test('an RTL language renders with the right direction and is reachable', async ({ editor, publish, site, project }) => {
     const title = uniqueName('מסמך');
     const body = `rtl-${Date.now()}`;
 
@@ -183,5 +160,8 @@ test.describe('translation lifecycle', () => {
 });
 
 function slugOf(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

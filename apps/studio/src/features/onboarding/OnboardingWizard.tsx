@@ -1,19 +1,17 @@
-import { useState } from 'react';
 import { Button } from '@cms/design-system/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@cms/design-system/components/ui/card';
-import { useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, ArrowRight, Loader2, Rocket } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCompleteSetup, useSetupStatus } from '@/hooks/api';
-import { AdminAccountStep, type AdminAccountData } from './components/AdminAccountStep';
-import { AppearanceStep, type AppearanceData } from './components/AppearanceStep';
-import { AuthPoliciesStep, type AuthPoliciesData } from './components/AuthPoliciesStep';
+import { type AdminAccountData, AdminAccountStep } from './components/AdminAccountStep';
+import { type AppearanceData, AppearanceStep } from './components/AppearanceStep';
+import { type AuthPoliciesData, AuthPoliciesStep } from './components/AuthPoliciesStep';
 import { ReviewLaunchStep } from './components/ReviewLaunchStep';
 import { ONBOARDING_STEPS, StepIndicator } from './components/StepIndicator';
-import { WorkspaceProfileStep, type WorkspaceProfileData } from './components/WorkspaceProfileStep';
+import { type WorkspaceProfileData, WorkspaceProfileStep } from './components/WorkspaceProfileStep';
 
 export function OnboardingWizard() {
-  const navigate = useNavigate();
   const { data: setupStatus, isLoading: isStatusLoading } = useSetupStatus();
   const completeSetup = useCompleteSetup();
 
@@ -126,7 +124,7 @@ export function OnboardingWizard() {
     );
   }
 
-  const currentStepMeta = ONBOARDING_STEPS.find((s) => s.id === currentStep) ?? ONBOARDING_STEPS[0]!;
+  const currentStepMeta = ONBOARDING_STEPS.find((s) => s.id === currentStep) ?? (ONBOARDING_STEPS[0] as (typeof ONBOARDING_STEPS)[number]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4 sm:p-8">
@@ -134,17 +132,11 @@ export function OnboardingWizard() {
         {/* Brand header */}
         <div className="flex flex-col items-center text-center space-y-2">
           <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary font-bold text-primary-foreground shadow-sm">
-              C
-            </span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary font-bold text-primary-foreground shadow-sm">C</span>
             <span className="font-bold text-xl tracking-tight text-foreground">cms</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            First-Time Platform Setup
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-md">
-            Configure your internal company documentation workspace in a few quick steps.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">First-Time Platform Setup</h1>
+          <p className="text-sm text-muted-foreground max-w-md">Configure your internal company documentation workspace in a few quick steps.</p>
         </div>
 
         {/* Stepper Card */}
@@ -158,19 +150,9 @@ export function OnboardingWizard() {
           </CardHeader>
 
           <CardContent className="pt-6 min-h-[320px]">
-            {currentStep === 1 && (
-              <AdminAccountStep
-                data={admin}
-                onChange={(patch) => setAdmin((prev) => ({ ...prev, ...patch }))}
-                errors={errors}
-              />
-            )}
+            {currentStep === 1 && <AdminAccountStep data={admin} onChange={(patch) => setAdmin((prev) => ({ ...prev, ...patch }))} errors={errors} />}
             {currentStep === 2 && (
-              <WorkspaceProfileStep
-                data={workspace}
-                onChange={(patch) => setWorkspace((prev) => ({ ...prev, ...patch }))}
-                errors={errors}
-              />
+              <WorkspaceProfileStep data={workspace} onChange={(patch) => setWorkspace((prev) => ({ ...prev, ...patch }))} errors={errors} />
             )}
             {currentStep === 3 && (
               <AuthPoliciesStep
@@ -179,29 +161,12 @@ export function OnboardingWizard() {
                 configuredOauthProviders={setupStatus?.configuredOauthProviders ?? []}
               />
             )}
-            {currentStep === 4 && (
-              <AppearanceStep
-                data={appearance}
-                onChange={(patch) => setAppearance((prev) => ({ ...prev, ...patch }))}
-              />
-            )}
-            {currentStep === 5 && (
-              <ReviewLaunchStep
-                admin={admin}
-                workspace={workspace}
-                auth={auth}
-                appearance={appearance}
-              />
-            )}
+            {currentStep === 4 && <AppearanceStep data={appearance} onChange={(patch) => setAppearance((prev) => ({ ...prev, ...patch }))} />}
+            {currentStep === 5 && <ReviewLaunchStep admin={admin} workspace={workspace} auth={auth} appearance={appearance} />}
           </CardContent>
 
           <CardFooter className="flex items-center justify-between border-t border-border/60 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1 || completeSetup.isPending}
-            >
+            <Button type="button" variant="outline" onClick={handleBack} disabled={currentStep === 1 || completeSetup.isPending}>
               <ArrowLeft className="mr-1.5 size-4" />
               Back
             </Button>

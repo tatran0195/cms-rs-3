@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('Authentication and Custom Roles Permissions Verification', () => {
   test('Auth Flow: Email OTP authentication sets cms_session and navigates to /app', async ({ page }) => {
@@ -23,13 +23,13 @@ test.describe('Authentication and Custom Roles Permissions Verification', () => 
     const otp = execFileSync(
       'psql',
       [
-        'postgresql://postgres:postgres@localhost:5432/cms',
+        process.env.CMS_DATABASE__URL || 'postgresql://postgres:postgres!Tsvs7345@127.0.0.1:5432/cms',
         '-t',
         '-A',
         '-c',
-        "SELECT token FROM \"VerificationToken\" WHERE identifier = 'otp:sign-in:owner-test@company.com' ORDER BY expires_at DESC LIMIT 1;",
+        'SELECT token FROM "VerificationToken" WHERE identifier = \'otp:sign-in:owner-test@company.com\' ORDER BY expires_at DESC LIMIT 1;',
       ],
-      { encoding: 'utf-8' }
+      { encoding: 'utf-8' },
     ).trim();
 
     await otpInput.fill(otp);

@@ -1,22 +1,15 @@
-import { useState } from 'react';
 import { Button } from '@cms/design-system/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@cms/design-system/components/ui/dialog';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@cms/design-system/components/ui/dialog';
-import { AlertTriangle, ShieldAlert, UserCheck } from 'lucide-react';
-import { toast } from 'sonner';
 import { useNavigate } from '@tanstack/react-router';
+import { AlertTriangle, ShieldAlert, UserCheck } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
 import { useMembers, useWorkspaceSettings } from '@/hooks/api';
-import { useTransferWorkspaceOwnership, useDeleteWorkspace } from '../services/settings-api';
+import { useDeleteWorkspace, useTransferWorkspaceOwnership } from '../services/settings-api';
 import { SettingsSection } from './section';
 
 interface MemberItem {
@@ -39,9 +32,7 @@ export function WorkspaceDangerTab() {
   const deleteMutation = useDeleteWorkspace();
 
   const members = (rawMembers as { members?: MemberItem[] } | undefined)?.members ?? [];
-  const currentMember = members.find(
-    (m) => m.user?.id === session?.user?.id || m.user?.email === session?.user?.email
-  );
+  const currentMember = members.find((m) => m.user?.id === session?.user?.id || m.user?.email === session?.user?.email);
   const isOwner = currentMember?.role === 'owner';
 
   const [transferOpen, setTransferOpen] = useState(false);
@@ -134,9 +125,7 @@ export function WorkspaceDangerTab() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Transfer Workspace Ownership</DialogTitle>
-            <DialogDescription>
-              Select an active workspace member to become the new owner. Your role will be changed to Admin.
-            </DialogDescription>
+            <DialogDescription>Select an active workspace member to become the new owner. Your role will be changed to Admin.</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Label htmlFor="target-member">Select Member</Label>
@@ -154,7 +143,9 @@ export function WorkspaceDangerTab() {
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleTransfer} disabled={!selectedTargetId || transferMutation.isPending}>
               {transferMutation.isPending ? 'Transferring...' : 'Confirm Transfer'}
             </Button>
@@ -182,12 +173,10 @@ export function WorkspaceDangerTab() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={confirmName !== workspace?.name || deleteMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={confirmName !== workspace?.name || deleteMutation.isPending}>
               {deleteMutation.isPending ? 'Deleting...' : 'Permanently Delete Workspace'}
             </Button>
           </DialogFooter>

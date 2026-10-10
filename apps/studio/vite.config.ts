@@ -63,6 +63,10 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        '/sites': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
       },
     },
     optimizeDeps: {

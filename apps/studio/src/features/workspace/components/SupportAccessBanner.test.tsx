@@ -55,6 +55,7 @@ describe('SupportAccessBanner', () => {
   });
 
   it('shows the localized error when stopping support access fails without a message', async () => {
+    // biome-ignore lint/suspicious/useErrorMessage: tests empty message fallback
     mocks.stopImpersonating.mockRejectedValue(new Error(''));
     const container = await render('Layla');
 

@@ -14,12 +14,7 @@ import { uniqueEmail } from '../../src/support/data';
  * If someone reintroduces errors these tests fail; they must not be relaxed.
  */
 test.describe('first run with an empty workspace', () => {
-  test('a new account lands on the workspace dashboard without a failed request', async ({
-    page,
-    signIn,
-    mailbox,
-    diagnostics,
-  }) => {
+  test('a new account lands on the workspace dashboard without a failed request', async ({ page, signIn, mailbox, diagnostics }) => {
     const email = uniqueEmail('firstrun');
 
     await signIn.signIn(email, mailbox);
@@ -38,12 +33,7 @@ test.describe('first run with an empty workspace', () => {
     diagnostics.assertClean({ label: 'first run: ' });
   });
 
-  test('the dashboard analytics panel renders the empty state', async ({
-    page,
-    signIn,
-    mailbox,
-    diagnostics,
-  }) => {
+  test('the dashboard analytics panel renders the empty state', async ({ page, signIn, mailbox, diagnostics }) => {
     const email = uniqueEmail('emptyanalytics');
 
     await signIn.signIn(email, mailbox);
@@ -58,13 +48,7 @@ test.describe('first run with an empty workspace', () => {
     diagnostics.assertClean({ label: 'empty analytics panel: ' });
   });
 
-  test('after creating a site the same endpoint reports real availability', async ({
-    page,
-    signIn,
-    dashboard,
-    mailbox,
-    diagnostics,
-  }) => {
+  test('after creating a site the same endpoint reports real availability', async ({ page, signIn, dashboard, mailbox, diagnostics }) => {
     const email = uniqueEmail('withorg');
 
     await signIn.signIn(email, mailbox);

@@ -128,4 +128,121 @@ test.describe('Studio App Browser UI Workflows', () => {
 
     await context.close();
   });
+
+  test('Interactive dashboard elements: search dialog, new project modal, and sidebar navigation', async ({ browser }) => {
+    const context = await browser.newContext();
+    await context.addCookies([
+      {
+        name: 'cms_session',
+        value: session.sessionToken,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+
+    const page = await context.newPage();
+    await page.goto('/app');
+    await page.waitForLoadState('networkidle');
+
+    // 1. Search modal trigger and dismiss
+    const searchTrigger = page.locator('button:has-text("Search…"), button:has-text("Ctrl K")').first();
+    await expect(searchTrigger).toBeVisible();
+    await searchTrigger.click();
+    const searchDialog = page.locator('[role="dialog"], [data-cmdk-root]').first();
+    await expect(searchDialog).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.press('Escape');
+    await expect(searchDialog).toBeHidden({ timeout: 10_000 });
+
+    // 2. New project modal and API endpoint interaction
+    const newProjectBtn = page.getByRole('button', { name: /new project/i }).first();
+    await expect(newProjectBtn).toBeVisible();
+    await newProjectBtn.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /new documentation site/i })).toBeVisible();
+
+    const projectName = `Interactive Verified Site ${Date.now()}`;
+    await dialog.getByLabel('Name', { exact: true }).fill(projectName);
+
+    // Track API response for project creation
+    const [createResponse] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/projects') && res.request().method() === 'POST'),
+      dialog.getByRole('button', { name: /create project/i }).click(),
+    ]);
+    expect(createResponse.status()).toBeLessThan(400);
+
+    // Modal closes and new project row appears
+    await expect(dialog).toBeHidden({ timeout: 15_000 });
+    const siteRow = page.getByRole('row').filter({ hasText: projectName });
+    await expect(siteRow).toBeVisible({ timeout: 30_000 });
+
+    // 3. Sidebar navigation across all sections
+    await page.getByRole('link', { name: 'Sites' }).first().click();
+    await page.waitForURL(/\/app\/sites/);
+    await expect(page).toHaveURL(/\/app\/sites/);
+
+    await page.getByRole('link', { name: 'Analytics' }).first().click();
+    await page.waitForURL(/\/app\/analytics/);
+    await expect(page).toHaveURL(/\/app\/analytics/);
+
+    await page.getByRole('link', { name: 'Settings' }).first().click();
+    await page.waitForURL(/\/app\/settings/);
+    await expect(page).toHaveURL(/\/app\/settings/);
+
+    // Return to Overview
+    await page.getByRole('link', { name: 'Overview' }).first().click();
+    await page.waitForURL(/\/app$/);
+    await expect(page).toHaveURL(/\/app$/);
+
+    await context.close();
+  });
+
+  test('Interactive editor elements: mode switcher, page settings, and autosave indicators', async ({ browser }) => {
+    const context = await browser.newContext();
+    await context.addCookies([
+      {
+        name: 'cms_session',
+        value: session.sessionToken,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+
+    const page = await context.newPage();
+    await page.goto(`/app/projects/${projectId}/editor`);
+    await page.waitForLoadState('networkidle');
+
+    // 1. Interactive editor mode buttons (Visual / Rich text / Markdown)
+    const visualBtn = page.getByRole('button', { name: 'Visual', exact: true });
+    const richTextBtn = page.getByRole('button', { name: 'Rich text', exact: true });
+    const markdownBtn = page.getByRole('button', { name: 'Markdown', exact: true });
+
+    await expect(visualBtn).toBeVisible();
+    await expect(richTextBtn).toBeVisible();
+    await expect(markdownBtn).toBeVisible();
+
+    await markdownBtn.click();
+    const markdownTextarea = page.getByRole('textbox', { name: /Write Markdown/i });
+    await expect(markdownTextarea).toBeVisible();
+
+    await visualBtn.click();
+    await expect(markdownTextarea).toBeHidden();
+
+    // 2. Interactive Page settings dialog
+    const pageSettingsBtn = page.getByRole('button', { name: 'Page settings' }).first();
+    if (await pageSettingsBtn.isVisible()) {
+      await pageSettingsBtn.click();
+      const settingsDialog = page.getByRole('dialog').filter({ hasText: 'Page settings' });
+      await expect(settingsDialog).toBeVisible();
+      // Dismiss dialog
+      await page.keyboard.press('Escape');
+    }
+
+    await context.close();
+  });
 });

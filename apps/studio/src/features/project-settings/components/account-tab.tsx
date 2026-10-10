@@ -9,13 +9,7 @@ import { useForm } from '@tanstack/react-form';
 import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-  useChangeEmail,
-  useRequestEmailChange,
-  useSendVerificationOtp,
-  useSession,
-  useUpdateUser,
-} from '@/features/auth';
+import { useChangeEmail, useRequestEmailChange, useSendVerificationOtp, useSession, useUpdateUser } from '@/features/auth';
 import { required, email as validateEmail } from '@/shared';
 import { GradientAvatar, SettingsSection } from './section';
 

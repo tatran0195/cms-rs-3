@@ -116,7 +116,7 @@ export class PublicSite {
 
   /** Raw HTML, used for escaping / script-injection style assertions. */
   async rawHtml(): Promise<string> {
-    return (await this.page.content());
+    return await this.page.content();
   }
 
   async expectNoScriptExecution(markerId: string): Promise<void> {

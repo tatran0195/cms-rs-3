@@ -10,11 +10,7 @@ import { uniqueName } from '../../src/support/data';
  * site, and what does promoting a version do to the other one?
  */
 test.describe('versions', () => {
-  test('a version starts as a copy of the default version and edits are isolated', async ({
-    editor,
-    project,
-    db,
-  }) => {
+  test('a version starts as a copy of the default version and edits are isolated', async ({ editor, project, db }) => {
     const shared = uniqueName('Shared Page');
     const onlyInNew = uniqueName('Only In V2');
 
@@ -33,18 +29,14 @@ test.describe('versions', () => {
     await editor.setTitle(onlyInNew);
     await editor.waitForSaved();
 
-    const inNewVersion = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2`, [
-      project.id,
-      onlyInNew,
-    ]);
+    const inNewVersion = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, onlyInNew]);
     expect(inNewVersion).toBe(1);
 
     // The default branch is a different branch id: confirm the page only exists there.
-    const branches = await db.query(`SELECT id, name, is_default FROM "Branch" WHERE project_id = $1 ORDER BY created_at`, [
-      project.id,
-    ]);
+    const branches = await db.query(`SELECT id, name, is_default FROM "Branch" WHERE project_id = $1 ORDER BY created_at`, [project.id]);
     expect(branches).toHaveLength(2);
-    const defaultBranch = branches.find((b) => b.is_default === 'true')!;
+    const defaultBranch = branches.find((b) => b.is_default === 'true');
+    if (!defaultBranch) throw new Error('Expected default branch to exist');
     const scoped = await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2 AND branch_id = $3`, [
       project.id,
       onlyInNew,
@@ -69,47 +61,49 @@ test.describe('versions', () => {
     await editor.expectPageVisible(onlyInMain, 'en');
   });
 
-  test('publishing while a non-default version is selected still releases the default version',
-    async ({ page, editor, publish, releases, project, db }) => {
-      const title = uniqueName('Branch Publish');
-      const mainBody = `main-body-${Date.now()}`;
-      const v2Body = `v2-body-${Date.now()}`;
-
-      await editor.goto(project.id);
-      await editor.createPage('en');
-      await editor.setTitle(title);
-      await editor.setBody(`# ${title}\n\n${mainBody}\n`);
-      await editor.waitForSaved();
-
-      await editor.createVersion('v2-branch');
-      await editor.setBody(`# ${title}\n\n${v2Body}\n`);
-      await editor.waitForSaved();
-
-      const outcome = await publish.publishAndWait();
-      expect(outcome).toBe('ready');
-      await publish.closePipeline();
-
-      // Which branch did the release actually capture? Ask the release, not the UI.
-      const deployment = await db.one(
-        `SELECT d.id, d.branch_id, b.name AS branch_name, b.is_default
-           FROM "Deployment" d JOIN "Branch" b ON b.id = d.branch_id
-          WHERE d.project_id = $1 AND d.status = 'ACTIVE'
-          ORDER BY d.created_at DESC LIMIT 1`,
-        [project.id],
-      );
-      expect(deployment.branch_name).toBe('main');
-      expect(deployment.is_default).toBe('true');
-
-      const livePath = `/${slugOf(title)}`;
-      expect(await releases.snapshotPageText(deployment.id, livePath)).toContain(mainBody);
-      void page;
-    });
-
-  test('promoting a version into main replaces main’s pages and retires the version', async ({
+  test('publishing while a non-default version is selected still releases the default version', async ({
+    page,
     editor,
+    publish,
+    releases,
     project,
     db,
   }) => {
+    const title = uniqueName('Branch Publish');
+    const mainBody = `main-body-${Date.now()}`;
+    const v2Body = `v2-body-${Date.now()}`;
+
+    await editor.goto(project.id);
+    await editor.createPage('en');
+    await editor.setTitle(title);
+    await editor.setBody(`# ${title}\n\n${mainBody}\n`);
+    await editor.waitForSaved();
+
+    await editor.createVersion('v2-branch');
+    await editor.setBody(`# ${title}\n\n${v2Body}\n`);
+    await editor.waitForSaved();
+
+    const outcome = await publish.publishAndWait();
+    expect(outcome).toBe('ready');
+    await publish.closePipeline();
+
+    // Which branch did the release actually capture? Ask the release, not the UI.
+    const deployment = await db.one(
+      `SELECT d.id, d.branch_id, b.name AS branch_name, b.is_default
+           FROM "Deployment" d JOIN "Branch" b ON b.id = d.branch_id
+          WHERE d.project_id = $1 AND d.status = 'ACTIVE'
+          ORDER BY d.created_at DESC LIMIT 1`,
+      [project.id],
+    );
+    expect(deployment.branch_name).toBe('main');
+    expect(deployment.is_default).toBe('true');
+
+    const livePath = `/${slugOf(title)}`;
+    expect(await releases.snapshotPageText(deployment.id, livePath)).toContain(mainBody);
+    void page;
+  });
+
+  test('promoting a version into main replaces main’s pages and retires the version', async ({ editor, project, db }) => {
     const mainOnly = uniqueName('Main Only');
     const versionOnly = uniqueName('Version Only');
 
@@ -139,5 +133,8 @@ test.describe('versions', () => {
 });
 
 function slugOf(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

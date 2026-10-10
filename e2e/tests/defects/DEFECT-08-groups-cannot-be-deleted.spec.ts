@@ -34,21 +34,10 @@ test.describe('DEFECT-08 — group deletion', () => {
     await editor.deleteOpenPage();
 
     await editor.expectPageAbsent(group, 'en');
-    expect(
-      await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2`, [
-        project.id,
-        group,
-      ]),
-    ).toBe(0);
+    expect(await db.count(`SELECT count(*) AS count FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, group])).toBe(0);
   });
 
-  test('deleting a group detaches its documents instead of corrupting them', async ({
-    editor,
-    project,
-    browserApi,
-    db,
-    diagnostics,
-  }) => {
+  test('deleting a group detaches its documents instead of corrupting them', async ({ editor, project, browserApi, db, diagnostics }) => {
     const group = uniqueName('Cascade Group');
     const child = uniqueName('Cascade Child');
 
@@ -70,10 +59,7 @@ test.describe('DEFECT-08 — group deletion', () => {
     const groupRow = await editor.pageRowData(group, 'en');
     expect(groupRow?.kind, 'the group node must be identifiable before deleting it').toBe('GROUP');
 
-    const response = await browserApi.request(
-      'DELETE',
-      `/api/app/projects/${project.id}/pages/${groupRow!.id}`,
-    );
+    const response = await browserApi.request('DELETE', `/api/app/projects/${project.id}/pages/${groupRow?.id}`);
     expect(response.status, 'the backend accepts the deletion the UI cannot issue').toBeLessThan(400);
 
     // Nothing may point at a page that no longer exists…
@@ -85,10 +71,7 @@ test.describe('DEFECT-08 — group deletion', () => {
     expect(dangling, 'no page may keep a dangling parent reference').toHaveLength(0);
 
     // …the document survives…
-    const survivors = await db.query(`SELECT title, parent_id FROM "Page" WHERE project_id = $1 AND title = $2`, [
-      project.id,
-      child,
-    ]);
+    const survivors = await db.query(`SELECT title, parent_id FROM "Page" WHERE project_id = $1 AND title = $2`, [project.id, child]);
     expect(survivors, 'deleting a group must not delete its documents').toHaveLength(1);
 
     // …and the tree the author sees agrees with the database. The delete was

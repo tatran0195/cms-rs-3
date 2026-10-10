@@ -15,10 +15,7 @@ export const Route = createFileRoute('/onboarding')({
     }
   },
   head: () => ({
-    meta: [
-      { name: 'robots', content: 'noindex, nofollow' },
-      { title: 'Platform Setup — cms' },
-    ],
+    meta: [{ name: 'robots', content: 'noindex, nofollow' }, { title: 'Platform Setup — cms' }],
   }),
   component: OnboardingRoute,
 });

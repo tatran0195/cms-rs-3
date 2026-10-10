@@ -649,17 +649,19 @@ impl MarkdownRenderer {
     </style>
 </head>
 <body>
-    <header>
-        <h1>{}</h1>
-        <p>{}</p>
-    </header>
-    <main>
-        {}
-    </main>
-    <footer>
-        <hr>
-        <p>Powered by <a href="https://cms.com">CMS</a></p>
-    </footer>
+    <article>
+        <header>
+            <h1>{}</h1>
+            <p>{}</p>
+        </header>
+        <main>
+            {}
+        </main>
+        <footer>
+            <hr>
+            <p>Powered by <a href="https://cms.com">CMS</a></p>
+        </footer>
+    </article>
 </body>
 </html>"#,
             description,

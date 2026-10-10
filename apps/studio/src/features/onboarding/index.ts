@@ -1,2 +1,2 @@
-export * from './OnboardingWizard';
 export * from './components/StepIndicator';
+export * from './OnboardingWizard';

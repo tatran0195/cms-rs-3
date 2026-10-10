@@ -25,24 +25,27 @@ export class PublishControl {
     // Let the preflight request settle.
     // The preflight request fills the change list; wait for it to settle rather
     // than guessing with a sleep.
-    await expect(dialog.getByText('Checking for changes')).toBeHidden({ timeout: 30_000 }).catch(() => {});
+    await expect(dialog.getByText('Checking for changes'))
+      .toBeHidden({ timeout: 30_000 })
+      .catch(() => {
+        /* ignore */
+      });
     await expect
       .poll(async () => dialog.locator('li').count(), { timeout: 30_000 })
       .toBeGreaterThan(0)
-      .catch(() => {});
+      .catch(() => {
+        /* ignore */
+      });
     // Each pending change is a list row of "<title><path><status>".
     const rows = await dialog.locator('li').evaluateAll((nodes) =>
       nodes.map((node) => {
         const text = node.textContent ?? '';
-        const status = /\bNew\b/.test(text)
-          ? 'added'
-          : /\bRemoved?\b/.test(text)
-            ? 'removed'
-            : /\bEdit(ed)?\b/.test(text)
-              ? 'modified'
-              : 'unknown';
+        const status = /\bNew\b/.test(text) ? 'added' : /\bRemoved?\b/.test(text) ? 'removed' : /\bEdit(ed)?\b/.test(text) ? 'modified' : 'unknown';
         const path = /(\/[^\s]*)/.exec(text)?.[1] ?? '';
-        const title = text.replace(status === 'added' ? /\s*New\s*$/ : '', '').replace(/\s*\/?[^\s]*\s*(New|Removed|Edited)?\s*$/, '').trim();
+        const title = text
+          .replace(status === 'added' ? /\s*New\s*$/ : '', '')
+          .replace(/\s*\/?[^\s]*\s*(New|Removed|Edited)?\s*$/, '')
+          .trim();
         return { title, path, status };
       }),
     );
@@ -54,7 +57,11 @@ export class PublishControl {
   /** Publish and wait for the deploy pipeline to settle. Returns the outcome. */
   async publishAndWait(options: { message?: string; reviewDiff?: boolean } = {}): Promise<DeployOutcome> {
     const dialog = await this.openDialog();
-    await expect(dialog.getByText('Checking for changes')).toBeHidden({ timeout: 30_000 }).catch(() => {});
+    await expect(dialog.getByText('Checking for changes'))
+      .toBeHidden({ timeout: 30_000 })
+      .catch(() => {
+        /* ignore */
+      });
 
     if (options.reviewDiff) {
       await dialog.getByRole('button', { name: 'Review diff' }).click();
@@ -91,11 +98,15 @@ export class PublishControl {
     }
     const done = pipeline.getByRole('button', { name: 'Done', exact: true });
     if (await done.isVisible()) {
-      await done.click().catch(() => {});
+      await done.click().catch(() => {
+        /* ignore */
+      });
     } else {
       const close = pipeline.getByRole('button', { name: 'Close', exact: true });
       if (await close.isVisible()) {
-        await close.click().catch(() => {});
+        await close.click().catch(() => {
+          /* ignore */
+        });
       }
     }
     await expect(pipeline).toBeHidden({ timeout: 30_000 });

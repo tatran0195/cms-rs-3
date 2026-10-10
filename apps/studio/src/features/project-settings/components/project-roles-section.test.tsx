@@ -43,9 +43,7 @@ vi.mock('@/hooks/api', () => ({
     data: {
       workspace: { resources: [], actions: [] },
       project: {
-        resources: [
-          { key: 'pages', actions: ['create', 'read', 'edit', 'delete', 'publish'] },
-        ],
+        resources: [{ key: 'pages', actions: ['create', 'read', 'edit', 'delete', 'publish'] }],
         actions: ['create', 'read', 'edit', 'delete', 'publish'],
       },
     },

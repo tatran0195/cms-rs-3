@@ -88,6 +88,7 @@ export function WorkspaceProfileStep({ data, onChange, errors }: WorkspaceProfil
           {data.logoUrl && (
             <div className="mt-2 flex items-center gap-2 rounded-lg border border-border p-2 bg-muted/30">
               <span className="text-xs text-muted-foreground">Preview:</span>
+              {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: image error handler to hide broken image preview */}
               <img
                 src={data.logoUrl}
                 alt="Logo preview"

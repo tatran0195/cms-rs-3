@@ -18,10 +18,10 @@ import {
   ProjectsResource,
   PublicResource,
   ReaderAccessResource,
-  SearchResource,
-  WorkspaceResource,
   RolesResource,
+  SearchResource,
   SetupResource,
+  WorkspaceResource,
 } from './resources';
 
 export type CmsClientOptions = HttpClientOptions;

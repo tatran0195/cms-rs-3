@@ -1,7 +1,6 @@
 import type { CmsClient } from '@cms/sdk';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import type React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { SignInForm } from './sign-in-form';
 

@@ -22,25 +22,22 @@ export interface ForgedResponse {
  * a person clicking through the studio.
  */
 export class ForgedApi {
-  constructor(private readonly context: APIRequestContext, private readonly baseURL: string) {}
+  constructor(
+    private readonly context: APIRequestContext,
+    readonly _baseURL: string,
+  ) {}
 
   /** Wrap a fresh, cookie-less request context. */
   static fromContext(context: APIRequestContext, baseURL: string): ForgedApi {
     return new ForgedApi(context, baseURL);
   }
 
-  async request(
-    path: string,
-    init: { method?: string; data?: unknown; headers?: Record<string, string> } = {},
-  ): Promise<ForgedResponse> {
+  async request(path: string, init: { method?: string; data?: unknown; headers?: Record<string, string> } = {}): Promise<ForgedResponse> {
     const context = this.context;
     const method = init.method ?? 'GET';
     const response = await context.fetch(path, {
       method,
-      headers:
-        init.data === undefined
-          ? init.headers
-          : { 'Content-Type': 'application/json', ...init.headers },
+      headers: init.data === undefined ? init.headers : { 'Content-Type': 'application/json', ...init.headers },
       data: init.data as never,
     });
     const body = await response.text();

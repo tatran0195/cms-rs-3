@@ -10,11 +10,7 @@ import { uniqueEmail, uniqueName } from '../../src/support/data';
  * never given, and every refusal must leave the content untouched.
  */
 test.describe('permissions', () => {
-  test('a signed-out visitor is refused the editor, the settings and the API', async ({
-    browser,
-    project,
-    diagnostics,
-  }) => {
+  test('a signed-out visitor is refused the editor, the settings and the API', async ({ browser, project, diagnostics }) => {
     const visitor = await browser.newContext();
     const visitorPage = await visitor.newPage();
     for (const path of [`/app/projects/${project.id}/editor`, `/app/projects/${project.id}/settings`]) {
@@ -52,7 +48,7 @@ test.describe('permissions', () => {
   });
 
   test('an unrelated account cannot mutate content, publish, or delete through the API', async ({
-    page,
+    page: _page,
     secondContext,
     editor,
     project,
@@ -63,7 +59,7 @@ test.describe('permissions', () => {
     await editor.goto(project.id);
     await editor.createPage('en');
     await editor.setTitle(title);
-    const pageId = (await editor.pageRowData(title, 'en'))!.id;
+    const pageId = (await editor.pageRowData(title, 'en'))?.id;
 
     const intruder = await secondContext.newPage();
     await intruder.goto('/app');
@@ -109,11 +105,7 @@ test.describe('permissions', () => {
     diagnostics.assertClean({ label: 'cross-tenant mutation: ' });
   });
 
-  test('a forged project id in a URL does not grant access to someone else’s site', async ({
-    page,
-    secondContext,
-    project,
-  }) => {
+  test('a forged project id in a URL does not grant access to someone else’s site', async ({ page, secondContext, project }) => {
     const intruder = await secondContext.newPage();
     await intruder.goto('/app');
     const status = await intruder.evaluate(async (id) => {
@@ -141,13 +133,7 @@ test.describe('permissions', () => {
     diagnostics.assertClean({ label: 'post-logout write: ' });
   });
 
-  test('a brand new account starts with no projects and creates its own workspace', async ({
-    page,
-    dashboard,
-    author,
-    db,
-    diagnostics,
-  }) => {
+  test('a brand new account starts with no projects and creates its own workspace', async ({ page, dashboard, author: _author, db, diagnostics }) => {
     await page.goto('/app');
     await expect(page.getByText('No projects yet')).toBeVisible();
     expect(await dashboard.listedSiteNames()).toHaveLength(0);
@@ -156,10 +142,7 @@ test.describe('permissions', () => {
     const site = await dashboard.createSite(name);
     expect(site.id).toBeTruthy();
 
-    const membership = await db.one<{ role: string }>(
-      `SELECT pm.role FROM "ProjectMember" pm WHERE pm.project_id = $1`,
-      [site.id],
-    );
+    const membership = await db.one<{ role: string }>(`SELECT pm.role FROM "ProjectMember" pm WHERE pm.project_id = $1`, [site.id]);
     expect(membership.role.toLowerCase()).toBe('owner');
     void uniqueEmail;
     diagnostics.assertClean({ label: 'new workspace: ' });

@@ -29,17 +29,14 @@ test.describe('groups', () => {
       [project.id, child],
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.group_kind).toBe('GROUP');
+    const firstRow = rows[0];
+    if (!firstRow) throw new Error('Expected firstRow');
+    expect(firstRow.group_kind).toBe('GROUP');
     // Membership is expressed through the materialized path, not just parent_id.
-    expect(rows[0]!.child_path.startsWith(rows[0]!.group_path!)).toBe(true);
+    expect(firstRow.child_path.startsWith(firstRow.group_path)).toBe(true);
   });
 
-  test('a group with no documents is still a first-class entity in the tree and the database', async ({
-    editor,
-    project,
-    page,
-    db,
-  }) => {
+  test('a group with no documents is still a first-class entity in the tree and the database', async ({ editor, project, page, db }) => {
     const group = uniqueName('Empty Group');
     await editor.goto(project.id);
     await editor.createGroup('en', group);
@@ -54,19 +51,15 @@ test.describe('groups', () => {
     await expect(page.getByText(/Groups organize related pages/i)).toBeVisible();
   });
 
-  test('a group in one language cannot adopt a page from another language', async ({
-    editor,
-    project,
-    db,
-    diagnostics,
-  }) => {
+  test('a group in one language cannot adopt a page from another language', async ({ editor, project, db, diagnostics }) => {
     const group = uniqueName('EN Group');
     await editor.goto(project.id);
     await editor.createGroup('en', group);
     await editor.addCustomLanguage('vi', 'Tiếng Việt');
     await editor.expectLanguageVisible('vi');
 
-    const groupRow = (await editor.pageRowData(group, 'en'))!;
+    const groupRow = await editor.pageRowData(group, 'en');
+    if (!groupRow) throw new Error('Expected groupRow to exist');
     const englishLanguage = await db.one(`SELECT id FROM "Language" WHERE project_id = $1 AND code = 'en'`, [project.id]);
 
     // Forge the relationship a stale client could send: re-parent the English
@@ -112,5 +105,8 @@ test.describe('groups', () => {
 });
 
 function slugOf(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

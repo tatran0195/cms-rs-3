@@ -1,30 +1,23 @@
-import {
-  test as base,
-  expect,
-  type Browser,
-  type BrowserContext,
-  type Page,
-} from '@playwright/test';
-
-import { attachDiagnostics, type Diagnostics } from '../support/diagnostics';
-import { Database } from '../support/db';
-import { ReleaseInspector } from '../support/releases';
-import { Mailbox } from '../support/mail';
-import { uniqueEmail, uniqueName } from '../support/data';
+import { type Browser, type BrowserContext, test as base, expect, type Page } from '@playwright/test';
+import { AnalyticsPage } from '../pages/analytics.page';
 import { DashboardPage } from '../pages/dashboard.page';
 import { EditorPage } from '../pages/editor.page';
-import { PublishControl } from '../pages/publish.page';
-import { PublicSite } from '../pages/site.page';
-import { SignInPage } from '../pages/signin.page';
 import { AcceptInvitationPage } from '../pages/invitation.page';
-import { SitesPage } from '../pages/sites.page';
-import { AnalyticsPage } from '../pages/analytics.page';
-import { WorkspaceSettingsPage } from '../pages/workspace-settings.page';
-import { ProjectWorkspacePage } from '../pages/project-workspace.page';
 import { PreviewPage } from '../pages/preview.page';
 import { ProjectSettingsPage } from '../pages/project-settings.page';
-import { ForgedApi } from '../support/forged-api';
+import { ProjectWorkspacePage } from '../pages/project-workspace.page';
+import { PublishControl } from '../pages/publish.page';
+import { SignInPage } from '../pages/signin.page';
+import { PublicSite } from '../pages/site.page';
+import { SitesPage } from '../pages/sites.page';
+import { WorkspaceSettingsPage } from '../pages/workspace-settings.page';
 import { BrowserApi } from '../support/browser-api';
+import { uniqueEmail, uniqueName } from '../support/data';
+import { Database } from '../support/db';
+import { attachDiagnostics, type Diagnostics } from '../support/diagnostics';
+import { ForgedApi } from '../support/forged-api';
+import { Mailbox } from '../support/mail';
+import { ReleaseInspector } from '../support/releases';
 
 export interface Session {
   email: string;
@@ -95,10 +88,23 @@ export interface TestFixtures {
  * worker/test boundary: the mailbox, the read/write handle and one reused
  * signed-in account per worker live for the whole file's worker lifetime.
  */
+// biome-ignore lint/complexity/noBannedTypes: Playwright base.extend requires empty test fixture type
 const workerFixtures = base.extend<{}, WorkerFixtures>({
-  mailbox: [async ({}, use) => { await use(Mailbox.fromEnv()); }, { scope: 'worker' }],
+  mailbox: [
+    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires object destructuring for fixture arguments
+    async ({}, use) => {
+      await use(Mailbox.fromEnv());
+    },
+    { scope: 'worker' },
+  ],
 
-  db: [async ({}, use) => { await use(Database.fromEnv()); }, { scope: 'worker' }],
+  db: [
+    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires object destructuring for fixture arguments
+    async ({}, use) => {
+      await use(Database.fromEnv());
+    },
+    { scope: 'worker' },
+  ],
 
   workerSession: [
     async ({ browser, mailbox }, use, workerInfo) => {
@@ -175,7 +181,7 @@ export const test = workerFixtures.extend<TestFixtures>({
     await use(workerSession);
   },
 
-  author: async ({ page, signIn, mailbox }, use) => {
+  author: async ({ page: _page, signIn, mailbox }, use) => {
     const email = uniqueEmail('author');
     const before = mailbox.latestTimestamp();
     await signIn.signIn(email, mailbox);
@@ -184,7 +190,7 @@ export const test = workerFixtures.extend<TestFixtures>({
   },
 
   // ── Project fixture (created through the UI) ──────────────────────────────
-  project: async ({ page, dashboard, author }, use) => {
+  project: async ({ page: _page, dashboard, author: _author }, use) => {
     const name = uniqueName('Docs');
     const created = await dashboard.createSite(name);
     const site: Site = { id: created.id, name: created.name, defaultLanguage: 'en' };

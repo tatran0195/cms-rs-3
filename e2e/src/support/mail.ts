@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 interface MailMessage {
@@ -22,7 +22,7 @@ export class Mailbox {
   constructor(private readonly dir: string) {}
 
   static fromEnv(): Mailbox {
-    return new Mailbox(process.env.E2E_MAIL_DIR ?? '/home/user/e2e-mail');
+    return new Mailbox(process.env.E2E_MAIL_DIR ?? 'target/e2e-mail');
   }
 
   /** Wait for the newest message addressed to `email`, optionally after `since`. */
@@ -33,9 +33,7 @@ export class Mailbox {
 
     for (;;) {
       const found = this.list().find(
-        (message) =>
-          message.to.some((recipient) => recipient.toLowerCase() === email.toLowerCase()) &&
-          Date.parse(message.receivedAt) >= since,
+        (message) => message.to.some((recipient) => recipient.toLowerCase() === email.toLowerCase()) && Date.parse(message.receivedAt) >= since,
       );
       if (found) {
         return found;
@@ -55,10 +53,11 @@ export class Mailbox {
     const message = await this.waitForMessage(email, options);
     // Prefer the explicit machine-readable line, then any standalone 6 digits.
     const labelled = message.body.match(/\b(\d{6})\b/);
-    if (!labelled) {
+    const code = labelled?.[1];
+    if (!code) {
       throw new Error(`No 6-digit code found in message body:\n${message.body.slice(0, 500)}`);
     }
-    return labelled[1]!;
+    return code;
   }
 
   /** Newest timestamp seen across the inbox — use as `since` for the next wait. */

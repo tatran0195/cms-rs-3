@@ -6,10 +6,7 @@ export interface PasswordlessNoticeProps {
   onNavigateSignIn?: () => void;
 }
 
-export function PasswordlessNotice({
-  messageKey = 'auth.passwordless.description',
-  onNavigateSignIn,
-}: PasswordlessNoticeProps) {
+export function PasswordlessNotice({ messageKey = 'auth.passwordless.description', onNavigateSignIn }: PasswordlessNoticeProps) {
   const t = useT();
   return (
     <div className="flex flex-col items-center rounded-xl border border-border bg-muted/40 px-5 py-6 text-center">

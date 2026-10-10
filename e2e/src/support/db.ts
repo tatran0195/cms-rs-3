@@ -1,8 +1,5 @@
 import { spawn } from 'node:child_process';
 
-
-
-
 /**
  * Direct PostgreSQL access, used for *independent verification* only.
  *
@@ -39,13 +36,32 @@ export class Database {
     const stdout = await new Promise<string>((resolve, reject) => {
       const child = spawn(
         'psql',
-        ['-h', '127.0.0.1', '-p', String(new URL(this.url).port || 5432), '-U', userOf(this.url), '-d', dbOf(this.url), '-X', '-A', '-F', '\t', '-v', 'ON_ERROR_STOP=1'],
+        [
+          '-h',
+          '127.0.0.1',
+          '-p',
+          String(new URL(this.url).port || 5432),
+          '-U',
+          userOf(this.url),
+          '-d',
+          dbOf(this.url),
+          '-X',
+          '-A',
+          '-F',
+          '\t',
+          '-v',
+          'ON_ERROR_STOP=1',
+        ],
         { env, stdio: ['pipe', 'pipe', 'pipe'] },
       );
       let out = '';
       let err = '';
-      child.stdout.on('data', (chunk) => (out += chunk.toString('utf8')));
-      child.stderr.on('data', (chunk) => (err += chunk.toString('utf8')));
+      child.stdout.on('data', (chunk) => {
+        out += chunk.toString('utf8');
+      });
+      child.stderr.on('data', (chunk) => {
+        err += chunk.toString('utf8');
+      });
       child.on('error', reject);
       child.on('close', (code) => {
         if (code === 0) {
@@ -54,7 +70,7 @@ export class Database {
           reject(new Error(`psql failed (code ${code}): ${err}`));
         }
       });
-      child.stdin.write(rendered + '\n', 'utf8');
+      child.stdin.write(`${rendered}\n`, 'utf8');
       child.stdin.end();
     });
 
@@ -65,7 +81,7 @@ export class Database {
     if (lines.length === 0) {
       return [];
     }
-    const headers = lines[0]!.split('\t').map((h) => h.trim());
+    const headers = lines[0]?.split('\t').map((h) => h.trim());
     return lines.slice(1).map((line) => {
       const cells = line.split('\t');
       const row: Record<string, string> = {};
@@ -79,10 +95,11 @@ export class Database {
 
   async one<T = Record<string, string>>(sql: string, params: unknown[] = []): Promise<T> {
     const rows = await this.query<T>(sql, params);
-    if (rows.length === 0) {
+    const first = rows[0];
+    if (!first) {
       throw new Error(`Expected exactly one row from: ${sql}\nparams: ${JSON.stringify(params)}`);
     }
-    return rows[0]!;
+    return first;
   }
 
   /** Sum of a `count(*)`-style aggregate; 0 when the query yields no rows. */
@@ -111,7 +128,8 @@ function passwordOf(url: string): string | undefined {
 }
 
 function dbOf(url: string): string {
-  return url.slice(url.lastIndexOf('/') + 1).split('?')[0]!;
+  const segment = url.slice(url.lastIndexOf('/') + 1).split('?')[0];
+  return segment ?? 'cms';
 }
 
 /**

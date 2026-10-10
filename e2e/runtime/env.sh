@@ -7,7 +7,7 @@ export CMS_SERVER__HOST=127.0.0.1
 export CMS_SERVER__PORT=3000
 export CMS_SERVER__HTTPS=false
 
-export CMS_DATABASE__URL=postgres://postgres:postgres!Tsvs7345@127.0.0.1:5432/cms_e2e
+export CMS_DATABASE__URL=postgres://postgres:postgres!Tsvs7345@127.0.0.1:5432/cms
 export CMS_DATABASE__MAX_POOL_SIZE=10
 
 export CMS_AUTH__SESSION_SECRET=cms-e2e-session-secret

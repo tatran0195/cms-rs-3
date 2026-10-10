@@ -60,7 +60,7 @@ export interface RoleUsageResponse {
 }
 
 export class RolesResource {
-  constructor(private readonly http: HttpClient) { }
+  constructor(private readonly http: HttpClient) {}
 
   /**
    * Get dynamic dual-domain permissions catalog

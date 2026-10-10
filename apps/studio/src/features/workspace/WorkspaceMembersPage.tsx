@@ -1,46 +1,30 @@
-import { Button } from "@cms/design-system/components/ui/button";
-import { FieldError } from "@cms/design-system/components/ui/form-field";
-import { Input } from "@cms/design-system/components/ui/input";
-import { Label } from "@cms/design-system/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@cms/design-system/components/ui/select";
-import { Skeleton } from "@cms/design-system/components/ui/skeleton";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@cms/design-system/components/ui/tabs";
-import type { MessageKey } from "@cms/i18n";
-import { useT } from "@cms/i18n/react";
-import { useForm } from "@tanstack/react-form";
-import { Mail, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import {
-  useInviteMember,
-  useMembers,
-  useRemoveMember,
-  useUpdateMemberRole,
-} from "@/hooks/api";
-import { email as validateEmail } from "@/shared";
-import { WorkspaceRolesSection } from "./WorkspaceRolesSection";
+import { Button } from '@cms/design-system/components/ui/button';
+import { FieldError } from '@cms/design-system/components/ui/form-field';
+import { Input } from '@cms/design-system/components/ui/input';
+import { Label } from '@cms/design-system/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
+import { Skeleton } from '@cms/design-system/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
+import type { MessageKey } from '@cms/i18n';
+import { useT } from '@cms/i18n/react';
+import { useForm } from '@tanstack/react-form';
+import { Mail, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '@/hooks/api';
+import { email as validateEmail } from '@/shared';
+import { WorkspaceRolesSection } from './WorkspaceRolesSection';
 
-type AssignableRole = "admin" | "member";
+type AssignableRole = 'admin' | 'member';
 
 const roleLabelKey = (role: string | null | undefined): MessageKey => {
-  if (role === "owner") {
-    return "members.role.owner";
+  if (role === 'owner') {
+    return 'members.role.owner';
   }
-  if (role === "admin") {
-    return "members.role.admin";
+  if (role === 'admin') {
+    return 'members.role.admin';
   }
-  return "members.role.editor";
+  return 'members.role.editor';
 };
 
 interface MemberUser {
@@ -73,15 +57,15 @@ export function WorkspaceMembersPage() {
   const invite = useInviteMember();
   const remove = useRemoveMember();
   const updateRole = useUpdateMemberRole();
-  const [activeTab, setActiveTab] = useState<"members" | "roles">("members");
+  const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
 
   const roleOptions = [
-    { value: "member", label: t("members.role.editor") },
-    { value: "admin", label: t("members.role.admin") },
+    { value: 'member', label: t('members.role.editor') },
+    { value: 'admin', label: t('members.role.admin') },
   ] as const satisfies ReadonlyArray<{ value: AssignableRole; label: string }>;
 
   const form = useForm({
-    defaultValues: { email: "", role: "member" as AssignableRole },
+    defaultValues: { email: '', role: 'member' as AssignableRole },
     onSubmit: async ({ value }) => {
       const invited = value.email.trim();
       await new Promise<void>((resolve) => {
@@ -89,16 +73,12 @@ export function WorkspaceMembersPage() {
           { email: invited, role: value.role },
           {
             onSuccess: () => {
-              toast.success(t("members.toast.invited", { email: invited }));
+              toast.success(t('members.toast.invited', { email: invited }));
               form.reset();
               resolve();
             },
             onError: (error) => {
-              toast.error(
-                error instanceof Error
-                  ? error.message
-                  : t("members.toast.inviteError"),
-              );
+              toast.error(error instanceof Error ? error.message : t('members.toast.inviteError'));
               resolve();
             },
           },
@@ -110,23 +90,13 @@ export function WorkspaceMembersPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="font-semibold text-3xl tracking-tight">
-          {t("members.title")}
-        </h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          {t("members.subtitle")}
-        </p>
+        <h1 className="font-semibold text-3xl tracking-tight">{t('members.title')}</h1>
+        <p className="mt-1 text-muted-foreground text-sm">{t('members.subtitle')}</p>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) =>
-          setActiveTab((v as "members" | "roles") || "members")
-        }
-        className="w-full"
-      >
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab((v as 'members' | 'roles') || 'members')} className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="members">{t("members.title")}</TabsTrigger>
+          <TabsTrigger value="members">{t('members.title')}</TabsTrigger>
           <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
         </TabsList>
 
@@ -138,17 +108,11 @@ export function WorkspaceMembersPage() {
               form.handleSubmit();
             }}
           >
-            <form.Field
-              name="email"
-              validators={{ onChange: ({ value }) => validateEmail(value, t) }}
-            >
+            <form.Field name="email" validators={{ onChange: ({ value }) => validateEmail(value, t) }}>
               {(field) => (
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <Label
-                    className="font-medium text-sm"
-                    htmlFor="workspace-member-email"
-                  >
-                    {t("members.inviteByEmail")}
+                  <Label className="font-medium text-sm" htmlFor="workspace-member-email">
+                    {t('members.inviteByEmail')}
                   </Label>
                   <Input
                     id="workspace-member-email"
@@ -165,15 +129,8 @@ export function WorkspaceMembersPage() {
             <div className="flex w-full items-end gap-3 sm:w-auto">
               <form.Field name="role">
                 {(field) => (
-                  <Select
-                    items={roleOptions}
-                    onValueChange={(v) => field.handleChange(v ?? "member")}
-                    value={field.state.value}
-                  >
-                    <SelectTrigger
-                      aria-label={t("members.col.role")}
-                      className="min-w-0 flex-1 sm:w-32"
-                    >
+                  <Select items={roleOptions} onValueChange={(v) => field.handleChange(v ?? 'member')} value={field.state.value}>
+                    <SelectTrigger aria-label={t('members.col.role')} className="min-w-0 flex-1 sm:w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -188,12 +145,8 @@ export function WorkspaceMembersPage() {
               </form.Field>
               <form.Subscribe selector={(state) => state.isSubmitting}>
                 {(isSubmitting) => (
-                  <Button
-                    className="flex-1 sm:flex-none"
-                    disabled={isSubmitting}
-                    type="submit"
-                  >
-                    <Mail className="size-4" /> {t("members.invite")}
+                  <Button className="flex-1 sm:flex-none" disabled={isSubmitting} type="submit">
+                    <Mail className="size-4" /> {t('members.invite')}
                   </Button>
                 )}
               </form.Subscribe>
@@ -209,30 +162,21 @@ export function WorkspaceMembersPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-border border-b bg-muted/50 text-muted-foreground">
-                    <th className="px-4 py-2.5 text-start font-medium">
-                      {t("members.col.member")}
-                    </th>
-                    <th className="px-4 py-2.5 text-start font-medium">
-                      {t("members.col.role")}
-                    </th>
+                    <th className="px-4 py-2.5 text-start font-medium">{t('members.col.member')}</th>
+                    <th className="px-4 py-2.5 text-start font-medium">{t('members.col.role')}</th>
                     <th className="px-4 py-2.5" />
                   </tr>
                 </thead>
                 <tbody>
                   {(data?.members ?? []).map((member) => (
-                    <tr
-                      key={member.id}
-                      className="border-border border-b last:border-0"
-                    >
+                    <tr key={member.id} className="border-border border-b last:border-0">
                       <td className="px-4 py-3">
                         <div className="font-medium">{member.user.name}</div>
-                        <div className="text-muted-foreground text-xs">
-                          {member.user.email}
-                        </div>
+                        <div className="text-muted-foreground text-xs">{member.user.email}</div>
                       </td>
                       <td className="px-4 py-3">
-                        {member.role === "owner" ? (
-                          <span>{t("members.role.owner")}</span>
+                        {member.role === 'owner' ? (
+                          <span>{t('members.role.owner')}</span>
                         ) : (
                           <Select
                             items={roleOptions}
@@ -242,36 +186,22 @@ export function WorkspaceMembersPage() {
                                 {
                                   id: member.id,
                                   body: {
-                                    role: (v ?? "member") as AssignableRole,
+                                    role: (v ?? 'member') as AssignableRole,
                                   },
                                 },
                                 {
-                                  onSuccess: () =>
-                                    toast.success(
-                                      t("members.toast.roleUpdated"),
-                                    ),
-                                  onError: (error) =>
-                                    toast.error(
-                                      error instanceof Error
-                                        ? error.message
-                                        : t("members.toast.roleUpdateError"),
-                                    ),
+                                  onSuccess: () => toast.success(t('members.toast.roleUpdated')),
+                                  onError: (error) => toast.error(error instanceof Error ? error.message : t('members.toast.roleUpdateError')),
                                 },
                               )
                             }
                           >
-                            <SelectTrigger
-                              aria-label={t("members.col.role")}
-                              className="w-32"
-                            >
+                            <SelectTrigger aria-label={t('members.col.role')} className="w-32">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {roleOptions.map((option) => (
-                                <SelectItem
-                                  key={option.value}
-                                  value={option.value}
-                                >
+                                <SelectItem key={option.value} value={option.value}>
                                   {option.label}
                                 </SelectItem>
                               ))}
@@ -280,16 +210,15 @@ export function WorkspaceMembersPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-end">
-                        {member.role === "owner" ? null : (
+                        {member.role === 'owner' ? null : (
                           <Button
                             size="icon-sm"
                             variant="ghost"
-                            aria-label={t("members.remove")}
-                            title={t("members.remove")}
+                            aria-label={t('members.remove')}
+                            title={t('members.remove')}
                             onClick={() =>
                               remove.mutate(member.id, {
-                                onSuccess: () =>
-                                  toast.success(t("members.toast.removed")),
+                                onSuccess: () => toast.success(t('members.toast.removed')),
                               })
                             }
                           >
@@ -300,20 +229,13 @@ export function WorkspaceMembersPage() {
                     </tr>
                   ))}
                   {(data?.invitations ?? []).map((inv) => (
-                    <tr
-                      key={inv.id}
-                      className="border-border border-b bg-muted/20 last:border-0"
-                    >
+                    <tr key={inv.id} className="border-border border-b bg-muted/20 last:border-0">
                       <td className="px-4 py-3">
                         <div className="font-medium">{inv.email}</div>
-                        <div className="text-muted-foreground text-xs">
-                          {t("members.invitationPending")}
-                        </div>
+                        <div className="text-muted-foreground text-xs">{t('members.invitationPending')}</div>
                       </td>
                       <td className="px-4 py-3">{t(roleLabelKey(inv.role))}</td>
-                      <td className="px-4 py-3 text-end font-mono text-muted-foreground text-xs">
-                        {t("members.pending")}
-                      </td>
+                      <td className="px-4 py-3 text-end font-mono text-muted-foreground text-xs">{t('members.pending')}</td>
                     </tr>
                   ))}
                 </tbody>

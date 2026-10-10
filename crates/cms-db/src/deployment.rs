@@ -585,15 +585,19 @@ impl DeploymentQueries {
         language_id: &str,
         path: &str,
     ) -> Result<Option<cms_entity::page::Page>, AppError> {
+        let clean_path = path.trim_matches('/');
+        let leading_slash_path = format!("/{clean_path}");
         let row = sqlx::query_scalar::<_, serde_json::Value>(
             r#"SELECT page_content FROM "DeploymentSnapshotPageIndex"
-               WHERE deployment_id = $1 AND language_id = $2 AND path = $3
+               WHERE deployment_id = $1 AND language_id = $2
+                 AND (path = $3 OR path = $4 OR slug = $4)
                  AND UPPER(kind) = 'PAGE'
                LIMIT 1"#,
         )
         .bind(deployment_id)
         .bind(language_id)
-        .bind(path)
+        .bind(&leading_slash_path)
+        .bind(clean_path)
         .fetch_optional(pool)
         .await?;
         row.map(|row| serde_json::from_value(row).map_err(AppError::Serialization))

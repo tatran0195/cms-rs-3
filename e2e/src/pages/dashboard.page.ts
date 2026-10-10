@@ -98,8 +98,9 @@ export class DashboardPage {
 
 export function projectIdFromUrl(url: string): string {
   const match = url.match(/\/app\/projects\/([^/?#]+)/);
-  if (!match) {
+  const id = match?.[1];
+  if (!id) {
     throw new Error(`Could not read a project id from ${url}`);
   }
-  return match[1]!;
+  return id;
 }

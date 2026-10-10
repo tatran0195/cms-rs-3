@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, Lock, Palette, Shield, Sparkles, UserCheck } from 'lucide-react';
+import { Building2, Lock, Palette, Shield, Sparkles, UserCheck } from 'lucide-react';
 import type { AdminAccountData } from './AdminAccountStep';
 import type { AppearanceData } from './AppearanceStep';
 import type { AuthPoliciesData } from './AuthPoliciesStep';
@@ -20,7 +20,8 @@ export function ReviewLaunchStep({ admin, workspace, auth, appearance }: ReviewL
           <div>
             <p className="font-semibold text-sm">Ready to Initialize Platform</p>
             <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-              Please review your configuration below. Submitting will create your administrator account, apply instance settings, and log you directly into your workspace.
+              Please review your configuration below. Submitting will create your administrator account, apply instance settings, and log you directly
+              into your workspace.
             </p>
           </div>
         </div>
@@ -34,9 +35,15 @@ export function ReviewLaunchStep({ admin, workspace, auth, appearance }: ReviewL
             <span>Administrator Account</span>
           </div>
           <div className="text-xs space-y-1 text-muted-foreground">
-            <p><strong className="text-foreground">Name:</strong> {admin.name}</p>
-            <p><strong className="text-foreground">Email:</strong> {admin.email}</p>
-            <p><strong className="text-foreground">Role:</strong> Platform Superadmin</p>
+            <p>
+              <strong className="text-foreground">Name:</strong> {admin.name}
+            </p>
+            <p>
+              <strong className="text-foreground">Email:</strong> {admin.email}
+            </p>
+            <p>
+              <strong className="text-foreground">Role:</strong> Platform Superadmin
+            </p>
           </div>
         </div>
 
@@ -47,9 +54,17 @@ export function ReviewLaunchStep({ admin, workspace, auth, appearance }: ReviewL
             <span>Workspace Profile</span>
           </div>
           <div className="text-xs space-y-1 text-muted-foreground">
-            <p><strong className="text-foreground">Name:</strong> {workspace.name}</p>
-            <p><strong className="text-foreground">Slug:</strong> <code className="font-mono bg-muted px-1 py-0.5 rounded">{workspace.slug}</code></p>
-            {workspace.logoUrl && <p className="truncate"><strong className="text-foreground">Logo:</strong> {workspace.logoUrl}</p>}
+            <p>
+              <strong className="text-foreground">Name:</strong> {workspace.name}
+            </p>
+            <p>
+              <strong className="text-foreground">Slug:</strong> <code className="font-mono bg-muted px-1 py-0.5 rounded">{workspace.slug}</code>
+            </p>
+            {workspace.logoUrl && (
+              <p className="truncate">
+                <strong className="text-foreground">Logo:</strong> {workspace.logoUrl}
+              </p>
+            )}
           </div>
         </div>
 
@@ -65,8 +80,7 @@ export function ReviewLaunchStep({ admin, workspace, auth, appearance }: ReviewL
               {auth.allowPublicSignup ? 'Open Self-Registration' : 'Invite-Only (Restricted)'}
             </p>
             <p>
-              <strong className="text-foreground">Email Verification:</strong>{' '}
-              {auth.requireEmailVerification ? 'Required' : 'Optional'}
+              <strong className="text-foreground">Email Verification:</strong> {auth.requireEmailVerification ? 'Required' : 'Optional'}
             </p>
             <p>
               <strong className="text-foreground">SSO Providers:</strong>{' '}
@@ -82,8 +96,12 @@ export function ReviewLaunchStep({ admin, workspace, auth, appearance }: ReviewL
             <span>Appearance & Locale</span>
           </div>
           <div className="text-xs space-y-1 text-muted-foreground">
-            <p><strong className="text-foreground">Default Theme:</strong> <span className="capitalize">{appearance.defaultTheme}</span></p>
-            <p><strong className="text-foreground">Interface Language:</strong> <span className="uppercase">{appearance.defaultLocale}</span></p>
+            <p>
+              <strong className="text-foreground">Default Theme:</strong> <span className="capitalize">{appearance.defaultTheme}</span>
+            </p>
+            <p>
+              <strong className="text-foreground">Interface Language:</strong> <span className="uppercase">{appearance.defaultLocale}</span>
+            </p>
           </div>
         </div>
       </div>

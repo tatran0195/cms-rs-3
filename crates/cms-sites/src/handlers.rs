@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Extension, Path, State},
+    extract::{Extension, Path, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{Html, IntoResponse, Response},
 };
@@ -88,6 +88,7 @@ pub async fn load_published_site_snapshot(
     state: &Arc<SitesAppState>,
     project_id: &str,
     preferred_deployment_id: Option<&str>,
+    requested_lang: Option<&str>,
 ) -> Result<PublishedSiteSnapshot, AppError> {
     // Public visibility can be revoked immediately, even though old snapshots
     // remain retained for rollback and audit history.
@@ -137,18 +138,28 @@ pub async fn load_published_site_snapshot(
         ));
     }
 
-    let default_language = content
-        .languages
-        .iter()
-        .find(|language| language.is_default && language.enabled)
-        .or_else(|| content.languages.iter().find(|language| language.enabled))
-        .ok_or_else(|| AppError::NotFound("Published language not found".to_string()))?;
+    let selected_language = if let Some(lang) = requested_lang {
+        content
+            .languages
+            .iter()
+            .find(|language| {
+                (language.code.eq_ignore_ascii_case(lang) || language.id == lang) && language.enabled
+            })
+            .ok_or_else(|| AppError::NotFound(format!("Language '{}' not found or disabled", lang)))?
+    } else {
+        content
+            .languages
+            .iter()
+            .find(|language| language.is_default && language.enabled)
+            .or_else(|| content.languages.iter().find(|language| language.enabled))
+            .ok_or_else(|| AppError::NotFound("Published language not found".to_string()))?
+    };
     Ok(PublishedSiteSnapshot {
         project: content.project,
         deployment_id,
-        language_id: default_language.id.clone(),
-        language_code: default_language.code.clone(),
-        language_is_rtl: default_language.is_rtl,
+        language_id: selected_language.id.clone(),
+        language_code: selected_language.code.clone(),
+        language_is_rtl: selected_language.is_rtl,
     })
 }
 
@@ -201,8 +212,11 @@ pub async fn root_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
     ClientIp(client_ip): ClientIp,
+    Query(query): Query<std::collections::HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
+    let requested_lang = query.get("lang").map(|s| s.as_str());
+
     // Resolve host to project using the router-scoped cache.
     let resolution = host_resolver.resolve(&headers, client_ip).await?;
     if let Some(result) = resolution.as_ref() {
@@ -210,7 +224,7 @@ pub async fn root_handler(
     }
 
     match resolution {
-        Some(result) => serve_project_index(&state, &result)
+        Some(result) => serve_project_index(&state, &result, requested_lang)
             .await
             .map(|html| html.into_response()),
         None => Ok(serve_spa_file("index.html").await),
@@ -222,9 +236,51 @@ pub async fn wildcard_handler(
     State(state): State<Arc<SitesAppState>>,
     Extension(host_resolver): Extension<Arc<HostResolver>>,
     ClientIp(client_ip): ClientIp,
+    Query(query): Query<std::collections::HashMap<String, String>>,
     headers: HeaderMap,
     Path(path): Path<String>,
 ) -> Result<Response, AppError> {
+    let requested_lang = query.get("lang").map(|s| s.as_str());
+
+    // Check if the path targets the published sites viewer (/sites/{projectId}/**)
+    if let Some(sites_path) = path.strip_prefix("sites/").or_else(|| (path == "sites").then_some("")) {
+        let clean = sites_path.trim_matches('/');
+        if clean.is_empty() {
+            return serve_not_found().map(|html| html.into_response());
+        }
+
+        let mut parts = clean.splitn(2, '/');
+        let project_ref = parts.next().unwrap_or("");
+        let doc_path = parts.next().unwrap_or("");
+
+        let project = match ProjectQueries::get_by_id(&state.biz_context.pool, project_ref).await? {
+            Some(p) => Some(p),
+            None => ProjectQueries::get_by_slug_global(&state.biz_context.pool, project_ref).await?,
+        };
+
+        let Some(project) = project else {
+            return serve_not_found().map(|html| html.into_response());
+        };
+
+        let resolution = HostResolutionResult {
+            project_id: project.id.clone(),
+            deployment_id: None,
+            domain_id: None,
+            is_custom_domain: false,
+            hostname: format!("sites/{}", project.id),
+        };
+
+        if doc_path.is_empty() {
+            return serve_project_index(&state, &resolution, requested_lang)
+                .await
+                .map(|html| html.into_response());
+        } else {
+            return serve_page(&state, &resolution, doc_path, requested_lang)
+                .await
+                .map(|html| html.into_response());
+        }
+    }
+
     // Resolve host to project using the router-scoped cache.
     let resolution = host_resolver.resolve(&headers, client_ip).await?;
     if let Some(result) = resolution.as_ref() {
@@ -232,7 +288,7 @@ pub async fn wildcard_handler(
     }
 
     match resolution {
-        Some(result) => serve_page(&state, &result, &path)
+        Some(result) => serve_page(&state, &result, &path, requested_lang)
             .await
             .map(|html| html.into_response()),
         None => Ok(serve_spa_file(&path).await),
@@ -243,11 +299,13 @@ pub async fn wildcard_handler(
 pub async fn serve_project_index(
     state: &Arc<SitesAppState>,
     resolution: &HostResolutionResult,
+    requested_lang: Option<&str>,
 ) -> Result<Html<String>, AppError> {
     let site = load_published_site_snapshot(
         state,
         &resolution.project_id,
         resolution.deployment_id.as_deref(),
+        requested_lang,
     )
     .await?;
 
@@ -264,6 +322,8 @@ pub async fn serve_project_index(
                     && (page.slug == "index" || page.slug == "home" || page.slug == "readme")
             })
         })
+        .or_else(|| pages.iter().find(|page| page.parent_id.is_none()))
+        .or_else(|| pages.first())
         .map(|page| page.page_id.clone());
 
     let base_url = site_base_url(state, resolution, &site.project);
@@ -309,23 +369,22 @@ pub async fn serve_page(
     state: &Arc<SitesAppState>,
     resolution: &HostResolutionResult,
     path: &str,
+    requested_lang: Option<&str>,
 ) -> Result<Html<String>, AppError> {
     let site = load_published_site_snapshot(
         state,
         &resolution.project_id,
         resolution.deployment_id.as_deref(),
+        requested_lang,
     )
     .await?;
 
-    // The path/language/release index resolves one immutable body rather than
-    // loading every document body for a single-page request.
-    let normalized_path = path.trim_matches('/');
-    let snapshot_path = format!("/{normalized_path}");
+    let clean_path = path.trim_matches('/');
     let page = DeploymentQueries::get_snapshot_page_by_path(
         &state.biz_context.pool,
         &site.deployment_id,
         &site.language_id,
-        &snapshot_path,
+        clean_path,
     )
     .await?
     .filter(|page| page.is_published);
@@ -374,27 +433,100 @@ pub async fn render_page(
     let seo_tags = seo_generator.generate_meta_tags(&metadata);
     let structured_data = seo_generator.generate_structured_data(&metadata, true);
 
-    // Render markdown to HTML
-    let content = markdown_renderer.render_page(page, project);
+    // Render markdown to HTML content
+    let content = markdown_renderer.render_markdown(&page.content);
+
+    let page_title = escape_html(&page.title);
+    let page_description = escape_html(page.description.as_deref().unwrap_or(""));
+    let project_name = escape_html(&project.name);
+    let dir = if language_is_rtl { "rtl" } else { "ltr" };
 
     // Generate full HTML
     let html = format!(
         r#"<!DOCTYPE html>
 <html lang="{}" dir="{}">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{} - {}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }}
+        pre {{
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }}
+        pre[style] {{
+            padding: 1em;
+        }}
+        code {{
+            background: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+        }}
+        th {{
+            background: #f4f4f4;
+            text-align: left;
+        }}
+        img {{
+            max-width: 100%;
+            height: auto;
+        }}
+        a {{
+            color: #0066cc;
+            text-decoration: none;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
 {}
 {}
 {}
 </head>
 <body>
+    <article dir="{}">
+        <header>
+            <h1>{}</h1>
+            <p>{}</p>
+        </header>
+        <main>
 {}
+        </main>
+        <footer>
+            <hr>
+            <p>Powered by <a href="https://cms.com">CMS</a></p>
+        </footer>
+    </article>
 </body>
 </html>"#,
         language_code,
-        if language_is_rtl { "rtl" } else { "ltr" },
+        dir,
+        page_title,
+        project_name,
         seo_tags,
         structured_data,
         get_security_headers(),
+        dir,
+        page_title,
+        page_description,
         content
     );
 
@@ -436,36 +568,54 @@ pub async fn render_project_listing(
     // interpolating it into text nodes.
     let project_name = escape_html(&project.name);
     let project_description = escape_html(project.description.as_deref().unwrap_or(""));
+    let dir = if language_is_rtl { "rtl" } else { "ltr" };
     let html = format!(
         r#"<!DOCTYPE html>
 <html lang="{}" dir="{}">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }}
+    </style>
 {}
 {}
 {}
 </head>
 <body>
-    <header>
-        <h1>{}</h1>
-        <p>{}</p>
-    </header>
-    <main>
-        <h2>Pages</h2>
-        <ul>
+    <article dir="{}">
+        <header>
+            <h1>{}</h1>
+            <p>{}</p>
+        </header>
+        <main>
+            <h2>Pages</h2>
+            <ul>
 {}
-        </ul>
-    </main>
-    <footer>
-        <hr>
-        <p>Powered by <a href="https://cms.com">CMS</a></p>
-    </footer>
+            </ul>
+        </main>
+        <footer>
+            <hr>
+            <p>Powered by <a href="https://cms.com">CMS</a></p>
+        </footer>
+    </article>
 </body>
 </html>"#,
         language_code,
-        if language_is_rtl { "rtl" } else { "ltr" },
+        dir,
+        project_name,
         seo_tags,
         structured_data,
         get_security_headers(),
+        dir,
         project_name,
         project_description,
         page_list
@@ -480,6 +630,9 @@ pub fn get_security_headers() -> String {
     let mut headers = String::new();
 
     for (name, value) in security.get_headers() {
+        if name.eq_ignore_ascii_case("x-frame-options") {
+            continue;
+        }
         headers.push_str(&format!(
             "<meta http-equiv=\"{}\" content=\"{}\">\n",
             name, value
@@ -535,6 +688,7 @@ pub async fn robots_txt_handler(
                 &state,
                 &result.project_id,
                 result.deployment_id.as_deref(),
+                None,
             )
             .await?;
 
@@ -574,6 +728,7 @@ pub async fn sitemap_xml_handler(
                 &state,
                 &result.project_id,
                 result.deployment_id.as_deref(),
+                None,
             )
             .await?;
 
@@ -791,6 +946,7 @@ pub async fn manifest_handler(
                 &state,
                 &result.project_id,
                 result.deployment_id.as_deref(),
+                None,
             )
             .await?;
             serde_json::json!({

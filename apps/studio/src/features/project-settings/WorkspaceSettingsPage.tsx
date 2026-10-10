@@ -14,13 +14,7 @@ import { WorkspaceGeneralTab } from './components/workspace-general-tab';
 import { WorkspaceMembersTab } from './components/workspace-members-tab';
 import { WorkspaceRolesTab } from './components/workspace-roles-tab';
 
-export type WorkspaceSettingsTab =
-  | 'account'
-  | 'appearance'
-  | 'workspace-general'
-  | 'workspace-members'
-  | 'workspace-roles'
-  | 'workspace-danger';
+export type WorkspaceSettingsTab = 'account' | 'appearance' | 'workspace-general' | 'workspace-members' | 'workspace-roles' | 'workspace-danger';
 
 export interface SectionItem {
   value: WorkspaceSettingsTab;
@@ -41,13 +35,9 @@ export const WORKSPACE_SETTINGS_SECTIONS: ReadonlyArray<SectionItem> = [
   { value: 'workspace-danger', labelKey: 'settings.tab.account', labelFallback: 'Danger Zone', icon: AlertTriangle },
 ] as const;
 
-export const ALL_SETTINGS_SECTIONS: ReadonlyArray<SectionItem> = [
-  ...ACCOUNT_SETTINGS_SECTIONS,
-  ...WORKSPACE_SETTINGS_SECTIONS,
-];
+export const ALL_SETTINGS_SECTIONS: ReadonlyArray<SectionItem> = [...ACCOUNT_SETTINGS_SECTIONS, ...WORKSPACE_SETTINGS_SECTIONS];
 
-export const isWorkspaceSettingsTab = (value: unknown): value is WorkspaceSettingsTab =>
-  ALL_SETTINGS_SECTIONS.some((s) => s.value === value);
+export const isWorkspaceSettingsTab = (value: unknown): value is WorkspaceSettingsTab => ALL_SETTINGS_SECTIONS.some((s) => s.value === value);
 
 export interface WorkspaceSettingsPageProps {
   tab: WorkspaceSettingsTab;
@@ -60,13 +50,10 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
   const { data: rawMembers } = useMembers();
 
   const members =
-    (rawMembers as { members?: Array<{ id: string; role: string; user?: { id?: string; email?: string } }> } | undefined)
-      ?.members ?? [];
+    (rawMembers as { members?: Array<{ id: string; role: string; user?: { id?: string; email?: string } }> } | undefined)?.members ?? [];
 
   const currentMember = members.find(
-    (m) =>
-      (session?.user?.id && m.user?.id === session.user.id) ||
-      (session?.user?.email && m.user?.email === session.user.email),
+    (m) => (session?.user?.id && m.user?.id === session.user.id) || (session?.user?.email && m.user?.email === session.user.email),
   );
 
   const currentRole = currentMember?.role ?? 'member';
@@ -130,9 +117,7 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
         <nav className="hidden w-52 shrink-0 flex-col gap-5 sm:flex">
           {/* Account Group */}
           <div className="flex flex-col gap-1">
-            <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">
-              Account
-            </div>
+            <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">Account</div>
             {ACCOUNT_SETTINGS_SECTIONS.map((item) => {
               const Icon = item.icon;
               return (
@@ -157,9 +142,7 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
           {/* Workspace Group (Admin and Owner only) */}
           {isAdminOrOwner && (
             <div className="flex flex-col gap-1">
-              <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">
-                Workspace
-              </div>
+              <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">Workspace</div>
               {WORKSPACE_SETTINGS_SECTIONS.map((item) => {
                 const Icon = item.icon;
                 const isDanger = item.value === 'workspace-danger';

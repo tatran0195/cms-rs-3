@@ -68,13 +68,7 @@ test.describe('search and filtering', () => {
     await expect(editor.rowByTitle(title, 'en')).toBeVisible();
   });
 
-  test('the published site search finds a released document and not a draft', async ({
-    editor,
-    publish,
-    site,
-    project,
-    context,
-  }) => {
+  test('the published site search finds a released document and not a draft', async ({ editor, publish, site, project, context }) => {
     const title = uniqueName('Searchable Release');
     const draftOnly = uniqueName('Draft Only Doc');
 
@@ -92,7 +86,10 @@ test.describe('search and filtering', () => {
     const searchButton = site.page.getByRole('button', { name: /search/i }).first();
     if (await searchButton.isVisible()) {
       await searchButton.click();
-      const input = site.page.getByRole('searchbox').or(site.page.getByPlaceholder(/search/i)).first();
+      const input = site.page
+        .getByRole('searchbox')
+        .or(site.page.getByPlaceholder(/search/i))
+        .first();
       await input.fill('Searchable Release');
       await expect(site.page.getByText(title).first()).toBeVisible({ timeout: 30_000 });
     }

@@ -16,14 +16,7 @@ export interface VerifyEmailFormProps {
   onNavigateSignIn?: () => void;
 }
 
-export function VerifyEmailForm({
-  client,
-  email = '',
-  token,
-  deliveryFailed = false,
-  onSuccess,
-  onNavigateSignIn,
-}: VerifyEmailFormProps) {
+export function VerifyEmailForm({ client, email = '', token, deliveryFailed = false, onSuccess, onNavigateSignIn }: VerifyEmailFormProps) {
   const t = useT();
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(deliveryFailed ? t('auth.verify.sendError') : null);
@@ -145,7 +138,9 @@ export function VerifyEmailForm({
             <button className="text-muted-foreground hover:text-foreground" onClick={onNavigateSignIn} type="button">
               {t('auth.signIn.submit')}
             </button>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
           <button
             className="text-primary hover:underline disabled:text-muted-foreground"
             disabled={sending || verifying}
