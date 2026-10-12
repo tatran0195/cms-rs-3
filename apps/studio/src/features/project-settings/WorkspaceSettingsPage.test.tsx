@@ -16,11 +16,14 @@ const mockState = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/auth', () => ({
-  useSession: () => ({ data: { user: mockState.user } }),
+  useSession: () => ({ data: { user: mockState.user }, refetch: vi.fn() }),
   useUpdateUser: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useChangeEmail: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRequestEmailChange: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSendVerificationOtp: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMfaSetup: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMfaVerify: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMfaDisable: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/hooks/api', () => ({
