@@ -28,6 +28,8 @@ pub struct AppState {
     pub search_engine: Arc<dyn cms_search::SearchEngine>,
     /// Outbound email delivery used by auth and workflow handlers
     pub mailer: Arc<dyn cms_biz::email::Mailer>,
+    /// Transactional email renderer with embedded localized catalog
+    pub email_renderer: cms_biz::email::EmailRenderer,
     /// Generation counter used to invalidate cached host-to-project resolutions.
     pub host_resolution_generation: Arc<AtomicU64>,
 }
@@ -54,14 +56,17 @@ impl AppState {
         ));
         let biz_context = BizContext::new(pool, authz);
         let mailer = cms_biz::email::create_mailer(config.mailer.as_ref())?;
+        let email_renderer = cms_biz::email::EmailRenderer::embedded()
+            .map_err(AppError::internal)?;
 
-        Ok(Self::new_with_mailer(
+        Ok(Self::new_with_mailer_and_renderer(
             config.clone(),
             biz_context,
             storage,
             job_queue,
             search_engine,
             mailer,
+            email_renderer,
         ))
     }
 
@@ -92,6 +97,29 @@ impl AppState {
         search_engine: Arc<dyn cms_search::SearchEngine>,
         mailer: Arc<dyn cms_biz::email::Mailer>,
     ) -> Self {
+        let email_renderer = cms_biz::email::EmailRenderer::embedded()
+            .unwrap_or_else(|e| panic!("embedded email translations must be valid: {e}"));
+        Self::new_with_mailer_and_renderer(
+            config,
+            biz_context,
+            storage,
+            job_queue,
+            search_engine,
+            mailer,
+            email_renderer,
+        )
+    }
+
+    /// Create state with explicitly configured mail provider and email renderer.
+    pub fn new_with_mailer_and_renderer(
+        config: Config,
+        biz_context: BizContext,
+        storage: Arc<dyn Storage>,
+        job_queue: Arc<dyn JobQueue>,
+        search_engine: Arc<dyn cms_search::SearchEngine>,
+        mailer: Arc<dyn cms_biz::email::Mailer>,
+        email_renderer: cms_biz::email::EmailRenderer,
+    ) -> Self {
         Self {
             config: Arc::new(config),
             biz_context,
@@ -99,6 +127,7 @@ impl AppState {
             job_queue,
             search_engine,
             mailer,
+            email_renderer,
             host_resolution_generation: Arc::new(AtomicU64::new(0)),
         }
     }

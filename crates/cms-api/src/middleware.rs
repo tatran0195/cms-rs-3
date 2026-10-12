@@ -122,6 +122,11 @@ pub fn apply_api_middleware(router: Router, state: Arc<AppState>) -> Router {
         }
     }
 
+    // Add locale scoping middleware so handlers and error responses have active request locale
+    router = router.layer(axum::middleware::from_fn(
+        cms_middleware::locale_scoping_middleware,
+    ));
+
     // Add AppState to extensions for extractors
     router = router.layer(axum::Extension(state));
 

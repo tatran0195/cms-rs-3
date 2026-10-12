@@ -306,9 +306,27 @@ pub async fn invite_workspace_member_handler(
     // Attempt delivering invitation email if mailer is configured
     let base_url = format!("http://{}:{}", state.config.server.host, state.config.server.port);
     let invite_url = format!("{base_url}/accept-invitation?token={token}");
-    let subject = "You've been invited to join the Documentation Workspace";
-    let body_text = format!("Hello,\n\nYou have been invited to join the company documentation workspace as a {role}.\n\nAccept your invitation here:\n{invite_url}\n\nThis invitation link expires in 7 days.");
-    let _ = state.mailer.send_email(&email, subject, &body_text).await;
+    let inviter_name = auth
+        .user
+        .name
+        .clone()
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| auth.user.email.clone());
+    let invitation_email = cms_biz::email::Email::MemberInvitation {
+        inviter_name,
+        workspace_name: "cms".to_string(),
+        role: role.to_string(),
+        accept_url: invite_url.clone(),
+        expires_in_days: 7,
+    };
+    let locale = state.email_renderer.negotiate(["en"]);
+    if let Ok(rendered) = state.email_renderer.render(&invitation_email, &locale) {
+        let _ = state.mailer.send_rendered_email(&email, &rendered).await;
+    } else {
+        let subject = "You've been invited to join the Documentation Workspace";
+        let body_text = format!("Hello,\n\nYou have been invited to join the company documentation workspace as a {role}.\n\nAccept your invitation here:\n{invite_url}\n\nThis invitation link expires in 7 days.");
+        let _ = state.mailer.send_email(&email, subject, &body_text).await;
+    }
 
     let response = WorkspaceInvitationResponse {
         id: invitation_id,

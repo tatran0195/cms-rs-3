@@ -51,7 +51,9 @@ pub use admin_origin::{
     AdminOriginLayer, AdminOriginRejection, AdminOriginValidation,
 };
 pub use app_state::AppState;
-pub use locale::{Locale, LocaleExtractor, LocaleLayer, SetLocaleMiddleware};
+pub use locale::{
+    locale_scoping_middleware, Locale, LocaleExtractor, LocaleLayer, SetLocaleMiddleware,
+};
 pub use observability::{
     add_request_id_to_error, ensure_request_id, generate_request_id, get_or_generate_request_id,
     init_tracing, init_tracing_json, ObservabilityConfig, ObservabilityLayer, ObservabilityService,

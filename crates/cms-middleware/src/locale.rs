@@ -180,6 +180,26 @@ fn parse_cookies(cookie_str: &str) -> HashMap<String, String> {
     cookies
 }
 
+impl From<Locale> for cms_i18n::Locale {
+    fn from(l: Locale) -> Self {
+        cms_i18n::Locale::parse(l.as_str()).unwrap_or_default()
+    }
+}
+
+/// Middleware function to bind request locale into `cms_i18n::with_locale`
+pub async fn locale_scoping_middleware(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let (mut parts, body) = request.into_parts();
+    let locale = Locale::from_request_parts(&mut parts, &())
+        .await
+        .unwrap_or_default();
+    let i18n_locale: cms_i18n::Locale = locale.into();
+    let request = axum::extract::Request::from_parts(parts, body);
+    cms_i18n::with_locale(i18n_locale, next.run(request)).await
+}
+
 /// Locale layer for Tower middleware
 pub struct LocaleLayer;
 

@@ -13,6 +13,7 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
+cms-i18n = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

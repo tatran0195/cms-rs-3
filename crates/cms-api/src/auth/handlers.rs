@@ -307,8 +307,16 @@ async fn issue_and_send_otp(state: &AppState, email: &str, purpose: &str) -> Res
         }
         _ => cms_biz::email::VerificationPurpose::EmailVerification,
     };
-    let rendered = cms_biz::email::render_verification_code_email(&otp, verification_purpose, None)
-        .map_err(|e| AppError::Internal(e.into()))?;
+    let email_item = cms_biz::email::Email::VerificationCode {
+        code: otp.clone(),
+        purpose: verification_purpose,
+        ttl_minutes: 10,
+    };
+    let locale = state.email_renderer.negotiate(["en"]);
+    let rendered = state
+        .email_renderer
+        .render(&email_item, &locale)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     if let Err(error) = state.mailer.send_rendered_email(&email, &rendered).await {
         let _ =

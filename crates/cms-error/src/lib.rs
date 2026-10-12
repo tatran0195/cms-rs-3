@@ -27,6 +27,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 
+pub use anyhow;
+
 /// The root error type for the CMS application.
 ///
 /// All errors in the system should be converted to this type.
@@ -203,6 +205,16 @@ pub struct ApiError {
     pub details: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "requestId")]
     pub request_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub i18n: Option<ApiErrorI18n>,
+}
+
+/// Localized error translation metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiErrorI18n {
+    pub key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Backward compatibility alias
@@ -217,6 +229,11 @@ impl AppError {
             status,
             message: message.into(),
         }
+    }
+
+    /// Create an internal error from any error or message
+    pub fn internal(err: impl Into<anyhow::Error>) -> Self {
+        AppError::Internal(err.into())
     }
 
     /// Get the appropriate HTTP status code for this error
@@ -409,16 +426,69 @@ impl IntoResponse for AppError {
         let error_code = self.error_code();
         let raw_message = self.to_string();
         let raw_details = self.details();
+        let req_locale = cms_i18n::current_locale();
+
+        let mut args = cms_i18n::Args::new();
+        match &self {
+            AppError::NotFound(path) => {
+                args.set("path", path);
+            }
+            AppError::Conflict(d)
+            | AppError::PreconditionFailed(d)
+            | AppError::Validation(d)
+            | AppError::InvalidInput(d)
+            | AppError::Storage(d)
+            | AppError::SearchError(d)
+            | AppError::AiProvider(d)
+            | AppError::InvalidImportDocument(d)
+            | AppError::ImportFailed(d)
+            | AppError::GitOperationFailed(d)
+            | AppError::McpError(d)
+            | AppError::IntegrationError(d)
+            | AppError::AddonError(d)
+            | AppError::ProviderError(d)
+            | AppError::InvalidToken(d)
+            | AppError::InsufficientRole(d)
+            | AppError::AccessDenied(d) => {
+                args.set("details", d);
+            }
+            AppError::ValidationFields { message, .. } => {
+                args.set("details", message);
+            }
+            _ => {}
+        }
+
+        let i18n_key = cms_i18n::error_code_to_key(&error_code);
+        let localized_msg = cms_i18n::localize_error(&error_code, &req_locale, &args);
+
+        let i18n_payload = Some(ApiErrorI18n {
+            key: i18n_key,
+            args: if let Some(m) = raw_details.as_ref() {
+                if let Some(map) = m.as_object() {
+                    let h: std::collections::HashMap<String, String> = map
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.as_str().map(|s| s.to_string()).unwrap_or_else(|| v.to_string())))
+                        .collect();
+                    if h.is_empty() { None } else { Some(h) }
+                } else {
+                    None
+                }
+            } else {
+                None
+            },
+        });
 
         // Never leak raw SQL, internal paths, or unvetted infrastructure errors to clients
         let (message, details, error_id) = if status.is_server_error() {
             let error_id = uuid::Uuid::new_v4().to_string();
-            let safe_msg = match &self {
-                AppError::Database(_)
-                | AppError::DatabaseConnectionFailed
-                | AppError::TransactionFailed => "An internal database error occurred".to_string(),
-                _ => "An internal server error occurred".to_string(),
-            };
+            let safe_msg = localized_msg.unwrap_or_else(|| {
+                match &self {
+                    AppError::Database(_)
+                    | AppError::DatabaseConnectionFailed
+                    | AppError::TransactionFailed => "An internal database error occurred".to_string(),
+                    _ => "An internal server error occurred".to_string(),
+                }
+            });
             tracing::error!(
                 status = %status,
                 error_id = %error_id,
@@ -441,7 +511,7 @@ impl IntoResponse for AppError {
                     "AppError Client Error"
                 );
             }
-            (raw_message, raw_details, None)
+            (localized_msg.unwrap_or(raw_message), raw_details, None)
         };
 
         let body = ApiErrorResponse {
@@ -450,6 +520,7 @@ impl IntoResponse for AppError {
                 message,
                 details,
                 request_id: error_id.clone(),
+                i18n: i18n_payload,
             },
         };
 
@@ -465,7 +536,8 @@ impl IntoResponse for AppError {
 
         let mut builder = Response::builder()
             .status(status)
-            .header("Content-Type", "application/json");
+            .header("Content-Type", "application/json")
+            .header("Content-Language", req_locale.as_str());
 
         if let Some(ref eid) = error_id {
             builder = builder.header("X-Error-ID", eid);
