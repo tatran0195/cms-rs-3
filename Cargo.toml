@@ -35,6 +35,7 @@ members = [
   "crates/cms-worker",
   "crates/cms-middleware",
   "crates/cms-mailer",
+  "crates/cms-i18n",
   "apps/api",
   "apps/runner",
 ]
@@ -44,6 +45,7 @@ resolver = "2"
 # Internal dependencies (path-based)
 cms-config = { path = "crates/cms-config" }
 cms-error = { path = "crates/cms-error" }
+cms-i18n = { path = "crates/cms-i18n" }
 cms-entity = { path = "crates/cms-entity" }
 cms-db = { path = "crates/cms-db" }
 cms-auth = { path = "crates/cms-auth" }
