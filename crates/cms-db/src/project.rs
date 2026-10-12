@@ -349,9 +349,6 @@ impl ProjectQueries {
         .await
         .map_err(|e| AppError::Database(e.into()))?;
 
-        // Default project roles
-        crate::authz::ProjectRoleQueries::seed_defaults_conn(&mut tx, &project_id).await?;
-
         // Seed project owner member if creator is specified
         if let Some(user_id) = creator_user_id {
             let member_id = Uuid::new_v4().to_string();
