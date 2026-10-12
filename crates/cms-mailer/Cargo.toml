@@ -2,11 +2,13 @@
 name = "cms-mailer"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 async-trait = { workspace = true }
 cms-config = { workspace = true }
 cms-error = { workspace = true }
+cms-i18n = { workspace = true }
 lettre = { workspace = true }
 minijinja = { workspace = true }
 serde = { workspace = true }
@@ -14,6 +16,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+
+[build-dependencies]
+serde_json = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

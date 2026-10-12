@@ -1,92 +1,9 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
-/// Supported email languages matching `@cms/i18n`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum EmailLanguage {
-    #[default]
-    En,
-    Ja,
-    ZhCn,
-    Custom(String),
-}
-
-impl EmailLanguage {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::En => "en",
-            Self::Ja => "ja",
-            Self::ZhCn => "zh-CN",
-            Self::Custom(s) => s.as_str(),
-        }
-    }
-
-    pub fn parse_locale(s: &str) -> Self {
-        let normalized = s.trim().to_lowercase();
-        if normalized == "ja" || normalized.starts_with("ja-") {
-            Self::Ja
-        } else if normalized == "zh-cn" || normalized == "zh" || normalized.starts_with("zh-") {
-            Self::ZhCn
-        } else if normalized == "en" || normalized.starts_with("en-") {
-            Self::En
-        } else {
-            Self::Custom(s.to_string())
-        }
-    }
-
-    pub fn direction(&self) -> Direction {
-        match self {
-            Self::Custom(s)
-                if s.to_lowercase().starts_with("he")
-                    || s.to_lowercase().starts_with("fa")
-                    || s.to_lowercase().starts_with("ur") =>
-            {
-                Direction::Rtl
-            }
-            _ => Direction::Ltr,
-        }
-    }
-}
-
-impl From<&str> for EmailLanguage {
-    fn from(s: &str) -> Self {
-        Self::parse_locale(s)
-    }
-}
-
-impl From<String> for EmailLanguage {
-    fn from(s: String) -> Self {
-        Self::parse_locale(&s)
-    }
-}
-
-impl std::fmt::Display for EmailLanguage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-/// Text direction for email layouts (LTR or RTL).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum Direction {
-    #[default]
-    Ltr,
-    Rtl,
-}
-
-impl Direction {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Ltr => "ltr",
-            Self::Rtl => "rtl",
-        }
-    }
-}
-
-impl std::fmt::Display for Direction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
+pub use crate::i18n::Direction;
+use crate::i18n::Locale;
 
 /// A rendered email containing subject line, HTML body, and plain-text fallback.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -95,6 +12,11 @@ pub struct RenderedEmail {
     pub html: String,
     pub text: String,
 }
+
+/// Unknown [`VerificationPurpose`] string.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown verification purpose `{0}`")]
+pub struct UnknownPurpose(pub String);
 
 /// One-time verification code purpose.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -116,15 +38,27 @@ impl VerificationPurpose {
         }
     }
 
+    /// Lenient parser that silently maps *unknown* input to `EmailVerification`.
+    /// A typo then sends the wrong email; use `str::parse` and handle the error.
+    #[deprecated(note = "use `str::parse::<VerificationPurpose>()`; unknown values are an error")]
     pub fn from_str_loose(s: &str) -> Self {
+        s.parse().unwrap_or(Self::EmailVerification)
+    }
+}
+
+impl FromStr for VerificationPurpose {
+    type Err = UnknownPurpose;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let norm = s.trim().to_lowercase().replace('_', "-");
         match norm.as_str() {
-            "sign-in" | "signin" | "login" => Self::SignIn,
-            "change-email" | "changeemail" => Self::ChangeEmail,
+            "sign-in" | "signin" | "login" => Ok(Self::SignIn),
+            "email-verification" | "verify-email" | "verification" => Ok(Self::EmailVerification),
+            "change-email" | "changeemail" => Ok(Self::ChangeEmail),
             "forget-password" | "forgot-password" | "password-reset" | "reset-password" => {
-                Self::ForgetPassword
+                Ok(Self::ForgetPassword)
             }
-            _ => Self::EmailVerification,
+            _ => Err(UnknownPurpose(s.to_owned())),
         }
     }
 }
@@ -144,13 +78,22 @@ pub struct EmailAction {
     pub url: String,
 }
 
-/// Low-level properties passed to render transactional templates.
+/// Already-localised brand strings used by the layout (header/footer/fallback link).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Brand {
+    pub name: String,
+    pub footer: String,
+    pub fallback_link_label: String,
+}
+
+/// Fully-resolved input of the presentation layer. Every string is already translated;
+/// the template engine does layout only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TransactionalEmailProps {
     pub title: String,
     pub message: String,
     pub preview: String,
-    pub language: EmailLanguage,
+    pub language: Locale,
     #[serde(default)]
     pub subject: Option<String>,
     pub code: Option<String>,
@@ -158,4 +101,5 @@ pub struct TransactionalEmailProps {
     pub detail: Option<String>,
     #[serde(default)]
     pub logo_url: Option<String>,
+    pub brand: Brand,
 }

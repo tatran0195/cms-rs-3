@@ -1,276 +1,285 @@
-use std::sync::LazyLock;
+//! Composition: [`Email`] + [`Locale`] → localised strings → presentation layer.
+
+use std::sync::Arc;
 
 use crate::{
-    i18n::translate,
+    email::Email,
+    embedded,
+    error::RenderError,
+    i18n::{Args, Catalog, CatalogBuilder, CatalogError, Locale},
+    keys as k,
     templates::TemplateEngine,
     types::{
-        DeploymentOutcome, EmailAction, EmailLanguage, RenderedEmail, TransactionalEmailProps,
+        Brand, DeploymentOutcome, EmailAction, RenderedEmail, TransactionalEmailProps,
         VerificationPurpose,
     },
 };
 
-static GLOBAL_ENGINE: LazyLock<TemplateEngine> =
-    LazyLock::new(|| TemplateEngine::new().expect("Failed to initialize template engine"));
+/// Key namespace this crate reads from the shared message files.
+pub const NAMESPACE: &str = "email_";
+/// Base locale (Paraglide `baseLocale`); must contain every key in [`keys::ALL`](crate::keys::ALL).
+pub const DEFAULT_LOCALE: &str = "en";
 
-/// Render a verification code email for sign-in, email verification, password reset, or email change.
-pub fn render_verification_code_email(
-    code: &str,
-    purpose: VerificationPurpose,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let prefix = match purpose {
-        VerificationPurpose::SignIn => "otp.signIn",
-        VerificationPurpose::ChangeEmail => "otp.changeEmail",
-        VerificationPurpose::ForgetPassword => "otp.forgotPassword",
-        VerificationPurpose::EmailVerification => "otp.verifyEmail",
-    };
-
-    let subject_key = format!("email.{}.subject", prefix);
-    let preview_key = format!("email.{}.preview", prefix);
-    let message_key = format!("email.{}.message", prefix);
-
-    let subject = translate(&lang, &subject_key, &[]);
-    let preview = translate(&lang, &preview_key, &[]);
-    let message = translate(&lang, &message_key, &[]);
-    let title = translate(&lang, "email.otp.title", &[]);
-    let detail = translate(&lang, "email.otp.expiry", &[("minutes", "10")]);
-
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: Some(code.to_string()),
-        action: None,
-        detail: Some(detail),
-        logo_url: None,
-    })
+/// A builder pre-loaded with the messages embedded at compile time.
+/// Chain `.add_dir(..)` on it for runtime overrides before `.build()`.
+pub fn embedded_catalog_builder() -> Result<CatalogBuilder, CatalogError> {
+    let mut builder = Catalog::builder(Locale::parse(DEFAULT_LOCALE)?).namespace(NAMESPACE);
+    for (locale, json) in embedded::MESSAGES {
+        builder = builder.add_json(locale, json)?;
+    }
+    Ok(builder)
 }
 
-/// Render an email verification link email.
-pub fn render_email_verification_email(
-    url: &str,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let subject = translate(&lang, "email.verifyEmail.subject", &[]);
-    let preview = translate(&lang, "email.verifyEmail.preview", &[]);
-    let title = translate(&lang, "email.verifyEmail.title", &[]);
-    let message = translate(&lang, "email.verifyEmail.message", &[]);
-    let action_label = translate(&lang, "email.verifyEmail.action", &[]);
-    let detail = translate(&lang, "email.verifyEmail.detail", &[]);
-
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: None,
-        action: Some(EmailAction {
-            label: action_label,
-            url: url.to_string(),
-        }),
-        detail: Some(detail),
-        logo_url: None,
-    })
+/// Renders every [`Email`] in any locale. Build it **once at startup** and share it
+/// (`Clone` is cheap: the catalog is behind an `Arc`). Construction audits the catalog,
+/// so a missing/broken translation is a boot failure, not a runtime surprise.
+#[derive(Clone)]
+pub struct EmailRenderer {
+    catalog: Arc<Catalog>,
+    engine: TemplateEngine,
 }
 
-/// Render a notification email sent when a new member joins a workspace.
-pub fn render_member_joined_email(
-    member_name: &str,
-    workspace_name: &str,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let vars = &[
-        ("memberName", member_name),
-        ("workspaceName", workspace_name),
-    ];
+impl EmailRenderer {
+    /// Renderer over the compile-time embedded messages.
+    pub fn embedded() -> Result<Self, RenderError> {
+        Self::new(Arc::new(embedded_catalog_builder()?.build()?))
+    }
 
-    let subject = translate(&lang, "email.memberJoined.subject", vars);
-    let preview = translate(&lang, "email.memberJoined.preview", vars);
-    let title = translate(&lang, "email.memberJoined.title", vars);
-    let message = translate(&lang, "email.memberJoined.message", vars);
+    /// Renderer over a custom catalog (tests, runtime overrides).
+    pub fn new(catalog: Arc<Catalog>) -> Result<Self, RenderError> {
+        let audit = catalog.audit(k::ALL, k::PLURAL);
+        for warning in &audit.warnings {
+            tracing::warn!("email i18n: {warning}");
+        }
+        if !audit.is_ok() {
+            return Err(RenderError::InvalidCatalog(audit.errors.join("\n")));
+        }
+        Ok(Self { catalog, engine: TemplateEngine::new()? })
+    }
 
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: None,
-        action: None,
-        detail: None,
-        logo_url: None,
-    })
-}
+    pub fn catalog(&self) -> &Catalog {
+        &self.catalog
+    }
 
-/// Render a security alert email for new sign-ins (optionally displaying the client IP address).
-pub fn render_new_sign_in_email(
-    ip_address: Option<&str>,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let subject = translate(&lang, "email.newSignIn.subject", &[]);
-    let preview = translate(&lang, "email.newSignIn.preview", &[]);
-    let title = translate(&lang, "email.newSignIn.title", &[]);
-    let message = match ip_address {
-        Some(ip) => translate(&lang, "email.newSignIn.withIp", &[("ipAddress", ip)]),
-        None => translate(&lang, "email.newSignIn.withoutIp", &[]),
-    };
-    let detail = translate(&lang, "email.newSignIn.detail", &[]);
+    /// Best available locale for a priority-ordered list of requested tags
+    /// (e.g. `[user.locale, ..accept_language_tags(header)]`).
+    pub fn negotiate<'a>(&self, requested: impl IntoIterator<Item = &'a str>) -> Locale {
+        self.catalog.negotiate(requested)
+    }
 
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: None,
-        action: None,
-        detail: Some(detail),
-        logo_url: None,
-    })
-}
+    /// Render `email` for `requested`.
+    ///
+    /// The requested locale is first resolved to the locale actually *served*
+    /// (`ja-JP` → `ja`, `ar` without a bundle → default). Text **and** layout
+    /// (`lang`, `dir`) follow the served locale, so an Arabic user who falls back to
+    /// English gets a coherent LTR English email, not English text in an RTL shell.
+    pub fn render(&self, email: &Email, requested: &Locale) -> Result<RenderedEmail, RenderError> {
+        let locale = &self.catalog.negotiate([requested.as_str()]);
+        let c = compose(email);
+        let t = |key: &str| self.catalog.format(locale, key, &c.args);
 
-/// Render a workspace member invitation email.
-pub fn render_member_invitation_email(
-    inviter_name: &str,
-    workspace_name: &str,
-    role: &str,
-    accept_url: &str,
-    days: u32,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let days_str = days.to_string();
-    let vars = &[
-        ("inviterName", inviter_name),
-        ("workspaceName", workspace_name),
-        ("role", role),
-        ("days", days_str.as_str()),
-    ];
+        let subject = t(c.subject)?;
+        let preview = t(c.preview)?;
+        let title = t(c.title)?;
+        let message = t(c.message)?;
 
-    let subject = translate(&lang, "email.invite.subject", vars);
-    let preview = translate(&lang, "email.invite.preview", vars);
-    let title = translate(&lang, "email.invite.title", vars);
-    let message = translate(&lang, "email.invite.message", vars);
-    let action_label = translate(&lang, "email.invite.action", vars);
-    let detail = translate(&lang, "email.invite.expiry", vars);
-
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: None,
-        action: Some(EmailAction {
-            label: action_label,
-            url: accept_url.to_string(),
-        }),
-        detail: Some(detail),
-        logo_url: None,
-    })
-}
-
-/// Render a project reader invitation email.
-pub fn render_reader_invitation_email(
-    project_name: &str,
-    activation_url: &str,
-    days: u32,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let days_str = days.to_string();
-    let vars = &[("projectName", project_name), ("days", days_str.as_str())];
-
-    let subject = translate(&lang, "email.readerInvite.subject", vars);
-    let preview = translate(&lang, "email.readerInvite.preview", vars);
-    let title = translate(&lang, "email.readerInvite.title", vars);
-    let message = translate(&lang, "email.readerInvite.message", vars);
-    let action_label = translate(&lang, "email.readerInvite.action", vars);
-    let detail = translate(&lang, "email.readerInvite.expiry", vars);
-
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: None,
-        action: Some(EmailAction {
-            label: action_label,
-            url: activation_url.to_string(),
-        }),
-        detail: Some(detail),
-        logo_url: None,
-    })
-}
-
-/// Render a deployment build/publish status email (ready or failed).
-pub fn render_deployment_email(
-    project_name: &str,
-    version: u32,
-    outcome: DeploymentOutcome,
-    site_url: Option<&str>,
-    error: Option<&str>,
-    language: Option<EmailLanguage>,
-) -> Result<RenderedEmail, minijinja::Error> {
-    let lang = language.unwrap_or_default();
-    let version_str = version.to_string();
-    let err_str = error.unwrap_or("");
-    let vars = &[
-        ("projectName", project_name),
-        ("version", version_str.as_str()),
-        ("error", err_str),
-    ];
-
-    let prefix = match outcome {
-        DeploymentOutcome::Ready => "deployment.ready",
-        DeploymentOutcome::Failed => "deployment.failed",
-    };
-
-    let subject_key = format!("email.{}.subject", prefix);
-    let preview_key = format!("email.{}.preview", prefix);
-    let title_key = format!("email.{}.title", prefix);
-    let message_key = format!("email.{}.message", prefix);
-
-    let subject = translate(&lang, &subject_key, vars);
-    let preview = translate(&lang, &preview_key, vars);
-    let title = translate(&lang, &title_key, vars);
-    let message = translate(&lang, &message_key, vars);
-
-    let action = if outcome == DeploymentOutcome::Ready {
-        site_url.map(|url| {
-            let action_label = translate(&lang, "email.deployment.ready.action", vars);
-            EmailAction {
-                label: action_label,
-                url: url.to_string(),
+        let action = match c.action {
+            Some((label_key, url)) => Some(EmailAction { label: t(label_key)?, url }),
+            None => None,
+        };
+        let detail = match c.detail {
+            None => None,
+            Some(Detail::Plain(key)) => Some(t(key)?),
+            Some(Detail::Plural { key, var, n }) => {
+                Some(self.catalog.format_plural(locale, key, var, n, &c.args)?)
             }
-        })
-    } else {
-        None
-    };
+        };
+        let brand = Brand {
+            name: t(k::BRAND_NAME)?,
+            footer: t(k::BRAND_FOOTER)?,
+            fallback_link_label: t(k::BRAND_FALLBACKLINK)?,
+        };
 
-    let detail = if outcome == DeploymentOutcome::Failed && error.is_some() {
-        Some(translate(&lang, "email.deployment.failed.detail", vars))
-    } else {
-        None
-    };
+        Ok(self.engine.render_transactional(&TransactionalEmailProps {
+            title,
+            message,
+            preview,
+            language: locale.clone(),
+            subject: Some(subject),
+            code: c.code,
+            action,
+            detail,
+            logo_url: None,
+            brand,
+        })?)
+    }
+}
 
-    GLOBAL_ENGINE.render_transactional(&TransactionalEmailProps {
-        title,
-        message,
-        preview,
-        language: lang,
-        subject: Some(subject),
-        code: None,
-        action,
-        detail,
-        logo_url: None,
-    })
+/// Which message goes where, plus the shared arguments. Pure data: no catalog access.
+struct Composition {
+    subject: &'static str,
+    preview: &'static str,
+    title: &'static str,
+    message: &'static str,
+    code: Option<String>,
+    /// `(label key, url)`
+    action: Option<(&'static str, String)>,
+    detail: Option<Detail>,
+    args: Args,
+}
+
+enum Detail {
+    Plain(&'static str),
+    Plural { key: &'static str, var: &'static str, n: u64 },
+}
+
+fn compose(email: &Email) -> Composition {
+    match email {
+        Email::VerificationCode { code, purpose, ttl_minutes } => {
+            let (subject, preview, message) = match purpose {
+                VerificationPurpose::SignIn => {
+                    (k::OTP_SIGNIN_SUBJECT, k::OTP_SIGNIN_PREVIEW, k::OTP_SIGNIN_MESSAGE)
+                }
+                VerificationPurpose::ChangeEmail => (
+                    k::OTP_CHANGEEMAIL_SUBJECT,
+                    k::OTP_CHANGEEMAIL_PREVIEW,
+                    k::OTP_CHANGEEMAIL_MESSAGE,
+                ),
+                VerificationPurpose::ForgetPassword => (
+                    k::OTP_FORGOTPASSWORD_SUBJECT,
+                    k::OTP_FORGOTPASSWORD_PREVIEW,
+                    k::OTP_FORGOTPASSWORD_MESSAGE,
+                ),
+                VerificationPurpose::EmailVerification => (
+                    k::OTP_VERIFYEMAIL_SUBJECT,
+                    k::OTP_VERIFYEMAIL_PREVIEW,
+                    k::OTP_VERIFYEMAIL_MESSAGE,
+                ),
+            };
+            Composition {
+                subject,
+                preview,
+                title: k::OTP_TITLE,
+                message,
+                code: Some(code.clone()),
+                action: None,
+                detail: Some(Detail::Plural {
+                    key: k::OTP_EXPIRY,
+                    var: "minutes",
+                    n: u64::from(*ttl_minutes),
+                }),
+                args: Args::new().with("minutes", ttl_minutes),
+            }
+        }
+
+        Email::VerifyEmail { url } => Composition {
+            subject: k::VERIFYEMAIL_SUBJECT,
+            preview: k::VERIFYEMAIL_PREVIEW,
+            title: k::VERIFYEMAIL_TITLE,
+            message: k::VERIFYEMAIL_MESSAGE,
+            code: None,
+            action: Some((k::VERIFYEMAIL_ACTION, url.clone())),
+            detail: Some(Detail::Plain(k::VERIFYEMAIL_DETAIL)),
+            args: Args::new(),
+        },
+
+        Email::MemberJoined { member_name, workspace_name } => Composition {
+            subject: k::MEMBERJOINED_SUBJECT,
+            preview: k::MEMBERJOINED_PREVIEW,
+            title: k::MEMBERJOINED_TITLE,
+            message: k::MEMBERJOINED_MESSAGE,
+            code: None,
+            action: None,
+            detail: None,
+            args: Args::new().with("memberName", member_name).with("workspaceName", workspace_name),
+        },
+
+        Email::NewSignIn { ip_address } => {
+            let mut args = Args::new();
+            let message = match ip_address {
+                Some(ip) => {
+                    args.set("ipAddress", ip);
+                    k::NEWSIGNIN_WITHIP
+                }
+                None => k::NEWSIGNIN_WITHOUTIP,
+            };
+            Composition {
+                subject: k::NEWSIGNIN_SUBJECT,
+                preview: k::NEWSIGNIN_PREVIEW,
+                title: k::NEWSIGNIN_TITLE,
+                message,
+                code: None,
+                action: None,
+                detail: Some(Detail::Plain(k::NEWSIGNIN_DETAIL)),
+                args,
+            }
+        }
+
+        Email::MemberInvitation { inviter_name, workspace_name, role, accept_url, expires_in_days } => {
+            Composition {
+                subject: k::INVITE_SUBJECT,
+                preview: k::INVITE_PREVIEW,
+                title: k::INVITE_TITLE,
+                message: k::INVITE_MESSAGE,
+                code: None,
+                action: Some((k::INVITE_ACTION, accept_url.clone())),
+                detail: Some(Detail::Plural {
+                    key: k::INVITE_EXPIRY,
+                    var: "days",
+                    n: u64::from(*expires_in_days),
+                }),
+                args: Args::new()
+                    .with("inviterName", inviter_name)
+                    .with("workspaceName", workspace_name)
+                    .with("role", role)
+                    .with("days", expires_in_days),
+            }
+        }
+
+        Email::ReaderInvitation { project_name, activation_url, expires_in_days } => Composition {
+            subject: k::READERINVITE_SUBJECT,
+            preview: k::READERINVITE_PREVIEW,
+            title: k::READERINVITE_TITLE,
+            message: k::READERINVITE_MESSAGE,
+            code: None,
+            action: Some((k::READERINVITE_ACTION, activation_url.clone())),
+            detail: Some(Detail::Plural {
+                key: k::READERINVITE_EXPIRY,
+                var: "days",
+                n: u64::from(*expires_in_days),
+            }),
+            args: Args::new().with("projectName", project_name).with("days", expires_in_days),
+        },
+
+        Email::Deployment { project_name, version, outcome, site_url, error } => {
+            let mut args = Args::new().with("projectName", project_name).with("version", version);
+            match outcome {
+                DeploymentOutcome::Ready => Composition {
+                    subject: k::DEPLOYMENT_READY_SUBJECT,
+                    preview: k::DEPLOYMENT_READY_PREVIEW,
+                    title: k::DEPLOYMENT_READY_TITLE,
+                    message: k::DEPLOYMENT_READY_MESSAGE,
+                    code: None,
+                    action: site_url.clone().map(|url| (k::DEPLOYMENT_READY_ACTION, url)),
+                    detail: None,
+                    args,
+                },
+                DeploymentOutcome::Failed => {
+                    if let Some(error) = error {
+                        args.set("error", error);
+                    }
+                    Composition {
+                        subject: k::DEPLOYMENT_FAILED_SUBJECT,
+                        preview: k::DEPLOYMENT_FAILED_PREVIEW,
+                        title: k::DEPLOYMENT_FAILED_TITLE,
+                        message: k::DEPLOYMENT_FAILED_MESSAGE,
+                        code: None,
+                        action: None,
+                        detail: error.is_some().then_some(Detail::Plain(k::DEPLOYMENT_FAILED_DETAIL)),
+                        args,
+                    }
+                }
+            }
+        }
+    }
 }
