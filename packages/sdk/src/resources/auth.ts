@@ -7,6 +7,10 @@ import type {
   ChangeEmailPayload,
   RequestEmailChangePayload,
   SendVerificationOtpPayload,
+  MfaChallengePayload,
+  MfaDisablePayload,
+  MfaSetupResponse,
+  MfaVerifyPayload,
   SignInEmailOtpPayload,
   SignInSocialPayload,
   SignInSocialResponse,
@@ -20,6 +24,10 @@ export type {
   AuthSessionData,
   AuthUser,
   ChangeEmailPayload,
+  MfaChallengePayload,
+  MfaDisablePayload,
+  MfaSetupResponse,
+  MfaVerifyPayload,
   RequestEmailChangePayload,
   SendVerificationOtpPayload,
   SignInEmailOtpPayload,
@@ -133,5 +141,33 @@ export class AuthResource {
    */
   async stopImpersonating<T = { success?: boolean }>(): Promise<T> {
     return this.http.post<T>('/api/auth/admin/stop-impersonating', {});
+  }
+
+  /**
+   * Initializes MFA enrollment, generating secret, QR code, and recovery codes
+   */
+  async setupMfa(): Promise<MfaSetupResponse> {
+    return this.http.post<MfaSetupResponse>('/api/auth/mfa/setup', {});
+  }
+
+  /**
+   * Verifies and enables MFA for the user
+   */
+  async verifyMfa(payload: MfaVerifyPayload): Promise<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>('/api/auth/mfa/verify', payload);
+  }
+
+  /**
+   * Disables MFA for the user
+   */
+  async disableMfa(payload: MfaDisablePayload): Promise<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>('/api/auth/mfa/disable', payload);
+  }
+
+  /**
+   * Solves MFA challenge during sign-in
+   */
+  async challengeMfa(payload: MfaChallengePayload): Promise<AuthSessionData> {
+    return this.http.post<AuthSessionData>('/api/auth/mfa/challenge', payload);
   }
 }

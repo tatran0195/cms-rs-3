@@ -18,7 +18,6 @@ import {
   ProjectsResource,
   PublicResource,
   ReaderAccessResource,
-  RolesResource,
   SearchResource,
   SetupResource,
   WorkspaceResource,
@@ -48,7 +47,6 @@ export class CmsClient {
   readonly notifications: NotificationsResource;
   readonly public: PublicResource;
   readonly auth: AuthResource;
-  readonly roles: RolesResource;
   readonly setup: SetupResource;
 
   constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
@@ -73,7 +71,6 @@ export class CmsClient {
     this.notifications = new NotificationsResource(this.http);
     this.public = new PublicResource(this.http);
     this.auth = new AuthResource(this.http);
-    this.roles = new RolesResource(this.http);
     this.setup = new SetupResource(this.http);
   }
 

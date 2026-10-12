@@ -229,3 +229,26 @@ export * from './generated/WorkspaceMemberItem';
 export * from './generated/WorkspaceMembersResponse';
 export * from './generated/WorkspaceMemberUser';
 export * from './generated/WorkspaceSettingsResponse';
+
+export interface MfaSetupResponse {
+  secret: string;
+  otpauthUri: string;
+  qrPngBase64: string;
+  recoveryCodes: string[];
+}
+
+export interface MfaVerifyPayload {
+  code: string;
+  secret: string;
+  recoveryCodes: string[];
+}
+
+export interface MfaDisablePayload {
+  code: string;
+}
+
+export interface MfaChallengePayload {
+  email: string;
+  code: string;
+  isRecoveryCode?: boolean;
+}

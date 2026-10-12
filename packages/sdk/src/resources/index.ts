@@ -15,7 +15,6 @@ export * from './pages';
 export * from './projects';
 export * from './public';
 export * from './reader-access';
-export * from './roles';
 export * from './search';
 export * from './setup';
 export * from './workspace';

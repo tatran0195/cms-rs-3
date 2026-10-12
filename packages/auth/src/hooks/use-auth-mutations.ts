@@ -4,6 +4,9 @@ import { authService } from '../service/auth-service';
 import type {
   AcceptInvitationPayload,
   ChangeEmailPayload,
+  MfaChallengePayload,
+  MfaDisablePayload,
+  MfaVerifyPayload,
   RequestEmailChangePayload,
   SendVerificationOtpPayload,
   SignInEmailOtpPayload,
@@ -99,6 +102,42 @@ export function useStopImpersonating(client: CmsClient) {
     mutationFn: () => authService.stopImpersonating(client),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.session() });
+    },
+  });
+}
+
+export function useMfaSetup(client: CmsClient) {
+  return useMutation({
+    mutationFn: () => authService.setupMfa(client),
+  });
+}
+
+export function useMfaVerify(client: CmsClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MfaVerifyPayload) => authService.verifyMfa(client, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.session() });
+    },
+  });
+}
+
+export function useMfaDisable(client: CmsClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MfaDisablePayload) => authService.disableMfa(client, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.session() });
+    },
+  });
+}
+
+export function useMfaChallenge(client: CmsClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MfaChallengePayload) => authService.challengeMfa(client, payload),
+    onSuccess: (session) => {
+      queryClient.setQueryData(authKeys.session(), session);
     },
   });
 }

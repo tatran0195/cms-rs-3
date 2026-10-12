@@ -3,6 +3,10 @@ import type {
   AcceptInvitationPayload,
   AuthSessionData,
   ChangeEmailPayload,
+  MfaChallengePayload,
+  MfaDisablePayload,
+  MfaSetupResponse,
+  MfaVerifyPayload,
   RequestEmailChangePayload,
   SendVerificationOtpPayload,
   SignInEmailOtpPayload,
@@ -38,4 +42,12 @@ export const authService = {
   acceptInvitation: (client: CmsClient, payload: AcceptInvitationPayload): Promise<{ success?: boolean }> => client.auth.acceptInvitation(payload),
 
   stopImpersonating: (client: CmsClient): Promise<{ success?: boolean }> => client.auth.stopImpersonating(),
+
+  setupMfa: (client: CmsClient): Promise<MfaSetupResponse> => client.auth.setupMfa(),
+
+  verifyMfa: (client: CmsClient, payload: MfaVerifyPayload): Promise<{ success: boolean }> => client.auth.verifyMfa(payload),
+
+  disableMfa: (client: CmsClient, payload: MfaDisablePayload): Promise<{ success: boolean }> => client.auth.disableMfa(payload),
+
+  challengeMfa: (client: CmsClient, payload: MfaChallengePayload): Promise<AuthSessionData> => client.auth.challengeMfa(payload),
 };
