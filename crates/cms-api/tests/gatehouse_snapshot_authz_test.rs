@@ -97,8 +97,8 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
     )
     .await?;
     anyhow::ensure!(
-        forbidden_status == StatusCode::FORBIDDEN,
-        "non-member accessing private project returns 403 Forbidden, got {forbidden_status}"
+        forbidden_status == StatusCode::NOT_FOUND,
+        "non-member accessing private project returns 404 Not Found (existence oracle defense), got {forbidden_status}"
     );
 
     // 5. Other user accessing public project -> 200 OK
