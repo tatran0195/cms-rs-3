@@ -1,0 +1,13 @@
+[package]
+name = "cms-authz-gate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cms-authz = { path = "../cms-authz" }
+cms-db = { path = "../cms-db" }
+cms-error = { path = "../cms-error" }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }

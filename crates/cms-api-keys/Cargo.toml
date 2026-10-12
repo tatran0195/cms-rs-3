@@ -1,0 +1,14 @@
+[package]
+name = "cms-api-keys"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sha2 = { workspace = true }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+getrandom = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }

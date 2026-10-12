@@ -24,6 +24,10 @@ members = [
   "crates/cms-db",
   "crates/cms-auth",
   "crates/cms-authz",
+  "crates/cms-authz-gate",
+  "crates/cms-api-keys",
+  "crates/cms-mfa",
+  "crates/cms-oauth",
   "crates/cms-storage",
   "crates/cms-search",
   "crates/cms-queue",
@@ -50,6 +54,10 @@ cms-entity = { path = "crates/cms-entity" }
 cms-db = { path = "crates/cms-db" }
 cms-auth = { path = "crates/cms-auth" }
 cms-authz = { path = "crates/cms-authz" }
+cms-authz-gate = { path = "crates/cms-authz-gate" }
+cms-api-keys = { path = "crates/cms-api-keys" }
+cms-mfa = { path = "crates/cms-mfa" }
+cms-oauth = { path = "crates/cms-oauth" }
 cms-storage = { path = "crates/cms-storage" }
 cms-search = { path = "crates/cms-search" }
 cms-queue = { path = "crates/cms-queue" }
@@ -124,6 +132,9 @@ serde_urlencoded = "0.7.1"
 urlencoding = "2.1.3"
 idna = "1.1.0"
 rand = "0.8.8"
+subtle = "2.6.1"
+getrandom = { version = "0.2.15", features = ["std"] }
+totp-rs = { version = "5.6.0", features = ["otpauth", "qr"] }
 
 # Production-ready infrastructure
 governor = "0.10.4"
