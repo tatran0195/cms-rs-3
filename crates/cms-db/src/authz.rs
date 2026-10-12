@@ -441,3 +441,190 @@ impl ProjectMemberQueries {
         Ok(res.rows_affected() > 0)
     }
 }
+
+/// Zanzibar ReBAC relation tuple database row
+#[derive(Debug, Clone, FromRow)]
+pub struct RelationTupleRow {
+    pub tuple_id: Uuid,
+    pub tenant_id: Uuid,
+    pub object_type: String,
+    pub object_id: Uuid,
+    pub relation: String,
+    pub subject_type: String,
+    pub subject_id: String,
+    pub status: String,
+    pub granted_by: Option<Uuid>,
+    pub granted_at: DateTime<Utc>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+pub struct RelationTupleQueries;
+
+impl RelationTupleQueries {
+    /// Check whether a subject holds any candidate relation on an object
+    pub async fn check(
+        pool: &PgPool,
+        tenant_id: Uuid,
+        object_type: &str,
+        object_id: Uuid,
+        candidate_relations: &[&str],
+        subject_type: &str,
+        subject_id: &str,
+    ) -> Result<bool, AppError> {
+        let relations: Vec<String> = candidate_relations.iter().map(|s| (*s).to_string()).collect();
+        let allowed: bool = sqlx::query_scalar(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM relation_tuples
+                WHERE tenant_id = $1
+                  AND object_type = $2
+                  AND object_id = $3
+                  AND relation = ANY($4)
+                  AND subject_type = $5
+                  AND subject_id = $6
+                  AND status = 'active'
+                  AND (expires_at IS NULL OR expires_at > now())
+            )
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(object_type)
+        .bind(object_id)
+        .bind(&relations)
+        .bind(subject_type)
+        .bind(subject_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(allowed)
+    }
+
+    /// Write or activate an explicit relation tuple
+    pub async fn write(
+        pool: &PgPool,
+        tenant_id: Uuid,
+        object_type: &str,
+        object_id: Uuid,
+        relation: &str,
+        subject_type: &str,
+        subject_id: &str,
+        granted_by: Option<Uuid>,
+        expires_at: Option<DateTime<Utc>>,
+    ) -> Result<Uuid, AppError> {
+        let tuple_id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO relation_tuples (
+                tenant_id, object_type, object_id, relation, subject_type, subject_id, status, granted_by, expires_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8)
+            ON CONFLICT (tenant_id, object_type, object_id, relation, subject_type, subject_id)
+            WHERE status = 'active'
+            DO UPDATE SET expires_at = EXCLUDED.expires_at, granted_at = now()
+            RETURNING tuple_id
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(object_type)
+        .bind(object_id)
+        .bind(relation)
+        .bind(subject_type)
+        .bind(subject_id)
+        .bind(granted_by)
+        .bind(expires_at)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(tuple_id)
+    }
+
+    /// Revoke a tuple by tuple_id
+    pub async fn revoke(pool: &PgPool, tenant_id: Uuid, tuple_id: Uuid) -> Result<bool, AppError> {
+        let rows = sqlx::query(
+            r#"
+            UPDATE relation_tuples
+            SET status = 'revoked'
+            WHERE tenant_id = $1 AND tuple_id = $2 AND status = 'active'
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(tuple_id)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(rows.rows_affected() > 0)
+    }
+
+    /// Revoke a specific tuple by coordinates
+    pub async fn revoke_specific(
+        pool: &PgPool,
+        tenant_id: Uuid,
+        object_type: &str,
+        object_id: Uuid,
+        relation: &str,
+        subject_type: &str,
+        subject_id: &str,
+    ) -> Result<bool, AppError> {
+        let rows = sqlx::query(
+            r#"
+            UPDATE relation_tuples
+            SET status = 'revoked'
+            WHERE tenant_id = $1
+              AND object_type = $2
+              AND object_id = $3
+              AND relation = $4
+              AND subject_type = $5
+              AND subject_id = $6
+              AND status = 'active'
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(object_type)
+        .bind(object_id)
+        .bind(relation)
+        .bind(subject_type)
+        .bind(subject_id)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(rows.rows_affected() > 0)
+    }
+
+    /// List object IDs of a given type accessible by a subject under any candidate relation
+    pub async fn list_accessible(
+        pool: &PgPool,
+        tenant_id: Uuid,
+        object_type: &str,
+        candidate_relations: &[&str],
+        subject_type: &str,
+        subject_id: &str,
+    ) -> Result<Vec<Uuid>, AppError> {
+        let relations: Vec<String> = candidate_relations.iter().map(|s| (*s).to_string()).collect();
+        let ids = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            SELECT object_id FROM relation_tuples
+            WHERE tenant_id = $1
+              AND object_type = $2
+              AND relation = ANY($3)
+              AND subject_type = $4
+              AND subject_id = $5
+              AND status = 'active'
+              AND (expires_at IS NULL OR expires_at > now())
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(object_type)
+        .bind(&relations)
+        .bind(subject_type)
+        .bind(subject_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(ids)
+    }
+}
+

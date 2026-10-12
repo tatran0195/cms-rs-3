@@ -11,6 +11,7 @@
 
 pub mod analytics;
 pub mod asset;
+pub mod audit;
 pub mod auth;
 pub mod authz;
 pub mod branch;
