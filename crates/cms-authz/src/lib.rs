@@ -1,300 +1,135 @@
 #![forbid(unsafe_code)]
 
-//! An in-process authorization engine for Rust.
+//! `cms-authz` — Zanzibar-style ReBAC authorization engine ported from MedBrains.
 //!
-//! Gatehouse keeps authorization logic in Rust while giving policy code a
-//! request-scoped fact session for relationship and backend-loaded data. The
-//! public API is centered on one [`PolicyDomain`] marker per authorization
-//! domain, a [`PermissionChecker`] that owns that domain's policy stack, and a
-//! [`BoundEvaluator`] created for one request/session/subject/action/context.
-//!
-//! # Overview
-//!
-//! A [`Policy`] is an asynchronous decision unit for one [`PolicyDomain`]. The
-//! domain names the four Rust types involved in a decision:
-//!
-//! - `Subject`: the caller.
-//! - `Action`: the operation being attempted.
-//! - `Resource`: the target resource or scope resource.
-//! - `Context`: request-scoped inputs such as current time, MFA freshness,
-//!   network zone, tenant config, or feature flags.
-//!
-//! Relationship data and other backend-loaded authorization facts do not
-//! belong in `Context`; expose them as [`FactKey`] values loaded by an
-//! [`EvaluationSession`]. The session batches, deduplicates, caches, and
-//! coalesces fact loads for one request.
-//!
-//! # Quick Start
-//!
-//! The fastest way to define a synchronous predicate policy is
-//! [`PolicyBuilder`]:
-//!
-//! ```rust
-//! # use cms_authz::*;
-//! #[derive(Debug, Clone)]
-//! struct User {
-//!     id: u64,
-//!     roles: Vec<&'static str>,
-//! }
-//! #[derive(Debug, Clone)]
-//! struct Document {
-//!     owner_id: u64,
-//! }
-//! #[derive(Debug, Clone)]
-//! struct ReadAction;
-//!
-//! struct Documents;
-//! impl PolicyDomain for Documents {
-//!     type Subject = User;
-//!     type Action = ReadAction;
-//!     type Resource = Document;
-//!     type Context = ();
-//! }
-//!
-//! let admin_policy = PolicyBuilder::<Documents>::new("AdminOnly")
-//!     .subjects(|user: &User| user.roles.contains(&"admin"))
-//!     .build();
-//!
-//! let owner_policy = PolicyBuilder::<Documents>::new("OwnerOnly")
-//!     .when(|user: &User, _action: &ReadAction, document: &Document, _ctx: &()| {
-//!         user.id == document.owner_id
-//!     })
-//!     .build();
-//!
-//! let mut checker = PermissionChecker::<Documents>::new();
-//! checker.add_policy(admin_policy);
-//! checker.add_policy(owner_policy);
-//!
-//! # tokio_test::block_on(async {
-//! let session = EvaluationSession::empty();
-//! let document = Document { owner_id: 7 };
-//! let admin = User { id: 1, roles: vec!["admin"] };
-//! let owner = User { id: 7, roles: vec!["user"] };
-//! let viewer = User { id: 2, roles: vec!["user"] };
-//!
-//! assert!(checker.bind(&session, &admin, &ReadAction, &()).check(&document).await.is_granted());
-//! assert!(checker.bind(&session, &owner, &ReadAction, &()).check(&document).await.is_granted());
-//! assert!(!checker.bind(&session, &viewer, &ReadAction, &()).check(&document).await.is_granted());
-//! # });
-//! ```
-//!
-//! # Core Flows
-//!
-//! Bind request-wide inputs once, then evaluate resources through the bound
-//! evaluator:
-//!
-//! ```rust,ignore
-//! let session = registry.session();
-//! let bound = checker.bind(&session, &subject, &action, &request_context);
-//!
-//! let decision = bound.check(&resource).await;
-//! let decisions = bound.evaluate(resources.clone()).await;
-//! let authorized = bound.try_filter(resources).await?;
-//! let authorized_rows = bound.try_filter_by(rows, |row| &row.authz_resource).await?;
-//! let page = bound.try_lookup_page(&lookup, &hydrator, cursor.as_deref(), limit).await?;
-//! ```
-//!
-//! Use [`EvaluationSession::empty`] for fact-free decisions. Use a session from
-//! [`FactRegistry::session`] when any policy loads facts — via `ctx.fact(...)`
-//! (which also records provenance) or the raw session — such as [`RebacPolicy`]
-//! or a custom fact-backed policy.
-//!
-//! [`BoundEvaluator::evaluate`] preserves input order and retains every item
-//! and decision. [`BoundEvaluator::try_filter`] excludes definite denials but
-//! fails on indeterminate decisions; [`BoundEvaluator::try_filter_by`] applies
-//! the same rule to projected caller-owned rows. Errors retain all input items
-//! and evaluations. The explicit `filter_lossy` / `filter_by_lossy` helpers deliberately omit outages.
-//! The original `filter` / `filter_by` names are deprecated aliases.
-//!
-//! [`BoundEvaluator::try_lookup_page`] enumerates candidate IDs, hydrates them,
-//! and strictly authorizes one page. [`LookupSource`] must cover every grant
-//! path, including admin overrides. On evaluation failure, no next cursor is
-//! returned: retry the same cursor with a fresh session after recovery.
-//!
-//! # Decision Semantics
-//!
-//! [`Policy`] returns [`GrantResult`]: grant, abstention, or indeterminate.
-//! [`VetoPolicy`] returns [`VetoResult`]: veto, pass, or indeterminate. Register
-//! them with [`PermissionChecker::add_policy`] and [`PermissionChecker::add_veto`].
-//! These types prevent grant policies from returning veto authority.
-//!
-//! A definite veto denies access. An unresolved veto blocks grants. After
-//! vetoes pass, any grant authorizes, including a grant after another grant
-//! policy failed. With no grant, uncertainty yields [`AccessEvaluation::Indeterminate`];
-//! otherwise access is denied. An empty checker denies access.
-//!
-//! [`AndPolicy`], [`OrPolicy`], and [`NotPolicy`] compose grants only. A definite
-//! abstention settles AND; a definite grant settles OR; NOT retains uncertainty.
-//! Use `grant.and(blocked.not())` for a local exclusion. Vetoes use
-//! [`AllOfVeto`] or [`AnyOfVeto`]; a pass settles all-of and a veto settles any-of,
-//! otherwise uncertainty remains. Veto negation is not supported.
-//!
-//! [`PolicyBuilder::build`] produces a grant policy;
-//! [`PolicyBuilder::build_veto`] produces a veto when its predicate matches.
-//! Repeated predicate calls accumulate: every predicate on every axis must hold,
-//! so a later call narrows the match and never widens it. A policy with no
-//! predicate must be spelled out with [`PolicyBuilder::allow_all`] or
-//! [`PolicyBuilder::forbid_all`].
-//! Register [`DelegatingPolicy`] once with [`PermissionChecker::add_delegate`]
-//! to preserve both child capabilities and their distinct failure semantics.
-//!
-//! [`PolicyEvalResult`] is the inspectable audit tree, not a policy return type.
-//! Typed result constructors compute aggregate decisions; arbitrary raw trees
-//! cannot be promoted into typed authority. [`GrantResult::all`] and
-//! [`GrantResult::any`] support custom grant aggregates.
-//!
-//! Use [`AccessEvaluation::into_result`] to distinguish [`AccessError::Denied`]
-//! from [`AccessError::Indeterminate`] without parsing reasons. Both errors retain
-//! the full trace and classified fact errors. The original `to_result` combines
-//! both outcomes into one reason-only callback.
-//!
-//! Recorded successful, missing, and failed facts are retained on every node,
-//! including aggregates. Recorded errors upgrade abstention/pass to indeterminate;
-//! decisive grants and vetoes remain decisive. Attaching evidence has the same
-//! behavior for leaves and aggregate nodes. Call `ctx.finish(result)` when
-//! evaluating a policy directly; the checker and built-in combinators do this
-//! automatically.
-//!
-//! # Cargo Features
-//!
-//! `tracing` is enabled by default. Disable default features to remove its
-//! instrumentation and dependency; decisions, returned [`EvalTrace`], and fact
-//! provenance remain available. No telemetry events or contract warnings are
-//! emitted without tracing. `serde` independently enables audit serialization.
-//!
-//! # Fact-Loaded Authorization
-//!
-//! [`FactSource::load_many`] receives unique fact keys and must return exactly
-//! one result per key in the same order. [`EvaluationSession`] expands
-//! duplicate caller inputs, preserves caller order, caches results for the
-//! request, chunks loads according to [`FactSource::max_batch_size`], and joins
-//! concurrent in-flight loads for the same key.
-//!
-//! [`RebacPolicy`] is the built-in fact-backed policy. It extracts flat
-//! subject/resource IDs, builds [`RelationshipQuery`] keys, and grants only
-//! when the request session loads a `Found(true)` relationship fact. A
-//! `Found(false)` or `Missing` fact is an ordinary non-grant; missing
-//! sources, backend errors, and fact-source contract violations fail closed
-//! as [`PolicyEvalResult::Indeterminate`] — never a grant, and structurally
-//! distinguishable from a policy denial.
-//!
-//! # Long-Lived Streams
-//!
-//! [`EvaluationSession`] caches are scoped to one authorization pass. For SSE,
-//! WebSocket, and other long-lived streams, do not hold one fact-backed session
-//! for the stream lifetime.
-//!
-//! If your product contract authorizes once at stream open, create a fresh
-//! session, compute the visible ID set with [`BoundEvaluator::try_filter`] or
-//! [`BoundEvaluator::try_filter_by`], drop the session, and only emit frames for
-//! that set. If the stream must observe mid-stream permission revocation, run
-//! periodic reauthorization with a fresh [`FactRegistry::session`] and re-bind
-//! the checker for that pass.
-//!
-//! # Built-In Policies
-//!
-//! - [`RbacPolicy`]: role-based access control from caller roles and required
-//!   roles for the `(action, resource)` pair.
-//! - [`RebacPolicy`]: relationship-based access control backed by
-//!   [`FactSource`] and [`EvaluationSession`].
-//! - [`DelegatingPolicy`]: maps the current inputs into another
-//!   [`PolicyDomain`] and delegates to a child [`PermissionChecker`].
-//!
-//! Use [`PolicyBuilder::when`] for attribute-style predicates that compare
-//! subject, action, resource, and context in one synchronous closure.
-//!
-//! # Custom Policies
-//!
-//! Implement [`Policy`] directly when a rule needs async work, custom batching,
-//! or custom telemetry metadata. Implement [`VetoPolicy`] for custom vetoes.
-//! A grant policy looks like this:
-//!
-//! ```rust
-//! # use async_trait::async_trait;
-//! # use std::borrow::Cow;
-//! # use cms_authz::*;
-//! # #[derive(Debug, Clone)] struct User { id: u64 }
-//! # #[derive(Debug, Clone)] struct Document { owner_id: u64 }
-//! # #[derive(Debug, Clone)] struct ReadAction;
-//! # struct Documents;
-//! # impl PolicyDomain for Documents {
-//! #     type Subject = User;
-//! #     type Action = ReadAction;
-//! #     type Resource = Document;
-//! #     type Context = ();
-//! # }
-//! struct OwnerPolicy;
-//!
-//! #[async_trait]
-//! impl Policy<Documents> for OwnerPolicy {
-//!     async fn evaluate(&self, ctx: &EvalCtx<'_, Documents>) -> GrantResult {
-//!         if ctx.subject.id == ctx.resource.owner_id {
-//!             ctx.grant("subject owns the document")
-//!         } else {
-//!             ctx.not_applicable("subject does not own the document")
-//!         }
-//!     }
-//!
-//!     fn policy_type(&self) -> Cow<'static, str> {
-//!         Cow::Borrowed("OwnerPolicy")
-//!     }
-//! }
-//! ```
-//!
-//! # Tracing
-//!
-//! When trace-level events are enabled, checker evaluation records spans for
-//! single-resource and batch evaluation, and each evaluated policy records a
-//! `trace!` event on the `cms_authz::security` target. Batch evaluation also
-//! records per-policy counts on nested `gatehouse.batch_policy` spans.
+//! Provides relational authorization checks over `relation_tuples` with
+//! single-query PostgreSQL evaluation (`PgAuthzBackend`) and fast in-memory
+//! test evaluation (`TestAuthzBackend`).
 
-#![warn(missing_docs)]
-#![allow(clippy::type_complexity)]
+pub mod backend_pg;
+pub mod backend_test;
+pub mod error;
+pub mod registry;
+pub mod relations;
 
-mod builder;
-mod capability;
-mod checker;
-mod combinators;
-mod facts;
-mod lookup;
-mod metadata;
-mod policies;
-mod policy;
-mod results;
-mod session;
+use std::collections::HashMap;
 
-pub use builder::{BuilderState, Conditional, PolicyBuilder, Unconditional};
-pub use capability::{GrantResult, PolicyResult, VetoPolicy, VetoResult};
-pub use checker::{BoundEvaluator, PermissionChecker};
-pub use combinators::{
-    AllOfVeto, AndPolicy, AnyOfVeto, EmptyPoliciesError, NotPolicy, OrPolicy, PolicyExt,
-    VetoPolicyExt,
-};
-pub use facts::{
-    FactKey, FactLoadError, FactLoadErrorKind, FactLoadResult, FactSource, RelationshipQuery,
-};
-pub use lookup::{Hydrator, LookupAuthorizedError, LookupAuthorizedPage, LookupPage, LookupSource};
-pub use metadata::SecurityRuleMetadata;
-#[cfg(feature = "tracing")]
-pub(crate) use metadata::DEFAULT_SECURITY_RULE_CATEGORY;
-pub(crate) use metadata::PERMISSION_CHECKER_POLICY_TYPE;
-pub use policies::{DelegatingPolicy, RbacPolicy, RebacPolicy};
-pub use policy::{BatchEvalCtx, EvalCtx, Policy, PolicyBatchItem, PolicyDomain};
-pub use results::{
-    AccessError, AccessEvaluation, CombineOp, Decision, EvalTrace, FactOutcome, FactProvenance,
-    FilterError, PolicyEvalResult,
-};
-pub use session::{EvaluationSession, FactRegistry, FactRegistryBuilder};
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-/// Application policy domains and state.
-pub mod domains;
-pub use domains::{platform::*, project::*, state::*};
-pub use async_trait::async_trait;
+pub use backend_pg::PgAuthzBackend;
+pub use backend_test::TestAuthzBackend;
+pub use error::AuthzError;
+pub use relations::Relation;
 
-// The shared unit-test module pulls in tokio-based async tests via dev-deps
-// that are intentionally loom-incompatible (`tokio::net`, axum, hyper, etc.).
-// Gate it out under `cfg(loom)` so the loom build's minimal dependency graph
-// stays clean. The synchronous core's deterministic tests and the loom
-// permutation tests both live in `src/session/core.rs` and are unaffected.
-#[cfg(all(test, not(loom)))]
-mod tests;
+/// Default singleton ID for the internal company workspace.
+pub const SYSTEM_WORKSPACE_ID: Uuid = Uuid::nil();
+
+/// One Zanzibar sharing tuple.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationTuple {
+    pub tuple_id: Uuid,
+    pub tenant_id: Uuid,
+    pub object_type: String,
+    pub object_id: Uuid,
+    pub relation: String,
+    pub subject: Subject,
+    pub status: TupleStatus,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub granted_by: Option<Uuid>,
+    pub granted_at: DateTime<Utc>,
+}
+
+/// The principal holding a relation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "id", rename_all = "snake_case")]
+pub enum Subject {
+    User(Uuid),
+    Role(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TupleStatus {
+    Active,
+    Revoked,
+    Superseded,
+}
+
+/// Request evaluation context derived from authenticated claims.
+#[derive(Debug, Clone)]
+pub struct AuthzContext {
+    pub tenant_id: Uuid,
+    pub user_id: Uuid,
+    pub role: String,
+    pub is_bypass: bool,
+}
+
+impl AuthzContext {
+    #[must_use]
+    pub fn new(user_id: Uuid, role: String, is_bypass: bool) -> Self {
+        Self {
+            tenant_id: SYSTEM_WORKSPACE_ID,
+            user_id,
+            role,
+            is_bypass,
+        }
+    }
+}
+
+/// Asynchronous backend trait for ReBAC checks.
+#[async_trait]
+pub trait AuthzBackend: Send + Sync {
+    /// Diagnostic name of backend.
+    fn backend_name(&self) -> &'static str;
+
+    /// "Does subject hold relation on object?" (Hot path)
+    async fn check(
+        &self,
+        ctx: &AuthzContext,
+        relation: Relation,
+        object_type: &str,
+        object_id: Uuid,
+    ) -> Result<bool, AuthzError>;
+
+    /// Bulk check N (object_type, relation, object_id) triples in a single batch.
+    async fn bulk_check(
+        &self,
+        ctx: &AuthzContext,
+        items: &[(String, Relation, Uuid)],
+    ) -> Result<HashMap<(String, Relation, Uuid), bool>, AuthzError>;
+
+    /// List all object IDs of a given type accessible under relation.
+    async fn list_accessible(
+        &self,
+        ctx: &AuthzContext,
+        object_type: &str,
+        relation: Relation,
+    ) -> Result<Vec<Uuid>, AuthzError>;
+
+    /// Write or update an explicit relation tuple.
+    async fn write_tuple(
+        &self,
+        ctx: &AuthzContext,
+        object_type: &str,
+        object_id: Uuid,
+        relation: Relation,
+        subject: Subject,
+        expires_at: Option<DateTime<Utc>>,
+    ) -> Result<Uuid, AuthzError>;
+
+    /// Revoke a tuple by tuple ID.
+    async fn revoke_tuple(&self, ctx: &AuthzContext, tuple_id: Uuid) -> Result<(), AuthzError>;
+
+    /// Revoke a tuple by coordinate triple.
+    async fn revoke_specific(
+        &self,
+        ctx: &AuthzContext,
+        object_type: &str,
+        object_id: Uuid,
+        relation: Relation,
+        subject: Subject,
+    ) -> Result<(), AuthzError>;
+}
