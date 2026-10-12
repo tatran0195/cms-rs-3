@@ -338,14 +338,16 @@ describe('transferOwnershipBody', () => {
 });
 
 describe('member role grants exclude owner at the schema level', () => {
-  it('inviteMemberBody accepts admin/member but never owner', () => {
+  it('inviteMemberBody accepts admin/member/viewer but never owner', () => {
     expect(inviteMemberBody.safeParse({ email: 'a@b.co', role: 'admin' }).success).toBe(true);
     expect(inviteMemberBody.safeParse({ email: 'a@b.co', role: 'member' }).success).toBe(true);
+    expect(inviteMemberBody.safeParse({ email: 'a@b.co', role: 'viewer' }).success).toBe(true);
     expect(inviteMemberBody.safeParse({ email: 'a@b.co', role: 'owner' }).success).toBe(false);
   });
-  it('updateMemberRoleBody accepts admin/member but never owner', () => {
+  it('updateMemberRoleBody accepts admin/member/viewer but never owner', () => {
     expect(updateMemberRoleBody.safeParse({ role: 'admin' }).success).toBe(true);
     expect(updateMemberRoleBody.safeParse({ role: 'member' }).success).toBe(true);
+    expect(updateMemberRoleBody.safeParse({ role: 'viewer' }).success).toBe(true);
     expect(updateMemberRoleBody.safeParse({ role: 'owner' }).success).toBe(false);
   });
 });

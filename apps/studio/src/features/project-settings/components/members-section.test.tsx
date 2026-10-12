@@ -60,7 +60,6 @@ vi.mock('@/hooks/api', () => ({
   useUpdateProjectMemberRole: () => mutation,
   useCancelProjectInvitation: () => mutation,
   useTransferProjectOwnership: () => mutation,
-  useProjectRoles: () => ({ data: [], isPending: false }),
 }));
 
 describe('MembersSection role selects', () => {
@@ -122,6 +121,15 @@ describe('MembersSection role selects', () => {
 
   it('fails closed while the current membership is unavailable', async () => {
     currentUserId = 'unknown';
+    const root = createRoot(container);
+    await act(async () => root.render(<MembersSection projectId="project-a" />));
+    expect(container.querySelector('form')).toBeNull();
+    expect(container.querySelector('[role="combobox"]')).toBeNull();
+    act(() => root.unmount());
+  });
+
+  it('renders read-only viewer role indicator without administration privileges', async () => {
+    currentUserId = 'u-viewer';
     const root = createRoot(container);
     await act(async () => root.render(<MembersSection projectId="project-a" />));
     expect(container.querySelector('form')).toBeNull();
