@@ -18,6 +18,7 @@ export function SignInPage({ search }: SignInPageProps) {
   const navigate = useNavigate();
   const { data: publicMeta } = useGetPublicMeta();
   const googleEnabled = publicMeta?.providers.google ?? false;
+  const githubEnabled = publicMeta?.providers.github ?? false;
 
   const invitationId = search.invite ?? readPendingInvitation() ?? undefined;
   const afterAuthPath = invitationId ? `/accept-invite/${invitationId}` : '/app';
@@ -38,6 +39,7 @@ export function SignInPage({ search }: SignInPageProps) {
       <SignInForm
         afterAuthPath={afterAuthPath}
         client={cmsClient}
+        githubEnabled={githubEnabled}
         googleEnabled={googleEnabled}
         initialEmail={search.email ?? ''}
         onNavigateSignUp={() => navigate({ to: '/sign-up' })}
