@@ -1,5 +1,8 @@
 export const MCP_SCOPES = [
   'mcp:connect',
+  'cms:read',
+  'cms:write',
+  'cms:admin',
   'projects:read',
   'pages:read',
   'languages:read',

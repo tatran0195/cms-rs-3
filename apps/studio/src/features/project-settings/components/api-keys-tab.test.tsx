@@ -51,4 +51,34 @@ describe('API-key settings list state', () => {
     expect(container.textContent).not.toContain('settings.apiKeys.empty');
     expect(container.textContent).not.toContain('sensitive backend detail');
   });
+
+  it('renders keys with canonical cms:read, cms:write scopes and offers canonical scope buttons', async () => {
+    hooks.useApiKeys.mockReturnValue({
+      data: [
+        {
+          id: 'k-1',
+          name: 'CI Machine Key',
+          lastFour: 'abcd',
+          scopes: ['mcp:connect', 'cms:read', 'cms:write'],
+          state: 'active',
+          expiresAt: '2030-01-01T00:00:00Z',
+          lastUsedAt: null,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+      isError: false,
+      isLoading: false,
+    });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => root.render(<ApiKeysTab projectId="project-1" />));
+
+    expect(container.textContent).toContain('cms:read');
+    expect(container.textContent).toContain('cms:write');
+    expect(container.textContent).toContain('cms:admin');
+    expect(container.textContent).toContain('CI Machine Key');
+  });
 });
