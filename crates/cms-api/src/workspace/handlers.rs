@@ -37,9 +37,15 @@ async fn ensure_admin_or_owner(state: &AppState, auth: &AuthExtractor) -> Result
         return Ok(());
     }
 
-    // 2. Configured system admin email
-    let auth_user = auth.to_auth_user(state);
-    if auth_user.is_admin {
+    // 2. ReBAC workspace admin/owner check
+    if cms_authz_gate::require_workspace_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        cms_authz::Relation::Admin,
+    )
+    .await
+    .is_ok()
+    {
         return Ok(());
     }
 

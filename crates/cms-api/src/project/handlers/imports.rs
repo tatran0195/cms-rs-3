@@ -16,20 +16,15 @@ pub async fn import_mintlify_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    let target = cms_authz::ProjectTarget {
-        id: project_id.clone(),
-        is_public: false,
-        owner_id: None,
-    };
-    state
-        .authz()
-        .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     Err(AppError::custom(
         axum::http::StatusCode::NOT_IMPLEMENTED,
@@ -43,20 +38,15 @@ pub async fn import_ghost_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    let target = cms_authz::ProjectTarget {
-        id: project_id.clone(),
-        is_public: false,
-        owner_id: None,
-    };
-    state
-        .authz()
-        .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     Err(AppError::custom(
         axum::http::StatusCode::NOT_IMPLEMENTED,

@@ -41,6 +41,12 @@ impl AppState {
         &self.biz_context.authz
     }
 
+    /// Returns a reference to the authorization backend trait object.
+    #[inline]
+    pub fn authz_backend(&self) -> &dyn cms_authz::AuthzBackend {
+        self.biz_context.authz.backend.as_ref()
+    }
+
     /// Create AppState from full configuration
     pub async fn from_config(config: &Config) -> Result<Self, AppError> {
         Self::validate_config(config)?;

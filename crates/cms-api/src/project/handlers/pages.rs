@@ -46,7 +46,7 @@ pub async fn list_project_pages_handler(
         &state,
         &auth,
         project_id.as_str(),
-        cms_authz::ProjectAction::View,
+        cms_authz::Relation::Viewer,
     )
     .await?;
     query.project_id = project_id.to_string();
@@ -131,7 +131,7 @@ pub async fn create_project_page_handler(
         &state,
         &auth,
         project_id.as_str(),
-        cms_authz::ProjectAction::Edit,
+        cms_authz::Relation::Editor,
     )
     .await?;
     request.project_id = project_id.to_string();
@@ -201,7 +201,7 @@ pub async fn get_project_page_handler(
         &state,
         &auth,
         project_id.as_str(),
-        cms_authz::ProjectAction::View,
+        cms_authz::Relation::Viewer,
     )
     .await?;
     let mut page =
@@ -267,7 +267,7 @@ pub async fn update_project_page_handler(
         &state,
         &auth,
         project_id.as_str(),
-        cms_authz::ProjectAction::Edit,
+        cms_authz::Relation::Editor,
     )
     .await?;
     let existing =
@@ -342,7 +342,7 @@ pub async fn delete_project_page_handler(
         &state,
         &auth,
         project_id.as_str(),
-        cms_authz::ProjectAction::Edit,
+        cms_authz::Relation::Editor,
     )
     .await?;
     let page =
@@ -383,20 +383,15 @@ pub async fn reorder_project_pages_handler(
     Path(project_id): Path<ProjectId>,
     ValidatedJson(payload): ValidatedJson<cms_entity::page::ReorderPageTreeRequest>,
 ) -> Result<Json<ApiResponse<ReorderPageTreeResponse>>, AppError> {
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    let target = cms_authz::ProjectTarget {
-        id: project_id.to_string(),
-        is_public: false,
-        owner_id: None,
-    };
-    state
-        .authz()
-        .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::Edit, &())
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    let project_uuid = uuid::Uuid::parse_str(project_id.as_str())
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     let reorder_items: Vec<(String, Option<String>, i32)> = payload
         .items

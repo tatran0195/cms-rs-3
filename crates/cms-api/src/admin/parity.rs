@@ -18,24 +18,23 @@ use sqlx::{FromRow, Postgres, QueryBuilder};
 use crate::auth::AuthExtractor;
 
 async fn require_admin(state: &AppState, user_id: &str) -> Result<(), AppError> {
-    let user = cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, user_id)
-        .await?
-        .ok_or(AppError::Unauthorized)?;
-    let mut auth_user = state.authz().to_auth_user(&user.id, &user.email);
     if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, user_id)
         .await
         .unwrap_or(false)
     {
-        auth_user.is_admin = true;
+        return Ok(());
     }
-    let session = state.authz().session();
-    state
-        .authz()
-        .platform_checker
-        .bind(&session, &auth_user, &cms_authz::PlatformAction::AccessAdmin, &())
-        .authorize(&())
-        .await
-        .map_err(|_| AppError::Forbidden)
+
+    let user_uuid = uuid::Uuid::parse_str(user_id)
+        .map_err(|_| AppError::Unauthorized)?;
+    let ctx = cms_authz::AuthzContext::new(user_uuid, "member".to_string(), false);
+
+    cms_authz_gate::require_workspace_access(
+        state.authz_backend(),
+        &ctx,
+        cms_authz::Relation::Admin,
+    )
+    .await
 }
 
 #[derive(Debug, FromRow, Serialize)]

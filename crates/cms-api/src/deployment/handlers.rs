@@ -88,20 +88,15 @@ pub async fn create_deployment_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateDeploymentRequest>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    let target = cms_authz::ProjectTarget {
-        id: request.project_id.clone(),
-        is_public: false,
-        owner_id: None,
-    };
-    state
-        .authz()
-        .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::Publish, &())
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    let project_uuid = uuid::Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     let branch_id = if let Some(ref bid) = request.branch_id {
         let branch = cms_db::branch::BranchQueries::get_by_id(&state.biz_context.pool, bid)

@@ -45,7 +45,7 @@ pub async fn create_project_language_handler(
         &state,
         &auth,
         &project_id,
-        cms_authz::ProjectAction::Edit,
+        cms_authz::Relation::Editor,
     )
     .await?;
     request.project_id = project_id.clone();
@@ -69,7 +69,7 @@ pub async fn update_project_language_handler(
         &state,
         &auth,
         &project_id,
-        cms_authz::ProjectAction::Edit,
+        cms_authz::Relation::Editor,
     )
     .await?;
     let existing =
@@ -101,7 +101,7 @@ pub async fn delete_project_language_handler(
         &state,
         &auth,
         &project_id,
-        cms_authz::ProjectAction::Edit,
+        cms_authz::Relation::Editor,
     )
     .await?;
     let language =

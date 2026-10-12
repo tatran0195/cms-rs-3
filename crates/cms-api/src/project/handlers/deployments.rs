@@ -104,7 +104,7 @@ pub async fn list_project_deployments_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<DeploymentListItem>>>, AppError> {
-    super::common::authorize_project(&state, &auth, &project_id, cms_authz::ProjectAction::View)
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
         .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
@@ -163,7 +163,7 @@ pub async fn get_latest_project_deployment_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Option<DeploymentListItem>>>, AppError> {
-    super::common::authorize_project(&state, &auth, &project_id, cms_authz::ProjectAction::View)
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
         .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
         &state.biz_context,
@@ -225,7 +225,7 @@ pub async fn get_deployment_changes_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<DeploymentChangesResponse>>, AppError> {
-    super::common::authorize_project(&state, &auth, &project_id, cms_authz::ProjectAction::View)
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
         .await?;
     use cms_biz::deployment::DeploymentService;
 
@@ -358,30 +358,16 @@ pub async fn create_project_deployment_handler(
     Path(project_id): Path<String>,
     Json(body): Json<TriggerPublishRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
-    // 1. Verify project exists
-    let project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    let target = cms_authz::ProjectTarget {
-        id: project_id.clone(),
-        is_public: project.is_public,
-        owner_id: None,
-    };
-    state
-        .authz()
-        .project_checker
-        .bind(
-            &session,
-            &auth_user,
-            &cms_authz::ProjectAction::Publish,
-            &(),
-        )
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     // 2. Resolve the default branch and fail clearly if the project is corrupt.
     let default_branch =
@@ -432,25 +418,15 @@ pub async fn rollback_deployment_handler(
     auth: AuthExtractor,
     Path((project_id, target_deployment_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    let target = cms_authz::ProjectTarget {
-        id: project_id.clone(),
-        is_public: false,
-        owner_id: None,
-    };
-    state
-        .authz()
-        .project_checker
-        .bind(
-            &session,
-            &auth_user,
-            &cms_authz::ProjectAction::Publish,
-            &(),
-        )
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     let target = cms_db::deployment::DeploymentQueries::get_by_id(
         &state.biz_context.pool,

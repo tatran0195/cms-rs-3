@@ -17,21 +17,30 @@ use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
 /// Authentication extractor
+/// Authentication extractor
 ///
 /// This extractor tries the user in the following order:
-/// 1. Session cookie (session_token)
-/// 2. Bearer token (JWT)
+/// 1. Access token cookie (`access_token`) or Session cookie (`session_token`)
+/// 2. Bearer token (JWT or API key)
 /// 3. API key (X-API-Key header)
 #[derive(Debug, Clone)]
 pub struct AuthExtractor {
     pub user: UserResponse,
     pub auth_method: AuthMethod,
+    pub claims: cms_auth::Claims,
 }
 
 impl AuthExtractor {
-    /// Convert to Authz AuthUser representation
-    pub fn to_auth_user(&self, state: &AppState) -> cms_authz::AuthUser {
-        state.authz().to_auth_user(self.user.id.to_string(), &self.user.email)
+    /// Return the Zanzibar authorization context for this caller.
+    pub fn authz_context(&self) -> cms_authz::AuthzContext {
+        let is_bypass = self.claims.role == "super_admin"
+            || self.claims.role == "owner"
+            || self.claims.role == "admin";
+        cms_authz::AuthzContext::new(self.claims.sub, self.claims.role.clone(), is_bypass)
+    }
+
+    pub fn user_uuid(&self) -> uuid::Uuid {
+        self.claims.sub
     }
 }
 
@@ -59,26 +68,29 @@ where
             .clone();
 
         // Try session cookie first
-        if let Ok(user) = extract_from_session(parts, &state).await {
+        if let Ok((user, claims)) = extract_from_session(parts, &state).await {
             return Ok(AuthExtractor {
                 user,
                 auth_method: AuthMethod::Session,
+                claims,
             });
         }
 
-        // Try Bearer token (JWT)
-        if let Ok(user) = extract_from_jwt(parts, &state).await {
+        // Try Bearer token (JWT or API key)
+        if let Ok((user, claims)) = extract_from_jwt(parts, &state).await {
             return Ok(AuthExtractor {
                 user,
                 auth_method: AuthMethod::Jwt,
+                claims,
             });
         }
 
-        // Try API key
-        if let Ok(user) = extract_from_api_key(parts, &state).await {
+        // Try API key header
+        if let Ok((user, claims)) = extract_from_api_key(parts, &state).await {
             return Ok(AuthExtractor {
                 user,
                 auth_method: AuthMethod::ApiKey,
+                claims,
             });
         }
 
@@ -86,11 +98,11 @@ where
     }
 }
 
-/// Extract user from session cookie
+/// Extract user and claims from session or access_token cookie
 async fn extract_from_session(
     parts: &mut Parts,
     state: &Arc<AppState>,
-) -> Result<UserResponse, AppError> {
+) -> Result<(UserResponse, cms_auth::Claims), AppError> {
     let cookie_header = parts
         .headers
         .get(header::COOKIE)
@@ -98,6 +110,20 @@ async fn extract_from_session(
 
     let cookie_str = cookie_header.to_str().map_err(|_| AppError::Unauthorized)?;
 
+    // Try access_token first (15-minute JWT cookie)
+    if let Some(access_tok) = cms_auth::parse_cookie_value(cookie_str, "access_token") {
+        if let Ok(claims) =
+            cms_auth::decode_jwt(access_tok, state.config.auth.session_secret.as_bytes())
+        {
+            if let Ok(Some(u)) =
+                cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &claims.user_id_string()).await
+            {
+                return Ok((u.into(), claims));
+            }
+        }
+    }
+
+    // Try legacy session cookie
     let session_token = Cookie::split_parse(cookie_str)
         .find_map(|c| {
             c.ok()
@@ -106,16 +132,17 @@ async fn extract_from_session(
         })
         .ok_or(AppError::Unauthorized)?;
 
-    // Validate session and get user
-    AuthService::get_user_by_session(&state.biz_context, &session_token).await
+    let user = AuthService::get_user_by_session(&state.biz_context, &session_token).await?;
+    let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
+    let claims = cms_auth::Claims::new_access(user_uuid, "member");
+    Ok((user, claims))
 }
 
-/// Extract user from JWT Bearer token
+/// Extract user and claims from JWT or Bearer API key
 async fn extract_from_jwt(
     parts: &mut Parts,
     state: &Arc<AppState>,
-) -> Result<UserResponse, AppError> {
-    // Get Authorization header
+) -> Result<(UserResponse, cms_auth::Claims), AppError> {
     let auth_header = parts
         .headers
         .get(header::AUTHORIZATION)
@@ -123,23 +150,43 @@ async fn extract_from_jwt(
 
     let auth_value = auth_header.to_str().map_err(|_| AppError::Unauthorized)?;
 
-    // Check for Bearer scheme
     if !auth_value.starts_with("Bearer ") {
         return Err(AppError::Unauthorized);
     }
 
     let token = &auth_value[7..];
 
-    // Validate JWT and get user
-    AuthService::get_user_by_jwt(&state.biz_context, token).await
+    // Check if Bearer is machine API key
+    if cms_api_keys::looks_like_key(token) {
+        let user = AuthService::get_user_by_api_key(&state.biz_context, token).await?;
+        let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
+        let claims = cms_auth::Claims::new_access(user_uuid, "member");
+        return Ok((user, claims));
+    }
+
+    // Otherwise validate as JWT claims
+    if let Ok(claims) =
+        cms_auth::decode_jwt(token, state.config.auth.session_secret.as_bytes())
+    {
+        if let Ok(Some(u)) =
+            cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &claims.user_id_string()).await
+        {
+            return Ok((u.into(), claims));
+        }
+    }
+
+    // Fall back to legacy JWT lookup
+    let user = AuthService::get_user_by_jwt(&state.biz_context, token).await?;
+    let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
+    let claims = cms_auth::Claims::new_access(user_uuid, "member");
+    Ok((user, claims))
 }
 
-/// Extract user from API key
+/// Extract user and claims from API key header
 async fn extract_from_api_key(
     parts: &mut Parts,
     state: &Arc<AppState>,
-) -> Result<UserResponse, AppError> {
-    // Get API key from header
+) -> Result<(UserResponse, cms_auth::Claims), AppError> {
     let api_key_header = parts
         .headers
         .get("X-API-Key")
@@ -149,8 +196,10 @@ async fn extract_from_api_key(
         .to_str()
         .map_err(|_| AppError::Unauthorized)?;
 
-    // Validate API key and get user
-    AuthService::get_user_by_api_key(&state.biz_context, api_key).await
+    let user = AuthService::get_user_by_api_key(&state.biz_context, api_key).await?;
+    let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
+    let claims = cms_auth::Claims::new_access(user_uuid, "member");
+    Ok((user, claims))
 }
 
 /// Optional authentication extractor
@@ -161,6 +210,7 @@ async fn extract_from_api_key(
 pub struct OptionalAuthExtractor {
     pub user: Option<UserResponse>,
     pub auth_method: Option<AuthMethod>,
+    pub claims: Option<cms_auth::Claims>,
 }
 
 impl<S> FromRequestParts<S> for OptionalAuthExtractor
@@ -170,43 +220,40 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        // Get AppState from extensions
         let state = parts
             .extensions
             .get::<Arc<AppState>>()
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("AppState not found in extensions")))?
             .clone();
 
-        // Try all authentication methods
-
-        // Try session cookie
-        if let Ok(user) = extract_from_session(parts, &state).await {
+        if let Ok((user, claims)) = extract_from_session(parts, &state).await {
             return Ok(OptionalAuthExtractor {
                 user: Some(user),
                 auth_method: Some(AuthMethod::Session),
+                claims: Some(claims),
             });
         }
 
-        // Try Bearer token (JWT)
-        if let Ok(user) = extract_from_jwt(parts, &state).await {
+        if let Ok((user, claims)) = extract_from_jwt(parts, &state).await {
             return Ok(OptionalAuthExtractor {
                 user: Some(user),
                 auth_method: Some(AuthMethod::Jwt),
+                claims: Some(claims),
             });
         }
 
-        // Try API key
-        if let Ok(user) = extract_from_api_key(parts, &state).await {
+        if let Ok((user, claims)) = extract_from_api_key(parts, &state).await {
             return Ok(OptionalAuthExtractor {
                 user: Some(user),
                 auth_method: Some(AuthMethod::ApiKey),
+                claims: Some(claims),
             });
         }
 
-        // No authentication found
         Ok(OptionalAuthExtractor {
             user: None,
             auth_method: None,
+            claims: None,
         })
     }
 }

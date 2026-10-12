@@ -12,21 +12,19 @@ use cms_middleware::app_state::AppState;
 use crate::auth::AuthExtractor;
 
 async fn require_system_admin(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
-    let mut auth_user = auth.to_auth_user(state);
     if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, &auth.user.id)
         .await
         .unwrap_or(false)
     {
-        auth_user.is_admin = true;
+        return Ok(());
     }
-    let session = state.authz().session();
-    state
-        .authz()
-        .platform_checker
-        .bind(&session, &auth_user, &cms_authz::PlatformAction::AccessAdmin, &())
-        .authorize(&())
-        .await
-        .map_err(|_| AppError::Forbidden)
+
+    cms_authz_gate::require_workspace_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        cms_authz::Relation::Admin,
+    )
+    .await
 }
 
 /// Get system statistics (admin only)

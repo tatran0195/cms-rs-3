@@ -54,35 +54,24 @@ pub async fn list_projects_handler(
     )
     .await?;
 
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-
-    let targets: Vec<cms_authz::ProjectTarget> = candidates
-        .data
-        .iter()
-        .map(|p| cms_authz::ProjectTarget {
-            id: p.id.to_string(),
-            is_public: p.is_public,
-            owner_id: None,
-        })
-        .collect();
-
-    let authorized_targets = state
-        .authz()
-        .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
-        .try_filter(targets)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
-
-    let allowed_ids: std::collections::HashSet<String> =
-        authorized_targets.into_iter().map(|t| t.id).collect();
-
-    let filtered: Vec<ProjectResponse> = candidates
-        .data
-        .into_iter()
-        .filter(|p| allowed_ids.contains(&p.id.to_string()))
-        .collect();
+    let ctx = auth.authz_context();
+    let mut filtered = Vec::new();
+    for p in candidates.data {
+        if p.is_public {
+            filtered.push(p);
+            continue;
+        }
+        if let Ok(pid) = uuid::Uuid::parse_str(&p.id) {
+            if state
+                .authz_backend()
+                .check(&ctx, cms_authz::Relation::Viewer, "project", pid)
+                .await
+                .unwrap_or(false)
+            {
+                filtered.push(p);
+            }
+        }
+    }
 
     let total = filtered.len() as u64;
     let paginated = cms_entity::common::PaginatedResponse::new(
@@ -151,21 +140,17 @@ pub async fn get_project_handler(
     let project =
         ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
-    let target = cms_authz::ProjectTarget {
-        id: project.id.to_string(),
-        is_public: project.is_public,
-        owner_id: None,
-    };
-
-    let auth_user = auth.to_auth_user(&state);
-    let session = state.authz().session();
-    state
-        .authz()
-        .project_checker
-        .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
-        .authorize(&target)
-        .await
-        .map_err(|_| AppError::Forbidden)?;
+    if !project.is_public {
+        let project_uuid = uuid::Uuid::parse_str(project_id.as_str())
+            .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+        cms_authz_gate::require_project_access(
+            state.authz_backend(),
+            &auth.authz_context(),
+            project_uuid,
+            cms_authz::Relation::Viewer,
+        )
+        .await?;
+    }
 
     Ok(Json(ApiResponse::new(project)))
 }
