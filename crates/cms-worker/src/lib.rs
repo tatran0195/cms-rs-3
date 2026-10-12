@@ -123,7 +123,12 @@ pub async fn process_job(
             cms_biz::analytics::process_analytics_job(&state.db, &job.payload).await
         }
         JobType::Email => {
-            cms_biz::email::process_email_job(state.mailer.clone(), &job.payload).await
+            cms_biz::email::process_email_job_with_renderer(
+                state.mailer.clone(),
+                &state.email_renderer,
+                &job.payload,
+            )
+            .await
         }
         JobType::Export => {
             cms_biz::export::process_export_job(&state.db, state.storage.clone(), &job.payload)
@@ -170,6 +175,7 @@ pub mod app_state {
         pub search: Arc<dyn SearchEngine>,
         pub analytics: Arc<dyn AnalyticsStore>,
         pub mailer: Arc<dyn Mailer>,
+        pub email_renderer: cms_mailer::EmailRenderer,
         pub job_queue: Arc<dyn JobQueue>,
     }
 
@@ -190,6 +196,8 @@ pub mod app_state {
             let analytics =
                 cms_analytics::create_analytics_store(&config.analytics, db.clone()).await?;
             let mailer = cms_biz::email::create_mailer(config.mailer.as_ref())?;
+            let email_renderer =
+                cms_mailer::EmailRenderer::embedded().map_err(AppError::internal)?;
 
             Ok(Self {
                 config: Arc::new(config.clone()),
@@ -198,6 +206,7 @@ pub mod app_state {
                 search,
                 analytics,
                 mailer,
+                email_renderer,
                 job_queue,
             })
         }
@@ -219,6 +228,7 @@ pub mod app_state {
                 search: app.search_engine.clone(),
                 analytics,
                 mailer: app.mailer.clone(),
+                email_renderer: app.email_renderer.clone(),
                 job_queue: app.job_queue.clone(),
             })
         }
@@ -226,7 +236,8 @@ pub mod app_state {
 
     // Mailer implementation re-exported from cms-mailer
     pub use cms_mailer::{
-        create_mailer_with_noop_fallback as create_mailer, NoopMailer, SmtpMailer,
+        create_mailer_with_noop_fallback as create_mailer, Email, EmailRenderer, NoopMailer,
+        SmtpMailer,
     };
 }
 

@@ -30,6 +30,23 @@ impl EmailService {
         }
     }
 
+    /// Send a typed, localized transactional email
+    pub async fn send_typed_email(
+        mailer: Arc<dyn Mailer>,
+        renderer: &EmailRenderer,
+        to: &str,
+        email: &Email,
+        locale: Option<&Locale>,
+    ) -> Result<(), AppError> {
+        let default_loc =
+            Locale::parse("en").map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+        let locale = locale.unwrap_or(&default_loc);
+        let rendered = renderer
+            .render(email, locale)
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+        mailer.send_rendered_email(to, &rendered).await
+    }
+
     /// Send a templated email
     pub async fn send_templated_email(
         mailer: Arc<dyn Mailer>,
@@ -82,15 +99,29 @@ impl EmailService {
     }
 }
 
-/// Process email job (for worker queue)
-pub async fn process_email_job(
+/// Process email job using an explicit renderer (for worker queue)
+pub async fn process_email_job_with_renderer(
     mailer: Arc<dyn Mailer>,
+    renderer: &EmailRenderer,
     payload: &serde_json::Value,
 ) -> Result<(), AppError> {
     let to = payload
         .get("to")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("Missing to address".to_string()))?;
+
+    // Check if payload contains a structured Email object
+    if let Some(email_val) = payload.get("email") {
+        let email: Email = serde_json::from_value(email_val.clone())
+            .map_err(|e| AppError::InvalidInput(format!("Invalid email payload: {e}")))?;
+        let locale_str = payload.get("locale").and_then(|v| v.as_str());
+        let target_locale = renderer.negotiate(locale_str);
+        let rendered = renderer
+            .render(&email, &target_locale)
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
+        return mailer.send_rendered_email(to, &rendered).await;
+    }
+
     let subject = payload
         .get("subject")
         .and_then(|v| v.as_str())
@@ -112,6 +143,16 @@ pub async fn process_email_job(
     } else {
         mailer.send_email(to, subject, body).await
     }
+}
+
+/// Process email job with default embedded renderer (for worker queue)
+pub async fn process_email_job(
+    mailer: Arc<dyn Mailer>,
+    payload: &serde_json::Value,
+) -> Result<(), AppError> {
+    let renderer = EmailRenderer::embedded()
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to initialize email renderer: {e}")))?;
+    process_email_job_with_renderer(mailer, &renderer, payload).await
 }
 
 #[cfg(test)]
@@ -148,5 +189,58 @@ mod tests {
         assert_eq!(subj, "Your code is 482910");
         assert_eq!(body, "Code 482910 expires in 24 hours. Active: true");
         assert_eq!(html.unwrap(), "<p>Code: 482910</p>");
+    }
+
+    #[tokio::test]
+    async fn test_send_typed_email() {
+        let mailer = Arc::new(MockMailer::new());
+        let renderer = EmailRenderer::embedded().unwrap();
+        let email = Email::VerificationCode {
+            code: "654321".to_string(),
+            purpose: VerificationPurpose::SignIn,
+            ttl_minutes: 10,
+        };
+        EmailService::send_typed_email(
+            mailer.clone(),
+            &renderer,
+            "user@example.com",
+            &email,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let sent = mailer.get_sent().await;
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].to, "user@example.com");
+        assert_eq!(sent[0].subject, "Your cms sign-in code");
+        assert!(sent[0].body.contains("654321"));
+    }
+
+    #[tokio::test]
+    async fn test_process_email_job_with_structured_email() {
+        let mailer = Arc::new(MockMailer::new());
+        let renderer = EmailRenderer::embedded().unwrap();
+        let payload = serde_json::json!({
+            "to": "invitee@example.com",
+            "locale": "en",
+            "email": {
+                "kind": "member_invitation",
+                "inviter_name": "Alice",
+                "workspace_name": "Acme",
+                "role": "Admin",
+                "accept_url": "https://example.com/accept",
+                "expires_in_days": 7
+            }
+        });
+
+        process_email_job_with_renderer(mailer.clone(), &renderer, &payload)
+            .await
+            .unwrap();
+
+        let sent = mailer.get_sent().await;
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].to, "invitee@example.com");
+        assert_eq!(sent[0].subject, "Alice invited you to Acme on cms");
     }
 }
