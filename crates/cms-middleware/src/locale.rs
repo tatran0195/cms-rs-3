@@ -186,16 +186,47 @@ impl From<Locale> for cms_i18n::Locale {
     }
 }
 
+/// Resolve the incoming request's preferred BCP-47 locale using cms_i18n negotiation
+pub fn extract_request_i18n_locale(parts: &Parts) -> cms_i18n::Locale {
+    // 1. Try x-cms-locale header from SPA
+    if let Some(locale_header) = parts.headers.get("x-cms-locale") {
+        if let Ok(locale_str) = locale_header.to_str() {
+            if let Ok(locale) = cms_i18n::Locale::parse(locale_str.trim()) {
+                return cms_i18n::embedded_catalog().negotiate([locale.as_str()]);
+            }
+        }
+    }
+
+    // 2. Try Accept-Language header
+    if let Some(accept_language) = parts.headers.get(header::ACCEPT_LANGUAGE) {
+        if let Ok(languages) = accept_language.to_str() {
+            let tags = cms_i18n::accept_language_tags(languages);
+            return cms_i18n::embedded_catalog().negotiate(tags);
+        }
+    }
+
+    // 3. Try cookies
+    if let Some(cookies) = parts.headers.get(header::COOKIE) {
+        if let Ok(cookie_str) = cookies.to_str() {
+            let cookie_map = parse_cookies(cookie_str);
+            if let Some(locale_str) = cookie_map.get("locale").or_else(|| cookie_map.get("language")) {
+                if let Ok(locale) = cms_i18n::Locale::parse(locale_str) {
+                    return cms_i18n::embedded_catalog().negotiate([locale.as_str()]);
+                }
+            }
+        }
+    }
+
+    cms_i18n::Locale::default()
+}
+
 /// Middleware function to bind request locale into `cms_i18n::with_locale`
 pub async fn locale_scoping_middleware(
     request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    let (mut parts, body) = request.into_parts();
-    let locale = Locale::from_request_parts(&mut parts, &())
-        .await
-        .unwrap_or_default();
-    let i18n_locale: cms_i18n::Locale = locale.into();
+    let (parts, body) = request.into_parts();
+    let i18n_locale = extract_request_i18n_locale(&parts);
     let request = axum::extract::Request::from_parts(parts, body);
     cms_i18n::with_locale(i18n_locale, next.run(request)).await
 }

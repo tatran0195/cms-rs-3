@@ -1,5 +1,5 @@
 import ky, { HTTPError, isHTTPError, type KyInstance, type Options as KyOptions, TimeoutError } from 'ky';
-import { CmsApiError, CmsNetworkError, CmsTimeoutError } from './errors';
+import { type ApiErrorI18n, CmsApiError, CmsNetworkError, CmsTimeoutError } from './errors';
 import type { ApiResponse } from './types';
 
 export interface HttpClientOptions {
@@ -117,6 +117,7 @@ export class HttpClient {
             let message = response.statusText || 'Request failed';
             let details: unknown;
             let requestId = response.headers.get('x-request-id') || undefined;
+            let i18n: ApiErrorI18n | undefined;
 
             let errData = error.data;
             if (!errData && response) {
@@ -132,6 +133,9 @@ export class HttpClient {
                 code = String(sub.code || code);
                 message = String(sub.message || message);
                 details = sub.details;
+                if (sub.i18n && typeof sub.i18n === 'object') {
+                  i18n = sub.i18n as ApiErrorI18n;
+                }
               } else if ('message' in errData) {
                 const errObj = errData as Record<string, unknown>;
                 message = String(errObj.message || message);
@@ -149,6 +153,7 @@ export class HttpClient {
               message,
               details,
               requestId,
+              i18n,
               response,
               request,
             });

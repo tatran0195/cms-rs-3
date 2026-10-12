@@ -99,6 +99,54 @@ describe('CMS SDK Client', () => {
     }
   });
 
+  it('parses i18n metadata in CmsApiError if returned by API', async () => {
+    const mockFetch = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 'auth:invalid_credentials',
+              message: 'Invalid email or password',
+              i18n: {
+                key: 'api_error_auth_invalid_credentials',
+                args: { reason: 'bad_password' },
+              },
+            },
+            requestId: 'req-err-i18n',
+          }),
+          {
+            status: 401,
+            headers: {
+              'content-type': 'application/json',
+              'content-language': 'ja',
+              'x-request-id': 'req-err-i18n',
+            },
+          },
+        ),
+      ),
+    );
+
+    const client = createCmsClient({
+      baseUrl: 'http://localhost:8080',
+      fetch: mockFetch,
+      retry: 0,
+    });
+
+    try {
+      await client.projects.get('proj-1');
+      expect.fail('should throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(CmsApiError);
+      const apiErr = err as CmsApiError;
+      expect(apiErr.status).toBe(401);
+      expect(apiErr.code).toBe('auth:invalid_credentials');
+      expect(apiErr.i18n).toEqual({
+        key: 'api_error_auth_invalid_credentials',
+        args: { reason: 'bad_password' },
+      });
+    }
+  });
+
   it('attaches Bearer token dynamically if configured', async () => {
     const mockFetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: [{ id: 'proj-1' }] }), {

@@ -8,6 +8,11 @@ export class CmsError extends Error {
   }
 }
 
+export interface ApiErrorI18n {
+  key: string;
+  args?: Record<string, string>;
+}
+
 /**
  * Structured API Error returned by the Axum backend
  */
@@ -16,6 +21,7 @@ export class CmsApiError extends CmsError {
   readonly code: string;
   readonly details?: unknown;
   readonly requestId?: string;
+  readonly i18n?: ApiErrorI18n;
   readonly response?: Response;
   readonly request?: Request;
 
@@ -25,6 +31,7 @@ export class CmsApiError extends CmsError {
     message: string;
     details?: unknown;
     requestId?: string;
+    i18n?: ApiErrorI18n;
     response?: Response;
     request?: Request;
   }) {
@@ -34,6 +41,7 @@ export class CmsApiError extends CmsError {
     this.code = params.code;
     this.details = params.details;
     this.requestId = params.requestId;
+    this.i18n = params.i18n;
     this.response = params.response;
     this.request = params.request;
   }

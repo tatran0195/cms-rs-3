@@ -427,6 +427,7 @@ impl IntoResponse for AppError {
         let raw_message = self.to_string();
         let raw_details = self.details();
         let req_locale = cms_i18n::current_locale();
+        let served_locale = cms_i18n::embedded_catalog().negotiate([req_locale.as_str()]);
 
         let mut args = cms_i18n::Args::new();
         match &self {
@@ -537,7 +538,7 @@ impl IntoResponse for AppError {
         let mut builder = Response::builder()
             .status(status)
             .header("Content-Type", "application/json")
-            .header("Content-Language", req_locale.as_str());
+            .header("Content-Language", served_locale.as_str());
 
         if let Some(ref eid) = error_id {
             builder = builder.header("X-Error-ID", eid);
