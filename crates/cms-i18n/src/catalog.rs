@@ -87,8 +87,8 @@ impl CatalogBuilder {
         self
     }
 
-    /// Add one locale's JSON document.
-    pub fn add_json(mut self, locale: &str, json: &str) -> Result<Self, CatalogError> {
+    /// Add one locale's JSON document using mutable reference.
+    pub fn append_json(&mut self, locale: &str, json: &str) -> Result<(), CatalogError> {
         let locale = Locale::parse(locale)?;
         let map: Map<String, Value> = serde_json::from_str(json)
             .map_err(|source| CatalogError::Json { locale: locale.to_string(), source })?;
@@ -111,6 +111,12 @@ impl CatalogBuilder {
             })?;
             bundle.insert(key.into_boxed_str(), message);
         }
+        Ok(())
+    }
+
+    /// Add one locale's JSON document.
+    pub fn add_json(mut self, locale: &str, json: &str) -> Result<Self, CatalogError> {
+        self.append_json(locale, json)?;
         Ok(self)
     }
 

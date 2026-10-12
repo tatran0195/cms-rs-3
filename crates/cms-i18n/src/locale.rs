@@ -48,6 +48,12 @@ const RTL_SCRIPTS: &[&str] = &["Arab", "Hebr", "Thaa", "Syrc", "Nkoo", "Adlm", "
 #[serde(try_from = "String", into = "String")]
 pub struct Locale(Arc<str>);
 
+impl Default for Locale {
+    fn default() -> Self {
+        Self("en".into())
+    }
+}
+
 impl Locale {
     /// Parse and canonicalise a tag: `zh_cn` → `zh-CN`, `ZH-hant-tw` → `zh-Hant-TW`.
     ///
