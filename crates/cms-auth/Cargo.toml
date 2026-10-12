@@ -15,17 +15,24 @@ cms-config = { path = "../cms-config" }
 cms-db = { path = "../cms-db" }
 cms-entity = { path = "../cms-entity" }
 cms-error = { path = "../cms-error" }
+cms-authz = { path = "../cms-authz" }
+cms-api-keys = { path = "../cms-api-keys" }
+cms-mfa = { path = "../cms-mfa" }
+cms-oauth = { path = "../cms-oauth" }
 
 # Password hashing & cryptography
 argon2 = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 rand = { workspace = true }
+getrandom = { workspace = true }
+subtle = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 axum-extra = { workspace = true, features = ["cookie"] }
 tower = { workspace = true }
 base64 = { workspace = true }
+sqlx = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

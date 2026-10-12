@@ -10,10 +10,27 @@
 //! - OAuth provider integration
 
 pub mod api_key;
+pub mod claims;
+pub mod cookies;
 pub mod jwt;
+pub mod lockout;
 pub mod oauth;
 pub mod password;
 pub mod session;
+
+pub use claims::{Claims, decode_jwt, encode_jwt};
+pub use cookies::{
+    build_access_cookie, build_csrf_cookie, build_refresh_cookie, clear_access_cookie,
+    clear_csrf_cookie, clear_refresh_cookie, generate_csrf_token, parse_cookie_value,
+};
+pub use lockout::{
+    is_account_locked, record_failed_login, reset_failed_logins, LOCKOUT_MINUTES,
+    MAX_FAILED_LOGINS,
+};
+
+pub use cms_api_keys as api_keys;
+pub use cms_mfa as mfa;
+pub use cms_oauth as oauth_provider;
 
 use std::sync::Arc;
 
