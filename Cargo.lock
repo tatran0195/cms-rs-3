@@ -871,6 +871,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
 
 [[package]]
+name = "base32"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "022dfe9eb35f19ebbcb51e0b40a5ab759f46ad60cadf7297e0bd085afb50e076"
+
+[[package]]
 name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1281,6 +1287,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-api-keys"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.2.17",
+ "hex",
+ "sha2 0.10.9",
+ "subtle",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "cms-auth"
 version = "0.1.0"
 dependencies = [
@@ -1314,16 +1332,26 @@ dependencies = [
  "async-trait",
  "chrono",
  "cms-db",
- "cms-entity",
- "cms-error",
- "futures-channel",
  "serde",
  "serde_json",
  "sqlx",
+ "thiserror",
  "tokio",
- "tokio-test",
  "tracing",
- "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "cms-authz-gate"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cms-authz",
+ "cms-db",
+ "cms-error",
+ "sqlx",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -1476,6 +1504,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-mfa"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.2.17",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "subtle",
+ "thiserror",
+ "totp-rs",
+]
+
+[[package]]
 name = "cms-middleware"
 version = "0.1.0"
 dependencies = [
@@ -1502,6 +1544,19 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "cms-oauth"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "getrandom 0.2.17",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
 ]
 
 [[package]]
@@ -1763,6 +1818,12 @@ dependencies = [
  "once_cell",
  "tiny-keccak",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
@@ -5235,6 +5296,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "qrcodegen"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4339fc7a1021c9c1621d87f5e3505f2805c8c105420ba2f2a4df86814590c142"
+
+[[package]]
+name = "qrcodegen-image"
+version = "1.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e3dd60f5b603f72c307455fc52deec52ada1ba53c7580918bb2a8e3247d4fe7"
+dependencies = [
+ "base64 0.22.1",
+ "image",
+ "qrcodegen",
+]
+
+[[package]]
 name = "quanta"
 version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7226,17 +7304,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-test"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12bc5db7778a8e08ee255090861e0e7aac55e784300077e7ed293c7be36168b2"
-dependencies = [
- "futures-core",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
 name = "tokio-util"
 version = "0.7.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7279,6 +7346,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
 dependencies = [
  "winnow",
+]
+
+[[package]]
+name = "totp-rs"
+version = "5.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50e69a15e21b2ff22c415446983978bded3244195f17d59cb113551c1e806f91"
+dependencies = [
+ "base32",
+ "constant_time_eq",
+ "hmac 0.12.1",
+ "qrcodegen-image",
+ "sha1 0.10.7",
+ "sha2 0.10.9",
+ "url",
+ "urlencoding",
 ]
 
 [[package]]
