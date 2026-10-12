@@ -4,16 +4,13 @@ import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
 import { useForm } from '@tanstack/react-form';
 import { Mail, Trash2 } from 'lucide-react';
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '@/hooks/api';
 import { email as validateEmail } from '@/shared';
-import { WorkspaceRolesSection } from './WorkspaceRolesSection';
 
 type AssignableRole = 'admin' | 'member';
 
@@ -57,7 +54,6 @@ export function WorkspaceMembersPage() {
   const invite = useInviteMember();
   const remove = useRemoveMember();
   const updateRole = useUpdateMemberRole();
-  const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
 
   const roleOptions = [
     { value: 'member', label: t('members.role.editor') },
@@ -94,13 +90,7 @@ export function WorkspaceMembersPage() {
         <p className="mt-1 text-muted-foreground text-sm">{t('members.subtitle')}</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab((v as 'members' | 'roles') || 'members')} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="members">{t('members.title')}</TabsTrigger>
-          <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="members" className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
           <form
             className="flex flex-col items-stretch gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-end"
             onSubmit={(event) => {
@@ -242,12 +232,7 @@ export function WorkspaceMembersPage() {
               </table>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="roles" className="mt-6">
-          <WorkspaceRolesSection />
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }

@@ -8,7 +8,6 @@ export * from './public';
 export * from './queries';
 export * from './query-keys';
 export * from './reader-access';
-export * from './roles';
 export * from './setup';
 export * from './site-events';
 export * from './site-search';

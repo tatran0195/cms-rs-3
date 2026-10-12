@@ -4,7 +4,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
 import { canAdminister } from '@cms/shared/rbac';
-import { AlertTriangle, Building2, type LucideIcon, Palette, Shield, UserRound, Users } from 'lucide-react';
+import { AlertTriangle, Building2, type LucideIcon, Palette, UserRound, Users } from 'lucide-react';
 import { useSession } from '@/features/auth';
 import { useMembers } from '@/hooks/api';
 import { AccountTab } from './components/account-tab';
@@ -12,9 +12,8 @@ import { AppearanceTab } from './components/appearance-tab';
 import { WorkspaceDangerTab } from './components/workspace-danger-tab';
 import { WorkspaceGeneralTab } from './components/workspace-general-tab';
 import { WorkspaceMembersTab } from './components/workspace-members-tab';
-import { WorkspaceRolesTab } from './components/workspace-roles-tab';
 
-export type WorkspaceSettingsTab = 'account' | 'appearance' | 'workspace-general' | 'workspace-members' | 'workspace-roles' | 'workspace-danger';
+export type WorkspaceSettingsTab = 'account' | 'appearance' | 'workspace-general' | 'workspace-members' | 'workspace-danger';
 
 export interface SectionItem {
   value: WorkspaceSettingsTab;
@@ -31,7 +30,6 @@ export const ACCOUNT_SETTINGS_SECTIONS: ReadonlyArray<SectionItem> = [
 export const WORKSPACE_SETTINGS_SECTIONS: ReadonlyArray<SectionItem> = [
   { value: 'workspace-general', labelKey: 'settings.tab.account', labelFallback: 'General', icon: Building2 },
   { value: 'workspace-members', labelKey: 'members.title', labelFallback: 'Members', icon: Users },
-  { value: 'workspace-roles', labelKey: 'settings.tab.account', labelFallback: 'Roles & Permissions', icon: Shield },
   { value: 'workspace-danger', labelKey: 'settings.tab.account', labelFallback: 'Danger Zone', icon: AlertTriangle },
 ] as const;
 
@@ -71,7 +69,6 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
   const getSectionLabel = (item: SectionItem) => {
     if (item.value === 'workspace-general') return 'General';
     if (item.value === 'workspace-members') return t('members.title') || 'Members';
-    if (item.value === 'workspace-roles') return 'Roles & Permissions';
     if (item.value === 'workspace-danger') return 'Danger Zone';
     return t(item.labelKey);
   };
@@ -179,8 +176,6 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
             <WorkspaceGeneralTab />
           ) : effectiveTab === 'workspace-members' ? (
             <WorkspaceMembersTab />
-          ) : effectiveTab === 'workspace-roles' ? (
-            <WorkspaceRolesTab />
           ) : effectiveTab === 'workspace-danger' ? (
             <WorkspaceDangerTab />
           ) : (

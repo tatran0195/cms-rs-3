@@ -37,7 +37,6 @@ vi.mock('@/hooks/api', () => ({
   useRemoveMember: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateMemberRole: () => ({ mutate: vi.fn(), isPending: false }),
   useProjects: () => ({ data: [] }),
-  useWorkspaceRoles: () => ({ data: [], isPending: false }),
 }));
 
 vi.mock('@cms/i18n/react', () => ({
@@ -102,7 +101,6 @@ describe('WorkspaceSettingsPage', () => {
     expect(container.textContent).toContain('Account');
     expect(container.textContent).toContain('Workspace');
     expect(container.textContent).toContain('General');
-    expect(container.textContent).toContain('Roles & Permissions');
     expect(container.textContent).toContain('Danger Zone');
   });
 
