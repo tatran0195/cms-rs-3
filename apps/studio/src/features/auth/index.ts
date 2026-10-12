@@ -5,6 +5,10 @@ import {
   useChangeEmail as useAuthChangeEmail,
   useRequestEmailChange as useAuthRequestEmailChange,
   useSendVerificationOtp as useAuthSendVerificationOtp,
+  useMfaChallenge as useAuthMfaChallenge,
+  useMfaDisable as useAuthMfaDisable,
+  useMfaSetup as useAuthMfaSetup,
+  useMfaVerify as useAuthMfaVerify,
   useSession as useAuthSession,
   useSignInEmailOtp as useAuthSignInEmailOtp,
   useSignInSocial as useAuthSignInSocial,
@@ -41,6 +45,10 @@ export const useChangeEmail = () => useAuthChangeEmail(cmsClient);
 export const useUpdateUser = () => useAuthUpdateUser(cmsClient);
 export const useAcceptInvitation = () => useAuthAcceptInvitation(cmsClient);
 export const useStopImpersonating = () => useAuthStopImpersonating(cmsClient);
+export const useMfaSetup = () => useAuthMfaSetup(cmsClient);
+export const useMfaVerify = () => useAuthMfaVerify(cmsClient);
+export const useMfaDisable = () => useAuthMfaDisable(cmsClient);
+export const useMfaChallenge = () => useAuthMfaChallenge(cmsClient);
 
 export const getSession = () => authService.getSession(cmsClient);
 export type { AuthSession, AuthSessionData, AuthUser } from '@cms/auth';

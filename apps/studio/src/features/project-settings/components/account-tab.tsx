@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useChangeEmail, useRequestEmailChange, useSendVerificationOtp, useSession, useUpdateUser } from '@/features/auth';
 import { required, email as validateEmail } from '@/shared';
 import { GradientAvatar, SettingsSection } from './section';
+import { TwoFactorAuthCard } from './two-factor-auth-card';
 
 function NameForm({ initialName }: { initialName: string }) {
   const t = useT();
@@ -308,6 +309,9 @@ export function AccountTab() {
       <NameForm key={email} initialName={name} />
       <div className="mt-5">
         <EmailRow key={email} email={email} verified={verified} />
+      </div>
+      <div className="mt-8 border-t border-border pt-6">
+        <TwoFactorAuthCard />
       </div>
     </SettingsSection>
   );
