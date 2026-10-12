@@ -35,19 +35,18 @@ impl McpService {
         }
 
         if let Some(uid) = user_id {
-            let session = ctx.authz.session();
-            let auth_user = ctx.authz.to_auth_user(uid, "");
-            let target = cms_authz::ProjectTarget {
-                id: project.id.to_string(),
-                is_public: project.is_public,
-                owner_id: None,
-            };
-            ctx.authz
-                .project_checker
-                .bind(&session, &auth_user, &cms_authz::ProjectAction::View, &())
-                .authorize(&target)
+            let user_uuid = uuid::Uuid::parse_str(uid).map_err(|_| AppError::Unauthorized)?;
+            let project_uuid = uuid::Uuid::parse_str(&project.id)
+                .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+            let authz_ctx = cms_authz::AuthzContext::new(user_uuid, "member".to_string(), false);
+            let allowed = ctx
+                .authz
+                .check(&authz_ctx, cms_authz::Relation::Viewer, "project", project_uuid)
                 .await
-                .map_err(|_| AppError::Forbidden)?;
+                .map_err(AppError::internal)?;
+            if !allowed {
+                return Err(AppError::Forbidden);
+            }
             Ok(project)
         } else {
             Err(AppError::Forbidden)

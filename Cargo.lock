@@ -1530,7 +1530,10 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "cms-api-keys",
+ "cms-auth",
  "cms-authz",
+ "cms-authz-gate",
  "cms-biz",
  "cms-config",
  "cms-db",
