@@ -17,6 +17,8 @@ pub(crate) struct UserRow {
     pub name: Option<String>,
     pub image: Option<String>,
     pub email_verified: bool,
+    #[sqlx(default)]
+    pub mfa_enabled: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -78,6 +80,7 @@ impl From<UserRow> for User {
             name: row.name,
             image: row.image,
             email_verified: row.email_verified,
+            mfa_enabled: row.mfa_enabled,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -305,6 +308,89 @@ impl UserQueries {
         .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(row.into())
+    }
+
+    /// Get MFA credentials for a user by id
+    pub async fn get_mfa_credentials(
+        pool: &PgPool,
+        user_id: &str,
+    ) -> Result<Option<(bool, Option<String>, Vec<String>)>, AppError> {
+        let row: Option<(bool, Option<String>, Vec<String>)> = sqlx::query_as(
+            r#"SELECT mfa_enabled, mfa_secret, mfa_recovery_codes FROM "User" WHERE id = $1"#,
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(row)
+    }
+
+    /// Get MFA credentials for a user by email
+    pub async fn get_mfa_credentials_by_email(
+        pool: &PgPool,
+        email: &str,
+    ) -> Result<Option<(String, bool, Option<String>, Vec<String>)>, AppError> {
+        let row: Option<(String, bool, Option<String>, Vec<String>)> = sqlx::query_as(
+            r#"SELECT id, mfa_enabled, mfa_secret, mfa_recovery_codes FROM "User" WHERE email = $1"#,
+        )
+        .bind(email)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(row)
+    }
+
+    /// Enable MFA for a user with secret and hashed recovery codes
+    pub async fn enable_mfa(
+        pool: &PgPool,
+        user_id: &str,
+        secret: &str,
+        recovery_code_hashes: &[String],
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            r#"UPDATE "User" SET mfa_enabled = true, mfa_secret = $2, mfa_recovery_codes = $3, updated_at = NOW() WHERE id = $1"#,
+        )
+        .bind(user_id)
+        .bind(secret)
+        .bind(recovery_code_hashes)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(())
+    }
+
+    /// Disable MFA for a user
+    pub async fn disable_mfa(pool: &PgPool, user_id: &str) -> Result<(), AppError> {
+        sqlx::query(
+            r#"UPDATE "User" SET mfa_enabled = false, mfa_secret = NULL, mfa_recovery_codes = '{}', updated_at = NOW() WHERE id = $1"#,
+        )
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(())
+    }
+
+    /// Update stored recovery codes (e.g. after consuming one)
+    pub async fn update_recovery_codes(
+        pool: &PgPool,
+        user_id: &str,
+        remaining_hashes: &[String],
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            r#"UPDATE "User" SET mfa_recovery_codes = $2, updated_at = NOW() WHERE id = $1"#,
+        )
+        .bind(user_id)
+        .bind(remaining_hashes)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(())
     }
 }
 

@@ -58,6 +58,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api-keys", get(list_api_keys_handler))
         .route("/api-keys", post(create_api_key_handler))
         .route("/api-keys/{id}", delete(delete_api_key_handler))
+        .route("/mfa/setup", post(setup_mfa_handler))
+        .route("/mfa/verify", post(verify_mfa_handler))
+        .route("/mfa/disable", post(disable_mfa_handler))
+        .route("/mfa/challenge", post(mfa_challenge_handler))
         .with_state(state)
 }
 

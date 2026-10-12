@@ -16,7 +16,8 @@ use cms_biz::{
 };
 use cms_entity::auth::{
     AcceptInvitationPayload, ApiKeyResponse, ChangeEmailPayload, CreateApiKeyRequest, LoginRequest,
-    RegisterRequest, RequestEmailChangePayload, SendVerificationOtpPayload, SignInEmailOtpPayload,
+    MfaChallengePayload, MfaDisablePayload, MfaSetupResponse, MfaVerifyPayload, RegisterRequest,
+    RequestEmailChangePayload, SendVerificationOtpPayload, SignInEmailOtpPayload,
     SignInSocialPayload, UpdateUserPayload, UserResponse, VerifyEmailOtpPayload,
 };
 use cms_error::AppError;
@@ -28,14 +29,14 @@ use crate::auth::AuthExtractor;
 ///
 /// Authenticate a user with email and password.
 ///
-/// Returns the authenticated user and creates a session.
+/// Returns the authenticated user or signals mfa_required, and creates a session.
 #[utoipa::path(
     post,
     path = "/auth/login",
     tag = "auth",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "User logged in successfully", body = UserResponse),
+        (status = 200, description = "User logged in successfully", body = serde_json::Value),
         (status = 401, description = "Invalid credentials"),
         (status = 400, description = "Bad request"),
     )
@@ -43,9 +44,16 @@ use crate::auth::AuthExtractor;
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<LoginRequest>,
-) -> Result<(HeaderMap, Json<UserResponse>), AppError> {
+) -> Result<(HeaderMap, Json<serde_json::Value>), AppError> {
     // Delegate to auth service
     let user = AuthService::login(&state.biz_context, &request.email, &request.password).await?;
+
+    if user.mfa_enabled {
+        return Ok((HeaderMap::new(), Json(serde_json::json!({
+            "mfaRequired": true,
+            "email": user.email,
+        }))));
+    }
 
     let session_token = uuid::Uuid::new_v4().to_string();
     let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
@@ -68,7 +76,8 @@ pub async fn login_handler(
         res_headers.insert(axum::http::header::SET_COOKIE, val);
     }
 
-    Ok((res_headers, Json(user)))
+    let user_val = serde_json::to_value(&user).map_err(|e| AppError::Internal(e.into()))?;
+    Ok((res_headers, Json(user_val)))
 }
 
 /// Register a new user
@@ -777,4 +786,139 @@ pub async fn sign_in_social_handler(
             format!("OAuth provider '{}' is not configured", provider),
         )),
     }
+}
+
+/// Setup MFA for authenticated user
+pub async fn setup_mfa_handler(
+    auth: AuthExtractor,
+) -> Result<Json<MfaSetupResponse>, AppError> {
+    let enrollment = cms_mfa::generate_enrollment(&auth.user.email, "Company CMS")
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to generate MFA enrollment: {}", e)))?;
+
+    let (plain_codes, _hashes) = cms_mfa::generate_recovery_codes(cms_mfa::DEFAULT_RECOVERY_CODE_COUNT);
+
+    Ok(Json(MfaSetupResponse {
+        secret: enrollment.secret,
+        otpauth_uri: enrollment.otpauth_uri,
+        qr_png_base64: enrollment.qr_png_base64,
+        recovery_codes: plain_codes,
+    }))
+}
+
+/// Verify and enable MFA for authenticated user
+pub async fn verify_mfa_handler(
+    auth: AuthExtractor,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<MfaVerifyPayload>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let is_valid = cms_mfa::verify_totp(&payload.secret, &payload.code);
+    if !is_valid {
+        return Err(AppError::Validation("Invalid 6-digit authentication code".to_string()));
+    }
+
+    let hashes: Vec<String> = payload
+        .recovery_codes
+        .iter()
+        .map(|c| cms_mfa::hash_recovery_code(c))
+        .collect();
+
+    cms_db::auth::UserQueries::enable_mfa(
+        &state.biz_context.pool,
+        &auth.user.id,
+        &payload.secret,
+        &hashes,
+    )
+    .await?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// Disable MFA for authenticated user
+pub async fn disable_mfa_handler(
+    auth: AuthExtractor,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<MfaDisablePayload>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let creds = cms_db::auth::UserQueries::get_mfa_credentials(&state.biz_context.pool, &auth.user.id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    let (mfa_enabled, secret_opt, recovery_codes) = creds;
+    if !mfa_enabled {
+        return Err(AppError::Validation("MFA is not enabled".to_string()));
+    }
+
+    let mut verified = false;
+    if let Some(secret) = secret_opt {
+        if cms_mfa::verify_totp(&secret, &payload.code) {
+            verified = true;
+        }
+    }
+    if !verified && cms_mfa::verify_recovery_code(&payload.code, &recovery_codes).is_some() {
+        verified = true;
+    }
+
+    if !verified {
+        return Err(AppError::Validation("Invalid authentication or recovery code".to_string()));
+    }
+
+    cms_db::auth::UserQueries::disable_mfa(&state.biz_context.pool, &auth.user.id).await?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+/// MFA challenge during sign-in
+pub async fn mfa_challenge_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<MfaChallengePayload>,
+) -> Result<(HeaderMap, Json<UserResponse>), AppError> {
+    let creds = cms_db::auth::UserQueries::get_mfa_credentials_by_email(&state.biz_context.pool, &payload.email)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    let (user_id, mfa_enabled, secret_opt, recovery_codes) = creds;
+    if !mfa_enabled {
+        return Err(AppError::Validation("MFA is not enabled for this account".to_string()));
+    }
+
+    if payload.is_recovery_code {
+        let mut codes: Vec<String> = recovery_codes;
+        let match_idx = cms_mfa::verify_recovery_code(&payload.code, &codes)
+            .ok_or(AppError::Unauthorized)?;
+
+        codes.remove(match_idx);
+        cms_db::auth::UserQueries::update_recovery_codes(&state.biz_context.pool, &user_id, &codes).await?;
+    } else {
+        let secret = secret_opt.ok_or(AppError::Unauthorized)?;
+        if !cms_mfa::verify_totp(&secret, &payload.code) {
+            return Err(AppError::Unauthorized);
+        }
+    }
+
+    let user = cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &user_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    let session_token = uuid::Uuid::new_v4().to_string();
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
+    let _ = cms_db::auth::SessionQueries::create(
+        &state.biz_context.pool,
+        &user.id,
+        &session_token,
+        expires_at,
+    )
+    .await;
+
+    let mut res_headers = HeaderMap::new();
+    let cookie_val = state.config.auth.session_cookie_value(
+        &session_token,
+        30 * 24 * 3600,
+        state.config.is_production(),
+        state.config.server.https,
+    );
+    if let Ok(val) = axum::http::HeaderValue::from_str(&cookie_val) {
+        res_headers.insert(axum::http::header::SET_COOKIE, val);
+    }
+
+    Ok((res_headers, Json(user.into())))
 }

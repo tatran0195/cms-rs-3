@@ -166,6 +166,7 @@ pub async fn update_project_member_role_handler(
             name: auth.user.name.clone(),
             email: auth.user.email.clone(),
             email_verified: false,
+            mfa_enabled: false,
             image: auth.user.image.clone(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),

@@ -16,6 +16,8 @@ pub struct User {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
     pub email_verified: bool,
+    #[serde(default)]
+    pub mfa_enabled: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -59,6 +61,8 @@ pub struct UserResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
     pub email_verified: bool,
+    #[serde(default)]
+    pub mfa_enabled: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -71,6 +75,7 @@ impl From<User> for UserResponse {
             name: user.name,
             image: user.image,
             email_verified: user.email_verified,
+            mfa_enabled: user.mfa_enabled,
             created_at: user.created_at,
             updated_at: user.updated_at,
         }
@@ -434,6 +439,42 @@ pub struct AcceptInvitationPayload {
     pub invitation_id: String,
 }
 
+/// MFA Enrollment Setup Response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaSetupResponse {
+    pub secret: String,
+    pub otpauth_uri: String,
+    pub qr_png_base64: String,
+    pub recovery_codes: Vec<String>,
+}
+
+/// MFA Verification Request Payload
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaVerifyPayload {
+    pub code: String,
+    pub secret: String,
+    pub recovery_codes: Vec<String>,
+}
+
+/// MFA Disable Request Payload
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaDisablePayload {
+    pub code: String,
+}
+
+/// MFA Challenge Request Payload for Login
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct MfaChallengePayload {
+    pub email: String,
+    pub code: String,
+    #[serde(default)]
+    pub is_recovery_code: bool,
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -448,6 +489,7 @@ mod tests {
             name: Some("Test User".to_string()),
             image: Some("https://example.com/avatar.png".to_string()),
             email_verified: true,
+            mfa_enabled: false,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
