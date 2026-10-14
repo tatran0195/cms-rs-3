@@ -1,3 +1,5 @@
+import { getOpenApiSpecUrl } from '@cms/sdk';
+
 export const SCALAR_THEME = `
 .scalar-app {
   --scalar-color-accent: var(--primary);
@@ -30,7 +32,7 @@ export const SCALAR_THEME = `
 `;
 
 export const scalarOpenApiConfiguration = (projectId: string) => ({
-  url: `/api/public/sites/${encodeURIComponent(projectId)}/openapi.json`,
+  url: getOpenApiSpecUrl(projectId),
   layout: 'modern' as const,
   theme: 'none' as const,
   showSidebar: true,

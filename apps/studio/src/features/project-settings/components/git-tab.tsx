@@ -20,7 +20,7 @@ import {
   useUpdateWorkspaceSettings,
   useWorkspaceSettings,
 } from '@/hooks/api';
-import { copyToClipboard, GithubIcon, useFormatters } from '@/shared';
+import { cmsClient, copyToClipboard, GithubIcon, useFormatters } from '@/shared';
 import { GitWorkflow } from './git-workflow';
 import { SettingsSection } from './section';
 
@@ -255,7 +255,7 @@ function DeployOnPush({
   const [revealed, setRevealed] = useState(false);
   const [webhookOrigin, setWebhookOrigin] = useState('');
   useEffect(() => setWebhookOrigin(window.location.origin), []);
-  const webhookUrl = `${webhookOrigin}/api/public/git/webhook/${projectId}`;
+  const webhookUrl = cmsClient.git.getWebhookUrl(projectId, webhookOrigin || undefined);
   const secret = git.webhookSecret ?? '';
 
   const copy = async (text: string) => {

@@ -59,6 +59,10 @@ export class CmsClientBuilder {
     return this;
   }
 
+  withFetch(customFetch: typeof fetch): this {
+    return this.withCustomFetch(customFetch);
+  }
+
   build(): CmsClient {
     return new CmsClient(this.options);
   }
