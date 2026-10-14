@@ -1,5 +1,6 @@
 import type { KyInstance } from 'ky';
 import { HttpClient, type HttpClientOptions } from './http';
+import { ScopedProjectContext } from './project-context';
 import {
   AddonsResource,
   AiResource,
@@ -96,6 +97,13 @@ export class CmsClient {
   extend(options: Partial<CmsClientOptions>): CmsClient {
     const extendedHttp = this.http.extend(options);
     return new CmsClient(extendedHttp.options, extendedHttp);
+  }
+
+  /**
+   * Scopes client operations to a specific project context
+   */
+  project(projectId: string): ScopedProjectContext {
+    return new ScopedProjectContext(this, projectId);
   }
 }
 
