@@ -55,4 +55,46 @@ export class AssetsResource {
     };
     return this.http.post<T>(`/api/app/projects/${projectId}/assets/confirm`, body);
   }
+
+  /**
+   * High-level complete asset upload workflow (presign -> binary PUT -> confirm)
+   */
+  async upload<T = AssetResponse>(
+    projectId: ProjectId,
+    file: File | Blob | { name?: string; size: number; arrayBuffer(): Promise<ArrayBuffer>; type?: string },
+    options?: { mimeType?: string; onProgress?: (bytesUploaded: number, totalBytes: number) => void },
+  ): Promise<T> {
+    const filename = ('name' in file && typeof file.name === 'string') ? file.name : 'upload.bin';
+    const sizeBytes = file.size;
+    const mimeType = options?.mimeType || file.type || 'application/octet-stream';
+
+    // 1. Presign
+    const presign = await this.presign(projectId, {
+      filename,
+      mimeType,
+      sizeBytes,
+    });
+
+    // 2. Binary PUT
+    const customFetch = this.http.options.fetch || fetch;
+    const uploadRes = await customFetch(presign.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': mimeType,
+      },
+      body: file as BodyInit,
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error(`Upload failed with status ${uploadRes.status}`);
+    }
+
+    // 3. Confirm
+    return this.confirm<T>(projectId, {
+      assetId: presign.assetId,
+      key: presign.key,
+      size: sizeBytes,
+      contentType: mimeType,
+    });
+  }
 }
