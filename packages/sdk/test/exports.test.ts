@@ -18,7 +18,7 @@ describe('ExportsResource & AiResource', () => {
 
     const client = createCmsClient({ baseUrl: 'https://cms.test', fetch: mockFetch });
     const jobs = await client.exports.listJobs();
-    expect(jobs[0].id).toBe('job-1');
+    expect(jobs[0]?.id).toBe('job-1');
     const [req] = mockFetch.mock.calls[0] as [Request, unknown];
     expect(req.url).toContain('/api/app/export/jobs');
   });

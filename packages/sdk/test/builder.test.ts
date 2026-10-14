@@ -16,7 +16,7 @@ describe('CmsClientBuilder', () => {
   });
 
   it('correctly attaches locale header when built with withLocale', async () => {
-    let capturedHeaders: Record<string, string> | undefined;
+    let capturedHeaders: any;
     const client = CmsClientBuilder.create()
       .withBaseUrl('https://api.cms.internal')
       .withLocale(() => 'vi')

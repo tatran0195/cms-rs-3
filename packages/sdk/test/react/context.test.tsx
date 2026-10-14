@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it } from 'vitest';
@@ -34,7 +36,7 @@ describe('CmsClientProvider & useCmsClient', () => {
   });
 
   it('throws error when useCmsClient is called outside provider', async () => {
-    let capturedError: Error | null = null;
+    let capturedError: any = null;
 
     function BrokenConsumer() {
       try {

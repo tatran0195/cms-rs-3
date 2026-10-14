@@ -9,6 +9,11 @@ export interface PresignResult {
   assetId?: string;
 }
 
+export interface AssetUploadOptions {
+  mimeType?: string;
+  onProgress?: (bytesUploaded: number, totalBytes: number) => void;
+}
+
 export class AssetsResource {
   constructor(private readonly http: HttpClient) {}
 
