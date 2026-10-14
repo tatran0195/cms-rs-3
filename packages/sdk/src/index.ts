@@ -10,6 +10,7 @@ export {
   type Options as KyOptions,
   TimeoutError,
 } from 'ky';
+export * from './builder';
 export * from './client';
 export * from './errors';
 export * from './http';
