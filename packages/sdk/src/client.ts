@@ -24,6 +24,7 @@ import {
   ReaderAccessResource,
   SearchResource,
   SetupResource,
+  SitesResource,
   WorkspaceResource,
 } from './resources';
 
@@ -55,6 +56,7 @@ export class CmsClient {
   readonly mcp: McpResource;
   readonly exports: ExportsResource;
   readonly ai: AiResource;
+  readonly sites: SitesResource;
 
   constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
     this.http = existingHttp ?? new HttpClient(options);
@@ -82,6 +84,7 @@ export class CmsClient {
     this.mcp = new McpResource(this.http);
     this.exports = new ExportsResource(this.http);
     this.ai = new AiResource(this.http);
+    this.sites = new SitesResource(this.http);
   }
 
   /**

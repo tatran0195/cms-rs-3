@@ -20,4 +20,5 @@ export * from './public';
 export * from './reader-access';
 export * from './search';
 export * from './setup';
+export * from './sites';
 export * from './workspace';
