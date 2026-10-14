@@ -89,4 +89,13 @@ export class PublicResource {
   async recordEvent(projectId: ProjectId, payload: unknown): Promise<{ success: boolean }> {
     return this.http.post<{ success: boolean }>(`/api/public/sites/${projectId}/events`, payload);
   }
+
+  /**
+   * Generates the canonical public OpenAPI spec JSON URL for a published site
+   */
+  getOpenApiSpecUrl(projectId: ProjectId, baseUrl?: string): string {
+    const base = baseUrl || this.http.options.baseUrl || '';
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}/api/public/sites/${encodeURIComponent(projectId)}/openapi.json`;
+  }
 }

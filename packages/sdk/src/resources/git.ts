@@ -68,4 +68,13 @@ export class GitResource {
   async rotateWebhookSecret(projectId: ProjectId): Promise<WebhookSecretRotateResponse> {
     return this.http.post<WebhookSecretRotateResponse>(`/api/app/projects/${projectId}/git/webhook-secret`);
   }
+
+  /**
+   * Generates the canonical inbound Git webhook endpoint URL
+   */
+  getWebhookUrl(projectId: ProjectId, baseUrl?: string): string {
+    const base = baseUrl || this.http.options.baseUrl || '';
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}/api/public/git/webhook/${encodeURIComponent(projectId)}`;
+  }
 }

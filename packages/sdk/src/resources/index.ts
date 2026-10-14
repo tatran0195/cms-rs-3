@@ -9,6 +9,7 @@ export * from './domains';
 export * from './git';
 export * from './integrations';
 export * from './languages';
+export * from './mcp';
 export * from './notifications';
 export * from './openapi';
 export * from './pages';

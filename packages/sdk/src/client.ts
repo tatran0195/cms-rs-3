@@ -12,6 +12,7 @@ import {
   GitResource,
   IntegrationsResource,
   LanguagesResource,
+  McpResource,
   NotificationsResource,
   OpenApiResource,
   PagesResource,
@@ -48,6 +49,7 @@ export class CmsClient {
   readonly public: PublicResource;
   readonly auth: AuthResource;
   readonly setup: SetupResource;
+  readonly mcp: McpResource;
 
   constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
     this.http = existingHttp ?? new HttpClient(options);
@@ -72,6 +74,7 @@ export class CmsClient {
     this.public = new PublicResource(this.http);
     this.auth = new AuthResource(this.http);
     this.setup = new SetupResource(this.http);
+    this.mcp = new McpResource(this.http);
   }
 
   /**
