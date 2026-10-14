@@ -5,8 +5,9 @@ const CmsContext = createContext<CmsClient | null>(null);
 
 export interface CmsClientProviderProps {
   client: CmsClient;
-  children: ReactNode;
+  children?: ReactNode;
 }
+
 
 export function CmsClientProvider({ client, children }: CmsClientProviderProps) {
   return <CmsContext.Provider value={client}>{children}</CmsContext.Provider>;

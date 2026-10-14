@@ -1,7 +1,9 @@
 // UI-facing shapes for API responses. Dates arrive as ISO strings over JSON.
 
 import type { AddonGroup, AddonId } from '@cms/shared/addons';
+import type { ResolvedTheme, ThemeConfigChange, ThemeTemplateV1 } from '@cms/shared/themes';
 import type { LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
+
 
 export type {
   AssetResponse,
@@ -379,3 +381,116 @@ export interface SearchAnswer {
   cacheHit: boolean;
   quotaRemaining: number;
 }
+
+export interface ProjectThemeImportResult {
+  applied: boolean;
+  mode: 'merge' | 'replace';
+  migratedFrom?: 0;
+  changes: ThemeConfigChange[];
+  theme: ResolvedTheme;
+  template: ThemeTemplateV1;
+  publishedChangesPending: boolean;
+}
+
+export interface ContentImportSummary {
+  imported: number;
+  updated: number;
+  skipped: number;
+  assetsImported?: number;
+  assetsSkipped?: number;
+  warnings: string[];
+}
+
+export interface RedirectIssue {
+  code: string;
+  rowIndexes: number[];
+  sequence: string[];
+  message: string;
+}
+
+export interface PendingChangesResponse {
+  changes: PendingChange[];
+  hasBaseline?: boolean;
+  lastVersion?: number;
+  redirectIssues?: RedirectIssue[];
+}
+
+export interface ReaderAccessData {
+  accessMode: 'PUBLIC' | 'WORKSPACE' | 'READERS';
+  readers: Array<{
+    id: string;
+    email: string | null;
+    name: string | null;
+    status: string;
+    audiences: Array<{ audience: { id: string; name: string } }>;
+    _count: { sessions: number };
+  }>;
+  audiences: Array<{
+    id: string;
+    name: string;
+    grants: Array<{ pageId: string | null }>;
+    _count: { readers: number };
+  }>;
+  jwt: {
+    enabled: boolean;
+    issuer: string;
+    audience: string;
+    jwksUrl: string | null;
+    publicJwks: unknown;
+    groupsClaim: string;
+    claimMapping: unknown;
+    sessionTtlMinutes: number;
+    maxTokenAgeSeconds: number;
+    clockToleranceSecs: number;
+  } | null;
+  audit: Array<{ id: string; action: string; createdAt: string }>;
+}
+
+export interface GitConflict {
+  id: string;
+  path: string;
+  status: string;
+  baseContent: string | null;
+  oursContent: string | null;
+  theirsContent: string | null;
+}
+
+export interface GitOperation {
+  id: string;
+  kind: string;
+  status: string;
+  commitMessage: string | null;
+  changedFiles: Array<{ path: string; status: string }> | null;
+  pullRequestNo: number | null;
+  pullRequestUrl: string | null;
+  error: string | null;
+  createdAt: string;
+  conflicts: GitConflict[];
+}
+
+export interface GitWorkflowStatus {
+  id: string;
+  repository: string;
+  baseBranch: string;
+  headBranch: string;
+  contentPath: string;
+  credentialConfigured: boolean;
+  webhookConfigured: boolean;
+  lastSyncStatus: string;
+  lastSyncError: string | null;
+  lastSyncedAt: string | null;
+  operations: GitOperation[];
+  pullRequests: Array<{
+    id: string;
+    number: number;
+    url: string;
+    title: string;
+    draft: boolean;
+    state: string;
+    previews: Array<{ id: string; status: string; url: string | null; error: string | null }>;
+  }>;
+  files: Array<{ path: string }>;
+}
+
+
+

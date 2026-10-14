@@ -6,4 +6,4 @@ export * from './ProjectOverviewPage';
 export * from './ProjectPreviewPage';
 export * from './ProjectsOverviewPage';
 export * from './SitesListPage';
-export * from './services/projects-api';
+

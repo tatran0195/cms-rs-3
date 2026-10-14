@@ -33,12 +33,10 @@ vi.mock('@/hooks/api', () => ({
     data: { name: 'Acme Corp', slug: 'acme-corp' },
     isPending: false,
   }),
-}));
-
-vi.mock('../services/settings-api', () => ({
   useTransferWorkspaceOwnership: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteWorkspace: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),

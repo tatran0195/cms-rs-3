@@ -31,5 +31,5 @@ export { WorkspaceDangerTab } from './components/workspace-danger-tab';
 export { WorkspaceGeneralTab } from './components/workspace-general-tab';
 export { WorkspaceMembersTab } from './components/workspace-members-tab';
 export { isSectionId, ProjectSettingsPage, type ProjectSettingsPageProps, type SectionId, type SettingsGroupId } from './ProjectSettingsPage';
-export * from './services/settings-api';
 export { isWorkspaceSettingsTab, WorkspaceSettingsPage, type WorkspaceSettingsPageProps, type WorkspaceSettingsTab } from './WorkspaceSettingsPage';
+

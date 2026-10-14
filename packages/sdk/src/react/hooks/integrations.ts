@@ -12,13 +12,13 @@ export const useProjectIntegrations = <T = any>(projectId: string) => {
   });
 };
 
-const useIntegrationMutation = <TVariables, TResult>(
+const useIntegrationMutation = <TVariables = any, TResult = any>(
   projectId: string,
   mutationFn: (client: ReturnType<typeof useCmsClient>, variables: TVariables) => Promise<TResult>
 ) => {
   const client = useCmsClient();
   const queryClient = useQueryClient();
-  return useMutation({
+  return useMutation<TResult, Error, TVariables>({
     mutationFn: (vars: TVariables) => mutationFn(client, vars),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.integrations.all(projectId) }),
     onError: async (error) => {
@@ -28,6 +28,7 @@ const useIntegrationMutation = <TVariables, TResult>(
     },
   });
 };
+
 
 export const useCreateProjectIntegration = <T = any>(projectId: string) =>
   useIntegrationMutation(projectId, (client, json: any) => client.integrations.create<T>(projectId, json));
