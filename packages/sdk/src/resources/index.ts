@@ -1,4 +1,5 @@
 export * from './addons';
+export * from './ai';
 export * from './api-keys';
 export * from './assets';
 export * from './auth';
@@ -6,6 +7,7 @@ export * from './branches';
 export * from './comments';
 export * from './deployments';
 export * from './domains';
+export * from './exports';
 export * from './git';
 export * from './integrations';
 export * from './languages';
