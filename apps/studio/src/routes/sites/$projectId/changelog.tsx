@@ -1,6 +1,6 @@
-import { changelogFeedUrl, SiteChangelogView, sitePageUrl } from '@cms/site';
+import { type ChangelogEntry, type SiteShell, changelogFeedUrl, SiteChangelogView, sitePageUrl } from '@cms/site';
 import { createFileRoute, useSearch } from '@tanstack/react-router';
-import { type ChangelogEntry, siteService } from '@/shared';
+import { cmsClient } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId/changelog')({
   component: SiteChangelog,
@@ -9,10 +9,10 @@ export const Route = createFileRoute('/sites/$projectId/changelog')({
   // and canonical (the changelog route renders no SitePageView to own the head).
   loader: async ({ params, deps }) => {
     try {
-      const site = await siteService.getSite(params.projectId, { language: deps.lang });
+      const site = await cmsClient.sites.getSite<SiteShell>(params.projectId, { language: deps.lang });
       let entries: ChangelogEntry[] = [];
       try {
-        entries = await siteService.listChangelog(params.projectId);
+        entries = await cmsClient.sites.listChangelog<ChangelogEntry>(params.projectId);
       } catch {
         // The shell still owns SEO/chrome when the optional feed is unavailable.
       }

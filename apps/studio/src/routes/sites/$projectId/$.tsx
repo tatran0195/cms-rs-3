@@ -1,7 +1,7 @@
-import { pageHead, redirectIfConfigured, resolveLanguagePathRedirect, SitePageView } from '@cms/site';
+import { type SitePage, type SiteShell, pageHead, redirectIfConfigured, resolveLanguagePathRedirect, SitePageView } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import { ApiResponseError, type SitePage, siteService } from '@/shared';
+import { ApiResponseError, cmsClient } from '@/shared';
 
 const OpenApiReferenceView = lazy(() => import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })));
 
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     const version = path ? path.split('/')[0] : undefined;
     let page: SitePage;
     try {
-      page = await siteService.getPage(params.projectId, path, { language: deps.lang, version });
+      page = await cmsClient.sites.getPage<SitePage>(params.projectId, path, { language: deps.lang, version });
     } catch (error) {
       if (!(error instanceof ApiResponseError) || error.status !== 404) {
         throw error;
@@ -25,7 +25,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
       const requested = (params._splat ?? '').replace(/^\/+|\/+$/g, '');
       let languageRedirect: string | null = null;
       try {
-        const site = await siteService.getSite(params.projectId, { language: deps.lang });
+        const site = await cmsClient.sites.getSite<SiteShell>(params.projectId, { language: deps.lang });
         if (site.openapi && requested === site.openapi.path) {
           return { kind: 'openapi' as const, openapi: site.openapi, site, lang: deps.lang };
         }
