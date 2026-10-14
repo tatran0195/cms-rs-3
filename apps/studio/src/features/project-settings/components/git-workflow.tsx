@@ -32,7 +32,7 @@ import {
   useResolveGitConflict,
   useRotateGitWorkflowWebhookSecret,
 } from '@/hooks/api';
-import { localeTag } from '@/shared';
+import { cmsClient, localeTag } from '@/shared';
 
 type GitIdentity = { login: string; name: string | null };
 const statusTone = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' =>
@@ -150,7 +150,7 @@ export function GitWorkflow({ projectId }: { projectId: string }) {
     () => connection?.operations.flatMap((item) => item.conflicts.filter((conflict) => conflict.status === 'OPEN')) ?? [],
     [connection],
   );
-  const webhookUrl = new URL(`/api/public/git/webhook/${projectId}`, env.VITE_APP_URL).toString();
+  const webhookUrl = cmsClient.git.getWebhookUrl(projectId, env.VITE_APP_URL);
 
   useEffect(() => {
     if (!connection) return;

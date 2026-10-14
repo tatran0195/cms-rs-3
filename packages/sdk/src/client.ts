@@ -1,7 +1,9 @@
 import type { KyInstance } from 'ky';
 import { HttpClient, type HttpClientOptions } from './http';
+import { ScopedProjectContext } from './project-context';
 import {
   AddonsResource,
+  AiResource,
   ApiKeysResource,
   AssetsResource,
   AuthResource,
@@ -9,9 +11,11 @@ import {
   CommentsResource,
   DeploymentsResource,
   DomainsResource,
+  ExportsResource,
   GitResource,
   IntegrationsResource,
   LanguagesResource,
+  McpResource,
   NotificationsResource,
   OpenApiResource,
   PagesResource,
@@ -20,6 +24,7 @@ import {
   ReaderAccessResource,
   SearchResource,
   SetupResource,
+  SitesResource,
   WorkspaceResource,
 } from './resources';
 
@@ -48,6 +53,10 @@ export class CmsClient {
   readonly public: PublicResource;
   readonly auth: AuthResource;
   readonly setup: SetupResource;
+  readonly mcp: McpResource;
+  readonly exports: ExportsResource;
+  readonly ai: AiResource;
+  readonly sites: SitesResource;
 
   constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
     this.http = existingHttp ?? new HttpClient(options);
@@ -72,6 +81,10 @@ export class CmsClient {
     this.public = new PublicResource(this.http);
     this.auth = new AuthResource(this.http);
     this.setup = new SetupResource(this.http);
+    this.mcp = new McpResource(this.http);
+    this.exports = new ExportsResource(this.http);
+    this.ai = new AiResource(this.http);
+    this.sites = new SitesResource(this.http);
   }
 
   /**
@@ -87,6 +100,13 @@ export class CmsClient {
   extend(options: Partial<CmsClientOptions>): CmsClient {
     const extendedHttp = this.http.extend(options);
     return new CmsClient(extendedHttp.options, extendedHttp);
+  }
+
+  /**
+   * Scopes client operations to a specific project context
+   */
+  project(projectId: string): ScopedProjectContext {
+    return new ScopedProjectContext(this, projectId);
   }
 }
 

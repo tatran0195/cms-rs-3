@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@/hooks/api';
 import type { ApiKey } from '@/hooks/api/types';
-import { localeTag, useFormatters } from '@/shared';
+import { cmsClient, localeTag, useFormatters } from '@/shared';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,7 +127,7 @@ export function ApiKeysTab({ projectId }: { projectId: string }) {
       <SettingsSection description={t('settings.apiKeys.description')} title={t('settings.apiKeys.title')}>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-muted-foreground text-sm">
           <ShieldCheck aria-hidden className="size-4 shrink-0 text-primary" />
-          <code className="min-w-0 truncate text-foreground">/api/mcp</code>
+          <code className="min-w-0 truncate text-foreground">{cmsClient.mcp.getEndpointUrl()}</code>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">

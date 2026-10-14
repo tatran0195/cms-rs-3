@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
 
 import { CmsApiError } from '@cms/sdk';
+
+import { CmsClientProvider } from '@cms/sdk/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cmsClient } from '../../services/cms-client';
 import { useActivateProjectIntegration, useUpdateProjectIntegration } from './integrations';
 import { queryKeys } from './query-keys';
+
 
 const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
@@ -66,7 +70,15 @@ describe('integration mutation conflict recovery', () => {
     }
 
     const root = createRoot(container);
-    await act(async () => root.render(createElement(QueryClientProvider, { client: queryClient }, createElement(Probe))));
+    await act(async () =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(CmsClientProvider, { client: cmsClient as any }, createElement(Probe))
+        )
+      )
+    );
     await act(async () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'integration:revision_conflict' });
     });
@@ -88,7 +100,15 @@ describe('integration mutation conflict recovery', () => {
     }
 
     const root = createRoot(container);
-    await act(async () => root.render(createElement(QueryClientProvider, { client: queryClient }, createElement(Probe))));
+    await act(async () =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(CmsClientProvider, { client: cmsClient as any }, createElement(Probe))
+        )
+      )
+    );
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await act(async () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'integration:inactive' });
@@ -98,3 +118,4 @@ describe('integration mutation conflict recovery', () => {
     act(() => root.unmount());
   });
 });
+

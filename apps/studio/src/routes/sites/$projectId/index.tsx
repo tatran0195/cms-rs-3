@@ -1,6 +1,6 @@
-import { pageHead, redirectIfConfigured, SitePageView } from '@cms/site';
+import { type SitePage, type SiteShell, pageHead, redirectIfConfigured, SitePageView } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
-import { ApiResponseError, siteService } from '@/shared';
+import { ApiResponseError, cmsClient } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId/')({
   component: SiteHome,
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/sites/$projectId/')({
   // Empty path resolves to the site's first page server-side (content + SEO).
   loader: async ({ params, deps }) => {
     try {
-      const page = await siteService.getPage(params.projectId, '', { language: deps.lang });
+      const page = await cmsClient.sites.getPage<SitePage>(params.projectId, '', { language: deps.lang });
       return { page, lang: deps.lang };
     } catch (error) {
       if (!(error instanceof ApiResponseError) || error.status !== 404) {
@@ -16,7 +16,7 @@ export const Route = createFileRoute('/sites/$projectId/')({
       }
       // A site may intentionally publish only an API reference. Give that
       // reference a useful home URL instead of returning a root 404.
-      const site = await siteService.getSite(params.projectId, { language: deps.lang }).catch(() => null);
+      const site = await cmsClient.sites.getSite<SiteShell>(params.projectId, { language: deps.lang }).catch(() => null);
       if (site?.openapi) {
         const prefix = `/sites/${params.projectId}`;
         const query = deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : '';

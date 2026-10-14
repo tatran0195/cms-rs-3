@@ -21,7 +21,6 @@
     "@cms/i18n": "workspace:*",
     "@cms/icons": "workspace:*",
     "@cms/sdk": "workspace:*",
-    "@cms/ui": "workspace:*",
     "@cms/validators": "workspace:*",
     "@tanstack/react-query": "^5.104.1",
     "lucide-react": "^1.52.0",

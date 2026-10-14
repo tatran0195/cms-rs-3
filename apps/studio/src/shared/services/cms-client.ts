@@ -1,28 +1,19 @@
-import { getLocale, REQUEST_LOCALE_HEADER } from '@cms/i18n';
-import { createCmsClient } from '@cms/sdk';
+import { getLocale } from '@cms/i18n';
+import { CmsClientBuilder } from '@cms/sdk';
 
 const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4310';
 
 /**
- * Singleton typed CMS SDK Client configured for Studio SPA
+ * Singleton typed CMS SDK Client configured for Studio SPA using CmsClientBuilder
  */
-export const cmsClient = createCmsClient({
-  baseUrl: baseOrigin,
-  headers: () => {
-    const headers: Record<string, string> = {};
+export const cmsClient = CmsClientBuilder.create()
+  .withBaseUrl(baseOrigin)
+  .withLocale(() => {
     try {
-      const locale = getLocale();
-      if (locale) {
-        headers[REQUEST_LOCALE_HEADER] = locale;
-      }
+      return getLocale();
     } catch {
-      // Locale might not be loaded yet
+      return undefined;
     }
-    return headers;
-  },
-  fetch: (input, init) =>
-    fetch(input, {
-      ...init,
-      credentials: 'include',
-    }),
-});
+  })
+  .withCredentials('include')
+  .build();

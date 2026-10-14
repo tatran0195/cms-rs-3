@@ -1,7 +1,7 @@
-import { SiteApiProvider, SiteLayout, siteHead } from '@cms/site';
+import { type SiteShell, SiteApiProvider, SiteLayout, siteHead } from '@cms/site';
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
-import { QueryProvider, siteService } from '@/shared';
+import { QueryProvider, cmsClient } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,
@@ -12,7 +12,7 @@ export const Route = createFileRoute('/sites/$projectId')({
     try {
       const rest = location.pathname.replace(new RegExp(`^/sites/${params.projectId}/?`), '').replace(/\/+$/, '');
       const candidate = rest && rest !== 'changelog' ? decodeURIComponent(rest).split('/')[0] : undefined;
-      const site = await siteService.getSite(params.projectId, {
+      const site = await cmsClient.sites.getSite<SiteShell>(params.projectId, {
         language: deps.lang,
         version: candidate,
       });
@@ -34,7 +34,7 @@ function SiteRoute() {
       <SiteApiProvider
         config={{
           search: (options) =>
-            siteService.search(options.projectId, options.query, {
+            cmsClient.sites.search(options.projectId, options.query, {
               language: options.language,
               version: options.version,
               limit: options.limit,

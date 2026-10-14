@@ -1,11 +1,11 @@
 import type { SiteSnapshot } from '@cms/shared/site';
 import { createFileRoute } from '@tanstack/react-router';
 import { GitPreviewPage } from '@/features/publishing';
-import { siteService } from '@/shared';
+import { cmsClient } from '@/shared';
 
 export const Route = createFileRoute('/git-preview/$token')({
   loader: async ({ params }) =>
-    JSON.parse(await siteService.getGitPreview(params.token)) as {
+    JSON.parse(await cmsClient.sites.getGitPreview(params.token)) as {
       snapshot: SiteSnapshot;
     },
   head: () => ({

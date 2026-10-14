@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 
 import { CmsApiError } from '@cms/sdk';
+
+import { CmsClientProvider } from '@cms/sdk/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cmsClient } from '../../services/cms-client';
 import { useActivateProjectAddon, useUpdateProjectAddon } from './mutations';
 import { queryKeys } from './query-keys';
 import type { ProjectAddon } from './types';
@@ -23,6 +26,7 @@ vi.mock('../../services/cms-client', () => ({
     },
   },
 }));
+
 
 const conflictError = () =>
   new CmsApiError({
@@ -65,10 +69,19 @@ describe('add-on mutation conflict recovery', () => {
     }
 
     const root = createRoot(container);
-    await act(async () => root.render(createElement(QueryClientProvider, { client: queryClient }, createElement(Probe))));
+    await act(async () =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(CmsClientProvider, { client: cmsClient as any }, createElement(Probe))
+        )
+      )
+    );
     await act(async () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'addon:revision_conflict' });
     });
+
 
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: queryKeys.addons.detail(projectId, addonId),
