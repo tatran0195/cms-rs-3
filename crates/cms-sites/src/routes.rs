@@ -68,7 +68,7 @@ pub fn create_router(state: Arc<SitesAppState>) -> Router {
     };
 
     let host_resolver = Arc::new(HostResolver::with_options(
-        state.biz_context.pool.clone(),
+        state.pool.clone(),
         default_h,
         state.host_resolution_generation.clone(),
         canonical_domains,

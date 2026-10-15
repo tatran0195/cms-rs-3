@@ -27,16 +27,11 @@ pub async fn get_project_analytics_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<ProjectAnalyticsResponse>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Viewer,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
+        .await?;
 
     let dashboard = cms_biz::analytics::AnalyticsService::get_dashboard(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
     )
@@ -109,46 +104,30 @@ pub async fn get_project_settings_usage_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<ProjectUsageTelemetryResponse>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Viewer,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
+        .await?;
 
-    let pages = cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
+    let pages = cms_db::page::PageQueries::get_by_project(&state.pool, &project_id)
         .await
         .map(|p| p.len() as i64)
         .unwrap_or(0);
-    let assets = cms_db::asset::AssetQueries::get_by_project(
-        &state.biz_context.pool,
-        &project_id,
-        Some(1000),
-        None,
-    )
-    .await
-    .unwrap_or_default();
+    let assets =
+        cms_db::asset::AssetQueries::get_by_project(&state.pool, &project_id, Some(1000), None)
+            .await
+            .unwrap_or_default();
     let asset_bytes: i64 = assets.iter().map(|a| a.file_size).sum();
     let deminr_of_assets = assets.len() as i64;
-    let builds = cms_db::deployment::DeploymentQueries::count_by_project(
-        &state.biz_context.pool,
-        &project_id,
-    )
-    .await
-    .unwrap_or(0);
-    let members = cms_db::authz::ProjectMemberQueries::list_by_project(
-        &state.biz_context.pool,
-        &project_id,
-    )
-    .await
-    .map(|m| m.len() as i64)
-    .unwrap_or(0);
-    let domains =
-        cms_db::domain::DomainQueries::get_by_deployment(&state.biz_context.pool, &project_id)
-            .await
-            .map(|d| d.len() as i64)
-            .unwrap_or(0);
+    let builds = cms_db::deployment::DeploymentQueries::count_by_project(&state.pool, &project_id)
+        .await
+        .unwrap_or(0);
+    let members = cms_db::authz::ProjectMemberQueries::list_by_project(&state.pool, &project_id)
+        .await
+        .map(|m| m.len() as i64)
+        .unwrap_or(0);
+    let domains = cms_db::domain::DomainQueries::get_by_deployment(&state.pool, &project_id)
+        .await
+        .map(|d| d.len() as i64)
+        .unwrap_or(0);
 
     let meter = |key: &str, quantity: i64, unit: &str| ProjectUsageMeter {
         key: key.to_string(),

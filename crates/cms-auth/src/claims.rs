@@ -68,11 +68,10 @@ pub fn decode_jwt(token: &str, secret: &[u8]) -> Result<Claims, AppError> {
         ..Default::default()
     };
     let decoding_key = DecodingKey::from_secret(secret);
-    let token_data = decode::<Claims>(token, &decoding_key, &validation)
-        .map_err(|e| {
-            tracing::debug!("JWT decode error: {e}");
-            AppError::Unauthorized
-        })?;
+    let token_data = decode::<Claims>(token, &decoding_key, &validation).map_err(|e| {
+        tracing::debug!("JWT decode error: {e}");
+        AppError::Unauthorized
+    })?;
     Ok(token_data.claims)
 }
 

@@ -36,9 +36,9 @@ pub mod workspace;
 
 use cms_error::AppError;
 pub use setup::SetupQueries;
-pub use workspace::WorkspaceQueries;
 pub use sqlx;
 use sqlx::postgres::PgPoolOptions;
+pub use workspace::WorkspaceQueries;
 
 /// Database connection pool type
 pub type PgPool = sqlx::PgPool;
@@ -130,7 +130,8 @@ mod tests {
             );
 
             let mem_res =
-                crate::authz::ProjectMemberQueries::list_by_project(&pool, "nonexistent-project").await;
+                crate::authz::ProjectMemberQueries::list_by_project(&pool, "nonexistent-project")
+                    .await;
             assert!(
                 mem_res.is_ok(),
                 "ProjectMember list should succeed: {:?}",

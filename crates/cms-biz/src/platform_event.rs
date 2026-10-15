@@ -50,13 +50,9 @@ impl PlatformEventService {
         user_id: Option<&str>,
         request: CreatePlatformEventRequest,
     ) -> Result<PlatformEventResponse, AppError> {
-        let event = PlatformEventQueries::create(
-            &ctx.pool,
-            user_id,
-            &request.event_type,
-            request.metadata,
-        )
-        .await?;
+        let event =
+            PlatformEventQueries::create(&ctx.pool, user_id, &request.event_type, request.metadata)
+                .await?;
 
         Ok(event.into())
     }
@@ -70,13 +66,9 @@ impl PlatformEventService {
         event_type: FunnelEventType,
         metadata: serde_json::Value,
     ) {
-        if let Err(error) = PlatformEventQueries::create(
-            &ctx.pool,
-            Some(user_id),
-            event_type.as_str(),
-            metadata,
-        )
-        .await
+        if let Err(error) =
+            PlatformEventQueries::create(&ctx.pool, Some(user_id), event_type.as_str(), metadata)
+                .await
         {
             tracing::warn!(
                 user_id,
@@ -97,18 +89,11 @@ impl PlatformEventService {
     ) -> Result<PaginatedResponse<PlatformEventResponse>, AppError> {
         let limit = page_size.max(1) as i64;
         let offset = page.saturating_sub(1) as i64 * limit;
-        let events = PlatformEventQueries::list(
-            &ctx.pool,
-            None,
-            event_type,
-            Some(limit),
-            Some(offset),
-        )
-        .await?;
-
-        let total =
-            PlatformEventQueries::count(&ctx.pool, None, event_type)
+        let events =
+            PlatformEventQueries::list(&ctx.pool, None, event_type, Some(limit), Some(offset))
                 .await?;
+
+        let total = PlatformEventQueries::count(&ctx.pool, None, event_type).await?;
 
         Ok(PaginatedResponse::new(
             events.into_iter().map(|e| e.into()).collect(),

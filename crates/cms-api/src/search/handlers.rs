@@ -63,7 +63,7 @@ pub async fn search_handler(
 
     let project_id = request.project_id.clone();
     let result = SearchService::search(
-        &state.biz_context,
+        &state.biz_context(),
         state.search_engine.clone(),
         &project_id,
         request,
@@ -109,7 +109,7 @@ pub async fn reindex_handler(
     .await?;
 
     SearchService::reindex(
-        &state.biz_context,
+        &state.biz_context(),
         state.search_engine.clone(),
         &auth.user.id,
         request,
@@ -151,9 +151,10 @@ pub async fn list_search_index_runs_handler(
     auth: AuthExtractor,
     Query(query): Query<ListSearchIndexRunsQuery>,
 ) -> Result<Json<PaginatedResponse<SearchIndexRunResponse>>, AppError> {
-    let project_id_str = query.project_id.as_deref().ok_or_else(|| {
-        AppError::InvalidInput("project_id query param is required".to_string())
-    })?;
+    let project_id_str = query
+        .project_id
+        .as_deref()
+        .ok_or_else(|| AppError::InvalidInput("project_id query param is required".to_string()))?;
     let project_uuid = uuid::Uuid::parse_str(project_id_str)
         .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
     cms_authz_gate::require_project_access(
@@ -164,7 +165,7 @@ pub async fn list_search_index_runs_handler(
     )
     .await?;
 
-    let result = SearchService::list_index_runs(&state.biz_context, &auth.user.id, query).await?;
+    let result = SearchService::list_index_runs(&state.biz_context(), &auth.user.id, query).await?;
 
     Ok(Json(result))
 }
@@ -195,7 +196,7 @@ pub async fn get_search_index_run_handler(
     auth: AuthExtractor,
     Path(run_id): Path<Id>,
 ) -> Result<Json<SearchIndexRunResponse>, AppError> {
-    let run = SearchService::get_index_run(&state.biz_context, &auth.user.id, &run_id).await?;
+    let run = SearchService::get_index_run(&state.biz_context(), &auth.user.id, &run_id).await?;
     let project_uuid = uuid::Uuid::parse_str(&run.project_id)
         .map_err(|_| AppError::NotFound("Search index run not found".to_string()))?;
     cms_authz_gate::require_project_access(
@@ -246,7 +247,7 @@ pub async fn get_search_status_handler(
     .await?;
 
     let status =
-        SearchService::get_search_status(&state.biz_context, &auth.user.id, &project_id).await?;
+        SearchService::get_search_status(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     Ok(Json(status))
 }

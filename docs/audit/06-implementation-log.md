@@ -35,6 +35,16 @@ This document tracks all audit steps, baseline verification commands, findings v
 | 2026-10-15 05:56 UTC | `cargo test -p cms-biz -j 2` | 0 | **Passed (26/26)** | All domain logic, parentage check, and verification tests passing. |
 | 2026-10-15 05:57 UTC | `cargo test -p cms-error -p cms-config -p cms-mfa -p cms-queue -p cms-api-keys -j 2` | 0 | **Passed (30/30)** | Utility and security test suites passing. |
 | 2026-10-15 06:02 UTC | `cargo test -p cms-api --lib -j 2` | 0 | **Passed (5/5)** | API layer unit tests passing. |
+| 2026-10-15 06:40 UTC | `cargo check -p cms-api -j 2` | 0 | **Passed** | Verified SEC-09 and SEC-10 admin gate and parity handler refactoring. |
+| 2026-10-15 06:48 UTC | `cargo clippy -p cms-api -j 2 -- -D warnings` | 0 | **Passed (0 warnings)** | Clean clippy check after SEC-11 session/JWT auth extraction fix. |
+| 2026-10-15 06:50 UTC | `cargo clippy --workspace --all-targets -j 2 -- -D warnings` | 0 | **Passed (0 warnings)** | Strict clippy check clean across all 24 crates and targets. |
+| 2026-10-15 06:51 UTC | `cargo test -p cms-authz-gate -p cms-authz -p cms-auth -j 2` | 0 | **Passed (21/21)** | Auth, ReBAC, and Authz gate suites passing. |
+| 2026-10-15 06:51 UTC | `cargo test -p cms-biz -j 2` | 0 | **Passed (26/26)** | All business and domain unit tests passing. |
+| 2026-10-15 07:45 UTC | `cargo check -p cms-api -j 2` | 0 | **Passed** | Verified SEC-15 MCP router AuthExtractor layer. |
+| 2026-10-15 07:46 UTC | `cargo clippy --workspace --all-targets -j 2 -- -D warnings` | 0 | **Passed (0 warnings)** | Clean clippy check across all workspace targets with `-D warnings`. |
+| 2026-10-15 07:54 UTC | `cargo test -p cms-mcp -j 2` | 0 | **Passed (11/11)** | MCP unit, integration, and e2e handshake suites passing. |
+| 2026-10-15 07:55 UTC | `cargo test -p cms-api-keys -j 2` | 0 | **Passed (3/3)** | API key generation and validation tests passing. |
+| 2026-10-15 07:56 UTC | `cargo test -p cms-api --lib -j 2` | 0 | **Passed (5/5)** | API layer unit tests passing. |
 
 ---
 
@@ -50,11 +60,19 @@ This document tracks all audit steps, baseline verification commands, findings v
 | `[SEC-06]` | Confirmed security issue | Critical | **REMEDIATED** | Extended `ParentLink` single-hop SQL resolution in `cms-authz-gate` to include `Language`, `Domain`, `Asset`, `GitConnection`, `OpenApiDocument`, `Theme`, `Audience`, `ExportJob`, and `ExportSchedule`. Gated all standalone handlers with `require_parent_access` or `require_project_access`. |
 | `[SEC-07]` | Confirmed security issue | High | **REMEDIATED** | Added `cms_authz_gate::require_system_admin` checking `User.role = 'admin'` or ReBAC workspace Admin. Gated platform events with `require_system_admin`, and scoped analytics queries, dashboards, page views, and MCP audit events. |
 | `[SEC-08]` | Confirmed security issue | Medium | **REMEDIATED** | Enforced `require_project_access` across all search endpoints: `Relation::Viewer` for search queries, index runs, and status; `Relation::Admin` for reindexing. |
+| `[SEC-09]` | Confirmed security issue | Medium | **REMEDIATED** | Removed unauthenticated root `/metrics` scrape endpoint; secured `get_system_metrics_handler` under admin sub-router with `AuthExtractor` and `require_system_admin`. |
+| `[SEC-10]` | Confirmed security issue | High | **REMEDIATED** | Refactored `require_admin` in `crates/cms-api/src/admin/parity.rs` to take `&AuthExtractor` and delegate to `cms_authz_gate::require_system_admin`, eliminating manual context synthesis with hardcoded `"member"` role. |
+| `[SEC-11]` | Confirmed security issue | High | **REMEDIATED** | Resolved system admin status via `UserQueries::is_system_admin` during session, API key, and legacy JWT authentication in `crates/cms-api/src/auth/middleware.rs`, restoring ReBAC bypass for operators. Added suspension checks on decoded JWTs. |
+| `[SEC-12]` | Confirmed security issue | High | **REMEDIATED** | Introduced `ensure_workspace_owner` in `crates/cms-api/src/workspace/handlers.rs` and restricted `transfer_workspace_ownership_handler` and `delete_workspace_handler` strictly to Workspace Owners or platform operators. |
+| `[SEC-13]` | Confirmed security issue | High | **REMEDIATED** | In `crates/cms-api/src/integration/handlers.rs`, added ReBAC authorization gates to all standalone integration handlers (`create`, `get`, `update`, `delete`, `enable`, `disable`, `test`). Extended `cms-authz-gate` with `ParentLink::Integration(Uuid)` resolving to parent project. |
+| `[SEC-14]` | Confirmed security issue | High | **REMEDIATED** | In `crates/cms-api/src/comment/handlers.rs`, gated `list_page_comments_handler` with `ParentLink::Page` and made `page_id` required with strict validation in `list_comments_handler`. In `branch/handlers.rs` and `page/handlers.rs`, enforced unconditional `require_project_access(Relation::Viewer)` on list queries. |
+| `[SEC-15]` | Confirmed security issue | High | **REMEDIATED** | In `crates/cms-api/src/mcp/mod.rs`, applied `AuthExtractor` layer to remote MCP Streamable HTTP service. In `crates/cms-biz/src/mcp.rs`, fixed `check_project_access` and `list_resources` to permit `"system"` and admin callers without failing UUID string parsing. |
 | `[COR-01]` | Confirmed defect | High | **REMEDIATED** | In `crates/cms-api/src/project/handlers/members.rs`, reconciled role strings to map `Owner -> "owner"` and all other roles (`Admin`, `Editor`, `Viewer`) to `"member"`, adhering to the database constraint `CHECK (role IN ('owner', 'member'))`. |
 | `[COR-02]` | Confirmed defect | High | **REMEDIATED** | In `crates/cms-api/src/export/handlers.rs`, `git/handlers.rs`, and `project/handlers/git.rs`, wired job queue dispatch by constructing `JobEnvelope::new` and enqueuing to `state.job_queue`. |
 | `[COR-03]` | Confirmed defect | Medium | **REMEDIATED** | In `crates/cms-api/src/project/handlers/search.rs` and `crates/cms-biz/src/search.rs`, gated reindexing with `Relation::Admin` and offloaded heavy indexing loop to background `tokio::spawn` task returning `202 Accepted` immediately. |
 | `[ARCH-01]` | Architectural concern | High | **Mitigated** | Standalone routes now use parent link resolution to enforce the same ReBAC gates as project-scoped routes. |
 | `[ARCH-02]` | Architectural concern | Medium | **REMEDIATED** | Extracted all direct SQL queries out of `crates/cms-api/src/workspace/handlers.rs` into `cms_db::workspace::WorkspaceQueries` and orchestrated them via `cms_biz::workspace::WorkspaceService`. |
+| `[ARCH-03]` | Architectural concern | Medium | **REMEDIATED** | Flattened `AppState` in `cms-middleware` to make `pool` and `authz` first-class fields alongside `storage`, `job_queue`, etc., eliminating the nested `biz_context` anti-pattern, implementing `axum::extract::FromRef` for substate extraction, and providing `state.biz_context()` as a clean boundary adapter. |
 | `[PERF-01]` | Architectural concern | Medium | **REMEDIATED** | Configured `[build] jobs = 2` in `.cargo/config.toml` ensuring bounded build and link concurrency across Windows developer environments and CI. |
 
 ---
@@ -69,3 +87,5 @@ This document tracks all audit steps, baseline verification commands, findings v
    - *Rationale:* Directly conforms with the existing database schema migration `20260114000000_custom_roles_and_project_members.sql` check constraint without requiring a destructive schema migration.
 4. **Decision:** Enqueue background jobs via `JobEnvelope::new(JobType::..., payload)` directly in API handlers following the pattern established in deployment handlers.
    - *Rationale:* Ensures worker pool processes background jobs reliably instead of leaving database records permanently stranded in `Pending`.
+5. **Decision:** Flatten `AppState` to directly hold `pool: PgPool` and `authz: Arc<AuthzState>` rather than maintaining an awkward hybrid with nested `biz_context`.
+   - *Rationale:* In idiomatic Axum, application state is the DI container where shared infrastructure resources are top-level peers. Flattening eliminates Law of Demeter violations (`state.biz_context.pool`) across handlers, enables Axum `FromRef` sub-state extractors, and establishes a clean domain boundary where `cms-biz` is invoked via `state.biz_context()` adapter.

@@ -31,7 +31,6 @@ impl From<ProjectMemberRow> for ProjectMember {
     }
 }
 
-
 pub struct ProjectMemberQueries;
 
 impl ProjectMemberQueries {
@@ -88,7 +87,10 @@ impl ProjectMemberQueries {
         Ok(row.map(Into::into))
     }
 
-    pub async fn list_by_project(pool: &PgPool, project_id: &str) -> Result<Vec<ProjectMember>, AppError> {
+    pub async fn list_by_project(
+        pool: &PgPool,
+        project_id: &str,
+    ) -> Result<Vec<ProjectMember>, AppError> {
         let rows = sqlx::query_as::<_, ProjectMemberRow>(
             r#"SELECT * FROM "ProjectMember" WHERE project_id = $1 ORDER BY created_at ASC"#,
         )
@@ -116,7 +118,9 @@ impl ProjectMemberQueries {
             has_updates = true;
         }
         if let Some(role_id) = role_id {
-            if has_updates { qb.push(", "); }
+            if has_updates {
+                qb.push(", ");
+            }
             qb.push("role_id = ");
             qb.push_bind(role_id);
             has_updates = true;
@@ -143,14 +147,13 @@ impl ProjectMemberQueries {
     }
 
     pub async fn remove(pool: &PgPool, project_id: &str, user_id: &str) -> Result<bool, AppError> {
-        let res = sqlx::query(
-            r#"DELETE FROM "ProjectMember" WHERE project_id = $1 AND user_id = $2"#,
-        )
-        .bind(project_id)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        let res =
+            sqlx::query(r#"DELETE FROM "ProjectMember" WHERE project_id = $1 AND user_id = $2"#)
+                .bind(project_id)
+                .bind(user_id)
+                .execute(pool)
+                .await
+                .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(res.rows_affected() > 0)
     }
@@ -185,7 +188,10 @@ impl RelationTupleQueries {
         subject_type: &str,
         subject_id: &str,
     ) -> Result<bool, AppError> {
-        let relations: Vec<String> = candidate_relations.iter().map(|s| (*s).to_string()).collect();
+        let relations: Vec<String> = candidate_relations
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
         let allowed: bool = sqlx::query_scalar(
             r#"
             SELECT EXISTS (
@@ -316,7 +322,10 @@ impl RelationTupleQueries {
         subject_type: &str,
         subject_id: &str,
     ) -> Result<Vec<Uuid>, AppError> {
-        let relations: Vec<String> = candidate_relations.iter().map(|s| (*s).to_string()).collect();
+        let relations: Vec<String> = candidate_relations
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
         let ids = sqlx::query_scalar::<_, Uuid>(
             r#"
             SELECT object_id FROM relation_tuples
@@ -341,4 +350,3 @@ impl RelationTupleQueries {
         Ok(ids)
     }
 }
-

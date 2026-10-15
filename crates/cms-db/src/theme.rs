@@ -72,14 +72,14 @@ impl ThemeQueries {
         let row = sqlx::query_as::<_, ThemeRow>(
             "SELECT project_id as id, project_id, COALESCE(theme, 'default') as name, \
              '#3B82F6'::text as primary_color, '#60A5FA'::text as secondary_color, \
-             '#FFFFFF'::text as background_color, '#111827'::text as text_color, \
-             NULL::text as font_family, NULL::text as logo_url, NULL::text as favicon_url, \
-             created_at, updated_at FROM \"ProjectSettings\" WHERE project_id = $1",
+             '#FFFFFF'::text as background_color, '#111827'::text as text_color, NULL::text as \
+             font_family, NULL::text as logo_url, NULL::text as favicon_url, created_at, \
+             updated_at FROM \"ProjectSettings\" WHERE project_id = $1",
         )
-            .bind(theme_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| AppError::Database(e.into()))?;
+        .bind(theme_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(row.map(|r| r.into()))
     }
@@ -90,9 +90,9 @@ impl ThemeQueries {
         let rows = sqlx::query_as::<_, ThemeRow>(
             "SELECT project_id as id, project_id, COALESCE(theme, 'default') as name, \
              '#3B82F6'::text as primary_color, '#60A5FA'::text as secondary_color, \
-             '#FFFFFF'::text as background_color, '#111827'::text as text_color, \
-             NULL::text as font_family, NULL::text as logo_url, NULL::text as favicon_url, \
-             created_at, updated_at FROM \"ProjectSettings\" WHERE project_id = $1",
+             '#FFFFFF'::text as background_color, '#111827'::text as text_color, NULL::text as \
+             font_family, NULL::text as logo_url, NULL::text as favicon_url, created_at, \
+             updated_at FROM \"ProjectSettings\" WHERE project_id = $1",
         )
         .bind(project_id)
         .fetch_all(pool)

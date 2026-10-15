@@ -33,7 +33,8 @@ fn main() {
 
     for path in &files {
         let locale = path.file_stem().and_then(|s| s.to_str()).expect("utf-8");
-        let raw = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let raw =
+            fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         let doc: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&raw)
             .unwrap_or_else(|e| panic!("{}: invalid JSON: {e}", path.display()));
 
@@ -55,11 +56,20 @@ fn main() {
         let target = out_dir.join(format!("{locale}.json"));
         fs::write(&target, serde_json::to_string(&subset).expect("serialize")).expect("write");
         let safe_target = target.to_string_lossy().replace('\\', "/");
-        generated.push_str(&format!("    ({locale:?}, include_str!({safe_target:?})),\n"));
+        generated.push_str(&format!(
+            "    ({locale:?}, include_str!({safe_target:?})),\n"
+        ));
     }
     generated.push_str("];\n");
 
-    assert!(saw_base, "Base locale `{BASE_LOCALE}.json` missing in `{}`", dir.display());
-    fs::write(Path::new(&env::var("OUT_DIR").unwrap()).join("embedded_messages.rs"), generated)
-        .expect("write embedded_messages.rs");
+    assert!(
+        saw_base,
+        "Base locale `{BASE_LOCALE}.json` missing in `{}`",
+        dir.display()
+    );
+    fs::write(
+        Path::new(&env::var("OUT_DIR").unwrap()).join("embedded_messages.rs"),
+        generated,
+    )
+    .expect("write embedded_messages.rs");
 }

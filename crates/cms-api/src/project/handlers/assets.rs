@@ -22,15 +22,10 @@ pub async fn list_project_assets_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<AssetResponse>>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Viewer,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
+        .await?;
     let result = cms_biz::asset::AssetService::list_assets(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         1,
@@ -53,13 +48,8 @@ pub async fn presign_project_asset_handler(
 ) -> Result<Json<ApiResponse<PresignAssetResponse>>, AppError> {
     use std::time::Duration;
 
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Editor,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Editor)
+        .await?;
 
     let file_name = body
         .filename
@@ -115,17 +105,12 @@ pub async fn confirm_project_asset_handler(
     let file_name = key.rsplit('/').next().unwrap_or("asset").to_string();
 
     // Authorize and normalize.
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Editor,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Editor)
+        .await?;
 
     // Re-derive the key into the canonical asset key and create the row.
     let asset = cms_biz::asset::AssetService::create_asset(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         None,

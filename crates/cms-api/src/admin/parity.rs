@@ -17,24 +17,9 @@ use sqlx::{FromRow, Postgres, QueryBuilder};
 
 use crate::auth::AuthExtractor;
 
-async fn require_admin(state: &AppState, user_id: &str) -> Result<(), AppError> {
-    if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, user_id)
+async fn require_admin(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
+    cms_authz_gate::require_system_admin(state.authz_backend(), &auth.authz_context(), &state.pool)
         .await
-        .unwrap_or(false)
-    {
-        return Ok(());
-    }
-
-    let user_uuid = uuid::Uuid::parse_str(user_id)
-        .map_err(|_| AppError::Unauthorized)?;
-    let ctx = cms_authz::AuthzContext::new(user_uuid, "member".to_string(), false);
-
-    cms_authz_gate::require_workspace_access(
-        state.authz_backend(),
-        &ctx,
-        cms_authz::Relation::Admin,
-    )
-    .await
 }
 
 #[derive(Debug, FromRow, Serialize)]
@@ -63,7 +48,7 @@ pub async fn overview_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let stats = sqlx::query_as::<_, OverviewRow>(
         r#"SELECT
             (SELECT COUNT(*) FROM "User") AS users,
@@ -93,7 +78,7 @@ pub async fn overview_handler(
             (SELECT COUNT(*) FROM "GitSyncOperation"
              WHERE status IN ('FAILED', 'CONFLICT')) AS git_issues"#,
     )
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&state.pool)
     .await?;
     Ok(Json(json!({ "data": stats })))
 }
@@ -118,7 +103,7 @@ pub async fn funnel_handler(
     auth: AuthExtractor,
     Query(query): Query<FunnelQuery>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let days = query.days.unwrap_or(30).clamp(1, 365);
     let row = sqlx::query_as::<_, FunnelRow>(
         r#"WITH events AS (
@@ -157,7 +142,7 @@ pub async fn funnel_handler(
            FROM events"#,
     )
     .bind(days as i32)
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&state.pool)
     .await?;
     Ok(Json(json!({
         "data": {
@@ -212,7 +197,7 @@ async fn load_admin_users(
         .push_bind(limit.clamp(1, 500));
     Ok(query
         .build_query_as::<AdminUserRow>()
-        .fetch_all(&state.biz_context.pool)
+        .fetch_all(&state.pool)
         .await?)
 }
 
@@ -237,7 +222,7 @@ pub async fn users_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let users = load_admin_users(&state, None, 500).await?;
     Ok(Json(
         json!({ "data": users.into_iter().map(admin_user_json).collect::<Vec<_>>() }),
@@ -249,7 +234,7 @@ pub async fn user_handler(
     auth: AuthExtractor,
     Path(user_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let user = load_admin_users(&state, Some(&user_id), 1)
         .await?
         .into_iter()
@@ -264,7 +249,7 @@ pub async fn user_handler(
            ORDER BY pm.created_at DESC LIMIT 500"#,
     )
     .bind(&user_id)
-    .fetch_all(&state.biz_context.pool)
+    .fetch_all(&state.pool)
     .await?
     .into_iter()
     .map(|row| {
@@ -293,7 +278,7 @@ pub async fn user_handler(
            ORDER BY created_at DESC LIMIT 30"#,
     )
     .bind(&user_id)
-    .fetch_all(&state.biz_context.pool)
+    .fetch_all(&state.pool)
     .await?
     .into_iter()
     .map(|row| {
@@ -322,14 +307,14 @@ pub async fn set_user_role_handler(
     Path(user_id): Path<String>,
     Json(body): Json<SetRoleBody>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let requested = body.role.trim().to_ascii_lowercase();
     if !matches!(requested.as_str(), "user" | "admin") {
         return Err(AppError::InvalidInput(
             "role must be 'user' or 'admin'".to_string(),
         ));
     }
-    let mut tx = state.biz_context.pool.begin().await?;
+    let mut tx = state.pool.begin().await?;
     // Serialize administrator-roster updates so concurrent demotions cannot
     // both observe themselves as non-final administrators.
     sqlx::query("SELECT pg_advisory_xact_lock(78098457211712)")
@@ -378,8 +363,8 @@ pub async fn suspend_user_handler(
     auth: AuthExtractor,
     Path(user_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
-    let mut tx = state.biz_context.pool.begin().await?;
+    require_admin(&state, &auth).await?;
+    let mut tx = state.pool.begin().await?;
     let target_role: Option<String> =
         sqlx::query_scalar(r#"SELECT role FROM "User" WHERE id = $1 FOR UPDATE"#)
             .bind(&user_id)
@@ -409,11 +394,11 @@ pub async fn unsuspend_user_handler(
     auth: AuthExtractor,
     Path(user_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let result =
         sqlx::query(r#"UPDATE "User" SET suspended_at = NULL, updated_at = NOW() WHERE id = $1"#)
             .bind(&user_id)
-            .execute(&state.biz_context.pool)
+            .execute(&state.pool)
             .await?;
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("User not found".to_string()));
@@ -485,7 +470,7 @@ async fn load_admin_sites(
     query.push(" ORDER BY p.created_at DESC LIMIT 500");
     Ok(query
         .build_query_as::<AdminSiteRow>()
-        .fetch_all(&state.biz_context.pool)
+        .fetch_all(&state.pool)
         .await?)
 }
 
@@ -534,7 +519,7 @@ pub async fn sites_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let sites = load_admin_sites(&state, None).await?;
     Ok(Json(
         json!({ "data": sites.iter().map(admin_site_summary).collect::<Vec<_>>() }),
@@ -546,7 +531,7 @@ pub async fn site_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let site = load_admin_sites(&state, Some(&project_id))
         .await?
         .into_iter()
@@ -560,7 +545,7 @@ pub async fn site_handler(
            FROM "Language" WHERE project_id = $1"#,
     )
     .bind(&project_id)
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&state.pool)
     .await?;
     let members: Value = sqlx::query_scalar(
         r#"SELECT COALESCE(jsonb_agg(jsonb_build_object(
@@ -572,7 +557,7 @@ pub async fn site_handler(
            WHERE pm.project_id = $1"#,
     )
     .bind(&site.id)
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&state.pool)
     .await?;
     let invitations: Value = json!([]);
     let deployments = deployment_rows(&state, Some(&project_id), 30).await?;
@@ -580,13 +565,10 @@ pub async fn site_handler(
     let exports = export_rows(&state, Some(&project_id), 50).await?;
     let git = git_rows(&state, Some(&project_id), 10).await?;
     let (readers, audiences, jwt_provider) = tokio::try_join!(
-        cms_db::reader_access::ReaderQueries::get_by_project(&state.biz_context.pool, &project_id),
-        cms_db::reader_access::AudienceQueries::get_by_project(
-            &state.biz_context.pool,
-            &project_id
-        ),
+        cms_db::reader_access::ReaderQueries::get_by_project(&state.pool, &project_id),
+        cms_db::reader_access::AudienceQueries::get_by_project(&state.pool, &project_id),
         cms_db::reader_access::JwtAccessProviderQueries::get_by_issuer_and_audience(
-            &state.biz_context.pool,
+            &state.pool,
             &project_id,
             &project_id,
         ),
@@ -608,7 +590,7 @@ pub async fn site_handler(
                ORDER BY created_at DESC LIMIT 30
            ) e LEFT JOIN "User" u ON u.id = e.user_id"#,
     )
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&state.pool)
     .await?;
     let mut summary = admin_site_summary(&site);
     summary["description"] = json!(site.description);
@@ -674,7 +656,7 @@ async fn deployment_rows(
         .push_bind(limit.clamp(1, 100));
     Ok(query
         .build_query_as::<DeploymentOpRow>()
-        .fetch_all(&state.biz_context.pool)
+        .fetch_all(&state.pool)
         .await?
         .into_iter()
         .map(|row| {
@@ -734,7 +716,7 @@ async fn domain_rows(
         .push_bind(limit.clamp(1, 100));
     Ok(query
         .build_query_as::<DomainOpRow>()
-        .fetch_all(&state.biz_context.pool)
+        .fetch_all(&state.pool)
         .await?
         .into_iter()
         .map(|row| {
@@ -788,7 +770,7 @@ async fn export_rows(
         .push_bind(limit.clamp(1, 100));
     Ok(query
         .build_query_as::<ExportOpRow>()
-        .fetch_all(&state.biz_context.pool)
+        .fetch_all(&state.pool)
         .await?
         .into_iter()
         .map(|row| {
@@ -839,7 +821,7 @@ async fn git_rows(
         .push_bind(limit.clamp(1, 100));
     Ok(query
         .build_query_as::<GitOpRow>()
-        .fetch_all(&state.biz_context.pool)
+        .fetch_all(&state.pool)
         .await?
         .into_iter()
         .map(|row| {
@@ -861,7 +843,7 @@ pub async fn operations_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let (deployments, domains, exports, git) = tokio::try_join!(
         deployment_rows(&state, None, 100),
         domain_rows(&state, None, 100),
@@ -876,8 +858,6 @@ pub async fn operations_handler(
     } })))
 }
 
-
-
 #[derive(Deserialize)]
 pub struct TakedownBody {
     reason: String,
@@ -889,15 +869,14 @@ pub async fn takedown_site_handler(
     Path(project_id): Path<String>,
     Json(body): Json<TakedownBody>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
+    require_admin(&state, &auth).await?;
     let reason = body.reason.trim();
     if reason.is_empty() || reason.len() > 500 {
         return Err(AppError::InvalidInput(
             "reason must be between 1 and 500 characters".to_string(),
         ));
     }
-    cms_db::project::ProjectQueries::set_takedown(&state.biz_context.pool, &project_id, reason)
-        .await?;
+    cms_db::project::ProjectQueries::set_takedown(&state.pool, &project_id, reason).await?;
     Ok(Json(json!({ "data": { "ok": true } })))
 }
 
@@ -906,8 +885,8 @@ pub async fn restore_site_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    require_admin(&state, &auth.user.id).await?;
-    cms_db::project::ProjectQueries::restore_takedown(&state.biz_context.pool, &project_id).await?;
+    require_admin(&state, &auth).await?;
+    cms_db::project::ProjectQueries::restore_takedown(&state.pool, &project_id).await?;
     Ok(Json(json!({ "data": { "ok": true } })))
 }
 

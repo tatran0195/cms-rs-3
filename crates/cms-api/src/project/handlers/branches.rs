@@ -21,16 +21,11 @@ pub async fn list_project_branches_handler(
     Path(project_id): Path<String>,
     Query(mut query): Query<ListBranchesQuery>,
 ) -> Result<Json<ApiResponse<Vec<BranchResponse>>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Viewer,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
+        .await?;
     query.project_id = project_id.clone();
     let result = cms_biz::branch::BranchService::list_branches(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         query,
         1,
@@ -48,16 +43,11 @@ pub async fn create_project_branch_handler(
     Path(project_id): Path<String>,
     Json(mut request): Json<CreateBranchRequest>,
 ) -> Result<Json<ApiResponse<BranchResponse>>, AppError> {
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Editor,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Editor)
+        .await?;
     request.project_id = project_id.clone();
     let branch = cms_biz::branch::BranchService::create_branch(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         request,
@@ -77,15 +67,10 @@ pub async fn delete_project_branch_handler(
 ) -> Result<Json<ApiResponse<DeleteBranchResponse>>, AppError> {
     use cms_db::branch::BranchQueries;
 
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        cms_authz::Relation::Editor,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Editor)
+        .await?;
 
-    let branch = BranchQueries::get_by_id(&state.biz_context.pool, &branch_id)
+    let branch = BranchQueries::get_by_id(&state.pool, &branch_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
 
@@ -101,7 +86,7 @@ pub async fn delete_project_branch_handler(
         ));
     }
 
-    BranchQueries::delete(&state.biz_context.pool, &branch_id).await?;
+    BranchQueries::delete(&state.pool, &branch_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteBranchResponse {
         id: branch.id,
@@ -127,7 +112,7 @@ pub async fn merge_project_branch_handler(
     )
     .await?;
 
-    let branch = cms_db::branch::BranchQueries::get_by_id(&state.biz_context.pool, &branch_id)
+    let branch = cms_db::branch::BranchQueries::get_by_id(&state.pool, &branch_id)
         .await?
         .filter(|branch| branch.project_id == project_id)
         .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
@@ -138,11 +123,11 @@ pub async fn merge_project_branch_handler(
         ));
     }
 
-    let default_branch = cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &project_id)
+    let default_branch = cms_db::branch::BranchQueries::get_default(&state.pool, &project_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Default branch not found".to_string()))?;
 
-    let mut tx = state.biz_context.pool.begin().await?;
+    let mut tx = state.pool.begin().await?;
 
     sqlx::query("DELETE FROM \"Page\" WHERE project_id = $1 AND branch_id = $2")
         .bind(&project_id)

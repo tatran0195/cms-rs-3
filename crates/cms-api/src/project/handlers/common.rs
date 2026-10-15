@@ -29,13 +29,8 @@ pub async fn project_deployments(
     state: &Arc<AppState>,
     project_id: &str,
 ) -> Result<Vec<cms_entity::deployment::Deployment>, AppError> {
-    cms_db::deployment::DeploymentQueries::get_by_project(
-        &state.biz_context.pool,
-        project_id,
-        Some(100),
-        None,
-    )
-    .await
+    cms_db::deployment::DeploymentQueries::get_by_project(&state.pool, project_id, Some(100), None)
+        .await
 }
 
 /// Authorize a project action using Zanzibar ReBAC.
@@ -49,7 +44,7 @@ pub async fn authorize_project(
     let project_uuid = Uuid::parse_str(project_id)
         .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
 
-    let project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, project_id)
+    let project = cms_db::project::ProjectQueries::get_by_id(&state.pool, project_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
@@ -68,4 +63,3 @@ pub async fn authorize_project(
 
     Ok(project)
 }
-

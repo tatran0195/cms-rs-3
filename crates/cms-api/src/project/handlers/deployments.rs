@@ -28,7 +28,7 @@ pub async fn create_publish_deployment(
     commit_message: &str,
     extra_payload: serde_json::Value,
 ) -> Result<cms_entity::deployment::Deployment, AppError> {
-    if cms_db::project::ProjectQueries::is_taken_down(&state.biz_context.pool, project_id)
+    if cms_db::project::ProjectQueries::is_taken_down(&state.pool, project_id)
         .await?
         .unwrap_or(false)
     {
@@ -36,7 +36,7 @@ pub async fn create_publish_deployment(
     }
     if state.config.queue.backend.eq_ignore_ascii_case("postgres") {
         return cms_db::deployment::DeploymentQueries::create_pending_with_publish_job(
-            &state.biz_context.pool,
+            &state.pool,
             project_id,
             branch_id,
             commit_message,
@@ -47,14 +47,14 @@ pub async fn create_publish_deployment(
     }
 
     let deployment = cms_db::deployment::DeploymentQueries::create(
-        &state.biz_context.pool,
+        &state.pool,
         project_id,
         branch_id,
         cms_entity::deployment::DeploymentStatus::Pending,
     )
     .await?;
     cms_db::deployment::DeploymentQueries::update_build_logs(
-        &state.biz_context.pool,
+        &state.pool,
         &deployment.id,
         commit_message,
     )
@@ -76,7 +76,7 @@ pub async fn create_publish_deployment(
     );
     if let Err(error) = state.job_queue.enqueue(job).await {
         let _ = cms_db::deployment::DeploymentQueries::update_error(
-            &state.biz_context.pool,
+            &state.pool,
             &deployment.id,
             &format!("Could not enqueue publish: {error}"),
         )
@@ -84,7 +84,7 @@ pub async fn create_publish_deployment(
         return Err(error);
     }
     PlatformEventService::record_funnel_event_best_effort(
-        &state.biz_context,
+        &state.biz_context(),
         user_id,
         FunnelEventType::PublishClicked,
         serde_json::json!({
@@ -107,7 +107,7 @@ pub async fn list_project_deployments_handler(
     super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
         .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         1,
@@ -116,11 +116,10 @@ pub async fn list_project_deployments_handler(
     .await?;
 
     let total_count = result.total as i64;
-    let pages_count =
-        cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
-            .await
-            .map(|p| p.len() as i64)
-            .unwrap_or(0);
+    let pages_count = cms_db::page::PageQueries::get_by_project(&state.pool, &project_id)
+        .await
+        .map(|p| p.len() as i64)
+        .unwrap_or(0);
 
     let items: Vec<DeploymentListItem> = result
         .data
@@ -166,7 +165,7 @@ pub async fn get_latest_project_deployment_handler(
     super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
         .await?;
     let result = cms_biz::deployment::DeploymentService::list_deployments(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         1,
@@ -175,11 +174,10 @@ pub async fn get_latest_project_deployment_handler(
     .await?;
 
     let total_count = result.total as i64;
-    let pages_count =
-        cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
-            .await
-            .map(|p| p.len() as i64)
-            .unwrap_or(0);
+    let pages_count = cms_db::page::PageQueries::get_by_project(&state.pool, &project_id)
+        .await
+        .map(|p| p.len() as i64)
+        .unwrap_or(0);
 
     let latest_ready = result.data.into_iter().enumerate().find_map(|(idx, d)| {
         let version = total_count - (idx as i64);
@@ -229,16 +227,21 @@ pub async fn get_deployment_changes_handler(
         .await?;
     use cms_biz::deployment::DeploymentService;
 
-    let deployments =
-        DeploymentService::list_deployments(&state.biz_context, &auth.user.id, &project_id, 1, 50)
-            .await?;
+    let deployments = DeploymentService::list_deployments(
+        &state.biz_context(),
+        &auth.user.id,
+        &project_id,
+        1,
+        50,
+    )
+    .await?;
 
     let baseline = deployments
         .data
         .iter()
         .find(|d| matches!(d.status, cms_entity::deployment::DeploymentStatus::Active));
 
-    let pages = cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
+    let pages = cms_db::page::PageQueries::get_by_project(&state.pool, &project_id)
         .await
         .unwrap_or_default();
 
@@ -262,13 +265,9 @@ pub async fn get_deployment_changes_handler(
             .collect()
     } else {
         let baseline_pages: Vec<cms_entity::page::Page> = if let Some(base) = baseline {
-            cms_db::deployment::DeploymentQueries::get_snapshot_pages(
-                &state.biz_context.pool,
-                &base.id,
-                None,
-            )
-            .await
-            .unwrap_or_default()
+            cms_db::deployment::DeploymentQueries::get_snapshot_pages(&state.pool, &base.id, None)
+                .await
+                .unwrap_or_default()
         } else {
             Vec::new()
         };
@@ -358,7 +357,6 @@ pub async fn create_project_deployment_handler(
     Path(project_id): Path<String>,
     Json(body): Json<TriggerPublishRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
-
     let project_uuid = uuid::Uuid::parse_str(&project_id)
         .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
     cms_authz_gate::require_project_access(
@@ -370,10 +368,9 @@ pub async fn create_project_deployment_handler(
     .await?;
 
     // 2. Resolve the default branch and fail clearly if the project is corrupt.
-    let default_branch =
-        cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &project_id)
-            .await?
-            .ok_or_else(|| AppError::Conflict("Project has no default branch".to_string()))?;
+    let default_branch = cms_db::branch::BranchQueries::get_default(&state.pool, &project_id)
+        .await?
+        .ok_or_else(|| AppError::Conflict("Project has no default branch".to_string()))?;
     if default_branch.project_id != project_id {
         return Err(AppError::Conflict(
             "Default branch does not belong to this project".to_string(),
@@ -428,12 +425,10 @@ pub async fn rollback_deployment_handler(
     )
     .await?;
 
-    let target = cms_db::deployment::DeploymentQueries::get_by_id(
-        &state.biz_context.pool,
-        &target_deployment_id,
-    )
-    .await?
-    .ok_or_else(|| AppError::NotFound("Target deployment not found".to_string()))?;
+    let target =
+        cms_db::deployment::DeploymentQueries::get_by_id(&state.pool, &target_deployment_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Target deployment not found".to_string()))?;
     if target.project_id != project_id {
         return Err(AppError::NotFound(
             "Target deployment not found".to_string(),
@@ -445,7 +440,7 @@ pub async fn rollback_deployment_handler(
         .filter(|branch_id| !branch_id.is_empty())
         .ok_or_else(|| AppError::Conflict("Target deployment has no branch".to_string()))?;
     cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(
-        &state.biz_context.pool,
+        &state.pool,
         &target_deployment_id,
     )
     .await?

@@ -8,8 +8,7 @@ use cms_entity::{
     common::PaginatedResponse,
     project::{
         CreateProjectRequest, ListProjectsQuery, ListProjectsResponse, ProjectAddonResponse,
-        ProjectResponse, ProjectSettings, UpdateProjectRequest,
-        UpdateProjectSettingsRequest,
+        ProjectResponse, ProjectSettings, UpdateProjectRequest, UpdateProjectSettingsRequest,
     },
 };
 
@@ -178,12 +177,8 @@ impl ProjectService {
         )
         .await?;
 
-        let total = ProjectQueries::count(
-            &ctx.pool,
-            query.is_public,
-            query.search.as_deref(),
-        )
-        .await?;
+        let total =
+            ProjectQueries::count(&ctx.pool, query.is_public, query.search.as_deref()).await?;
 
         Ok(PaginatedResponse::new(
             projects.into_iter().map(|p| p.into()).collect(),
@@ -1157,9 +1152,23 @@ mod tests {
         };
 
         // Add viewer with viewer role
-        let _ = cms_db::authz::ProjectMemberQueries::create(&pool, &project.id, &viewer_id, "viewer", None).await;
+        let _ = cms_db::authz::ProjectMemberQueries::create(
+            &pool,
+            &project.id,
+            &viewer_id,
+            "viewer",
+            None,
+        )
+        .await;
         // Add admin with owner role
-        let _ = cms_db::authz::ProjectMemberQueries::create(&pool, &project.id, &admin_id, "owner", None).await;
+        let _ = cms_db::authz::ProjectMemberQueries::create(
+            &pool,
+            &project.id,
+            &admin_id,
+            "owner",
+            None,
+        )
+        .await;
 
         let authz = Arc::new(cms_authz::AuthzState::new(pool.clone(), vec![]));
         let ctx = BizContext::new(pool.clone(), authz);

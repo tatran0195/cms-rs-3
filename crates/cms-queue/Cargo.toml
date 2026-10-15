@@ -9,7 +9,7 @@ tokio = { workspace = true, features = ["full"] }
 cms-error = { path = "../cms-error" }
 cms-config = { path = "../cms-config" }
 cms-db = { path = "../cms-db" }
-sqlx = { workspace = true }
+sqlx = { workspace = true, default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }

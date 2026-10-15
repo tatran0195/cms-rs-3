@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::integration::IntegrationService;
 use cms_entity::{
     common::Id,
@@ -18,6 +20,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -49,9 +52,21 @@ pub async fn list_integrations_handler(
     auth: AuthExtractor,
     Query(query): Query<ListIntegrationsQuery>,
 ) -> Result<Json<Vec<ProjectIntegrationResponse>>, AppError> {
-    let project_id = query.project_id.as_deref().unwrap_or("");
+    let project_id = query.project_id.as_deref().ok_or_else(|| {
+        AppError::BadRequest("project_id query parameter is required".to_string())
+    })?;
+    let project_uuid = Uuid::parse_str(project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let integrations =
-        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, project_id)
+        IntegrationService::list_integrations(&state.biz_context(), &auth.user.id, project_id)
             .await?;
 
     Ok(Json(integrations))
@@ -82,8 +97,19 @@ pub async fn create_integration_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateProjectIntegrationRequest>,
 ) -> Result<Json<ProjectIntegrationResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let integration =
-        IntegrationService::create_integration(&state.biz_context, &auth.user.id, request).await?;
+        IntegrationService::create_integration(&state.biz_context(), &auth.user.id, request)
+            .await?;
 
     Ok(Json(integration))
 }
@@ -114,8 +140,19 @@ pub async fn get_integration_handler(
     auth: AuthExtractor,
     Path(integration_id): Path<Id>,
 ) -> Result<Json<ProjectIntegrationResponse>, AppError> {
+    let int_uuid = Uuid::parse_str(&integration_id)
+        .map_err(|_| AppError::NotFound("Integration not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Integration(int_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let integration =
-        IntegrationService::get_integration(&state.biz_context, &auth.user.id, &integration_id)
+        IntegrationService::get_integration(&state.biz_context(), &auth.user.id, &integration_id)
             .await?;
 
     Ok(Json(integration))
@@ -151,8 +188,19 @@ pub async fn update_integration_handler(
     Path(integration_id): Path<Id>,
     Json(request): Json<UpdateProjectIntegrationRequest>,
 ) -> Result<Json<ProjectIntegrationResponse>, AppError> {
+    let int_uuid = Uuid::parse_str(&integration_id)
+        .map_err(|_| AppError::NotFound("Integration not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Integration(int_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     let integration = IntegrationService::update_integration(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &integration_id,
         request,
@@ -189,7 +237,18 @@ pub async fn delete_integration_handler(
     auth: AuthExtractor,
     Path(integration_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    IntegrationService::delete_integration(&state.biz_context, &auth.user.id, &integration_id)
+    let int_uuid = Uuid::parse_str(&integration_id)
+        .map_err(|_| AppError::NotFound("Integration not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Integration(int_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
+    IntegrationService::delete_integration(&state.biz_context(), &auth.user.id, &integration_id)
         .await?;
 
     Ok(Json(
@@ -224,9 +283,23 @@ pub async fn enable_integration_handler(
     auth: AuthExtractor,
     Path(integration_id): Path<Id>,
 ) -> Result<Json<ProjectIntegrationResponse>, AppError> {
-    let integration =
-        IntegrationService::enable_integration(&state.biz_context, &auth.user.id, &integration_id)
-            .await?;
+    let int_uuid = Uuid::parse_str(&integration_id)
+        .map_err(|_| AppError::NotFound("Integration not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Integration(int_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
+    let integration = IntegrationService::enable_integration(
+        &state.biz_context(),
+        &auth.user.id,
+        &integration_id,
+    )
+    .await?;
 
     Ok(Json(integration))
 }
@@ -258,9 +331,23 @@ pub async fn disable_integration_handler(
     auth: AuthExtractor,
     Path(integration_id): Path<Id>,
 ) -> Result<Json<ProjectIntegrationResponse>, AppError> {
-    let integration =
-        IntegrationService::disable_integration(&state.biz_context, &auth.user.id, &integration_id)
-            .await?;
+    let int_uuid = Uuid::parse_str(&integration_id)
+        .map_err(|_| AppError::NotFound("Integration not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Integration(int_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
+    let integration = IntegrationService::disable_integration(
+        &state.biz_context(),
+        &auth.user.id,
+        &integration_id,
+    )
+    .await?;
 
     Ok(Json(integration))
 }
@@ -292,8 +379,19 @@ pub async fn test_integration_handler(
     auth: AuthExtractor,
     Path(integration_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let int_uuid = Uuid::parse_str(&integration_id)
+        .map_err(|_| AppError::NotFound("Integration not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Integration(int_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     let result =
-        IntegrationService::test_integration(&state.biz_context, &auth.user.id, &integration_id)
+        IntegrationService::test_integration(&state.biz_context(), &auth.user.id, &integration_id)
             .await?;
 
     Ok(Json(serde_json::json!(result)))

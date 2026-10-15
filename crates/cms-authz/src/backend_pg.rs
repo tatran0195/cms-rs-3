@@ -7,10 +7,8 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{
-    error::AuthzError,
-    registry,
-    relations::Relation,
-    AuthzBackend, AuthzContext, Subject, SYSTEM_WORKSPACE_ID,
+    error::AuthzError, registry, relations::Relation, AuthzBackend, AuthzContext, Subject,
+    SYSTEM_WORKSPACE_ID,
 };
 
 #[derive(Debug, Clone)]

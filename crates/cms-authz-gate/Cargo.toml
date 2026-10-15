@@ -7,7 +7,7 @@ edition = "2021"
 cms-authz = { path = "../cms-authz" }
 cms-db = { path = "../cms-db" }
 cms-error = { path = "../cms-error" }
-sqlx = { workspace = true }
+sqlx = { workspace = true, default-features = false }
 uuid = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }

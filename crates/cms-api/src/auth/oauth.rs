@@ -294,18 +294,18 @@ pub async fn oauth_callback_handler(
 
     // Upsert the user: find by email, else create (verified, since the provider
     // vouches for it).
-    let user = match UserQueries::get_by_email(&state.biz_context.pool, &profile.email).await? {
+    let user = match UserQueries::get_by_email(&state.pool, &profile.email).await? {
         Some(u) => {
             if !u.email_verified {
-                let _ = UserQueries::update_verified(&state.biz_context.pool, &u.id, true).await;
+                let _ = UserQueries::update_verified(&state.pool, &u.id, true).await;
             }
-            UserQueries::get_by_id(&state.biz_context.pool, &u.id)
+            UserQueries::get_by_id(&state.pool, &u.id)
                 .await?
                 .ok_or(AppError::Unauthorized)?
         }
         None => {
             let user = UserQueries::create(
-                &state.biz_context.pool,
+                &state.pool,
                 &profile.email,
                 profile.name.as_deref(),
                 profile.image.as_deref(),
@@ -313,7 +313,7 @@ pub async fn oauth_callback_handler(
             )
             .await?;
             PlatformEventService::record_funnel_event_best_effort(
-                &state.biz_context,
+                &state.biz_context(),
                 &user.id,
                 FunnelEventType::SignupCompleted,
                 json!({ "method": provider.as_str() }),
@@ -324,16 +324,13 @@ pub async fn oauth_callback_handler(
     };
 
     // Upsert the OAuth account. If it already exists, update the tokens.
-    let existing = AccountQueries::get_by_provider(
-        &state.biz_context.pool,
-        &provider,
-        &profile.provider_account_id,
-    )
-    .await?;
+    let existing =
+        AccountQueries::get_by_provider(&state.pool, &provider, &profile.provider_account_id)
+            .await?;
 
     if existing.is_none() {
         AccountQueries::create(
-            &state.biz_context.pool,
+            &state.pool,
             &user.id,
             &provider,
             &profile.provider_account_id,
@@ -351,13 +348,8 @@ pub async fn oauth_callback_handler(
     // Create a fresh session and set the session cookie.
     let session_token = uuid::Uuid::new_v4().to_string();
     let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
-    let _session = SessionQueries::create(
-        &state.biz_context.pool,
-        &user.id,
-        &session_token,
-        expires_at,
-    )
-    .await?;
+    let _session =
+        SessionQueries::create(&state.pool, &user.id, &session_token, expires_at).await?;
 
     let cookie_val = state.config.auth.session_cookie_value(
         &session_token,

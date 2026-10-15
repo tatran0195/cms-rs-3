@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use cms_biz::BizContext;
 use cms_mcp::{create_mcp_http_service, McpSecurityContext};
 
@@ -68,9 +69,14 @@ async fn test_mcp_http_service_e2e_handshake() {
     assert_eq!(body.get("jsonrpc").and_then(|v| v.as_str()), Some("2.0"));
     assert_eq!(body.get("id").and_then(|v| v.as_i64()), Some(1));
 
-    let result = body.get("result").expect("Expected result in init response");
+    let result = body
+        .get("result")
+        .expect("Expected result in init response");
     let server_info = result.get("serverInfo").expect("Expected serverInfo");
-    assert_eq!(server_info.get("name").and_then(|v| v.as_str()), Some("cms-mcp"));
+    assert_eq!(
+        server_info.get("name").and_then(|v| v.as_str()),
+        Some("cms-mcp")
+    );
 
     let capabilities = result.get("capabilities").expect("Expected capabilities");
     assert!(capabilities.get("tools").is_some());
@@ -105,7 +111,10 @@ async fn test_mcp_http_service_e2e_handshake() {
     if let Some(ref sid) = session_id {
         prompt_req = prompt_req.header("mcp-session-id", sid);
     }
-    let prompt_resp = prompt_req.send().await.expect("Failed to send prompts/list");
+    let prompt_resp = prompt_req
+        .send()
+        .await
+        .expect("Failed to send prompts/list");
     let prompt_text = prompt_resp.text().await.unwrap_or_default();
     let prompt_json_str = prompt_text
         .lines()
@@ -114,8 +123,14 @@ async fn test_mcp_http_service_e2e_handshake() {
         .unwrap_or(&prompt_text);
 
     if let Ok(prompt_body) = serde_json::from_str::<serde_json::Value>(prompt_json_str) {
-        if let Some(prompts) = prompt_body.pointer("/result/prompts").and_then(|v| v.as_array()) {
-            let names: Vec<&str> = prompts.iter().filter_map(|p| p.get("name").and_then(|n| n.as_str())).collect();
+        if let Some(prompts) = prompt_body
+            .pointer("/result/prompts")
+            .and_then(|v| v.as_array())
+        {
+            let names: Vec<&str> = prompts
+                .iter()
+                .filter_map(|p| p.get("name").and_then(|n| n.as_str()))
+                .collect();
             assert!(names.contains(&"troubleshoot_topic"));
             assert!(names.contains(&"explain_architecture"));
         }

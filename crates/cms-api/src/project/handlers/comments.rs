@@ -21,7 +21,7 @@ async fn comment_to_response(
     comment: &cms_entity::comment::Comment,
 ) -> Result<ProjectCommentResponse, AppError> {
     let user = match comment.user_id.as_deref() {
-        Some(uid) => cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, uid).await?,
+        Some(uid) => cms_db::auth::UserQueries::get_by_id(&state.pool, uid).await?,
         None => None,
     };
     let (uid, name, image) = match user {
@@ -56,7 +56,7 @@ pub async fn list_project_comments_handler(
     use cms_db::comment::CommentQueries;
 
     // Enforce project membership first.
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
+    cms_biz::project::ProjectService::get_project(&state.biz_context(), &auth.user.id, &project_id)
         .await?;
 
     let page_id = query
@@ -67,17 +67,10 @@ pub async fn list_project_comments_handler(
 
     let comments = if page_id.is_empty() {
         // Site-wide: comments on any page belonging to the project.
-        CommentQueries::get_by_project(
-            &state.biz_context.pool,
-            &project_id,
-            None,
-            None,
-            Some(200),
-            None,
-        )
-        .await?
+        CommentQueries::get_by_project(&state.pool, &project_id, None, None, Some(200), None)
+            .await?
     } else {
-        let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, page_id)
+        let page = cms_db::page::PageQueries::get_by_id(&state.pool, page_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
         if page.project_id != project_id {
@@ -86,15 +79,7 @@ pub async fn list_project_comments_handler(
             ));
         }
 
-        CommentQueries::get_by_page(
-            &state.biz_context.pool,
-            page_id,
-            None,
-            None,
-            Some(200),
-            None,
-        )
-        .await?
+        CommentQueries::get_by_page(&state.pool, page_id, None, None, Some(200), None).await?
     };
 
     let mut user_cache = std::collections::HashMap::new();
@@ -103,8 +88,7 @@ pub async fn list_project_comments_handler(
         let (uid, name, image) = match c.user_id.as_deref() {
             Some(uid) => {
                 if !user_cache.contains_key(uid) {
-                    let u =
-                        cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, uid).await?;
+                    let u = cms_db::auth::UserQueries::get_by_id(&state.pool, uid).await?;
                     user_cache.insert(uid.to_string(), u);
                 }
                 match user_cache.get(uid).and_then(|opt| opt.as_ref()) {
@@ -153,7 +137,7 @@ pub async fn create_project_comment_handler(
         .filter(|s| !s.is_empty())
         .ok_or_else(|| AppError::InvalidInput("pageId is required".to_string()))?;
 
-    let page = cms_db::page::PageQueries::get_by_id(&state.biz_context.pool, page_id)
+    let page = cms_db::page::PageQueries::get_by_id(&state.pool, page_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
     if page.project_id != project_id {
@@ -177,7 +161,7 @@ pub async fn create_project_comment_handler(
     };
 
     let comment = cms_biz::comment::CommentService::create_comment(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         page_id,
         request,
@@ -213,7 +197,7 @@ pub async fn update_project_comment_handler(
     };
 
     let updated = cms_biz::comment::CommentService::update_comment(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &id,
         Some(&project_id),
@@ -237,7 +221,7 @@ pub async fn delete_project_comment_handler(
     Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     cms_biz::comment::CommentService::delete_comment(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &id,
         Some(&project_id),

@@ -175,13 +175,10 @@ impl ServerHandler for CmsMcpHandler {
     ) -> Result<ReadResourceResponse, ErrorData> {
         self.check_scope("pages:read")?;
 
-        let text = McpService::read_resource(
-            &self.ctx,
-            self.security.user_id.as_deref(),
-            &params.uri,
-        )
-        .await
-        .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
+        let text =
+            McpService::read_resource(&self.ctx, self.security.user_id.as_deref(), &params.uri)
+                .await
+                .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
         Ok(ReadResourceResult::new(vec![ResourceContents::text(text, params.uri)]).into())
     }
@@ -227,7 +224,9 @@ impl ServerHandler for CmsMcpHandler {
                 let project_id = args.get("project_id").cloned().unwrap_or_default();
                 let topic = args.get("topic").cloned().unwrap_or_default();
                 let prompt_text = format!(
-                    "Please search the project documentation for project '{project_id}' regarding '{topic}'. Identify root causes and output a concise, step-by-step resolution."
+                    "Please search the project documentation for project '{project_id}' regarding \
+                     '{topic}'. Identify root causes and output a concise, step-by-step \
+                     resolution."
                 );
 
                 let res =
@@ -238,7 +237,8 @@ impl ServerHandler for CmsMcpHandler {
             "explain_architecture" => {
                 let project_id = args.get("project_id").cloned().unwrap_or_default();
                 let prompt_text = format!(
-                    "Please list the pages and structure for project '{project_id}' and synthesize a comprehensive architecture overview."
+                    "Please list the pages and structure for project '{project_id}' and \
+                     synthesize a comprehensive architecture overview."
                 );
 
                 let res =

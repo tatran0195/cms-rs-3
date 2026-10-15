@@ -27,7 +27,8 @@ pub async fn get_project_theme_template_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
-    let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, &project_id).await?;
+    let themes =
+        ThemeService::list_themes(&state.biz_context(), &auth.user.id, &project_id).await?;
     let theme = themes.first();
 
     let template = theme.map(|t| ProjectThemeTemplateResponse {
@@ -67,7 +68,8 @@ pub async fn get_project_theme_repository_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
-    let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, &project_id).await?;
+    let themes =
+        ThemeService::list_themes(&state.biz_context(), &auth.user.id, &project_id).await?;
     let theme = themes.first();
 
     let bundle = serde_json::json!({
@@ -125,7 +127,7 @@ pub async fn import_project_theme_template_handler(
         .unwrap_or_else(|| "#2563eb".to_string());
 
     let theme = ThemeService::create_theme(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         CreateThemeRequest {
@@ -185,7 +187,7 @@ pub async fn update_project_addon_handler(
     super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let addon = ProjectService::update_project_addon(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         &addon_id,
@@ -207,7 +209,7 @@ pub async fn activate_project_addon_handler(
     super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let addon = ProjectService::update_project_addon(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         &addon_id,
@@ -229,7 +231,7 @@ pub async fn deactivate_project_addon_handler(
     super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let addon = ProjectService::update_project_addon(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         &addon_id,

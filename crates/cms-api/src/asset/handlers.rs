@@ -69,7 +69,7 @@ pub async fn list_assets_handler(
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let assets = AssetService::list_assets(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         project_id,
         page,
@@ -116,7 +116,7 @@ pub async fn upload_asset_handler(
     .await?;
 
     let asset = AssetService::create_asset(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &request.project_id,
         request.page_id.as_deref(),
@@ -192,7 +192,7 @@ pub async fn upload_asset_multipart_handler(
     let content_type = content_type.unwrap_or_else(|| "application/octet-stream".to_string());
 
     let asset = AssetService::upload_asset_bytes(
-        &state.biz_context,
+        &state.biz_context(),
         &state.storage,
         &auth.user.id,
         &project_id,
@@ -236,13 +236,13 @@ pub async fn get_asset_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Asset(asset_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let asset = AssetService::get_asset(&state.biz_context, &auth.user.id, &asset_id).await?;
+    let asset = AssetService::get_asset(&state.biz_context(), &auth.user.id, &asset_id).await?;
 
     Ok(Json(asset))
 }
@@ -282,14 +282,14 @@ pub async fn update_asset_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Asset(asset_uuid),
         Relation::Editor,
     )
     .await?;
 
     let asset = AssetService::update_asset(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &asset_id,
         request.alt_text.as_deref(),
@@ -331,14 +331,14 @@ pub async fn delete_asset_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Asset(asset_uuid),
         Relation::Editor,
     )
     .await?;
 
     let _ = AssetService::delete_asset(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         state.storage.clone(),
         &asset_id,

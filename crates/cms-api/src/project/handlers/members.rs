@@ -48,20 +48,18 @@ pub async fn list_project_members_handler(
     )
     .await?;
 
-    let _project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id)
+    let _project = cms_db::project::ProjectQueries::get_by_id(&state.pool, &project_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
-    let proj_members = cms_db::authz::ProjectMemberQueries::list_by_project(
-        &state.biz_context.pool,
-        &project_id,
-    )
-    .await
-    .unwrap_or_default();
+    let proj_members =
+        cms_db::authz::ProjectMemberQueries::list_by_project(&state.pool, &project_id)
+            .await
+            .unwrap_or_default();
 
     let uids: Vec<&str> = proj_members.iter().map(|m| m.user_id.as_str()).collect();
     let users = if !uids.is_empty() {
-        cms_db::auth::UserQueries::get_by_ids(&state.biz_context.pool, &uids)
+        cms_db::auth::UserQueries::get_by_ids(&state.pool, &uids)
             .await
             .unwrap_or_default()
     } else {
@@ -137,10 +135,10 @@ pub async fn invite_project_member_handler(
         .and_then(|v| v.as_str());
 
     if let Ok(Some(existing_user)) =
-        cms_db::auth::UserQueries::get_by_email(&state.biz_context.pool, &email).await
+        cms_db::auth::UserQueries::get_by_email(&state.pool, &email).await
     {
         let _ = cms_db::authz::ProjectMemberQueries::create(
-            &state.biz_context.pool,
+            &state.pool,
             &project_id,
             &existing_user.id,
             db_role,
@@ -191,7 +189,7 @@ pub async fn update_project_member_role_handler(
         .and_then(|v| v.as_str());
 
     let updated = cms_db::authz::ProjectMemberQueries::update_role(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         &id,
         Some(db_role),
@@ -199,7 +197,7 @@ pub async fn update_project_member_role_handler(
     )
     .await?;
 
-    let user = cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &updated.user_id)
+    let user = cms_db::auth::UserQueries::get_by_id(&state.pool, &updated.user_id)
         .await?
         .unwrap_or(cms_entity::auth::User {
             id: updated.user_id.clone(),
@@ -242,7 +240,7 @@ pub async fn remove_project_member_handler(
     )
     .await?;
 
-    cms_db::authz::ProjectMemberQueries::remove(&state.biz_context.pool, &project_id, &id).await?;
+    cms_db::authz::ProjectMemberQueries::remove(&state.pool, &project_id, &id).await?;
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
         id,
@@ -273,7 +271,7 @@ pub async fn transfer_project_ownership_handler(
         .to_string();
 
     let _ = cms_db::authz::ProjectMemberQueries::update_role(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         &target_id,
         Some("owner"),
@@ -282,7 +280,7 @@ pub async fn transfer_project_ownership_handler(
     .await?;
 
     let _ = cms_db::authz::ProjectMemberQueries::update_role(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         &auth.user.id,
         Some("member"),

@@ -46,19 +46,19 @@ impl TemplateEngine {
         let logo_url = props.logo_url.as_deref().unwrap_or("cid:technostar-logo");
 
         let ctx = minijinja::context! {
-            title => props.title,
-            message => props.message,
-            preview => props.preview,
+            title => &props.title,
+            message => &props.message,
+            preview => &props.preview,
             language => lang.as_str(),
             direction => dir.as_str(),
             align => align,
-            brand_name => props.brand.name,
-            brand_footer => props.brand.footer,
-            fallback_link_label => props.brand.fallback_link_label,
-            code => props.code,
+            brand_name => &props.brand.name,
+            brand_footer => &props.brand.footer,
+            fallback_link_label => &props.brand.fallback_link_label,
+            code => props.code.as_deref(),
             action_label => action_label,
             action_url => action_url,
-            detail => props.detail,
+            detail => props.detail.as_deref(),
             logo_url => logo_url,
         };
 
@@ -74,7 +74,11 @@ impl TemplateEngine {
             .trim()
             .to_owned();
 
-        Ok(RenderedEmail { subject, html, text })
+        Ok(RenderedEmail {
+            subject,
+            html,
+            text,
+        })
     }
 }
 
@@ -134,14 +138,21 @@ mod tests {
     fn escapes_urls_in_html_but_not_in_text() {
         let engine = TemplateEngine::new().unwrap();
         let mut p = props("en");
-        p.action = Some(EmailAction { label: "Go".into(), url: "https://example.com/v?token=abc&next=<home>".into() });
+        p.action = Some(EmailAction {
+            label: "Go".into(),
+            url: "https://example.com/v?token=abc&next=<home>".into(),
+        });
         p.logo_url = Some("https://cdn.example.com/custom-logo.png".into());
 
         let out = engine.render_transactional(&p).unwrap();
         assert!(out.html.contains("token=abc&amp;next=&lt;home&gt;"));
         assert!(!out.html.contains("next=<home>"));
-        assert!(out.html.contains("src=\"https://cdn.example.com/custom-logo.png\""));
-        assert!(out.text.contains("https://example.com/v?token=abc&next=<home>"));
+        assert!(out
+            .html
+            .contains("src=\"https://cdn.example.com/custom-logo.png\""));
+        assert!(out
+            .text
+            .contains("https://example.com/v?token=abc&next=<home>"));
     }
 
     #[test]

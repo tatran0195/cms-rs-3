@@ -33,7 +33,7 @@ pub async fn create_analytics_store(
             Ok(Arc::new(store))
         }
         "sqlite" | "embedded" => {
-            let store = SqliteAnalyticsStore::new(&config.sqlite_path)?;
+            let store = SqliteAnalyticsStore::new(&config.sqlite_path).await?;
             Ok(Arc::new(store))
         }
         "clickhouse" => Err(AppError::Storage(

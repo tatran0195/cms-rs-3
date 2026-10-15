@@ -1,8 +1,7 @@
 //! Database queries for platform setup and system settings
 
 use chrono::Utc;
-use cms_entity::auth::User;
-use cms_entity::setup::CompleteSetupRequest;
+use cms_entity::{auth::User, setup::CompleteSetupRequest};
 use cms_error::AppError;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -51,7 +50,10 @@ impl SetupQueries {
         hashed_password: &str,
         session_token: &str,
     ) -> Result<User, AppError> {
-        let mut tx = pool.begin().await.map_err(|e| AppError::Database(e.into()))?;
+        let mut tx = pool
+            .begin()
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
 
         // 1. Transactional lock check
         let initialized: bool = sqlx::query_scalar(
@@ -184,7 +186,9 @@ impl SetupQueries {
         .await
         .map_err(|e| AppError::Database(e.into()))?;
 
-        tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(user_row.into())
     }

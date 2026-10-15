@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use ts_rs::{Config, TS};
 
 #[test]
@@ -251,5 +252,8 @@ fn export_all_typescript_bindings() {
     cms_entity::notification::ArchiveNotificationRequest::export_all(&cfg).unwrap();
     cms_entity::notification::NotificationCountResponse::export_all(&cfg).unwrap();
 
-    println!("All TypeScript types successfully exported to {:?}", out_dir);
+    println!(
+        "All TypeScript types successfully exported to {:?}",
+        out_dir
+    );
 }

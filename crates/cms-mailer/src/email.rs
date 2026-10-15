@@ -13,10 +13,21 @@ use crate::types::{DeploymentOutcome, VerificationPurpose};
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Email {
     /// One-time code. `ttl_minutes` must be the **real** code lifetime — it is printed in the email.
-    VerificationCode { code: String, purpose: VerificationPurpose, ttl_minutes: u32 },
-    VerifyEmail { url: String },
-    MemberJoined { member_name: String, workspace_name: String },
-    NewSignIn { ip_address: Option<String> },
+    VerificationCode {
+        code: String,
+        purpose: VerificationPurpose,
+        ttl_minutes: u32,
+    },
+    VerifyEmail {
+        url: String,
+    },
+    MemberJoined {
+        member_name: String,
+        workspace_name: String,
+    },
+    NewSignIn {
+        ip_address: Option<String>,
+    },
     MemberInvitation {
         inviter_name: String,
         workspace_name: String,
@@ -24,7 +35,11 @@ pub enum Email {
         accept_url: String,
         expires_in_days: u32,
     },
-    ReaderInvitation { project_name: String, activation_url: String, expires_in_days: u32 },
+    ReaderInvitation {
+        project_name: String,
+        activation_url: String,
+        expires_in_days: u32,
+    },
     Deployment {
         project_name: String,
         version: u32,

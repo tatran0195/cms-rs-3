@@ -18,20 +18,6 @@ pub mod oauth;
 pub mod password;
 pub mod session;
 
-pub use claims::{Claims, decode_jwt, encode_jwt};
-pub use cookies::{
-    build_access_cookie, build_csrf_cookie, build_refresh_cookie, clear_access_cookie,
-    clear_csrf_cookie, clear_refresh_cookie, generate_csrf_token, parse_cookie_value,
-};
-pub use lockout::{
-    is_account_locked, record_failed_login, reset_failed_logins, LOCKOUT_MINUTES,
-    MAX_FAILED_LOGINS,
-};
-
-pub use cms_api_keys as api_keys;
-pub use cms_mfa as mfa;
-pub use cms_oauth as oauth_provider;
-
 use std::sync::Arc;
 
 use axum::{
@@ -40,10 +26,21 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use chrono::Utc;
+pub use claims::{decode_jwt, encode_jwt, Claims};
+pub use cms_api_keys as api_keys;
 use cms_config::AuthConfig;
 use cms_db::{auth::ApiKeyQueries, PgPool};
 use cms_error::AppError;
+pub use cms_mfa as mfa;
+pub use cms_oauth as oauth_provider;
+pub use cookies::{
+    build_access_cookie, build_csrf_cookie, build_refresh_cookie, clear_access_cookie,
+    clear_csrf_cookie, clear_refresh_cookie, generate_csrf_token, parse_cookie_value,
+};
 use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
+pub use lockout::{
+    is_account_locked, record_failed_login, reset_failed_logins, LOCKOUT_MINUTES, MAX_FAILED_LOGINS,
+};
 pub use session::*;
 
 /// Authentication service
@@ -246,7 +243,7 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 /// Formatted as `whsec_{64-hex-characters}`.
 pub fn generate_webhook_secret() -> String {
     let mut bytes = [0u8; 32];
-    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut bytes);
+    rand::fill(&mut bytes);
     format!("whsec_{}", hex::encode(bytes))
 }
 

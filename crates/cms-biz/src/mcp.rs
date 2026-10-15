@@ -35,13 +35,25 @@ impl McpService {
         }
 
         if let Some(uid) = user_id {
+            if uid == "system"
+                || cms_db::auth::UserQueries::is_system_admin(&ctx.pool, uid)
+                    .await
+                    .unwrap_or(false)
+            {
+                return Ok(project);
+            }
             let user_uuid = uuid::Uuid::parse_str(uid).map_err(|_| AppError::Unauthorized)?;
             let project_uuid = uuid::Uuid::parse_str(&project.id)
                 .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
             let authz_ctx = cms_authz::AuthzContext::new(user_uuid, "member".to_string(), false);
             let allowed = ctx
                 .authz
-                .check(&authz_ctx, cms_authz::Relation::Viewer, "project", project_uuid)
+                .check(
+                    &authz_ctx,
+                    cms_authz::Relation::Viewer,
+                    "project",
+                    project_uuid,
+                )
                 .await
                 .map_err(AppError::internal)?;
             if !allowed {
@@ -275,9 +287,15 @@ impl McpService {
         ctx: &BizContext,
         user_id: Option<&str>,
     ) -> Result<Vec<McpResourceItem>, AppError> {
-        let projects = ProjectQueries::list_by_user(&ctx.pool, user_id.unwrap_or(""))
-            .await
-            .unwrap_or_default();
+        let projects = if user_id == Some("system") {
+            ProjectQueries::get_all(&ctx.pool, None, None, None, None)
+                .await
+                .unwrap_or_default()
+        } else {
+            ProjectQueries::list_by_user(&ctx.pool, user_id.unwrap_or(""))
+                .await
+                .unwrap_or_default()
+        };
 
         let mut resources = Vec::new();
 
@@ -307,7 +325,10 @@ impl McpService {
                     resources.push(McpResourceItem {
                         uri: format!("cms://projects/{}/pages{}", project.id, path_suffix),
                         name: page.title.clone(),
-                        description: Some(format!("Page '{}' in project '{}'", page.title, project.name)),
+                        description: Some(format!(
+                            "Page '{}' in project '{}'",
+                            page.title, project.name
+                        )),
                         mime_type: "text/markdown".to_string(),
                     });
                 }
@@ -362,18 +383,26 @@ impl McpService {
 
         let raw_path = after.trim_start_matches('/');
 
-        let page = match PageQueries::get_by_path(&ctx.pool, project_id, &branch_id, &normalized_path).await? {
-            Some(p) => p,
-            None => {
-                if !raw_path.is_empty() {
-                    PageQueries::get_by_path(&ctx.pool, project_id, &branch_id, raw_path)
-                        .await?
-                        .ok_or_else(|| AppError::NotFound(format!("Page not found at URI: {}", uri)))?
-                } else {
-                    return Err(AppError::NotFound(format!("Page not found at URI: {}", uri)));
+        let page =
+            match PageQueries::get_by_path(&ctx.pool, project_id, &branch_id, &normalized_path)
+                .await?
+            {
+                Some(p) => p,
+                None => {
+                    if !raw_path.is_empty() {
+                        PageQueries::get_by_path(&ctx.pool, project_id, &branch_id, raw_path)
+                            .await?
+                            .ok_or_else(|| {
+                                AppError::NotFound(format!("Page not found at URI: {}", uri))
+                            })?
+                    } else {
+                        return Err(AppError::NotFound(format!(
+                            "Page not found at URI: {}",
+                            uri
+                        )));
+                    }
                 }
-            }
-        };
+            };
 
         Self::record_audit_event(
             ctx,
@@ -408,13 +437,8 @@ impl McpService {
             offset,
         )
         .await?;
-        let total = McpAuditEventQueries::count(
-            &ctx.pool,
-            project_id,
-            user_id_filter,
-            operation,
-        )
-        .await?;
+        let total =
+            McpAuditEventQueries::count(&ctx.pool, project_id, user_id_filter, operation).await?;
         Ok(PaginatedResponse::new(
             events.into_iter().map(|e| e.into()).collect(),
             total as u64,

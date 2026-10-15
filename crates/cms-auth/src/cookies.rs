@@ -20,7 +20,10 @@ pub fn build_access_cookie(token: &str, secure: bool) -> String {
 #[must_use]
 pub fn build_refresh_cookie(token: &str, secure: bool) -> String {
     let secure_flag = if secure { "; Secure" } else { "" };
-    format!("refresh_token={token}; Path=/api/auth; HttpOnly; SameSite=Lax; Max-Age=604800{secure_flag}")
+    format!(
+        "refresh_token={token}; Path=/api/auth; HttpOnly; SameSite=Lax; \
+         Max-Age=604800{secure_flag}"
+    )
 }
 
 /// Build the `csrf_token` Set-Cookie header value (readable by JavaScript).
@@ -68,7 +71,7 @@ pub fn parse_cookie_value<'a>(header: &'a str, name: &str) -> Option<&'a str> {
 /// Generate a cryptographically secure random CSRF token (32 bytes → 64 hex chars).
 pub fn generate_csrf_token() -> Result<String, AppError> {
     let mut buf = [0u8; 32];
-    getrandom::getrandom(&mut buf)
+    getrandom::fill(&mut buf)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("CSRF token generation failed: {e}")))?;
     Ok(hex::encode(buf))
 }

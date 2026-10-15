@@ -92,7 +92,8 @@ impl Locale {
                 out.push_str(&sub[..1].to_ascii_uppercase());
                 out.push_str(&sub[1..].to_ascii_lowercase());
                 script_allowed = false;
-            } else if region_allowed && ((alpha && bytes.len() == 2) || (digits && bytes.len() == 3))
+            } else if region_allowed
+                && ((alpha && bytes.len() == 2) || (digits && bytes.len() == 3))
             {
                 // Region: UPPERCASE.
                 out.push_str(&sub.to_ascii_uppercase());
@@ -127,11 +128,10 @@ impl Locale {
 
     /// Region subtag, if present (`TW`, `419`).
     pub fn region(&self) -> Option<&str> {
-        self.0
-            .split('-')
-            .skip(1)
-            .take(2)
-            .find(|s| (s.len() == 2 && s.bytes().all(|b| b.is_ascii_alphabetic())) || (s.len() == 3 && s.bytes().all(|b| b.is_ascii_digit())))
+        self.0.split('-').skip(1).take(2).find(|s| {
+            (s.len() == 2 && s.bytes().all(|b| b.is_ascii_alphabetic()))
+                || (s.len() == 3 && s.bytes().all(|b| b.is_ascii_digit()))
+        })
     }
 
     /// Text direction. An explicit script wins (`ku-Arab` is RTL, `ku` is not);
@@ -234,7 +234,16 @@ mod tests {
 
     #[test]
     fn rejects_garbage() {
-        for bad in ["", "e", "english", "en-", "en--US", "en-US-!!", "123", "en-waytoolongsubtag"] {
+        for bad in [
+            "",
+            "e",
+            "english",
+            "en-",
+            "en--US",
+            "en-US-!!",
+            "123",
+            "en-waytoolongsubtag",
+        ] {
             assert!(Locale::parse(bad).is_err(), "{bad} should be rejected");
         }
     }
@@ -242,7 +251,10 @@ mod tests {
     #[test]
     fn exposes_subtags() {
         let l = loc("zh-Hant-TW");
-        assert_eq!((l.language(), l.script(), l.region()), ("zh", Some("Hant"), Some("TW")));
+        assert_eq!(
+            (l.language(), l.script(), l.region()),
+            ("zh", Some("Hant"), Some("TW"))
+        );
         let l = loc("ja");
         assert_eq!((l.script(), l.region()), (None, None));
         assert_eq!(loc("en-GB").region(), Some("GB"));
@@ -283,7 +295,10 @@ mod tests {
             accept_language_tags("en-US,en;q=0.9,ja;q=0.8,*;q=0.1, fr;q=0"),
             ["en-US", "en", "ja"]
         );
-        assert_eq!(accept_language_tags("ja;q=0.5, vi;q=0.9, en;q=0.9"), ["vi", "en", "ja"]);
+        assert_eq!(
+            accept_language_tags("ja;q=0.5, vi;q=0.9, en;q=0.9"),
+            ["vi", "en", "ja"]
+        );
         assert!(accept_language_tags("").is_empty());
     }
 }

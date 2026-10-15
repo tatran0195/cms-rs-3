@@ -116,8 +116,14 @@ async fn extract_from_session(
             cms_auth::decode_jwt(access_tok, state.config.auth.session_secret.as_bytes())
         {
             if let Ok(Some(u)) =
-                cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &claims.user_id_string()).await
+                cms_db::auth::UserQueries::get_by_id(&state.pool, &claims.user_id_string()).await
             {
+                if cms_db::auth::UserQueries::is_suspended(&state.pool, &u.id)
+                    .await
+                    .unwrap_or(false)
+                {
+                    return Err(AppError::Forbidden);
+                }
                 return Ok((u.into(), claims));
             }
         }
@@ -132,9 +138,13 @@ async fn extract_from_session(
         })
         .ok_or(AppError::Unauthorized)?;
 
-    let user = AuthService::get_user_by_session(&state.biz_context, &session_token).await?;
+    let user = AuthService::get_user_by_session(&state.biz_context(), &session_token).await?;
     let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
-    let claims = cms_auth::Claims::new_access(user_uuid, "member");
+    let is_admin = cms_db::auth::UserQueries::is_system_admin(&state.pool, &user.id)
+        .await
+        .unwrap_or(false);
+    let role = if is_admin { "admin" } else { "member" };
+    let claims = cms_auth::Claims::new_access(user_uuid, role);
     Ok((user, claims))
 }
 
@@ -158,27 +168,39 @@ async fn extract_from_jwt(
 
     // Check if Bearer is machine API key
     if cms_api_keys::looks_like_key(token) {
-        let user = AuthService::get_user_by_api_key(&state.biz_context, token).await?;
+        let user = AuthService::get_user_by_api_key(&state.biz_context(), token).await?;
         let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
-        let claims = cms_auth::Claims::new_access(user_uuid, "member");
+        let is_admin = cms_db::auth::UserQueries::is_system_admin(&state.pool, &user.id)
+            .await
+            .unwrap_or(false);
+        let role = if is_admin { "admin" } else { "member" };
+        let claims = cms_auth::Claims::new_access(user_uuid, role);
         return Ok((user, claims));
     }
 
     // Otherwise validate as JWT claims
-    if let Ok(claims) =
-        cms_auth::decode_jwt(token, state.config.auth.session_secret.as_bytes())
-    {
+    if let Ok(claims) = cms_auth::decode_jwt(token, state.config.auth.session_secret.as_bytes()) {
         if let Ok(Some(u)) =
-            cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &claims.user_id_string()).await
+            cms_db::auth::UserQueries::get_by_id(&state.pool, &claims.user_id_string()).await
         {
+            if cms_db::auth::UserQueries::is_suspended(&state.pool, &u.id)
+                .await
+                .unwrap_or(false)
+            {
+                return Err(AppError::Forbidden);
+            }
             return Ok((u.into(), claims));
         }
     }
 
     // Fall back to legacy JWT lookup
-    let user = AuthService::get_user_by_jwt(&state.biz_context, token).await?;
+    let user = AuthService::get_user_by_jwt(&state.biz_context(), token).await?;
     let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
-    let claims = cms_auth::Claims::new_access(user_uuid, "member");
+    let is_admin = cms_db::auth::UserQueries::is_system_admin(&state.pool, &user.id)
+        .await
+        .unwrap_or(false);
+    let role = if is_admin { "admin" } else { "member" };
+    let claims = cms_auth::Claims::new_access(user_uuid, role);
     Ok((user, claims))
 }
 
@@ -196,9 +218,13 @@ async fn extract_from_api_key(
         .to_str()
         .map_err(|_| AppError::Unauthorized)?;
 
-    let user = AuthService::get_user_by_api_key(&state.biz_context, api_key).await?;
+    let user = AuthService::get_user_by_api_key(&state.biz_context(), api_key).await?;
     let user_uuid = uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil());
-    let claims = cms_auth::Claims::new_access(user_uuid, "member");
+    let is_admin = cms_db::auth::UserQueries::is_system_admin(&state.pool, &user.id)
+        .await
+        .unwrap_or(false);
+    let role = if is_admin { "admin" } else { "member" };
+    let claims = cms_auth::Claims::new_access(user_uuid, role);
     Ok((user, claims))
 }
 

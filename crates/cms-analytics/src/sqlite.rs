@@ -1,32 +1,56 @@
-use std::sync::{Arc, Mutex};
-
 use async_trait::async_trait;
 use cms_error::AppError;
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    Row, SqlitePool,
+};
 
 use crate::traits::AnalyticsStore;
 
 /// Embedded SQLite analytics store for self-contained, high-performance local analytics.
+#[derive(Clone)]
 pub struct SqliteAnalyticsStore {
-    conn: Arc<Mutex<rusqlite::Connection>>,
+    pool: SqlitePool,
 }
 
 impl SqliteAnalyticsStore {
     /// Initialize embedded SQLite analytics store (file path or ":memory:")
-    pub fn new(path: &str) -> Result<Self, AppError> {
-        if let Some(parent) = std::path::Path::new(path).parent() {
-            if !parent.as_os_str().is_empty() {
-                let _ = std::fs::create_dir_all(parent);
+    pub async fn new(path: &str) -> Result<Self, AppError> {
+        let opts = if path == ":memory:" {
+            use std::str::FromStr;
+            SqliteConnectOptions::from_str("sqlite::memory:")
+                .map_err(|e| AppError::Storage(format!("Failed to parse SQLite memory url: {}", e)))?
+                .create_if_missing(true)
+        } else {
+            if let Some(parent) = std::path::Path::new(path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
             }
-        }
+            SqliteConnectOptions::new()
+                .filename(path)
+                .create_if_missing(true)
+        };
 
-        let conn = rusqlite::Connection::open(path)
+        let pool = SqlitePoolOptions::new()
+            .max_connections(5)
+            .connect_with(opts)
+            .await
             .map_err(|e| AppError::Storage(format!("Failed to open SQLite analytics db: {}", e)))?;
 
-        conn.execute_batch(
-            r#"
-            PRAGMA journal_mode = WAL;
-            PRAGMA synchronous = NORMAL;
+        if path != ":memory:" {
+            let _ = sqlx::raw_sql(
+                r#"
+                PRAGMA journal_mode = WAL;
+                PRAGMA synchronous = NORMAL;
+                "#,
+            )
+            .execute(&pool)
+            .await;
+        }
 
+        sqlx::raw_sql(
+            r#"
             CREATE TABLE IF NOT EXISTS analytics_events (
                 id TEXT PRIMARY KEY,
                 project_id TEXT,
@@ -42,16 +66,16 @@ impl SqliteAnalyticsStore {
             CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type);
             "#,
         )
+        .execute(&pool)
+        .await
         .map_err(|e| AppError::Storage(format!("Failed to initialize SQLite analytics schema: {}", e)))?;
 
-        Ok(Self {
-            conn: Arc::new(Mutex::new(conn)),
-        })
+        Ok(Self { pool })
     }
 
     /// In-memory SQLite analytics store for testing
-    pub fn in_memory() -> Result<Self, AppError> {
-        Self::new(":memory:")
+    pub async fn in_memory() -> Result<Self, AppError> {
+        Self::new(":memory:").await
     }
 }
 
@@ -66,41 +90,33 @@ impl AnalyticsStore for SqliteAnalyticsStore {
         ip_address: Option<&str>,
         user_agent: Option<&str>,
     ) -> Result<(), AppError> {
-        let conn = self.conn.clone();
         let id = uuid::Uuid::new_v4().to_string();
-        let project_id = project_id.map(String::from);
-        let user_id = user_id.map(String::from);
-        let event_type = event_type.to_string();
         let metadata_str = metadata.to_string();
-        let ip_address = ip_address.map(String::from);
-        let user_agent = user_agent.map(String::from);
         let created_at = chrono::Utc::now().to_rfc3339();
 
-        tokio::task::spawn_blocking(move || -> Result<(), AppError> {
-            let conn = conn.lock().map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
-            conn.execute(
-                r#"
-                INSERT INTO analytics_events (
-                    id, project_id, user_id, event_type, metadata, ip_address, user_agent, created_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-                "#,
-                rusqlite::params![
-                    id,
-                    project_id,
-                    user_id,
-                    event_type,
-                    metadata_str,
-                    ip_address,
-                    user_agent,
-                    created_at,
-                ],
-            )
-            .map_err(|e| AppError::Storage(format!("Failed to insert analytics event into SQLite: {}", e)))?;
-
-            Ok(())
-        })
+        sqlx::query(
+            r#"
+            INSERT INTO analytics_events (
+                id, project_id, user_id, event_type, metadata, ip_address, user_agent, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+        )
+        .bind(&id)
+        .bind(project_id)
+        .bind(user_id)
+        .bind(event_type)
+        .bind(&metadata_str)
+        .bind(ip_address)
+        .bind(user_agent)
+        .bind(&created_at)
+        .execute(&self.pool)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("SQLite record task panicked: {}", e)))??;
+        .map_err(|e| {
+            AppError::Storage(format!(
+                "Failed to insert analytics event into SQLite: {}",
+                e
+            ))
+        })?;
 
         Ok(())
     }
@@ -115,101 +131,78 @@ impl AnalyticsStore for SqliteAnalyticsStore {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<cms_entity::analytics::AnalyticsEvent>, AppError> {
-        let conn = self.conn.clone();
-        let project_id = project_id.map(String::from);
-        let user_id = user_id.map(String::from);
-        let event_type = event_type.map(String::from);
         let start_date_str = start_date.map(|t| t.to_rfc3339());
         let end_date_str = end_date.map(|t| t.to_rfc3339());
         let limit = limit.unwrap_or(100);
         let offset = offset.unwrap_or(0);
 
-        let events = tokio::task::spawn_blocking(
-            move || -> Result<Vec<cms_entity::analytics::AnalyticsEvent>, AppError> {
-                let conn = conn
-                    .lock()
-                    .map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
+        let mut query = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "SELECT id, project_id, user_id, event_type, metadata, ip_address, user_agent, \
+             created_at FROM analytics_events WHERE 1=1",
+        );
 
-                let mut query = String::from(
-                    "SELECT id, project_id, user_id, event_type, metadata, \
-                     ip_address, user_agent, created_at FROM analytics_events WHERE 1=1",
-                );
-                let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        if let Some(proj) = project_id {
+            query.push(" AND project_id = ");
+            query.push_bind(proj);
+        }
+        if let Some(uid) = user_id {
+            query.push(" AND user_id = ");
+            query.push_bind(uid);
+        }
+        if let Some(et) = event_type {
+            query.push(" AND event_type = ");
+            query.push_bind(et);
+        }
+        if let Some(st) = start_date_str {
+            query.push(" AND created_at >= ");
+            query.push_bind(st);
+        }
+        if let Some(et) = end_date_str {
+            query.push(" AND created_at <= ");
+            query.push_bind(et);
+        }
 
-                if let Some(ref proj) = project_id {
-                    query.push_str(" AND project_id = ?");
-                    params.push(Box::new(proj.clone()));
-                }
-                if let Some(ref uid) = user_id {
-                    query.push_str(" AND user_id = ?");
-                    params.push(Box::new(uid.clone()));
-                }
-                if let Some(ref et) = event_type {
-                    query.push_str(" AND event_type = ?");
-                    params.push(Box::new(et.clone()));
-                }
-                if let Some(ref st) = start_date_str {
-                    query.push_str(" AND created_at >= ?");
-                    params.push(Box::new(st.clone()));
-                }
-                if let Some(ref et) = end_date_str {
-                    query.push_str(" AND created_at <= ?");
-                    params.push(Box::new(et.clone()));
-                }
+        query.push(" ORDER BY created_at DESC LIMIT ");
+        query.push_bind(limit);
+        query.push(" OFFSET ");
+        query.push_bind(offset);
 
-                query.push_str(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
-                params.push(Box::new(limit));
-                params.push(Box::new(offset));
+        let rows = query
+            .build()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| AppError::Storage(format!("Failed to query analytics: {}", e)))?;
 
-                let rusqlite_params: Vec<&dyn rusqlite::ToSql> =
-                    params.iter().map(|p| p.as_ref()).collect();
+        let mut result = Vec::with_capacity(rows.len());
+        for row in rows {
+            let id: String = row.get(0);
+            let project_id: Option<String> = row.get(1);
+            let user_id: Option<String> = row.get(2);
+            let event_type: String = row.get(3);
+            let metadata_str: String = row.get(4);
+            let ip_address: Option<String> = row.get(5);
+            let user_agent: Option<String> = row.get(6);
+            let created_at_str: String = row.get(7);
 
-                let mut stmt = conn
-                    .prepare(&query)
-                    .map_err(|e| AppError::Storage(format!("Failed to prepare query: {}", e)))?;
+            let metadata: serde_json::Value =
+                serde_json::from_str(&metadata_str).unwrap_or(serde_json::Value::Null);
+            let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                .map(|dt| dt.with_timezone(&chrono::Utc))
+                .unwrap_or_else(|_| chrono::Utc::now());
 
-                let rows = stmt
-                    .query_map(rusqlite_params.as_slice(), |row| {
-                        let id: String = row.get(0)?;
-                        let project_id: Option<String> = row.get(1)?;
-                        let user_id: Option<String> = row.get(2)?;
-                        let event_type: String = row.get(3)?;
-                        let metadata_str: String = row.get(4)?;
-                        let ip_address: Option<String> = row.get(5)?;
-                        let user_agent: Option<String> = row.get(6)?;
-                        let created_at_str: String = row.get(7)?;
+            result.push(cms_entity::analytics::AnalyticsEvent {
+                id,
+                project_id,
+                user_id,
+                event_type,
+                metadata,
+                ip_address,
+                user_agent,
+                created_at,
+            });
+        }
 
-                        let metadata: serde_json::Value =
-                            serde_json::from_str(&metadata_str).unwrap_or(serde_json::Value::Null);
-                        let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                            .map(|dt| dt.with_timezone(&chrono::Utc))
-                            .unwrap_or_else(|_| chrono::Utc::now());
-
-                        Ok(cms_entity::analytics::AnalyticsEvent {
-                            id,
-                            project_id,
-                            user_id,
-                            event_type,
-                            metadata,
-                            ip_address,
-                            user_agent,
-                            created_at,
-                        })
-                    })
-                    .map_err(|e| AppError::Storage(format!("Failed to query analytics: {}", e)))?;
-
-                let mut result = Vec::new();
-                for event in rows.flatten() {
-                    result.push(event);
-                }
-
-                Ok(result)
-            },
-        )
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("SQLite query task panicked: {}", e)))??;
-
-        Ok(events)
+        Ok(result)
     }
 
     async fn get_summary(
@@ -217,61 +210,54 @@ impl AnalyticsStore for SqliteAnalyticsStore {
         start_date: chrono::DateTime<chrono::Utc>,
         end_date: chrono::DateTime<chrono::Utc>,
     ) -> Result<serde_json::Value, AppError> {
-        let conn = self.conn.clone();
         let start_date_str = start_date.to_rfc3339();
         let end_date_str = end_date.to_rfc3339();
 
-        let summary =
-            tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
-                let conn = conn
-                    .lock()
-                    .map_err(|_| AppError::Internal(anyhow::anyhow!("SQLite mutex poisoned")))?;
+        let total_events: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM analytics_events WHERE created_at >= ? AND created_at <= ?",
+        )
+        .bind(&start_date_str)
+        .bind(&end_date_str)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
 
-                let total_events: i64 = conn
-                    .query_row(
-                        "SELECT COUNT(*) FROM analytics_events WHERE created_at >= ?1 AND created_at <= ?2",
-                        rusqlite::params![start_date_str, end_date_str],
-                        |row| row.get(0),
-                    )
-                    .unwrap_or(0);
+        let page_views: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'page_view' AND created_at \
+             >= ? AND created_at <= ?",
+        )
+        .bind(&start_date_str)
+        .bind(&end_date_str)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
 
-                let page_views: i64 = conn
-                    .query_row(
-                        "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'page_view' AND created_at >= ?1 AND created_at <= ?2",
-                        rusqlite::params![start_date_str, end_date_str],
-                        |row| row.get(0),
-                    )
-                    .unwrap_or(0);
+        let unique_users: i64 = sqlx::query_scalar(
+            "SELECT COUNT(DISTINCT user_id) FROM analytics_events WHERE user_id IS NOT NULL AND \
+             created_at >= ? AND created_at <= ?",
+        )
+        .bind(&start_date_str)
+        .bind(&end_date_str)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
 
-                let unique_users: i64 = conn
-                    .query_row(
-                        "SELECT COUNT(DISTINCT user_id) FROM analytics_events WHERE user_id IS NOT NULL AND created_at >= ?1 AND created_at <= ?2",
-                        rusqlite::params![start_date_str, end_date_str],
-                        |row| row.get(0),
-                    )
-                    .unwrap_or(0);
+        let searches: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'search' AND created_at >= \
+             ? AND created_at <= ?",
+        )
+        .bind(&start_date_str)
+        .bind(&end_date_str)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap_or(0);
 
-                let searches: i64 = conn
-                    .query_row(
-                        "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'search' AND created_at >= ?1 AND created_at <= ?2",
-                        rusqlite::params![start_date_str, end_date_str],
-                        |row| row.get(0),
-                    )
-                    .unwrap_or(0);
-
-                Ok(serde_json::json!({
-                    "total_events": total_events,
-                    "unique_users": unique_users,
-                    "page_views": page_views,
-                    "searches": searches,
-                }))
-            })
-            .await
-            .map_err(|e| {
-                AppError::Internal(anyhow::anyhow!("SQLite summary task panicked: {}", e))
-            })??;
-
-        Ok(summary)
+        Ok(serde_json::json!({
+            "total_events": total_events,
+            "unique_users": unique_users,
+            "page_views": page_views,
+            "searches": searches,
+        }))
     }
 }
 
@@ -281,8 +267,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_sqlite_analytics_store() {
-        let store =
-            SqliteAnalyticsStore::in_memory().expect("failed to create sqlite analytics store");
+        let store = SqliteAnalyticsStore::in_memory()
+            .await
+            .expect("failed to create sqlite analytics store");
 
         // Record events
         store
@@ -362,7 +349,9 @@ mod tests {
     async fn test_project_analytics_isolation() {
         let tmp = tempfile::tempdir().unwrap();
         let db_path = tmp.path().join("isolation.db");
-        let store = SqliteAnalyticsStore::new(&db_path.to_string_lossy()).unwrap();
+        let store = SqliteAnalyticsStore::new(&db_path.to_string_lossy())
+            .await
+            .unwrap();
 
         // 1. Seed events for Project A
         store
@@ -444,15 +433,7 @@ mod tests {
 
         // 5. Pagination
         let paginated_a = store
-            .query_events(
-                Some("proj_a"),
-                None,
-                None,
-                None,
-                None,
-                Some(1),
-                Some(1),
-            )
+            .query_events(Some("proj_a"), None, None, None, None, Some(1), Some(1))
             .await
             .unwrap();
         assert_eq!(paginated_a.len(), 1);

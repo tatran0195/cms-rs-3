@@ -15,14 +15,13 @@ pub mod relations;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
 pub use backend_pg::PgAuthzBackend;
 pub use backend_test::TestAuthzBackend;
+use chrono::{DateTime, Utc};
 pub use error::AuthzError;
 pub use relations::Relation;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 /// Default singleton ID for the internal company workspace.
 pub const SYSTEM_WORKSPACE_ID: Uuid = Uuid::nil();
@@ -175,7 +174,9 @@ impl AuthzBackend for AuthzState {
         object_type: &str,
         object_id: Uuid,
     ) -> Result<bool, AuthzError> {
-        self.backend.check(ctx, relation, object_type, object_id).await
+        self.backend
+            .check(ctx, relation, object_type, object_id)
+            .await
     }
 
     async fn bulk_check(
@@ -192,7 +193,9 @@ impl AuthzBackend for AuthzState {
         object_type: &str,
         relation: Relation,
     ) -> Result<Vec<Uuid>, AuthzError> {
-        self.backend.list_accessible(ctx, object_type, relation).await
+        self.backend
+            .list_accessible(ctx, object_type, relation)
+            .await
     }
 
     async fn write_tuple(

@@ -19,8 +19,7 @@ use cms_auth::{
     password::{hash_password, verify_password},
 };
 use cms_authz::{
-    AuthzBackend, AuthzContext, Relation, Subject, TestAuthzBackend,
-    SYSTEM_WORKSPACE_ID,
+    AuthzBackend, AuthzContext, Relation, Subject, TestAuthzBackend, SYSTEM_WORKSPACE_ID,
 };
 use cms_authz_gate::require_project_access;
 use cms_error::AppError;
@@ -39,7 +38,8 @@ fn test_e2e_argon2id_and_account_lockout() {
 
     // Wrong password fails
     assert!(
-        !verify_password("WrongPassword123", &hashed).expect("password verification check should run"),
+        !verify_password("WrongPassword123", &hashed)
+            .expect("password verification check should run"),
         "invalid password must be rejected"
     );
 
@@ -58,7 +58,10 @@ fn test_e2e_argon2id_and_account_lockout() {
     // Once locked_until is in the past, account is unlocked
     let past_lockout = now - chrono::Duration::minutes(1);
     let is_still_locked = failed_attempts >= MAX_FAILED_ATTEMPTS && past_lockout > now;
-    assert!(!is_still_locked, "account past lockout window must not be locked");
+    assert!(
+        !is_still_locked,
+        "account past lockout window must not be locked"
+    );
 }
 
 #[test]
@@ -145,9 +148,7 @@ fn test_e2e_mfa_totp_and_recovery_codes() {
     // 2. Generate and verify current TOTP code
     let totp = cms_mfa::build_totp(&enrolled.secret, user_email, "Company CMS")
         .expect("building totp generator should succeed");
-    let current_token = totp
-        .generate_current()
-        .expect("generating totp code should succeed");
+    let current_token = totp.generate_current().to_string();
 
     assert!(
         cms_mfa::verify_totp(&enrolled.secret, &current_token),
@@ -186,8 +187,8 @@ fn test_e2e_oauth_pkce_flow() {
     assert!(!nonce.is_empty());
 
     // Provider catalog
-    let github_provider = cms_oauth::oauth_provider_spec("github")
-        .expect("github provider must be in catalog");
+    let github_provider =
+        cms_oauth::oauth_provider_spec("github").expect("github provider must be in catalog");
     assert_eq!(github_provider.code, "github");
     assert!(github_provider.auth_url.contains("github.com"));
 
@@ -202,10 +203,10 @@ fn test_e2e_oauth_pkce_flow() {
         redirect: "/app/dashboard".to_string(),
         nonce,
     };
-    let encoded = cms_oauth::encode_callback_state(&payload)
-        .expect("encoding callback state should succeed");
-    let decoded: StatePayload = cms_oauth::decode_callback_state(&encoded)
-        .expect("decoding callback state should succeed");
+    let encoded =
+        cms_oauth::encode_callback_state(&payload).expect("encoding callback state should succeed");
+    let decoded: StatePayload =
+        cms_oauth::decode_callback_state(&encoded).expect("decoding callback state should succeed");
     assert_eq!(decoded, payload);
 
     // Tampered state fails
@@ -284,26 +285,72 @@ async fn test_e2e_rebac_relations_and_cross_inheritance() {
     let outsider_ctx = AuthzContext::new(outsider_id, "user".to_string(), false);
 
     // Project Owner has all relations
-    assert!(backend.check(&owner_ctx, Relation::Owner, "project", project_id).await.unwrap());
-    assert!(backend.check(&owner_ctx, Relation::Editor, "project", project_id).await.unwrap());
-    assert!(backend.check(&owner_ctx, Relation::Viewer, "project", project_id).await.unwrap());
+    assert!(backend
+        .check(&owner_ctx, Relation::Owner, "project", project_id)
+        .await
+        .unwrap());
+    assert!(backend
+        .check(&owner_ctx, Relation::Editor, "project", project_id)
+        .await
+        .unwrap());
+    assert!(backend
+        .check(&owner_ctx, Relation::Viewer, "project", project_id)
+        .await
+        .unwrap());
 
     // Project Editor has Editor & Viewer, but not Owner
-    assert!(!backend.check(&editor_ctx, Relation::Owner, "project", project_id).await.unwrap());
-    assert!(backend.check(&editor_ctx, Relation::Editor, "project", project_id).await.unwrap());
-    assert!(backend.check(&editor_ctx, Relation::Viewer, "project", project_id).await.unwrap());
+    assert!(!backend
+        .check(&editor_ctx, Relation::Owner, "project", project_id)
+        .await
+        .unwrap());
+    assert!(backend
+        .check(&editor_ctx, Relation::Editor, "project", project_id)
+        .await
+        .unwrap());
+    assert!(backend
+        .check(&editor_ctx, Relation::Viewer, "project", project_id)
+        .await
+        .unwrap());
 
     // Project Viewer has Viewer only
-    assert!(!backend.check(&viewer_ctx, Relation::Owner, "project", project_id).await.unwrap());
-    assert!(!backend.check(&viewer_ctx, Relation::Editor, "project", project_id).await.unwrap());
-    assert!(backend.check(&viewer_ctx, Relation::Viewer, "project", project_id).await.unwrap());
+    assert!(!backend
+        .check(&viewer_ctx, Relation::Owner, "project", project_id)
+        .await
+        .unwrap());
+    assert!(!backend
+        .check(&viewer_ctx, Relation::Editor, "project", project_id)
+        .await
+        .unwrap());
+    assert!(backend
+        .check(&viewer_ctx, Relation::Viewer, "project", project_id)
+        .await
+        .unwrap());
 
     // Workspace Admin inherits access across all projects in workspace
-    assert!(backend.check(&workspace_admin_ctx, Relation::Editor, "project", project_id).await.unwrap());
-    assert!(backend.check(&workspace_admin_ctx, Relation::Viewer, "project", project_id).await.unwrap());
+    assert!(backend
+        .check(
+            &workspace_admin_ctx,
+            Relation::Editor,
+            "project",
+            project_id
+        )
+        .await
+        .unwrap());
+    assert!(backend
+        .check(
+            &workspace_admin_ctx,
+            Relation::Viewer,
+            "project",
+            project_id
+        )
+        .await
+        .unwrap());
 
     // Outsider has zero access
-    assert!(!backend.check(&outsider_ctx, Relation::Viewer, "project", project_id).await.unwrap());
+    assert!(!backend
+        .check(&outsider_ctx, Relation::Viewer, "project", project_id)
+        .await
+        .unwrap());
 }
 
 #[tokio::test]
@@ -316,7 +363,8 @@ async fn test_e2e_existence_oracle_defense() {
 
     // Calling require_project_access for a denied user must return AppError::NotFound,
     // NEVER AppError::Forbidden, to eliminate existence oracle attacks.
-    let result = require_project_access(&backend, &outsider_ctx, project_id, Relation::Viewer).await;
+    let result =
+        require_project_access(&backend, &outsider_ctx, project_id, Relation::Viewer).await;
 
     match result {
         Err(AppError::NotFound(msg)) => {

@@ -23,7 +23,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true, default-features = false }
 tracing = { workspace = true }
 ipnet = { workspace = true }
 moka = { workspace = true }

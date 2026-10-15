@@ -49,18 +49,14 @@ pub async fn list_platform_events_handler(
     auth: AuthExtractor,
     Query(query): Query<ListPlatformEventsQuery>,
 ) -> Result<Json<PaginatedResponse<PlatformEventResponse>>, AppError> {
-    cms_authz_gate::require_system_admin(
-        state.authz_backend(),
-        &auth.authz_context(),
-        &state.biz_context.pool,
-    )
-    .await?;
+    cms_authz_gate::require_system_admin(state.authz_backend(), &auth.authz_context(), &state.pool)
+        .await?;
 
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = PlatformEventService::list_events(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         query.event_type.as_deref(),
         page,
@@ -128,7 +124,7 @@ pub async fn create_platform_event_handler(
     let user_id = auth.user.id.clone();
 
     let event = PlatformEventService::create_event(
-        &state.biz_context,
+        &state.biz_context(),
         Some(&user_id),
         cms_entity::platform_event::CreatePlatformEventRequest {
             user_id: Some(user_id.clone()),
@@ -167,15 +163,11 @@ pub async fn get_platform_event_handler(
     auth: AuthExtractor,
     Path(event_id): Path<Id>,
 ) -> Result<Json<PlatformEventResponse>, AppError> {
-    cms_authz_gate::require_system_admin(
-        state.authz_backend(),
-        &auth.authz_context(),
-        &state.biz_context.pool,
-    )
-    .await?;
+    cms_authz_gate::require_system_admin(state.authz_backend(), &auth.authz_context(), &state.pool)
+        .await?;
 
     let event =
-        PlatformEventService::get_event(&state.biz_context, &auth.user.id, &event_id).await?;
+        PlatformEventService::get_event(&state.biz_context(), &auth.user.id, &event_id).await?;
 
     Ok(Json(event))
 }

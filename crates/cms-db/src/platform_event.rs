@@ -145,7 +145,7 @@ impl PlatformEventQueries {
             INSERT INTO "PlatformEvent" (id, user_id, event_type, metadata, created_at)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING *
-            "#
+            "#,
         )
         .bind(&id)
         .bind(user_id)

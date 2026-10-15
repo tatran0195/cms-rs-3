@@ -44,7 +44,7 @@ pub async fn get_project_openapi_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
-    let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
+    let docs = OpenApiDocumentQueries::get_by_project(&state.pool, &project_id).await?;
     Ok(Json(ApiResponse::new(
         docs.first().map(openapi_to_response),
     )))
@@ -87,22 +87,18 @@ pub async fn save_project_openapi_handler(
         .map(String::from);
 
     // Upsert: first document for the project wins; otherwise update the earliest.
-    let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
+    let docs = OpenApiDocumentQueries::get_by_project(&state.pool, &project_id).await?;
     let doc = match docs.first() {
         Some(d) => {
-            OpenApiDocumentQueries::update(&state.biz_context.pool, &d.id, Some(&title), Some(&url))
-                .await?
+            OpenApiDocumentQueries::update(&state.pool, &d.id, Some(&title), Some(&url)).await?
         }
-        None => {
-            OpenApiDocumentQueries::create(&state.biz_context.pool, &project_id, &title, &url)
-                .await?
-        }
+        None => OpenApiDocumentQueries::create(&state.pool, &project_id, &title, &url).await?,
     };
 
     // Persist uploaded content if provided (best-effort).
     if let Some(content) = content {
         let _ = cms_db::openapi::OpenApiDocumentQueries::update_parsed(
-            &state.biz_context.pool,
+            &state.pool,
             &doc.id,
             Some(&content),
             Some(chrono::Utc::now()),
@@ -126,7 +122,7 @@ pub async fn sync_project_openapi_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Editor).await?;
 
-    let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
+    let docs = OpenApiDocumentQueries::get_by_project(&state.pool, &project_id).await?;
     Ok(Json(ApiResponse::new(
         docs.first().map(openapi_to_response),
     )))
@@ -144,9 +140,9 @@ pub async fn delete_project_openapi_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Editor).await?;
 
-    let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
+    let docs = OpenApiDocumentQueries::get_by_project(&state.pool, &project_id).await?;
     for d in &docs {
-        let _ = OpenApiDocumentQueries::delete(&state.biz_context.pool, &d.id).await;
+        let _ = OpenApiDocumentQueries::delete(&state.pool, &d.id).await;
     }
 
     Ok(Json(ApiResponse::new(SuccessResponse::ok())))

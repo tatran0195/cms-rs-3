@@ -195,11 +195,11 @@ pub async fn get_public_meta_handler(
     let github = oauth.and_then(|o| o.github.as_ref()).is_some();
     let google = oauth.and_then(|o| o.google.as_ref()).is_some();
 
-    let (is_initialized, requires_setup) = cms_db::SetupQueries::get_setup_status(&state.biz_context.pool)
+    let (is_initialized, requires_setup) = cms_db::SetupQueries::get_setup_status(&state.pool)
         .await
         .unwrap_or((false, true));
 
-    let allow_public_signup = cms_db::SetupQueries::is_public_signup_allowed(&state.biz_context.pool)
+    let allow_public_signup = cms_db::SetupQueries::is_public_signup_allowed(&state.pool)
         .await
         .unwrap_or(false);
 
@@ -382,23 +382,20 @@ async fn resolve_public_site(
 ) -> Result<ResolvedPublicSite, AppError> {
     // Visibility remains immediately revocable even though content itself is
     // frozen in a release snapshot.
-    let live_project =
-        cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, project_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Site not found".to_string()))?;
+    let live_project = cms_db::project::ProjectQueries::get_by_id(&state.pool, project_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Site not found".to_string()))?;
     if !live_project.is_public
-        || cms_db::project::ProjectQueries::is_taken_down(&state.biz_context.pool, project_id)
+        || cms_db::project::ProjectQueries::is_taken_down(&state.pool, project_id)
             .await?
             .unwrap_or(false)
     {
         return Err(AppError::NotFound("Site not found".to_string()));
     }
 
-    let branches = cms_db::deployment::DeploymentQueries::get_latest_branch_releases(
-        &state.biz_context.pool,
-        project_id,
-    )
-    .await?;
+    let branches =
+        cms_db::deployment::DeploymentQueries::get_latest_branch_releases(&state.pool, project_id)
+            .await?;
     if branches.is_empty() {
         return Err(AppError::NotFound(
             "Site has no published release".to_string(),
@@ -417,7 +414,7 @@ async fn resolve_public_site(
         })?;
 
     let saved_snapshot = cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(
-        &state.biz_context.pool,
+        &state.pool,
         &branch_release.deployment_id,
     )
     .await?
@@ -455,12 +452,12 @@ async fn resolve_public_site(
         })
         .unwrap_or(default_language);
     let all_pages = cms_db::deployment::DeploymentQueries::get_snapshot_page_summaries(
-        &state.biz_context.pool,
+        &state.pool,
         &deployment_id,
     )
     .await?;
     let pages = cms_db::deployment::DeploymentQueries::get_snapshot_pages(
-        &state.biz_context.pool,
+        &state.pool,
         &deployment_id,
         Some(&language.id),
     )
@@ -496,7 +493,7 @@ async fn resolve_public_site(
     }
 
     let primary_domain = cms_db::domain::DomainQueries::get_primary_for_project_branch(
-        &state.biz_context.pool,
+        &state.pool,
         project_id,
         &snapshot.branch.id,
     )
@@ -525,7 +522,7 @@ async fn resolve_public_site_by_slug(
     requested_version: Option<&str>,
 ) -> Result<ResolvedPublicSite, AppError> {
     let public_project =
-        ProjectService::get_public_project(&state.biz_context, project_slug).await?;
+        ProjectService::get_public_project(&state.biz_context(), project_slug).await?;
     resolve_public_site(
         state,
         &public_project.id,
@@ -796,25 +793,20 @@ pub async fn get_public_pages_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let saved_snapshot = cms_db::deployment::DeploymentQueries::get_latest_snapshot_for_page(
-        &state.biz_context.pool,
-        &id,
-    )
-    .await?
-    .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+    let saved_snapshot =
+        cms_db::deployment::DeploymentQueries::get_latest_snapshot_for_page(&state.pool, &id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
     let deployment_id = saved_snapshot.deployment_id.clone();
     let snapshot: cms_entity::deployment::DeploymentSnapshotContent =
         serde_json::from_value(saved_snapshot.snapshot).map_err(|error| {
             AppError::Internal(anyhow::anyhow!("Published snapshot is invalid: {error}"))
         })?;
-    let requested_page = cms_db::deployment::DeploymentQueries::get_snapshot_page(
-        &state.biz_context.pool,
-        &deployment_id,
-        &id,
-    )
-    .await?
-    .filter(|page| page.is_published)
-    .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+    let requested_page =
+        cms_db::deployment::DeploymentQueries::get_snapshot_page(&state.pool, &deployment_id, &id)
+            .await?
+            .filter(|page| page.is_published)
+            .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
     let language_code = requested_page
         .language_id
         .as_deref()
@@ -893,19 +885,16 @@ pub async fn get_public_site_changelog_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &id)
+    let project = cms_db::project::ProjectQueries::get_by_id(&state.pool, &id)
         .await?
         .ok_or_else(|| AppError::NotFound("Site not found".to_string()))?;
     if !project.is_public {
         return Err(AppError::NotFound("Site not found".to_string()));
     }
 
-    let releases = cms_db::deployment::DeploymentQueries::get_releases_by_project(
-        &state.biz_context.pool,
-        &id,
-        50,
-    )
-    .await?;
+    let releases =
+        cms_db::deployment::DeploymentQueries::get_releases_by_project(&state.pool, &id, 50)
+            .await?;
 
     let items: Vec<serde_json::Value> = releases
         .iter()
@@ -941,7 +930,7 @@ pub async fn post_public_site_events_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_biz::analytics::AnalyticsService;
 
-    let project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &id)
+    let project = cms_db::project::ProjectQueries::get_by_id(&state.pool, &id)
         .await?
         .ok_or_else(|| AppError::NotFound("Site not found".to_string()))?;
     if !project.is_public {
@@ -977,7 +966,7 @@ pub async fn post_public_site_events_handler(
         .and_then(|value| value.to_str().ok());
 
     AnalyticsService::record_event(
-        &state.biz_context,
+        &state.biz_context(),
         Some(&id),
         None,
         event_type,
@@ -1229,7 +1218,7 @@ pub async fn post_public_marketing_events_handler(
         .and_then(|v| v.as_str());
 
     let _ = cms_biz::analytics::AnalyticsService::record_event(
-        &state.biz_context,
+        &state.biz_context(),
         project_id,
         None,
         event_type,
@@ -1257,10 +1246,10 @@ pub async fn get_public_invitation_handler(
         LEFT JOIN "User" u ON u.id = i.invited_by
         WHERE i.id = $1 OR i.token = $1
         LIMIT 1
-        "#
+        "#,
     )
     .bind(&id)
-    .fetch_optional(&state.biz_context.pool)
+    .fetch_optional(&state.pool)
     .await
     .unwrap_or(None);
 
@@ -1299,21 +1288,18 @@ pub async fn get_public_git_preview_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     // A preview token is the opaque GitPreview ID, not the deployment ID. Do
     // not allow guessing a deployment's public identifier to read its content.
-    let preview =
-        cms_db::git::GitPreviewQueries::get_by_id(&state.biz_context.pool, &token).await?;
+    let preview = cms_db::git::GitPreviewQueries::get_by_id(&state.pool, &token).await?;
     let data = match preview {
         Some(preview) => match preview.deployment_id.as_deref() {
             Some(deployment_id) => {
-                let deployment = cms_db::deployment::DeploymentQueries::get_by_id(
-                    &state.biz_context.pool,
-                    deployment_id,
-                )
-                .await?;
+                let deployment =
+                    cms_db::deployment::DeploymentQueries::get_by_id(&state.pool, deployment_id)
+                        .await?;
                 match deployment {
                     Some(deployment) => {
                         let has_snapshot =
                             cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(
-                                &state.biz_context.pool,
+                                &state.pool,
                                 deployment_id,
                             )
                             .await?
@@ -1322,7 +1308,7 @@ pub async fn get_public_git_preview_handler(
                             serde_json::Value::Null
                         } else {
                             let project = cms_db::project::ProjectQueries::get_by_id(
-                                &state.biz_context.pool,
+                                &state.pool,
                                 &deployment.project_id,
                             )
                             .await?
@@ -1360,7 +1346,7 @@ pub async fn authorize_custom_domain_tls_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<TlsAuthorizationQuery>,
 ) -> Result<StatusCode, AppError> {
-    let pool = &state.biz_context.pool;
+    let pool = &state.pool;
     let domain = cms_db::domain::DomainQueries::get_verified_by_hostname(pool, &query.domain)
         .await?
         .ok_or_else(|| AppError::NotFound("TLS authorization denied".to_string()))?;
@@ -1413,30 +1399,29 @@ pub async fn get_public_domains_resolve_handler(
     };
 
     let domain =
-        cms_db::domain::DomainQueries::get_verified_by_hostname(&state.biz_context.pool, &host)
-            .await?;
+        cms_db::domain::DomainQueries::get_verified_by_hostname(&state.pool, &host).await?;
     let data = match domain {
         Some(domain) => {
             let deployment = cms_db::deployment::DeploymentQueries::get_by_id(
-                &state.biz_context.pool,
+                &state.pool,
                 &domain.deployment_id,
             )
             .await?;
             match deployment {
                 Some(deployment) => {
                     let project = cms_db::project::ProjectQueries::get_by_id(
-                        &state.biz_context.pool,
+                        &state.pool,
                         &deployment.project_id,
                     )
                     .await?;
                     let snapshot =
                         cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(
-                            &state.biz_context.pool,
+                            &state.pool,
                             &deployment.id,
                         )
                         .await?;
                     let taken_down = cms_db::project::ProjectQueries::is_taken_down(
-                        &state.biz_context.pool,
+                        &state.pool,
                         &deployment.project_id,
                     )
                     .await?
@@ -1477,7 +1462,7 @@ async fn site_pages(
 ) -> Result<Vec<cms_entity::page::Page>, AppError> {
     let site = resolve_public_site(state, id, None, None).await?;
     cms_db::deployment::DeploymentQueries::get_snapshot_pages(
-        &state.biz_context.pool,
+        &state.pool,
         &site.deployment_id,
         Some(&site.language.id),
     )
@@ -1510,7 +1495,7 @@ pub async fn get_public_site_openapi_handler(
 ) -> Result<impl axum::response::IntoResponse, AppError> {
     let site = resolve_public_site(&state, &id, None, None).await?;
     let snapshot = cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(
-        &state.biz_context.pool,
+        &state.pool,
         &site.deployment_id,
     )
     .await?
@@ -1534,12 +1519,9 @@ pub async fn get_public_site_changelog_rss_handler(
     Path(id): Path<String>,
 ) -> Result<impl axum::response::IntoResponse, AppError> {
     resolve_public_site(&state, &id, None, None).await?;
-    let releases = cms_db::deployment::DeploymentQueries::get_releases_by_project(
-        &state.biz_context.pool,
-        &id,
-        50,
-    )
-    .await?;
+    let releases =
+        cms_db::deployment::DeploymentQueries::get_releases_by_project(&state.pool, &id, 50)
+            .await?;
 
     let mut items = String::new();
     for release in releases {

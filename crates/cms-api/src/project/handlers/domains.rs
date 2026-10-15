@@ -21,15 +21,13 @@ async fn require_domain_in_project(
     project_id: &str,
     domain_id: &str,
 ) -> Result<cms_entity::domain::Domain, AppError> {
-    let domain = cms_db::domain::DomainQueries::get_by_id(&state.biz_context.pool, domain_id)
+    let domain = cms_db::domain::DomainQueries::get_by_id(&state.pool, domain_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Domain not found".to_string()))?;
-    let deployment = cms_db::deployment::DeploymentQueries::get_by_id(
-        &state.biz_context.pool,
-        &domain.deployment_id,
-    )
-    .await?
-    .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
+    let deployment =
+        cms_db::deployment::DeploymentQueries::get_by_id(&state.pool, &domain.deployment_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
     if deployment.project_id != project_id {
         return Err(AppError::Forbidden);
     }
@@ -68,9 +66,7 @@ pub async fn list_project_domains_handler(
 
     let mut items = Vec::new();
     for d in deployments {
-        let domains =
-            cms_db::domain::DomainQueries::get_by_deployment(&state.biz_context.pool, &d.id)
-                .await?;
+        let domains = cms_db::domain::DomainQueries::get_by_deployment(&state.pool, &d.id).await?;
         items.extend(domains.iter().map(SpaDomainResponse::from_domain));
     }
 
@@ -120,21 +116,15 @@ pub async fn add_project_domain_handler(
         .first()
         .ok_or_else(|| AppError::NotFound("No deployment exists for this project".to_string()))?;
 
-    let has_primary = cms_db::domain::DomainQueries::get_primary_by_deployment(
-        &state.biz_context.pool,
-        &deployment.id,
-    )
-    .await?
-    .is_some();
+    let has_primary =
+        cms_db::domain::DomainQueries::get_primary_by_deployment(&state.pool, &deployment.id)
+            .await?
+            .is_some();
     let is_primary = !has_primary;
 
-    let domain = cms_db::domain::DomainQueries::create(
-        &state.biz_context.pool,
-        &deployment.id,
-        &hostname,
-        is_primary,
-    )
-    .await?;
+    let domain =
+        cms_db::domain::DomainQueries::create(&state.pool, &deployment.id, &hostname, is_primary)
+            .await?;
     state.invalidate_host_resolution_cache();
 
     Ok(Json(ApiResponse::new(SpaDomainResponse::from_domain(
@@ -170,7 +160,7 @@ pub async fn delete_project_domain_handler(
 ) -> Result<Json<ApiResponse<DeleteDomainResponse>>, AppError> {
     verify_project_access(&state, &auth, &project_id).await?;
     let _domain = require_domain_in_project(&state, &project_id, &id).await?;
-    cms_db::domain::DomainQueries::delete(&state.biz_context.pool, &id).await?;
+    cms_db::domain::DomainQueries::delete(&state.pool, &id).await?;
     state.invalidate_host_resolution_cache();
     Ok(Json(ApiResponse::new(DeleteDomainResponse::new(id))))
 }
@@ -205,7 +195,7 @@ pub async fn verify_project_domain_handler(
     verify_project_access(&state, &auth, &project_id).await?;
     let domain = require_domain_in_project(&state, &project_id, &id).await?;
     let is_verified = cms_biz::domain::DomainService::verify_domain_ownership(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &id,
         &domain.verification_token,
@@ -252,7 +242,7 @@ pub async fn set_primary_project_domain_handler(
     let domain = require_domain_in_project(&state, &project_id, &id).await?;
 
     let updated = cms_db::domain::DomainQueries::set_primary_for_deployment(
-        &state.biz_context.pool,
+        &state.pool,
         &domain.deployment_id,
         &domain.id,
     )

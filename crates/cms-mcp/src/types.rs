@@ -88,8 +88,9 @@ impl McpSecurityContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use schemars::schema_for;
+
+    use super::*;
 
     #[test]
     fn test_search_params_schema() {

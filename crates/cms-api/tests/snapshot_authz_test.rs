@@ -10,14 +10,7 @@ use uuid::Uuid;
 async fn test_unauthorized_when_not_logged_in() -> anyhow::Result<()> {
     let ctx = TestContext::setup().await?;
 
-    let (status, _) = request(
-        &ctx.app,
-        Method::GET,
-        "/api/projects",
-        None,
-        None,
-    )
-    .await?;
+    let (status, _) = request(&ctx.app, Method::GET, "/api/projects", None, None).await?;
 
     anyhow::ensure!(
         status == StatusCode::UNAUTHORIZED,
@@ -35,24 +28,12 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
 
     // 1. Create a private project
     let private_name = format!("Private Gatehouse {}", Uuid::new_v4().simple());
-    let private_proj = create_project(
-        &ctx.app,
-        &owner_cookie,
-        private_name,
-        false,
-    )
-    .await?;
+    let private_proj = create_project(&ctx.app, &owner_cookie, private_name, false).await?;
     let private_id = required_string(&private_proj, "id", "private project")?;
 
     // 2. Create a public project
     let public_name = format!("Public Gatehouse {}", Uuid::new_v4().simple());
-    let public_proj = create_project(
-        &ctx.app,
-        &owner_cookie,
-        public_name,
-        true,
-    )
-    .await?;
+    let public_proj = create_project(&ctx.app, &owner_cookie, public_name, true).await?;
     let public_id = required_string(&public_proj, "id", "public project")?;
 
     // 3. Register a separate second user who is not a member of the project
@@ -83,7 +64,7 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
     .bind(&other_session_token)
     .bind(now + chrono::Duration::hours(2))
     .bind(now)
-    .execute(&ctx.state.biz_context.pool)
+    .execute(&ctx.state.pool)
     .await?;
     let other_cookie = session_cookie(&other_session_token);
 
@@ -98,7 +79,8 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
     .await?;
     anyhow::ensure!(
         forbidden_status == StatusCode::NOT_FOUND,
-        "non-member accessing private project returns 404 Not Found (existence oracle defense), got {forbidden_status}"
+        "non-member accessing private project returns 404 Not Found (existence oracle defense), \
+         got {forbidden_status}"
     );
 
     // 5. Other user accessing public project -> 200 OK

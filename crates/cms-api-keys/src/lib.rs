@@ -101,7 +101,7 @@ pub fn mint(environment: Environment, permissions: &[String]) -> Result<MintedKe
     }
 
     let mut bytes = [0_u8; SECRET_BYTES];
-    getrandom::getrandom(&mut bytes).map_err(|error| KeyError::Random(error.to_string()))?;
+    getrandom::fill(&mut bytes).map_err(|error| KeyError::Random(error.to_string()))?;
 
     let secret = format!("{}{}", environment.prefix(), hex::encode(bytes));
     let prefix: String = secret.chars().take(VISIBLE_CHARS).collect();

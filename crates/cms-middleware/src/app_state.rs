@@ -9,6 +9,7 @@ use std::sync::{
 
 use cms_biz::BizContext;
 use cms_config::Config;
+use cms_db::PgPool;
 use cms_error::AppError;
 use cms_queue::JobQueue;
 use cms_storage::Storage;
@@ -18,8 +19,10 @@ use cms_storage::Storage;
 pub struct AppState {
     /// Application configuration
     pub config: Arc<Config>,
-    /// Business context with database pool and access control
-    pub biz_context: BizContext,
+    /// Database connection pool
+    pub pool: PgPool,
+    /// Authorization engine state
+    pub authz: Arc<cms_authz::AuthzState>,
     /// Storage backend
     pub storage: Arc<dyn Storage>,
     /// Job queue
@@ -35,16 +38,28 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Constructs a domain business context for passing down to cms-biz services.
+    #[inline]
+    pub fn biz_context(&self) -> BizContext {
+        BizContext::new(self.pool.clone(), self.authz.clone())
+    }
+
+    /// Returns a reference to the database connection pool.
+    #[inline]
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
     /// Returns a reference to the authorization engine state.
     #[inline]
     pub fn authz(&self) -> &Arc<cms_authz::AuthzState> {
-        &self.biz_context.authz
+        &self.authz
     }
 
     /// Returns a reference to the authorization backend trait object.
     #[inline]
     pub fn authz_backend(&self) -> &dyn cms_authz::AuthzBackend {
-        self.biz_context.authz.backend.as_ref()
+        self.authz.backend.as_ref()
     }
 
     /// Create AppState from full configuration
@@ -60,14 +75,14 @@ impl AppState {
             pool.clone(),
             config.auth.system_admin_emails.clone(),
         ));
-        let biz_context = BizContext::new(pool, authz);
         let mailer = cms_biz::email::create_mailer(config.mailer.as_ref())?;
-        let email_renderer = cms_biz::email::EmailRenderer::embedded()
-            .map_err(AppError::internal)?;
+        let email_renderer =
+            cms_biz::email::EmailRenderer::embedded().map_err(AppError::internal)?;
 
         Ok(Self::new_with_mailer_and_renderer(
             config.clone(),
-            biz_context,
+            pool,
+            authz,
             storage,
             job_queue,
             search_engine,
@@ -79,14 +94,16 @@ impl AppState {
     /// Create a new AppState with provided dependencies
     pub fn new(
         config: Config,
-        biz_context: BizContext,
+        pool: PgPool,
+        authz: Arc<cms_authz::AuthzState>,
         storage: Arc<dyn Storage>,
         job_queue: Arc<dyn JobQueue>,
         search_engine: Arc<dyn cms_search::SearchEngine>,
     ) -> Self {
         Self::new_with_mailer(
             config,
-            biz_context,
+            pool,
+            authz,
             storage,
             job_queue,
             search_engine,
@@ -97,7 +114,8 @@ impl AppState {
     /// Create state with an explicitly configured mail provider.
     pub fn new_with_mailer(
         config: Config,
-        biz_context: BizContext,
+        pool: PgPool,
+        authz: Arc<cms_authz::AuthzState>,
         storage: Arc<dyn Storage>,
         job_queue: Arc<dyn JobQueue>,
         search_engine: Arc<dyn cms_search::SearchEngine>,
@@ -107,7 +125,8 @@ impl AppState {
             .unwrap_or_else(|e| panic!("embedded email translations must be valid: {e}"));
         Self::new_with_mailer_and_renderer(
             config,
-            biz_context,
+            pool,
+            authz,
             storage,
             job_queue,
             search_engine,
@@ -117,9 +136,11 @@ impl AppState {
     }
 
     /// Create state with explicitly configured mail provider and email renderer.
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_mailer_and_renderer(
         config: Config,
-        biz_context: BizContext,
+        pool: PgPool,
+        authz: Arc<cms_authz::AuthzState>,
         storage: Arc<dyn Storage>,
         job_queue: Arc<dyn JobQueue>,
         search_engine: Arc<dyn cms_search::SearchEngine>,
@@ -128,7 +149,8 @@ impl AppState {
     ) -> Self {
         Self {
             config: Arc::new(config),
-            biz_context,
+            pool,
+            authz,
             storage,
             job_queue,
             search_engine,
@@ -233,6 +255,62 @@ impl AppState {
         }
 
         Ok(())
+    }
+}
+
+impl axum::extract::FromRef<AppState> for PgPool {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.pool.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Arc<cms_authz::AuthzState> {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.authz.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Arc<Config> {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.config.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Arc<dyn Storage> {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.storage.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Arc<dyn JobQueue> {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.job_queue.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Arc<dyn cms_search::SearchEngine> {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.search_engine.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for Arc<dyn cms_biz::email::Mailer> {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.mailer.clone()
+    }
+}
+
+impl axum::extract::FromRef<AppState> for BizContext {
+    #[inline]
+    fn from_ref(state: &AppState) -> Self {
+        state.biz_context()
     }
 }
 

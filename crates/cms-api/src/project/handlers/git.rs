@@ -30,16 +30,10 @@ pub async fn get_project_git_status_handler(
         GitPullRequestQueries, GitSyncOperationQueries,
     };
 
-    let proj = super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        Relation::Viewer,
-    )
-    .await?;
+    let proj =
+        super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
-    let connection =
-        GitConnectionQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
+    let connection = GitConnectionQueries::get_by_project(&state.pool, &project_id).await?;
 
     let Some(conn) = connection else {
         return Ok(Json(ApiResponse::new(None)));
@@ -74,7 +68,7 @@ pub async fn get_project_git_status_handler(
                 cfg_map.insert("git".to_string(), git_obj);
             }
             cms_db::project::ProjectQueries::update(
-                &state.biz_context.pool,
+                &state.pool,
                 &project_id,
                 None,
                 None,
@@ -88,22 +82,19 @@ pub async fn get_project_git_status_handler(
         }
     };
 
-    let operations =
-        GitSyncOperationQueries::get_by_connection(&state.biz_context.pool, &conn.id, None, None)
-            .await
-            .unwrap_or_default();
-
-    let conflicts =
-        GitConflictQueries::get_by_project(&state.biz_context.pool, &project_id, None, None)
-            .await
-            .unwrap_or_default();
-    let files = GitFileStateQueries::get_by_project(&state.biz_context.pool, &project_id)
+    let operations = GitSyncOperationQueries::get_by_connection(&state.pool, &conn.id, None, None)
         .await
         .unwrap_or_default();
-    let prs =
-        GitPullRequestQueries::get_by_connection(&state.biz_context.pool, &conn.id, None, None)
-            .await
-            .unwrap_or_default();
+
+    let conflicts = GitConflictQueries::get_by_project(&state.pool, &project_id, None, None)
+        .await
+        .unwrap_or_default();
+    let files = GitFileStateQueries::get_by_project(&state.pool, &project_id)
+        .await
+        .unwrap_or_default();
+    let prs = GitPullRequestQueries::get_by_connection(&state.pool, &conn.id, None, None)
+        .await
+        .unwrap_or_default();
 
     let operations_json: Vec<serde_json::Value> = operations
         .iter()
@@ -139,7 +130,7 @@ pub async fn get_project_git_status_handler(
 
     let mut pr_json = Vec::with_capacity(prs.len());
     for p in &prs {
-        let previews = GitPreviewQueries::get_by_pull_request(&state.biz_context.pool, &p.id)
+        let previews = GitPreviewQueries::get_by_pull_request(&state.pool, &p.id)
             .await
             .unwrap_or_default();
         pr_json.push(serde_json::json!({
@@ -182,7 +173,7 @@ pub async fn get_project_git_status_handler(
             .map(|f| serde_json::json!({ "path": f.path }))
             .collect(),
         conflicts: conflicts_json,
-        sync_status: GitService::get_sync_status(&state.biz_context, &auth.user.id, &project_id)
+        sync_status: GitService::get_sync_status(&state.biz_context(), &auth.user.id, &project_id)
             .await
             .unwrap_or_else(|_| serde_json::json!({})),
     }))))
@@ -214,13 +205,7 @@ pub async fn action_project_git_handler(
         Relation::Admin
     };
 
-    let proj = super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        relation,
-    )
-    .await?;
+    let proj = super::common::authorize_project(&state, &auth, &project_id, relation).await?;
 
     if is_upsert {
         let repository = body
@@ -234,12 +219,11 @@ pub async fn action_project_git_handler(
         let token = body.get("token").and_then(|v| v.as_str()).map(String::from);
 
         let existing =
-            cms_db::git::GitConnectionQueries::get_by_project(&state.biz_context.pool, &project_id)
-                .await?;
+            cms_db::git::GitConnectionQueries::get_by_project(&state.pool, &project_id).await?;
 
         let conn = if let Some(existing) = existing {
             GitService::update_connection(
-                &state.biz_context,
+                &state.biz_context(),
                 &auth.user.id,
                 &existing.id,
                 UpdateGitConnectionRequest {
@@ -251,7 +235,7 @@ pub async fn action_project_git_handler(
             .await?
         } else {
             GitService::create_connection(
-                &state.biz_context,
+                &state.biz_context(),
                 &auth.user.id,
                 &project_id,
                 CreateGitConnectionRequest {
@@ -293,7 +277,7 @@ pub async fn action_project_git_handler(
                     cfg_map.insert("git".to_string(), git_obj);
                 }
                 cms_db::project::ProjectQueries::update(
-                    &state.biz_context.pool,
+                    &state.pool,
                     &project_id,
                     None,
                     None,
@@ -320,7 +304,7 @@ pub async fn action_project_git_handler(
     // Trigger a manual sync (operations).
     if let Some(conn_id) = body.get("connectionId").and_then(|v| v.as_str()) {
         let op = GitService::trigger_sync(
-            &state.biz_context,
+            &state.biz_context(),
             &auth.user.id,
             conn_id,
             GitSyncOperationType::Manual,
@@ -361,7 +345,7 @@ pub async fn action_project_git_handler(
         cfg_map.insert("git".to_string(), git_obj);
     }
     cms_db::project::ProjectQueries::update(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         None,
         None,
@@ -386,24 +370,17 @@ pub async fn delete_project_git_connection_handler(
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     use cms_biz::git::GitService;
 
-    let proj = super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        Relation::Admin,
-    )
-    .await?;
+    let proj =
+        super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
-    let conn =
-        cms_db::git::GitConnectionQueries::get_by_project(&state.biz_context.pool, &project_id)
-            .await?;
+    let conn = cms_db::git::GitConnectionQueries::get_by_project(&state.pool, &project_id).await?;
     if let Some(conn) = conn {
-        GitService::delete_connection(&state.biz_context, &auth.user.id, &conn.id).await?;
+        GitService::delete_connection(&state.biz_context(), &auth.user.id, &conn.id).await?;
         if let Some(mut config) = proj.config {
             if let Some(cfg_map) = config.as_object_mut() {
                 if cfg_map.remove("git").is_some() {
                     cms_db::project::ProjectQueries::update(
-                        &state.biz_context.pool,
+                        &state.pool,
                         &project_id,
                         None,
                         None,
@@ -429,13 +406,7 @@ pub async fn resolve_project_git_conflict_handler(
 ) -> Result<Json<ApiResponse<GitConflict>>, AppError> {
     use cms_biz::git::GitService;
 
-    super::common::authorize_project(
-        &state,
-        &auth,
-        &project_id,
-        Relation::Editor,
-    )
-    .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Editor).await?;
 
     let resolved = body
         .get("content")
@@ -444,7 +415,7 @@ pub async fn resolve_project_git_conflict_handler(
         .to_string();
 
     let conflict = GitService::resolve_conflict(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         &conflict_id,

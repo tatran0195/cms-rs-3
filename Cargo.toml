@@ -83,11 +83,10 @@ axum-extra = { version = "0.12.6", features = ["typed-header", "cookie"] }
 # Serialization
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-ts-rs = { version = "12.0", features = ["chrono-impl", "uuid-impl", "serde-json-impl"] }
+ts-rs = { version = "12.0", features = ["chrono-impl", "uuid-impl", "serde-json-impl", "no-serde-warnings"] }
 
 # Database
-sqlx = { version = "0.9.0", features = ["postgres", "chrono", "uuid", "json", "runtime-tokio", "tls-native-tls"] }
-rusqlite = { version = "0.33.0", features = ["bundled"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["postgres", "sqlite", "macros", "migrate", "chrono", "uuid", "json", "runtime-tokio", "tls-native-tls"] }
 
 # Time & UUID
 chrono = { version = "0.4.45", features = ["serde"] }
@@ -108,10 +107,10 @@ async-trait = "0.1.92"
 # Utilities
 bytes = "1.12.1"
 pulldown-cmark = "0.13.4"
-ammonia = "4.1.4"
+ammonia = "4.2.3"
 syntect = { version = "5.3.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-onig"] }
 validator = { version = "0.21.0", features = ["derive"] }
-utoipa = { version = "5.5.0", features = ["axum_extras", "chrono", "uuid", "yaml"] }
+utoipa = { version = "6.0.0", features = ["axum_extras", "chrono", "uuid", "yaml"] }
 parking_lot = "0.12.5"
 mockall = "0.15.0"
 tempfile = "3.27.0"
@@ -125,16 +124,16 @@ schemars = "1.0"
 # Authentication
 jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
 argon2 = "0.6.0"
-sha2 = "0.10.8"
+sha2 = "0.11.1"
 hex = "0.4.3"
 base64 = "0.23.1"
 serde_urlencoded = "0.7.1"
 urlencoding = "2.1.3"
 idna = "1.1.0"
-rand = "0.8.8"
+rand = "0.10.3"
 subtle = "2.6.1"
-getrandom = { version = "0.2.15", features = ["std"] }
-totp-rs = { version = "5.6.0", features = ["otpauth", "qr"] }
+getrandom = { version = "0.4.3", features = ["std"] }
+totp-rs = { version = "6.0.0", features = ["otpauth", "qr"] }
 
 # Production-ready infrastructure
 governor = "0.10.4"
@@ -144,14 +143,14 @@ metrics-exporter-prometheus = "0.18.3"
 
 # Email
 lettre = { version = "0.11", features = ["tokio1", "tokio1-native-tls"] }
-minijinja = { version = "2.8", features = ["json"] }
+minijinja = { version = "3.0.0", features = ["json"] }
 
 # HTTP client (Git sync API calls)
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.13.5", features = ["json", "rustls", "query", "form"], default-features = false }
 
 # Export generation
-printpdf = { version = "0.7" }
-epub-builder = { version = "0.7" }
+printpdf = { version = "0.12.8" }
+epub-builder = { version = "0.8.3" }
 
 # Optional & feature dependencies
 aws-sdk-s3 = { version = "1.144.0", features = ["rt-tokio"] }

@@ -130,11 +130,17 @@ async fn test_11_project_membership_and_rbac() -> anyhow::Result<()> {
         StatusCode::OK,
         "list members after remove",
     )?;
-    anyhow::ensure!(members_after_remove["data"]["members"].as_array().unwrap().len() == 1);
+    anyhow::ensure!(
+        members_after_remove["data"]["members"]
+            .as_array()
+            .unwrap()
+            .len()
+            == 1
+    );
 
     sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
         .bind(second_user_id)
-        .execute(&ctx.state.biz_context.pool)
+        .execute(&ctx.state.pool)
         .await?;
 
     ctx.teardown().await

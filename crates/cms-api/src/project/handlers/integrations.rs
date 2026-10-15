@@ -4,6 +4,8 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::require_project_access;
 use cms_entity::{
     common::ApiResponse,
     integration::{
@@ -12,8 +14,6 @@ use cms_entity::{
         ProjectIntegrationHealth,
     },
 };
-use cms_authz::Relation;
-use cms_authz_gate::require_project_access;
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 use uuid::Uuid;
@@ -71,7 +71,7 @@ pub async fn list_project_integrations_handler(
     .await?;
 
     let integrations =
-        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
+        IntegrationService::list_integrations(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
     let items: Vec<ProjectIntegrationCatalogItem> =
         integrations.iter().map(integration_to_si).collect();
@@ -117,7 +117,7 @@ pub async fn create_project_integration_handler(
         .unwrap_or_else(|| format!("{:?}", provider));
 
     let integration = IntegrationService::create_integration(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         CreateProjectIntegrationRequest {
             project_id: project_id.clone(),
@@ -157,7 +157,7 @@ pub async fn update_project_integration_handler(
     .await?;
 
     let integrations =
-        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
+        IntegrationService::list_integrations(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
     let target = integrations
         .into_iter()
@@ -172,7 +172,7 @@ pub async fn update_project_integration_handler(
         })?;
 
     let updated = IntegrationService::update_integration(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &target.id,
         UpdateProjectIntegrationRequest {
@@ -209,7 +209,7 @@ pub async fn delete_project_integration_handler(
     .await?;
 
     let integrations =
-        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
+        IntegrationService::list_integrations(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
     let target = integrations
         .into_iter()
@@ -222,7 +222,7 @@ pub async fn delete_project_integration_handler(
                 provider_id
             ))
         })?;
-    IntegrationService::delete_integration(&state.biz_context, &auth.user.id, &target.id).await?;
+    IntegrationService::delete_integration(&state.biz_context(), &auth.user.id, &target.id).await?;
 
     Ok(Json(ApiResponse::new(DeleteProjectIntegrationResponse {
         provider_id,
@@ -249,7 +249,7 @@ pub async fn verify_project_integration_handler(
     .await?;
 
     let integrations =
-        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
+        IntegrationService::list_integrations(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
     let target = integrations
         .into_iter()
@@ -263,7 +263,8 @@ pub async fn verify_project_integration_handler(
             ))
         })?;
     let result =
-        IntegrationService::test_integration(&state.biz_context, &auth.user.id, &target.id).await?;
+        IntegrationService::test_integration(&state.biz_context(), &auth.user.id, &target.id)
+            .await?;
 
     Ok(Json(ApiResponse::new(result)))
 }
@@ -288,7 +289,7 @@ pub async fn delete_project_integration_confirmation_handler(
     .await?;
 
     let integrations =
-        IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
+        IntegrationService::list_integrations(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
     let _ = integrations
         .into_iter()

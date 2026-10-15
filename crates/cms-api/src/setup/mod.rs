@@ -3,6 +3,7 @@
 //! Handlers for public setup and onboarding routes.
 
 use std::sync::Arc;
+
 use axum::{
     routing::{get, post},
     Router,

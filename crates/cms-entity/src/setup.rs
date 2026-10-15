@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+
 use crate::auth::UserResponse;
 
 /// Public setup status response

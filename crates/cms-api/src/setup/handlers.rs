@@ -1,11 +1,8 @@
 //! Handlers for public setup and onboarding
 
 use std::sync::Arc;
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Json,
-};
+
+use axum::{extract::State, http::HeaderMap, Json};
 use cms_biz::SetupService;
 use cms_entity::setup::{CompleteSetupRequest, CompleteSetupResponse, SetupStatusResponse};
 use cms_error::AppError;
@@ -36,7 +33,7 @@ pub async fn get_setup_status_handler(
         }
     }
 
-    let status = SetupService::get_status(&state.biz_context, configured_oauth).await?;
+    let status = SetupService::get_status(&state.biz_context(), configured_oauth).await?;
     Ok(Json(status))
 }
 
@@ -57,7 +54,7 @@ pub async fn complete_setup_handler(
     ValidatedJson(payload): ValidatedJson<CompleteSetupRequest>,
 ) -> Result<(HeaderMap, Json<CompleteSetupResponse>), AppError> {
     let session_token = Uuid::new_v4().to_string();
-    let res = SetupService::complete_setup(&state.biz_context, payload, &session_token).await?;
+    let res = SetupService::complete_setup(&state.biz_context(), payload, &session_token).await?;
 
     let mut res_headers = HeaderMap::new();
     let cookie_val = state.config.auth.session_cookie_value(

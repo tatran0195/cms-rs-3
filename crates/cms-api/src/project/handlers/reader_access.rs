@@ -7,12 +7,12 @@ use axum::{
 use cms_authz::Relation;
 use cms_entity::{
     common::ApiResponse,
-    workspace::WorkspaceMutationResponse,
     reader_access::{
         ProjectAudienceItem, ProjectJwtProviderItem, ProjectJwtTestResponse,
         ProjectReaderAccessResponse, ProjectReaderEmergencyRevokeResponse,
         ProjectReaderInvitationResponse, ProjectReaderItem,
     },
+    workspace::WorkspaceMutationResponse,
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
@@ -85,17 +85,14 @@ pub async fn get_project_reader_access_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
-    let audiences = AudienceQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
-    let readers = ReaderQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
+    let audiences = AudienceQueries::get_by_project(&state.pool, &project_id).await?;
+    let readers = ReaderQueries::get_by_project(&state.pool, &project_id).await?;
 
-    let provider = JwtAccessProviderQueries::get_by_issuer_and_audience(
-        &state.biz_context.pool,
-        &project_id,
-        &project_id,
-    )
-    .await
-    .ok()
-    .flatten();
+    let provider =
+        JwtAccessProviderQueries::get_by_issuer_and_audience(&state.pool, &project_id, &project_id)
+            .await
+            .ok()
+            .flatten();
 
     let access_mode = if provider.is_some() || !readers.is_empty() {
         "READERS"
@@ -151,8 +148,7 @@ pub async fn create_reader_audience_handler(
         .ok_or_else(|| AppError::InvalidInput("name is required".to_string()))?;
     let description = body.get("description").and_then(|v| v.as_str());
 
-    let audience =
-        AudienceQueries::create(&state.biz_context.pool, &project_id, name, description).await?;
+    let audience = AudienceQueries::create(&state.pool, &project_id, name, description).await?;
     Ok(Json(ApiResponse::new(audience_to_spa(&audience))))
 }
 
@@ -166,12 +162,12 @@ pub async fn delete_reader_audience_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
-    let existing = AudienceQueries::get_by_id(&state.biz_context.pool, &audience_id).await?;
+    let existing = AudienceQueries::get_by_id(&state.pool, &audience_id).await?;
     if let Some(aud) = existing {
         if aud.project_id != project_id {
             return Err(AppError::NotFound("Audience not found".to_string()));
         }
-        let _ = AudienceQueries::delete(&state.biz_context.pool, &audience_id).await;
+        let _ = AudienceQueries::delete(&state.pool, &audience_id).await;
     }
 
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
@@ -200,7 +196,7 @@ pub async fn invite_project_reader_handler(
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("email is required".to_string()))?;
 
-    let aud = AudienceQueries::get_by_id(&state.biz_context.pool, audience_id)
+    let aud = AudienceQueries::get_by_id(&state.pool, audience_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
     if aud.project_id != project_id {
@@ -213,14 +209,9 @@ pub async fn invite_project_reader_handler(
     );
     let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
 
-    let invitation = ReaderInvitationQueries::create(
-        &state.biz_context.pool,
-        audience_id,
-        email,
-        &token,
-        expires_at,
-    )
-    .await?;
+    let invitation =
+        ReaderInvitationQueries::create(&state.pool, audience_id, email, &token, expires_at)
+            .await?;
 
     Ok(Json(ApiResponse::new(ProjectReaderInvitationResponse {
         id: invitation.id,
@@ -248,14 +239,14 @@ pub async fn revoke_project_reader_handler(
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("audienceId is required".to_string()))?;
 
-    let aud = AudienceQueries::get_by_id(&state.biz_context.pool, audience_id)
+    let aud = AudienceQueries::get_by_id(&state.pool, audience_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
     if aud.project_id != project_id {
         return Err(AppError::NotFound("Audience not found".to_string()));
     }
 
-    let _ = ReaderAudienceQueries::delete(&state.biz_context.pool, &reader_id, audience_id).await;
+    let _ = ReaderAudienceQueries::delete(&state.pool, &reader_id, audience_id).await;
 
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
@@ -291,14 +282,8 @@ pub async fn configure_reader_jwt_handler(
         .unwrap_or("reader-jwt")
         .to_string();
 
-    let provider = JwtAccessProviderQueries::create(
-        &state.biz_context.pool,
-        &name,
-        &issuer,
-        &audience,
-        secret,
-    )
-    .await?;
+    let provider =
+        JwtAccessProviderQueries::create(&state.pool, &name, &issuer, &audience, secret).await?;
 
     Ok(Json(ApiResponse::new(ProjectJwtProviderItem {
         enabled: true,
@@ -325,13 +310,10 @@ pub async fn test_reader_jwt_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
-    let provider = JwtAccessProviderQueries::get_by_issuer_and_audience(
-        &state.biz_context.pool,
-        &project_id,
-        &project_id,
-    )
-    .await?
-    .is_some();
+    let provider =
+        JwtAccessProviderQueries::get_by_issuer_and_audience(&state.pool, &project_id, &project_id)
+            .await?
+            .is_some();
 
     Ok(Json(ApiResponse::new(ProjectJwtTestResponse {
         configured: provider,
@@ -350,14 +332,11 @@ pub async fn emergency_revoke_reader_handler(
 
     super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
-    let provider = JwtAccessProviderQueries::get_by_issuer_and_audience(
-        &state.biz_context.pool,
-        &project_id,
-        &project_id,
-    )
-    .await?;
+    let provider =
+        JwtAccessProviderQueries::get_by_issuer_and_audience(&state.pool, &project_id, &project_id)
+            .await?;
     let revoked = if let Some(p) = provider {
-        JwtAccessProviderQueries::delete(&state.biz_context.pool, &p.id)
+        JwtAccessProviderQueries::delete(&state.pool, &p.id)
             .await
             .unwrap_or(false)
     } else {

@@ -166,7 +166,7 @@ async fn test_06_public_search_and_grounded_qa() -> anyhow::Result<()> {
         r#"SELECT user_id, ip_address FROM "AnalyticsEvent" WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1"#,
     )
     .bind(project_id)
-    .fetch_one(&ctx.state.biz_context.pool)
+    .fetch_one(&ctx.state.pool)
     .await?;
     anyhow::ensure!(stored.0.is_none(), "user_id stripped for privacy");
     anyhow::ensure!(stored.1.is_none(), "ip stripped for privacy");

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use clap::Parser;
 use cms_biz::BizContext;
 use cms_mcp::McpSecurityContext;
@@ -36,7 +37,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .database_url
         .or_else(|| std::env::var("DATABASE_URL").ok())
         .ok_or_else(|| {
-            eprintln!("Error: Database URL must be provided via --database-url or DATABASE_URL environment variable");
+            eprintln!(
+                "Error: Database URL must be provided via --database-url or DATABASE_URL \
+                 environment variable"
+            );
             std::io::Error::new(std::io::ErrorKind::InvalidInput, "missing database URL")
         })?;
 

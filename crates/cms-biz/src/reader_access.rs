@@ -212,7 +212,6 @@ impl ReaderAccessService {
             .await?
             .ok_or_else(|| AppError::NotFound("Target project not found".to_string()))?;
 
-
         // Verify branch belongs to the target project if specified
         if let Some(bid) = branch_id {
             let branch = BranchQueries::get_by_id(&ctx.pool, bid)

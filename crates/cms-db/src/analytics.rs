@@ -166,8 +166,7 @@ impl AnalyticsQueries {
         end_date: DateTime<Utc>,
     ) -> Result<serde_json::Value, AppError> {
         let total_events: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE created_at >= \
-             $1 AND created_at <= $2",
+            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE created_at >= $1 AND created_at <= $2",
         )
         .bind(start_date)
         .bind(end_date)
@@ -176,8 +175,8 @@ impl AnalyticsQueries {
         .map_err(|e| AppError::Database(e.into()))?;
 
         let unique_users: i64 = sqlx::query_scalar(
-            "SELECT COUNT(DISTINCT user_id) FROM \"AnalyticsEvent\" WHERE \
-             created_at >= $1 AND created_at <= $2 AND user_id IS NOT NULL",
+            "SELECT COUNT(DISTINCT user_id) FROM \"AnalyticsEvent\" WHERE created_at >= $1 AND \
+             created_at <= $2 AND user_id IS NOT NULL",
         )
         .bind(start_date)
         .bind(end_date)
@@ -186,8 +185,8 @@ impl AnalyticsQueries {
         .map_err(|e| AppError::Database(e.into()))?;
 
         let page_views: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE event_type = \
-             'page_view' AND created_at >= $1 AND created_at <= $2",
+            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE event_type = 'page_view' AND \
+             created_at >= $1 AND created_at <= $2",
         )
         .bind(start_date)
         .bind(end_date)
@@ -196,8 +195,8 @@ impl AnalyticsQueries {
         .map_err(|e| AppError::Database(e.into()))?;
 
         let searches: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE event_type = \
-             'search' AND created_at >= $1 AND created_at <= $2",
+            "SELECT COUNT(*) FROM \"AnalyticsEvent\" WHERE event_type = 'search' AND created_at \
+             >= $1 AND created_at <= $2",
         )
         .bind(start_date)
         .bind(end_date)

@@ -3,6 +3,7 @@
 use cms_db::SetupQueries;
 use cms_entity::setup::{CompleteSetupRequest, CompleteSetupResponse, SetupStatusResponse};
 use cms_error::AppError;
+
 use crate::BizContext;
 
 pub struct SetupService;
@@ -28,7 +29,8 @@ impl SetupService {
         session_token: &str,
     ) -> Result<CompleteSetupResponse, AppError> {
         let hashed_password = cms_auth::password::hash_password(&req.admin_password)?;
-        let user = SetupQueries::complete_setup(&ctx.pool, &req, &hashed_password, session_token).await?;
+        let user =
+            SetupQueries::complete_setup(&ctx.pool, &req, &hashed_password, session_token).await?;
         Ok(CompleteSetupResponse {
             success: true,
             user: user.into(),

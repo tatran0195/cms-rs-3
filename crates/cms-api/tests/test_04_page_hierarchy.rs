@@ -193,7 +193,7 @@ async fn test_04_page_hierarchy_and_tree_reordering() -> anyhow::Result<()> {
     let draft_row: (Option<String>, String) =
         sqlx::query_as(r#"SELECT parent_id, path FROM "Page" WHERE id = $1"#)
             .bind(draft_id)
-            .fetch_one(&ctx.state.biz_context.pool)
+            .fetch_one(&ctx.state.pool)
             .await?;
     anyhow::ensure!(draft_row.0.is_none());
     anyhow::ensure!(draft_row.1 == "/draft");

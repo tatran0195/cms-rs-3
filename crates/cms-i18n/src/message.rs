@@ -50,7 +50,9 @@ impl Message {
                     let rest = &src[i + 1..];
                     let len = rest.find('}').ok_or(ParseError::Unclosed(i))?;
                     let name = &rest[..len];
-                    if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+                    if name.is_empty()
+                        || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                    {
                         return Err(ParseError::InvalidPlaceholder(name.to_owned(), i));
                     }
                     if !text.is_empty() {
@@ -69,7 +71,9 @@ impl Message {
         if !text.is_empty() {
             parts.push(Part::Text(text.into()));
         }
-        Ok(Self { parts: parts.into() })
+        Ok(Self {
+            parts: parts.into(),
+        })
     }
 
     /// Names of the placeholders this message uses (with repeats).
@@ -131,7 +135,10 @@ impl Args {
     }
 
     pub fn get(&self, name: &str) -> Option<&str> {
-        self.items.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_str())
+        self.items
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, v)| v.as_str())
     }
 }
 
@@ -154,7 +161,9 @@ mod tests {
     #[test]
     fn values_are_never_rescanned() {
         // User-controlled value that looks like another placeholder.
-        let args = Args::new().with("memberName", "{workspaceName}").with("workspaceName", "Acme");
+        let args = Args::new()
+            .with("memberName", "{workspaceName}")
+            .with("workspaceName", "Acme");
         assert_eq!(
             render("{memberName} joined {workspaceName}", &args).unwrap(),
             "{workspaceName} joined Acme"
@@ -173,11 +182,26 @@ mod tests {
 
     #[test]
     fn malformed_templates_are_rejected_at_parse_time() {
-        assert!(matches!(Message::parse("a {b"), Err(ParseError::Unclosed(2))));
-        assert!(matches!(Message::parse("a {} b"), Err(ParseError::InvalidPlaceholder(..))));
-        assert!(matches!(Message::parse("{ a }"), Err(ParseError::InvalidPlaceholder(..))));
-        assert!(matches!(Message::parse("{a {b}"), Err(ParseError::InvalidPlaceholder(..))));
-        assert!(matches!(Message::parse("a } b"), Err(ParseError::StrayClose(2))));
+        assert!(matches!(
+            Message::parse("a {b"),
+            Err(ParseError::Unclosed(2))
+        ));
+        assert!(matches!(
+            Message::parse("a {} b"),
+            Err(ParseError::InvalidPlaceholder(..))
+        ));
+        assert!(matches!(
+            Message::parse("{ a }"),
+            Err(ParseError::InvalidPlaceholder(..))
+        ));
+        assert!(matches!(
+            Message::parse("{a {b}"),
+            Err(ParseError::InvalidPlaceholder(..))
+        ));
+        assert!(matches!(
+            Message::parse("a } b"),
+            Err(ParseError::StrayClose(2))
+        ));
     }
 
     #[test]

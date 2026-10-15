@@ -9,14 +9,12 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-
 use cms_entity::{
     common::ApiResponse,
     workspace::{
         InviteWorkspaceMemberRequest, UpdateWorkspaceMemberRoleRequest,
-        UpdateWorkspaceSettingsRequest, WorkspaceAnalyticsResponse,
-        WorkspaceInvitationResponse, WorkspaceMembersResponse,
-        WorkspaceMutationResponse, WorkspaceSettingsResponse,
+        UpdateWorkspaceSettingsRequest, WorkspaceAnalyticsResponse, WorkspaceInvitationResponse,
+        WorkspaceMembersResponse, WorkspaceMutationResponse, WorkspaceSettingsResponse,
     },
 };
 use cms_error::AppError;
@@ -27,7 +25,7 @@ use crate::{auth::AuthExtractor, validation::ValidatedJson};
 /// Verify caller has administrative authority (operator, system admin, or workspace owner)
 async fn ensure_admin_or_owner(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
     // 1. Explicit admin role in database
-    if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, &auth.user.id)
+    if cms_db::auth::UserQueries::is_system_admin(&state.pool, &auth.user.id)
         .await
         .unwrap_or(false)
     {
@@ -47,7 +45,39 @@ async fn ensure_admin_or_owner(state: &AppState, auth: &AuthExtractor) -> Result
     }
 
     // 3. Fallback: First registered user is implicit owner
-    if let Ok(Some(first_id)) = cms_db::WorkspaceQueries::get_owner_user_id(&state.biz_context.pool).await {
+    if let Ok(Some(first_id)) = cms_db::WorkspaceQueries::get_owner_user_id(&state.pool).await {
+        if first_id == auth.user.id {
+            return Ok(());
+        }
+    }
+
+    Err(AppError::Forbidden)
+}
+
+/// Verify caller has workspace owner authority (operator, system admin, or explicit workspace Owner)
+async fn ensure_workspace_owner(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
+    // 1. Explicit admin role in database
+    if cms_db::auth::UserQueries::is_system_admin(&state.pool, &auth.user.id)
+        .await
+        .unwrap_or(false)
+    {
+        return Ok(());
+    }
+
+    // 2. ReBAC workspace owner check
+    if cms_authz_gate::require_workspace_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        cms_authz::Relation::Owner,
+    )
+    .await
+    .is_ok()
+    {
+        return Ok(());
+    }
+
+    // 3. Fallback: First registered user is implicit owner
+    if let Ok(Some(first_id)) = cms_db::WorkspaceQueries::get_owner_user_id(&state.pool).await {
         if first_id == auth.user.id {
             return Ok(());
         }
@@ -61,7 +91,7 @@ pub async fn get_workspace_settings_handler(
     State(state): State<Arc<AppState>>,
     _auth: AuthExtractor,
 ) -> Result<Json<ApiResponse<WorkspaceSettingsResponse>>, AppError> {
-    let response = cms_biz::WorkspaceService::get_settings(&state.biz_context).await?;
+    let response = cms_biz::WorkspaceService::get_settings(&state.biz_context()).await?;
     Ok(Json(ApiResponse::new(response)))
 }
 
@@ -72,7 +102,7 @@ pub async fn update_workspace_settings_handler(
     ValidatedJson(body): ValidatedJson<UpdateWorkspaceSettingsRequest>,
 ) -> Result<Json<ApiResponse<WorkspaceSettingsResponse>>, AppError> {
     ensure_admin_or_owner(&state, &auth).await?;
-    cms_biz::WorkspaceService::update_settings(&state.biz_context, &body).await?;
+    cms_biz::WorkspaceService::update_settings(&state.biz_context(), &body).await?;
     get_workspace_settings_handler(State(state), auth).await
 }
 
@@ -81,7 +111,7 @@ pub async fn get_workspace_analytics_handler(
     State(state): State<Arc<AppState>>,
     _auth: AuthExtractor,
 ) -> Result<Json<ApiResponse<WorkspaceAnalyticsResponse>>, AppError> {
-    let stats = cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context)
+    let stats = cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context())
         .await
         .unwrap_or_else(|_| serde_json::json!({}));
 
@@ -136,7 +166,7 @@ pub async fn list_workspace_members_handler(
     State(state): State<Arc<AppState>>,
     _auth: AuthExtractor,
 ) -> Result<Json<ApiResponse<WorkspaceMembersResponse>>, AppError> {
-    let response = cms_biz::WorkspaceService::list_members(&state.biz_context).await?;
+    let response = cms_biz::WorkspaceService::list_members(&state.biz_context()).await?;
     Ok(Json(ApiResponse::new(response)))
 }
 
@@ -148,15 +178,15 @@ pub async fn invite_workspace_member_handler(
 ) -> Result<Json<ApiResponse<WorkspaceInvitationResponse>>, AppError> {
     ensure_admin_or_owner(&state, &auth).await?;
 
-    let (response, token) = cms_biz::WorkspaceService::invite_member(
-        &state.biz_context,
-        &auth.user.id,
-        &body,
-    )
-    .await?;
+    let (response, token) =
+        cms_biz::WorkspaceService::invite_member(&state.biz_context(), &auth.user.id, &body)
+            .await?;
 
     // Attempt delivering invitation email if mailer is configured
-    let base_url = format!("http://{}:{}", state.config.server.host, state.config.server.port);
+    let base_url = format!(
+        "http://{}:{}",
+        state.config.server.host, state.config.server.port
+    );
     let invite_url = format!("{base_url}/accept-invitation?token={token}");
     let inviter_name = auth
         .user
@@ -173,12 +203,22 @@ pub async fn invite_workspace_member_handler(
     };
     let locale = state.email_renderer.negotiate(["en"]);
     if let Ok(rendered) = state.email_renderer.render(&invitation_email, &locale) {
-        let _ = state.mailer.send_rendered_email(&response.email, &rendered).await;
+        let _ = state
+            .mailer
+            .send_rendered_email(&response.email, &rendered)
+            .await;
     } else {
         let subject = "You've been invited to join the Documentation Workspace";
         let role = &response.role;
-        let body_text = format!("Hello,\n\nYou have been invited to join the company documentation workspace as a {role}.\n\nAccept your invitation here:\n{invite_url}\n\nThis invitation link expires in 7 days.");
-        let _ = state.mailer.send_email(&response.email, subject, &body_text).await;
+        let body_text = format!(
+            "Hello,\n\nYou have been invited to join the company documentation workspace as a \
+             {role}.\n\nAccept your invitation here:\n{invite_url}\n\nThis invitation link \
+             expires in 7 days."
+        );
+        let _ = state
+            .mailer
+            .send_email(&response.email, subject, &body_text)
+            .await;
     }
 
     Ok(Json(ApiResponse::new(response)))
@@ -192,7 +232,8 @@ pub async fn update_workspace_member_role_handler(
     Json(body): Json<UpdateWorkspaceMemberRoleRequest>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     ensure_admin_or_owner(&state, &auth).await?;
-    let response = cms_biz::WorkspaceService::update_member_role(&state.biz_context, &id, &body).await?;
+    let response =
+        cms_biz::WorkspaceService::update_member_role(&state.biz_context(), &id, &body).await?;
     Ok(Json(ApiResponse::new(response)))
 }
 
@@ -203,7 +244,8 @@ pub async fn remove_workspace_member_handler(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     ensure_admin_or_owner(&state, &auth).await?;
-    let response = cms_biz::WorkspaceService::remove_member(&state.biz_context, &auth.user.id, &id).await?;
+    let response =
+        cms_biz::WorkspaceService::remove_member(&state.biz_context(), &auth.user.id, &id).await?;
     Ok(Json(ApiResponse::new(response)))
 }
 
@@ -214,7 +256,7 @@ pub async fn cancel_workspace_invitation_handler(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     ensure_admin_or_owner(&state, &auth).await?;
-    let response = cms_biz::WorkspaceService::cancel_invitation(&state.biz_context, &id).await?;
+    let response = cms_biz::WorkspaceService::cancel_invitation(&state.biz_context(), &id).await?;
     Ok(Json(ApiResponse::new(response)))
 }
 
@@ -224,7 +266,7 @@ pub async fn transfer_workspace_ownership_handler(
     auth: AuthExtractor,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
-    ensure_admin_or_owner(&state, &auth).await?;
+    ensure_workspace_owner(&state, &auth).await?;
 
     let target_member_id = body
         .get("memberId")
@@ -232,7 +274,7 @@ pub async fn transfer_workspace_ownership_handler(
         .ok_or_else(|| AppError::InvalidInput("memberId is required".to_string()))?;
 
     let response = cms_biz::WorkspaceService::transfer_ownership(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         target_member_id,
     )
@@ -246,7 +288,7 @@ pub async fn delete_workspace_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
-    ensure_admin_or_owner(&state, &auth).await?;
-    let response = cms_biz::WorkspaceService::delete_workspace(&state.biz_context).await?;
+    ensure_workspace_owner(&state, &auth).await?;
+    let response = cms_biz::WorkspaceService::delete_workspace(&state.biz_context()).await?;
     Ok(Json(ApiResponse::new(response)))
 }

@@ -54,7 +54,10 @@ impl EmailRenderer {
         if !audit.is_ok() {
             return Err(RenderError::InvalidCatalog(audit.errors.join("\n")));
         }
-        Ok(Self { catalog, engine: TemplateEngine::new()? })
+        Ok(Self {
+            catalog,
+            engine: TemplateEngine::new()?,
+        })
     }
 
     pub fn catalog(&self) -> &Catalog {
@@ -84,7 +87,10 @@ impl EmailRenderer {
         let message = t(c.message)?;
 
         let action = match c.action {
-            Some((label_key, url)) => Some(EmailAction { label: t(label_key)?, url }),
+            Some((label_key, url)) => Some(EmailAction {
+                label: t(label_key)?,
+                url,
+            }),
             None => None,
         };
         let detail = match c.detail {
@@ -130,16 +136,26 @@ struct Composition {
 
 enum Detail {
     Plain(&'static str),
-    Plural { key: &'static str, var: &'static str, n: u64 },
+    Plural {
+        key: &'static str,
+        var: &'static str,
+        n: u64,
+    },
 }
 
 fn compose(email: &Email) -> Composition {
     match email {
-        Email::VerificationCode { code, purpose, ttl_minutes } => {
+        Email::VerificationCode {
+            code,
+            purpose,
+            ttl_minutes,
+        } => {
             let (subject, preview, message) = match purpose {
-                VerificationPurpose::SignIn => {
-                    (k::OTP_SIGNIN_SUBJECT, k::OTP_SIGNIN_PREVIEW, k::OTP_SIGNIN_MESSAGE)
-                }
+                VerificationPurpose::SignIn => (
+                    k::OTP_SIGNIN_SUBJECT,
+                    k::OTP_SIGNIN_PREVIEW,
+                    k::OTP_SIGNIN_MESSAGE,
+                ),
                 VerificationPurpose::ChangeEmail => (
                     k::OTP_CHANGEEMAIL_SUBJECT,
                     k::OTP_CHANGEEMAIL_PREVIEW,
@@ -183,7 +199,10 @@ fn compose(email: &Email) -> Composition {
             args: Args::new(),
         },
 
-        Email::MemberJoined { member_name, workspace_name } => Composition {
+        Email::MemberJoined {
+            member_name,
+            workspace_name,
+        } => Composition {
             subject: k::MEMBERJOINED_SUBJECT,
             preview: k::MEMBERJOINED_PREVIEW,
             title: k::MEMBERJOINED_TITLE,
@@ -191,7 +210,9 @@ fn compose(email: &Email) -> Composition {
             code: None,
             action: None,
             detail: None,
-            args: Args::new().with("memberName", member_name).with("workspaceName", workspace_name),
+            args: Args::new()
+                .with("memberName", member_name)
+                .with("workspaceName", workspace_name),
         },
 
         Email::NewSignIn { ip_address } => {
@@ -215,28 +236,36 @@ fn compose(email: &Email) -> Composition {
             }
         }
 
-        Email::MemberInvitation { inviter_name, workspace_name, role, accept_url, expires_in_days } => {
-            Composition {
-                subject: k::INVITE_SUBJECT,
-                preview: k::INVITE_PREVIEW,
-                title: k::INVITE_TITLE,
-                message: k::INVITE_MESSAGE,
-                code: None,
-                action: Some((k::INVITE_ACTION, accept_url.clone())),
-                detail: Some(Detail::Plural {
-                    key: k::INVITE_EXPIRY,
-                    var: "days",
-                    n: u64::from(*expires_in_days),
-                }),
-                args: Args::new()
-                    .with("inviterName", inviter_name)
-                    .with("workspaceName", workspace_name)
-                    .with("role", role)
-                    .with("days", expires_in_days),
-            }
-        }
+        Email::MemberInvitation {
+            inviter_name,
+            workspace_name,
+            role,
+            accept_url,
+            expires_in_days,
+        } => Composition {
+            subject: k::INVITE_SUBJECT,
+            preview: k::INVITE_PREVIEW,
+            title: k::INVITE_TITLE,
+            message: k::INVITE_MESSAGE,
+            code: None,
+            action: Some((k::INVITE_ACTION, accept_url.clone())),
+            detail: Some(Detail::Plural {
+                key: k::INVITE_EXPIRY,
+                var: "days",
+                n: u64::from(*expires_in_days),
+            }),
+            args: Args::new()
+                .with("inviterName", inviter_name)
+                .with("workspaceName", workspace_name)
+                .with("role", role)
+                .with("days", expires_in_days),
+        },
 
-        Email::ReaderInvitation { project_name, activation_url, expires_in_days } => Composition {
+        Email::ReaderInvitation {
+            project_name,
+            activation_url,
+            expires_in_days,
+        } => Composition {
             subject: k::READERINVITE_SUBJECT,
             preview: k::READERINVITE_PREVIEW,
             title: k::READERINVITE_TITLE,
@@ -248,11 +277,21 @@ fn compose(email: &Email) -> Composition {
                 var: "days",
                 n: u64::from(*expires_in_days),
             }),
-            args: Args::new().with("projectName", project_name).with("days", expires_in_days),
+            args: Args::new()
+                .with("projectName", project_name)
+                .with("days", expires_in_days),
         },
 
-        Email::Deployment { project_name, version, outcome, site_url, error } => {
-            let mut args = Args::new().with("projectName", project_name).with("version", version);
+        Email::Deployment {
+            project_name,
+            version,
+            outcome,
+            site_url,
+            error,
+        } => {
+            let mut args = Args::new()
+                .with("projectName", project_name)
+                .with("version", version);
             match outcome {
                 DeploymentOutcome::Ready => Composition {
                     subject: k::DEPLOYMENT_READY_SUBJECT,
@@ -260,7 +299,9 @@ fn compose(email: &Email) -> Composition {
                     title: k::DEPLOYMENT_READY_TITLE,
                     message: k::DEPLOYMENT_READY_MESSAGE,
                     code: None,
-                    action: site_url.clone().map(|url| (k::DEPLOYMENT_READY_ACTION, url)),
+                    action: site_url
+                        .clone()
+                        .map(|url| (k::DEPLOYMENT_READY_ACTION, url)),
                     detail: None,
                     args,
                 },
@@ -275,7 +316,9 @@ fn compose(email: &Email) -> Composition {
                         message: k::DEPLOYMENT_FAILED_MESSAGE,
                         code: None,
                         action: None,
-                        detail: error.is_some().then_some(Detail::Plain(k::DEPLOYMENT_FAILED_DETAIL)),
+                        detail: error
+                            .is_some()
+                            .then_some(Detail::Plain(k::DEPLOYMENT_FAILED_DETAIL)),
                         args,
                     }
                 }

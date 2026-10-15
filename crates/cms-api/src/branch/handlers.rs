@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::branch::BranchService;
 use cms_entity::{
     branch::{BranchResponse, CreateBranchRequest, ListBranchesQuery, UpdateBranchRequest},
@@ -15,9 +17,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-
-use cms_authz::Relation;
-use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
@@ -51,20 +50,18 @@ pub async fn list_branches_handler(
     auth: AuthExtractor,
     Query(query): Query<ListBranchesQuery>,
 ) -> Result<Json<PaginatedResponse<BranchResponse>>, AppError> {
-    if !query.project_id.is_empty() {
-        if let Ok(project_uuid) = Uuid::parse_str(query.project_id.as_str()) {
-            require_project_access(
-                state.authz_backend(),
-                &auth.authz_context(),
-                project_uuid,
-                Relation::Viewer,
-            )
-            .await?;
-        }
-    }
+    let project_uuid = Uuid::parse_str(query.project_id.as_str())
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
 
     let result =
-        BranchService::list_branches(&state.biz_context, &auth.user.id, query, 1, 20).await?;
+        BranchService::list_branches(&state.biz_context(), &auth.user.id, query, 1, 20).await?;
 
     Ok(Json(result))
 }
@@ -106,7 +103,7 @@ pub async fn create_branch_handler(
 
     let project_id = request.project_id.clone();
     let branch =
-        BranchService::create_branch(&state.biz_context, &auth.user.id, &project_id, request)
+        BranchService::create_branch(&state.biz_context(), &auth.user.id, &project_id, request)
             .await?;
 
     Ok(Json(branch.branch))
@@ -143,13 +140,13 @@ pub async fn get_branch_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Branch(branch_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let branch = BranchService::get_branch(&state.biz_context, &auth.user.id, &branch_id).await?;
+    let branch = BranchService::get_branch(&state.biz_context(), &auth.user.id, &branch_id).await?;
 
     Ok(Json(branch.branch))
 }
@@ -189,14 +186,14 @@ pub async fn update_branch_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Branch(branch_uuid),
         Relation::Editor,
     )
     .await?;
 
     let branch =
-        BranchService::update_branch(&state.biz_context, &auth.user.id, &branch_id, request)
+        BranchService::update_branch(&state.biz_context(), &auth.user.id, &branch_id, request)
             .await?;
 
     Ok(Json(branch))
@@ -234,13 +231,13 @@ pub async fn delete_branch_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Branch(branch_uuid),
         Relation::Editor,
     )
     .await?;
 
-    BranchService::delete_branch(&state.biz_context, &auth.user.id, &branch_id).await?;
+    BranchService::delete_branch(&state.biz_context(), &auth.user.id, &branch_id).await?;
 
     Ok(Json(serde_json::json!({"success": true, "id": branch_id})))
 }

@@ -216,14 +216,12 @@ pub mod app_state {
         pub async fn from_app_state(
             app: &cms_middleware::app_state::AppState,
         ) -> Result<Self, AppError> {
-            let analytics = cms_analytics::create_analytics_store(
-                &app.config.analytics,
-                app.biz_context.pool.clone(),
-            )
-            .await?;
+            let analytics =
+                cms_analytics::create_analytics_store(&app.config.analytics, app.pool.clone())
+                    .await?;
             Ok(Self {
                 config: app.config.clone(),
-                db: app.biz_context.pool.clone(),
+                db: app.pool.clone(),
                 storage: app.storage.clone(),
                 search: app.search_engine.clone(),
                 analytics,

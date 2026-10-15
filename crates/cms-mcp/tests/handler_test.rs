@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use cms_biz::BizContext;
 use cms_mcp::{
     handler::CmsMcpHandler,
@@ -21,10 +22,8 @@ fn test_security_context_scopes() {
     assert!(system.has_scope("projects:read"));
     assert!(system.has_scope("mcp:connect"));
 
-    let read_only = McpSecurityContext::for_user(
-        "usr_123",
-        vec!["search:read".into(), "pages:read".into()],
-    );
+    let read_only =
+        McpSecurityContext::for_user("usr_123", vec!["search:read".into(), "pages:read".into()]);
     assert!(read_only.has_scope("search:read"));
     assert!(read_only.has_scope("pages:read"));
     assert!(!read_only.has_scope("projects:read"));

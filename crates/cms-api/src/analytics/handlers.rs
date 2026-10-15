@@ -39,7 +39,7 @@ pub async fn track_event_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<TrackAnalyticsEventRequest>,
 ) -> Result<Json<AnalyticsEventResponse>, AppError> {
-    let event = AnalyticsService::track_event(&state.biz_context, request).await?;
+    let event = AnalyticsService::track_event(&state.biz_context(), request).await?;
 
     Ok(Json(event))
 }
@@ -89,12 +89,12 @@ pub async fn list_analytics_events_handler(
         cms_authz_gate::require_system_admin(
             state.authz_backend(),
             &auth.authz_context(),
-            &state.biz_context.pool,
+            &state.pool,
         )
         .await?;
     }
 
-    let result = AnalyticsService::list_events(&state.biz_context, &auth.user.id, query).await?;
+    let result = AnalyticsService::list_events(&state.biz_context(), &auth.user.id, query).await?;
 
     Ok(Json(result))
 }
@@ -137,13 +137,13 @@ pub async fn query_analytics_handler(
         cms_authz_gate::require_system_admin(
             state.authz_backend(),
             &auth.authz_context(),
-            &state.biz_context.pool,
+            &state.pool,
         )
         .await?;
     }
 
     let result =
-        AnalyticsService::query_analytics(&state.biz_context, &auth.user.id, request).await?;
+        AnalyticsService::query_analytics(&state.biz_context(), &auth.user.id, request).await?;
 
     Ok(Json(result))
 }
@@ -185,7 +185,7 @@ pub async fn get_analytics_dashboard_handler(
     .await?;
 
     let dashboard =
-        AnalyticsService::get_dashboard(&state.biz_context, &auth.user.id, &project_id).await?;
+        AnalyticsService::get_dashboard(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     Ok(Json(dashboard))
 }
@@ -221,14 +221,14 @@ pub async fn get_page_views_handler(
     cms_authz_gate::require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         cms_authz_gate::ParentLink::Page(page_uuid),
         cms_authz::Relation::Viewer,
     )
     .await?;
 
     let views =
-        AnalyticsService::get_page_views(&state.biz_context, &auth.user.id, &page_id).await?;
+        AnalyticsService::get_page_views(&state.biz_context(), &auth.user.id, &page_id).await?;
 
     Ok(Json(serde_json::json!(views)))
 }

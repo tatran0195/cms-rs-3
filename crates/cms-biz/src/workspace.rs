@@ -7,9 +7,8 @@ use chrono::Utc;
 use cms_db::workspace::WorkspaceQueries;
 use cms_entity::workspace::{
     InviteWorkspaceMemberRequest, UpdateWorkspaceMemberRoleRequest, UpdateWorkspaceSettingsRequest,
-    WorkspaceInvitationItem, WorkspaceInvitationResponse, WorkspaceMemberItem,
-    WorkspaceMemberUser, WorkspaceMembersResponse, WorkspaceMutationResponse,
-    WorkspaceSettingsResponse,
+    WorkspaceInvitationItem, WorkspaceInvitationResponse, WorkspaceMemberItem, WorkspaceMemberUser,
+    WorkspaceMembersResponse, WorkspaceMutationResponse, WorkspaceSettingsResponse,
 };
 use cms_error::AppError;
 use uuid::Uuid;
@@ -20,9 +19,7 @@ pub struct WorkspaceService;
 
 impl WorkspaceService {
     /// Get workspace settings
-    pub async fn get_settings(
-        ctx: &BizContext,
-    ) -> Result<WorkspaceSettingsResponse, AppError> {
+    pub async fn get_settings(ctx: &BizContext) -> Result<WorkspaceSettingsResponse, AppError> {
         let project_count = cms_db::project::ProjectQueries::count(&ctx.pool, None, None)
             .await
             .unwrap_or(0);
@@ -68,9 +65,7 @@ impl WorkspaceService {
     }
 
     /// List workspace members and active invitations
-    pub async fn list_members(
-        ctx: &BizContext,
-    ) -> Result<WorkspaceMembersResponse, AppError> {
+    pub async fn list_members(ctx: &BizContext) -> Result<WorkspaceMembersResponse, AppError> {
         let users = WorkspaceQueries::list_members(&ctx.pool).await?;
         let first_id = users.first().map(|r| r.id.clone());
 
@@ -127,12 +122,17 @@ impl WorkspaceService {
         let email = req.email.trim().to_lowercase();
         let role = req.role.as_deref().unwrap_or("member");
         if role != "admin" && role != "member" {
-            return Err(AppError::InvalidInput("Invalid role: must be 'admin' or 'member'".to_string()));
+            return Err(AppError::InvalidInput(
+                "Invalid role: must be 'admin' or 'member'".to_string(),
+            ));
         }
 
         // Check if user is already a registered member
         if let Some(_existing) = cms_db::auth::UserQueries::get_by_email(&ctx.pool, &email).await? {
-            return Err(AppError::Conflict(format!("User {} is already a member of this workspace", email)));
+            return Err(AppError::Conflict(format!(
+                "User {} is already a member of this workspace",
+                email
+            )));
         }
 
         let invitation_id = Uuid::new_v4().to_string();
@@ -172,7 +172,9 @@ impl WorkspaceService {
     ) -> Result<WorkspaceMutationResponse, AppError> {
         let new_role = req.role.as_deref().unwrap_or("member");
         if new_role != "admin" && new_role != "member" {
-            return Err(AppError::InvalidInput("Invalid role: must be 'admin' or 'member'".to_string()));
+            return Err(AppError::InvalidInput(
+                "Invalid role: must be 'admin' or 'member'".to_string(),
+            ));
         }
 
         let _target_user = cms_db::auth::UserQueries::get_by_id(&ctx.pool, target_user_id)
@@ -182,7 +184,9 @@ impl WorkspaceService {
         // Protect workspace owner
         let owner_id = WorkspaceQueries::get_owner_user_id(&ctx.pool).await?;
         if Some(target_user_id) == owner_id.as_deref() {
-            return Err(AppError::InvalidInput("Cannot change role of the workspace owner".to_string()));
+            return Err(AppError::InvalidInput(
+                "Cannot change role of the workspace owner".to_string(),
+            ));
         }
 
         let db_role = if new_role == "admin" { "admin" } else { "user" };
@@ -194,7 +198,9 @@ impl WorkspaceService {
         if is_admin && db_role == "user" {
             let admin_count = WorkspaceQueries::count_admins(&ctx.pool).await.unwrap_or(0);
             if admin_count <= 1 {
-                return Err(AppError::InvalidInput("Cannot demote the last remaining workspace admin".to_string()));
+                return Err(AppError::InvalidInput(
+                    "Cannot demote the last remaining workspace admin".to_string(),
+                ));
             }
         }
 
@@ -213,7 +219,9 @@ impl WorkspaceService {
         target_user_id: &str,
     ) -> Result<WorkspaceMutationResponse, AppError> {
         if caller_id == target_user_id {
-            return Err(AppError::InvalidInput("You cannot remove yourself from the workspace".to_string()));
+            return Err(AppError::InvalidInput(
+                "You cannot remove yourself from the workspace".to_string(),
+            ));
         }
 
         let _target_user = cms_db::auth::UserQueries::get_by_id(&ctx.pool, target_user_id)
@@ -222,7 +230,9 @@ impl WorkspaceService {
 
         let owner_id = WorkspaceQueries::get_owner_user_id(&ctx.pool).await?;
         if Some(target_user_id) == owner_id.as_deref() {
-            return Err(AppError::InvalidInput("Cannot remove the workspace owner".to_string()));
+            return Err(AppError::InvalidInput(
+                "Cannot remove the workspace owner".to_string(),
+            ));
         }
 
         let is_admin = cms_db::auth::UserQueries::is_system_admin(&ctx.pool, target_user_id)
@@ -232,7 +242,9 @@ impl WorkspaceService {
         if is_admin {
             let admin_count = WorkspaceQueries::count_admins(&ctx.pool).await.unwrap_or(0);
             if admin_count <= 1 {
-                return Err(AppError::InvalidInput("Cannot remove the last remaining workspace admin".to_string()));
+                return Err(AppError::InvalidInput(
+                    "Cannot remove the last remaining workspace admin".to_string(),
+                ));
             }
         }
 
@@ -267,7 +279,9 @@ impl WorkspaceService {
         target_member_id: &str,
     ) -> Result<WorkspaceMutationResponse, AppError> {
         if target_member_id == caller_id {
-            return Err(AppError::InvalidInput("Cannot transfer ownership to yourself".to_string()));
+            return Err(AppError::InvalidInput(
+                "Cannot transfer ownership to yourself".to_string(),
+            ));
         }
 
         let _target_user = cms_db::auth::UserQueries::get_by_id(&ctx.pool, target_member_id)
@@ -284,9 +298,7 @@ impl WorkspaceService {
     }
 
     /// Reset / Delete workspace
-    pub async fn delete_workspace(
-        ctx: &BizContext,
-    ) -> Result<WorkspaceMutationResponse, AppError> {
+    pub async fn delete_workspace(ctx: &BizContext) -> Result<WorkspaceMutationResponse, AppError> {
         WorkspaceQueries::reset_workspace(&ctx.pool).await?;
 
         Ok(WorkspaceMutationResponse {

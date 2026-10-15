@@ -149,7 +149,9 @@ impl<T> PaginatedResponse<T> {
 }
 
 /// Sort order
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema, ts_rs::TS)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema, ts_rs::TS,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum SortOrder {
     #[default]
@@ -404,7 +406,9 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for MemberRole {
 }
 
 /// Project role
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema, ts_rs::TS)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, utoipa::ToSchema, ts_rs::TS,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ProjectRole {
     Admin,

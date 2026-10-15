@@ -27,7 +27,7 @@ async fn test_14_atomic_project_creation_invariants() -> anyhow::Result<()> {
              (SELECT COUNT(*) FROM "ProjectSettings" WHERE project_id = $1)"#,
     )
     .bind(project_id)
-    .fetch_one(&ctx.state.biz_context.pool)
+    .fetch_one(&ctx.state.pool)
     .await?;
     anyhow::ensure!(project_count == 1, "project must exist");
     anyhow::ensure!(branch_count == 1, "default branch must exist atomically");

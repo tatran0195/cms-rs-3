@@ -354,3 +354,184 @@ All findings are classified according to the mandatory Operating Rules, backed b
   2. Enforced `require_project_access(..., Relation::Admin)` on `reindex`.
 * **Testing:** Verified via unit tests and workspace clippy check.
 * **Effort:** S.
+
+---
+
+### [SEC-09] Unauthenticated Prometheus Operational Metrics Endpoint
+
+* **Classification:** Confirmed security issue
+* **Severity:** Medium
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`
+  - Modules: `cms_api::lib`, `cms_api::admin::handlers`
+  - Endpoints: `GET /metrics`
+* **Evidence:**
+  - `crates/cms-api/src/lib.rs:118`: Mounted `/metrics` directly on the root API router without any authentication layer or extractor.
+  - `crates/cms-api/src/admin/handlers.rs:94-106`: `get_system_metrics_handler` accepted only `State(state)` without requiring `AuthExtractor` or verifying administrative privileges.
+* **Observed behavior:** Any unauthenticated caller on the network could scrape system metrics, including total user counts, active project counts, page counts, and operational health telemetry.
+* **Impact:** Confidentiality breach of internal company operational statistics and capacity metrics.
+* **Root cause:** Initial implementation mounted operational monitoring endpoint on public router for scraper convenience without security gates.
+* **Remediation implemented:**
+  1. Removed unauthenticated root `/metrics` registration from `create_api_router`.
+  2. Gated `get_system_metrics_handler` with `AuthExtractor` and `require_system_admin`.
+  3. Relocated `/metrics` exclusively inside the admin sub-router behind administrative authentication and origin checks.
+* **Testing:** Verified via `cargo check -p cms-api` and `cargo clippy -p cms-api -j 2 -- -D warnings`.
+* **Effort:** S.
+
+---
+
+### [SEC-10] AuthzContext Reconstruction with Hardcoded Role Bypassing Verified Context in Admin Parity Handlers
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`
+  - Modules: `cms_api::admin::parity`
+  - Endpoints: All administrative parity endpoints (`/api/admin/overview`, `/funnel`, `/users`, `/sites`, `/operations`, `/sites/:id/takedown`, `/sites/:id/restore`, etc.)
+* **Evidence:**
+  - `crates/cms-api/src/admin/parity.rs:20-35`: `require_admin` discarded the verified caller context from `AuthExtractor`, reconstructed a new `AuthzContext::new(user_uuid, "member".to_string(), false)`, and evaluated ReBAC with a hardcoded `"member"` role and `is_bypass = false`.
+* **Observed behavior:** When administrators invoked parity endpoints, the downstream authorization check was performed against an invalid, synthesized context where `role` was forced to `"member"` and `is_bypass` was explicitly set to `false`.
+* **Impact:** Broken authorization semantics and failure of administrative escalation across ReBAC checks.
+* **Root cause:** Cargo-culted manual context creation that bypassed the centralized `AuthExtractor` verification pipeline.
+* **Remediation implemented:**
+  1. Refactored `require_admin` to accept `&AuthExtractor`.
+  2. Delegated verification directly to `cms_authz_gate::require_system_admin(state.authz_backend(), &auth.authz_context(), &state.biz_context.pool)`.
+  3. Updated all 13 call sites across `parity.rs` to pass `&auth`.
+* **Testing:** Verified via `cargo check -p cms-api` and clippy.
+* **Effort:** S.
+
+---
+
+### [SEC-11] Hardcoded Member Claims in Session/API Key Auth & Missing Suspension Checks on JWT Validation
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`
+  - Modules: `cms_api::auth::middleware`
+* **Evidence:**
+  - `crates/cms-api/src/auth/middleware.rs:137, 163, 181, 201`: `Claims::new_access(user_uuid, "member")` hardcoded `"member"` for all callers authenticated via session cookies, machine API keys, or legacy JWTs.
+  - `crates/cms-api/src/auth/middleware.rs:114-124, 168-177`: Fast-path decoded JWT tokens (`access_token` cookie and Bearer header) checked `UserQueries::get_by_id` but never verified `UserQueries::is_suspended`.
+* **Observed behavior:**
+  1. System administrators authenticating via standard session cookies or machine API keys were assigned `role = "member"`, preventing `AuthExtractor::authz_context()` from setting `is_bypass = true` and breaking admin access across project resources.
+  2. Suspended users with unexpired JWT access tokens retained full access until token expiry.
+* **Impact:** Privilege degradation for administrators; unauthorized access persistence for suspended accounts.
+* **Root cause:** Placeholder claim construction during authentication extraction; omission of suspension check on stateless JWT verification path.
+* **Remediation implemented:**
+  1. Resolved caller's system administration status via `UserQueries::is_system_admin` during session, API key, and legacy JWT authentication, assigning `"admin"` claims to system operators.
+  2. Enforced `UserQueries::is_suspended` checks across all JWT decoding branches, returning `AppError::Forbidden` immediately if an account is suspended.
+* **Testing:** Verified via `cargo check -p cms-api` and `cargo clippy -p cms-api -j 2 -- -D warnings`.
+* **Effort:** S.
+
+---
+
+### [SEC-12] Inadequate Authorization Guard on Workspace Ownership Transfer and Destruction
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`
+  - Modules: `cms_api::workspace::handlers`
+  - Endpoints: `POST /api/workspace/transfer-ownership`, `DELETE /api/workspace`
+* **Evidence:**
+  - `crates/cms-api/src/workspace/handlers.rs:259, 281`: `transfer_workspace_ownership_handler` and `delete_workspace_handler` called `ensure_admin_or_owner`, which permitted any workspace `Relation::Admin` to transfer workspace ownership or reset/delete the entire workspace.
+* **Observed behavior:** A user possessing only workspace Administrator privileges could initiate a destructive workspace reset or transfer workspace ownership away from the legitimate owner.
+* **Impact:** Hostile tenant takeover and catastrophic data loss / denial of service.
+* **Root cause:** Conflated administrative authority with workspace owner authority for critical lifecycles.
+* **Remediation implemented:**
+  1. Introduced `ensure_workspace_owner` enforcing explicit system administrator status or ReBAC `Relation::Owner` on the workspace.
+  2. Restricted `transfer_workspace_ownership_handler` and `delete_workspace_handler` strictly to `ensure_workspace_owner`.
+* **Testing:** Verified via `cargo check -p cms-api` and `cargo clippy -p cms-api -j 2 -- -D warnings`.
+* **Effort:** S.
+
+---
+
+### [SEC-13] Broken Object-Level Authorization (BOLA/IDOR) on Standalone /integrations API Handlers
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-authz-gate`, `cms-api`
+  - Modules: `cms_authz_gate::lib`, `cms_api::integration::handlers`
+  - Endpoints: `POST /api/integrations`, `GET /api/integrations/:id`, `PUT /api/integrations/:id`, `DELETE /api/integrations/:id`, `POST /api/integrations/:id/enable`, `POST /api/integrations/:id/disable`, `POST /api/integrations/:id/test`
+* **Evidence:**
+  - `crates/cms-api/src/integration/handlers.rs:95-316`: All mutation and retrieval handlers directly called `IntegrationService` methods using only `&auth.user.id` without checking if the user had `Relation::Admin` or `Relation::Viewer` over the target project.
+  - `POST /api/integrations/:id/test`: Triggered outbound network connection tests to third-party endpoints without verifying administrative authorization, creating potential SSRF and integration configuration tampering vectors.
+* **Observed behavior:** Any authenticated user could create, view, update, enable, disable, delete, or trigger connection test requests for any integration across any project by providing its UUID.
+* **Impact:** Cross-tenant integration tampering, credential/webhook secret compromise, and potential SSRF.
+* **Root cause:** Authorization gates were missing from the standalone `/integrations` router handlers.
+* **Remediation implemented:**
+  1. Extended `cms_authz_gate::ParentLink` with `ParentLink::Integration(Uuid)` resolving to `project_id` via a single-hop indexed query on `"ProjectIntegration"`.
+  2. Gated `create_integration_handler` with `require_project_access(Relation::Admin)` on `request.project_id`.
+  3. Gated `get_integration_handler` with `require_parent_access(ParentLink::Integration, Relation::Viewer)`.
+  4. Gated `update_integration_handler`, `delete_integration_handler`, `enable_integration_handler`, `disable_integration_handler`, and `test_integration_handler` with `require_parent_access(ParentLink::Integration, Relation::Admin)`.
+* **Testing:** Verified via `cargo check -p cms-api`, `cargo clippy --workspace --all-targets -j 2 -- -D warnings`, and `cargo test -p cms-biz --lib -j 2`.
+* **Effort:** S.
+
+---
+
+### [SEC-14] Broken Access Control & Unchecked Parent Validation in Standalone Comment, Branch, and Page Listing Handlers
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`
+  - Modules: `cms_api::comment::handlers`, `cms_api::branch::handlers`, `cms_api::page::handlers`
+  - Endpoints: `GET /api/comments`, `GET /api/comments/page/:page_id`, `GET /api/branches`, `GET /api/pages`
+* **Evidence:**
+  - `crates/cms-api/src/comment/handlers.rs:304-325`: `list_page_comments_handler` accepted `Path(page_id)` and called `CommentService::list_comments` without any ReBAC authorization check.
+  - `crates/cms-api/src/comment/handlers.rs:58-69`: `list_comments_handler` performed `require_parent_access` inside an `if let Some` block that was bypassed when `page_id` was omitted or malformed.
+  - `crates/cms-api/src/branch/handlers.rs:54-64`: `list_branches_handler` guarded access inside `if !query.project_id.is_empty() { if let Ok(...) { ... } }`, allowing malformed or empty inputs to bypass ReBAC validation.
+  - `crates/cms-api/src/page/handlers.rs:57-67`: `list_pages_handler` guarded access inside `if !query.project_id.is_empty() { if let Ok(...) { ... } }`, allowing malformed or empty inputs to bypass ReBAC validation.
+* **Observed behavior:**
+  1. Any user could list internal comments on arbitrary pages via `/api/comments/page/:page_id`.
+  2. Missing/malformed query parameters in `list_branches`, `list_pages`, and `list_comments` bypassed authorization gates.
+* **Impact:** Cross-project comment exposure and bypass of Zanzibar authorization barriers.
+* **Root cause:** Optional/defensive parsing wrappers unintentionally skipped access gates rather than failing closed.
+* **Remediation implemented:**
+  1. Enforced strict UUID parsing and `require_parent_access(ParentLink::Page, Relation::Viewer)` on `list_page_comments_handler`.
+  2. Made `page_id` mandatory in `list_comments_handler`, rejecting missing or invalid UUIDs with `BadRequest`/`NotFound` and gating with `ParentLink::Page(page_uuid)`.
+  3. Made `project_id` validation mandatory and unconditional in `list_branches_handler` and `list_pages_handler`, strictly enforcing `require_project_access(Relation::Viewer)`.
+* **Testing:** Verified via `cargo check -p cms-api`, `cargo clippy --workspace --all-targets -j 2 -- -D warnings`, and test suites.
+* **Effort:** S.
+
+---
+
+### [SEC-15] Missing Authentication Layer on Remote MCP Streamable HTTP Service & Invalid `"system"` UUID Parsing in `McpService`
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`, `cms-biz`
+  - Modules: `cms_api::mcp`, `cms_biz::mcp`
+  - Endpoints: Remote MCP Streamable HTTP Service (`/api/mcp`, `/api/app/mcp`, `/api/v1/mcp`)
+* **Evidence:**
+  - `crates/cms-api/src/mcp/mod.rs:16-26`: Mounted `mcp_service` as Axum `fallback_service` with wildcard `McpSecurityContext::system()` without applying `AuthExtractor` middleware, allowing anonymous network requests to connect to the MCP server.
+  - `crates/cms-biz/src/mcp.rs:37-39`: `check_project_access` attempted `uuid::Uuid::parse_str(uid)` unconditionally when `uid` was `Some("system")`, failing with `AppError::Unauthorized` on non-public projects and breaking local AI desktop agent operations (`cms-mcp` CLI over stdio).
+* **Observed behavior:**
+  1. An anonymous caller could connect to `/api/mcp` without providing `X-API-Key` or `Authorization: Bearer` headers.
+  2. The local `cms-mcp` CLI binary executed with `McpSecurityContext::system()` failed on private projects because `"system"` is not a valid UUID string.
+* **Impact:** Unauthenticated MCP access vector on the network and failure of local developer AI tooling on private projects.
+* **Root cause:** Missing authentication middleware on the Axum MCP router; omission of `"system"` and admin short-circuits in `McpService::check_project_access`.
+* **Remediation implemented:**
+  1. Wrapped `crates/cms-api/src/mcp/mod.rs` with `axum::middleware::from_extractor::<AuthExtractor>()`, enforcing credential validation across all MCP HTTP routes.
+  2. Updated `check_project_access` in `crates/cms-biz/src/mcp.rs` to allow `"system"` identity and callers verified by `UserQueries::is_system_admin` to access projects without failing UUID parsing.
+  3. Updated `list_resources` in `crates/cms-biz/src/mcp.rs` to return all projects via `ProjectQueries::get_all` when operating under `"system"` context.
+* **Testing:** Verified via `cargo check -p cms-api`, `cargo test -p cms-mcp -j 2` (11/11 tests pass), and `cargo clippy --workspace --all-targets -j 2 -- -D warnings`.
+* **Effort:** S.
+
+

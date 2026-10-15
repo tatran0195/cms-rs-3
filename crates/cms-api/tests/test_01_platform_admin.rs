@@ -59,7 +59,7 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
         .bind(event_type)
         .bind(metadata)
         .bind(created_at)
-        .execute(&ctx.state.biz_context.pool)
+        .execute(&ctx.state.pool)
         .await?;
     }
 
@@ -144,7 +144,7 @@ async fn test_01_platform_admin_overview_and_invitations() -> anyhow::Result<()>
     let recorded_user: String = sqlx::query_scalar(
         r#"SELECT user_id FROM "PlatformEvent" WHERE event_type = 'custom_test' ORDER BY created_at DESC LIMIT 1"#,
     )
-    .fetch_one(&ctx.state.biz_context.pool)
+    .fetch_one(&ctx.state.pool)
     .await?;
     anyhow::ensure!(recorded_user == ctx.seed.user_id);
 

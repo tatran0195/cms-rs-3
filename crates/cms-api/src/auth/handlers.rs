@@ -46,24 +46,22 @@ pub async fn login_handler(
     Json(request): Json<LoginRequest>,
 ) -> Result<(HeaderMap, Json<serde_json::Value>), AppError> {
     // Delegate to auth service
-    let user = AuthService::login(&state.biz_context, &request.email, &request.password).await?;
+    let user = AuthService::login(&state.biz_context(), &request.email, &request.password).await?;
 
     if user.mfa_enabled {
-        return Ok((HeaderMap::new(), Json(serde_json::json!({
-            "mfaRequired": true,
-            "email": user.email,
-        }))));
+        return Ok((
+            HeaderMap::new(),
+            Json(serde_json::json!({
+                "mfaRequired": true,
+                "email": user.email,
+            })),
+        ));
     }
 
     let session_token = uuid::Uuid::new_v4().to_string();
     let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
-    let _ = cms_db::auth::SessionQueries::create(
-        &state.biz_context.pool,
-        &user.id,
-        &session_token,
-        expires_at,
-    )
-    .await;
+    let _ = cms_db::auth::SessionQueries::create(&state.pool, &user.id, &session_token, expires_at)
+        .await;
 
     let mut res_headers = HeaderMap::new();
     let cookie_val = state.config.auth.session_cookie_value(
@@ -98,7 +96,7 @@ pub async fn register_handler(
     State(state): State<Arc<AppState>>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<Json<UserResponse>, AppError> {
-    let allow_public_signup = cms_db::SetupQueries::is_public_signup_allowed(&state.biz_context.pool)
+    let allow_public_signup = cms_db::SetupQueries::is_public_signup_allowed(&state.pool)
         .await
         .unwrap_or(false);
 
@@ -107,7 +105,7 @@ pub async fn register_handler(
             r#"SELECT EXISTS(SELECT 1 FROM "WorkspaceInvitation" WHERE email = $1 AND expires_at > NOW())"#,
         )
         .bind(&request.email)
-        .fetch_one(&state.biz_context.pool)
+        .fetch_one(&state.pool)
         .await
         .unwrap_or(false);
 
@@ -118,7 +116,7 @@ pub async fn register_handler(
 
     // Delegate to auth service
     let user = AuthService::register(
-        &state.biz_context,
+        &state.biz_context(),
         &request.email,
         request.password.as_deref().unwrap_or(""),
         request.name.as_deref(),
@@ -140,7 +138,7 @@ pub async fn logout_handler(
                     .filter(|c| c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                     .map(|c| c.value().to_string())
             }) {
-                AuthService::logout(&state.biz_context, &token).await?;
+                AuthService::logout(&state.biz_context(), &token).await?;
             }
         }
     }
@@ -166,7 +164,7 @@ pub async fn get_current_user_handler(
     auth: AuthExtractor,
 ) -> Result<Json<UserResponse>, AppError> {
     // Get user from database
-    let user = AuthService::get_user(&state.biz_context, &auth.user.id).await?;
+    let user = AuthService::get_user(&state.biz_context(), &auth.user.id).await?;
 
     Ok(Json(user))
 }
@@ -183,12 +181,14 @@ pub async fn refresh_session_handler(
     let session_token = AxumCookie::split_parse(cookie_str)
         .find_map(|c| {
             c.ok()
-                .filter(|c| c.name() == "refresh_token" || c.name() == cms_config::auth::SESSION_COOKIE_NAME)
+                .filter(|c| {
+                    c.name() == "refresh_token" || c.name() == cms_config::auth::SESSION_COOKIE_NAME
+                })
                 .map(|c| c.value().to_string())
         })
         .ok_or(AppError::Unauthorized)?;
 
-    let user = AuthService::refresh_session(&state.biz_context, &session_token).await?;
+    let user = AuthService::refresh_session(&state.biz_context(), &session_token).await?;
 
     let mut res_headers = HeaderMap::new();
     let cookie_val = state.config.auth.session_cookie_value(
@@ -210,7 +210,7 @@ pub async fn list_api_keys_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<Vec<ApiKeyResponse>>, AppError> {
-    let api_keys = AuthService::list_api_keys(&state.biz_context, &auth.user.id).await?;
+    let api_keys = AuthService::list_api_keys(&state.biz_context(), &auth.user.id).await?;
 
     Ok(Json(api_keys))
 }
@@ -222,7 +222,7 @@ pub async fn create_api_key_handler(
     Json(request): Json<CreateApiKeyRequest>,
 ) -> Result<Json<ApiKeyResponse>, AppError> {
     let api_key =
-        AuthService::create_api_key(&state.biz_context, &auth.user.id, &request.name).await?;
+        AuthService::create_api_key(&state.biz_context(), &auth.user.id, &request.name).await?;
 
     Ok(Json(api_key))
 }
@@ -233,7 +233,7 @@ pub async fn delete_api_key_handler(
     auth: AuthExtractor,
     Path(api_key_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    AuthService::delete_api_key(&state.biz_context, &auth.user.id, &api_key_id).await?;
+    AuthService::delete_api_key(&state.biz_context(), &auth.user.id, &api_key_id).await?;
 
     Ok(Json(serde_json::json!({"success": true, "id": api_key_id})))
 }
@@ -289,7 +289,7 @@ async fn issue_and_send_otp(state: &AppState, email: &str, purpose: &str) -> Res
     }
 
     let identifier = otp_identifier(purpose, &email);
-    if !EmailOtpThrottleQueries::allow_request(&state.biz_context.pool, &identifier, 60).await? {
+    if !EmailOtpThrottleQueries::allow_request(&state.pool, &identifier, 60).await? {
         return Err(AppError::TooManyRequests);
     }
 
@@ -300,13 +300,7 @@ async fn issue_and_send_otp(state: &AppState, email: &str, purpose: &str) -> Res
     let n = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) % 1_000_000;
     let otp = format!("{n:06}");
     let expires_at = chrono::Utc::now() + chrono::Duration::minutes(10);
-    VerificationTokenQueries::create_or_replace(
-        &state.biz_context.pool,
-        &identifier,
-        &otp,
-        expires_at,
-    )
-    .await?;
+    VerificationTokenQueries::create_or_replace(&state.pool, &identifier, &otp, expires_at).await?;
 
     let verification_purpose = match purpose {
         "sign-in" => cms_biz::email::VerificationPurpose::SignIn,
@@ -328,9 +322,7 @@ async fn issue_and_send_otp(state: &AppState, email: &str, purpose: &str) -> Res
         .map_err(|e| AppError::Internal(anyhow::anyhow!("{e}")))?;
 
     if let Err(error) = state.mailer.send_rendered_email(&email, &rendered).await {
-        let _ =
-            VerificationTokenQueries::delete_matching(&state.biz_context.pool, &identifier, &otp)
-                .await;
+        let _ = VerificationTokenQueries::delete_matching(&state.pool, &identifier, &otp).await;
         return Err(error);
     }
 
@@ -368,37 +360,29 @@ pub async fn sign_in_email_otp_handler(
     let email = req.email.trim().to_lowercase();
 
     let identifier = otp_identifier("sign-in", &email);
-    VerificationTokenQueries::consume(&state.biz_context.pool, &identifier, req.otp.trim())
+    VerificationTokenQueries::consume(&state.pool, &identifier, req.otp.trim())
         .await?
         .ok_or_else(|| AppError::custom(StatusCode::UNAUTHORIZED, "Invalid or expired OTP"))?;
 
-    let (user, created) =
-        match cms_db::auth::UserQueries::get_by_email(&state.biz_context.pool, &email).await? {
-            Some(user) if user.email_verified => (user, false),
-            Some(user) => (
-                cms_db::auth::UserQueries::update_verified(&state.biz_context.pool, &user.id, true)
-                    .await?,
-                false,
-            ),
-            None => {
-                // A valid sign-in OTP proves control of the address, so first-time
-                // sign-in creates a verified account rather than requiring a second code.
-                (
-                    cms_db::auth::UserQueries::create(
-                        &state.biz_context.pool,
-                        &email,
-                        None,
-                        None,
-                        true,
-                    )
-                    .await?,
-                    true,
-                )
-            }
-        };
+    let (user, created) = match cms_db::auth::UserQueries::get_by_email(&state.pool, &email).await?
+    {
+        Some(user) if user.email_verified => (user, false),
+        Some(user) => (
+            cms_db::auth::UserQueries::update_verified(&state.pool, &user.id, true).await?,
+            false,
+        ),
+        None => {
+            // A valid sign-in OTP proves control of the address, so first-time
+            // sign-in creates a verified account rather than requiring a second code.
+            (
+                cms_db::auth::UserQueries::create(&state.pool, &email, None, None, true).await?,
+                true,
+            )
+        }
+    };
     if created {
         PlatformEventService::record_funnel_event_best_effort(
-            &state.biz_context,
+            &state.biz_context(),
             &user.id,
             FunnelEventType::SignupCompleted,
             serde_json::json!({ "method": "email_otp" }),
@@ -406,19 +390,15 @@ pub async fn sign_in_email_otp_handler(
         .await;
     }
 
-    if cms_db::auth::UserQueries::is_suspended(&state.biz_context.pool, &user.id).await? {
+    if cms_db::auth::UserQueries::is_suspended(&state.pool, &user.id).await? {
         return Err(AppError::Forbidden);
     }
 
     let session_token = uuid::Uuid::new_v4().to_string();
     let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
-    let session = cms_db::auth::SessionQueries::create(
-        &state.biz_context.pool,
-        &user.id,
-        &session_token,
-        expires_at,
-    )
-    .await?;
+    let session =
+        cms_db::auth::SessionQueries::create(&state.pool, &user.id, &session_token, expires_at)
+            .await?;
 
     let mut headers = HeaderMap::new();
     let cookie_val = state.config.auth.session_cookie_value(
@@ -465,7 +445,7 @@ pub async fn sign_out_better_auth_handler(
                     .filter(|c| c.name() == cms_config::auth::SESSION_COOKIE_NAME)
                     .map(|c| c.value().to_string())
             }) {
-                let _ = AuthService::logout(&state.biz_context, &token).await;
+                let _ = AuthService::logout(&state.biz_context(), &token).await;
             }
         }
     }
@@ -507,7 +487,7 @@ pub async fn update_user_handler(
     use cms_db::auth::UserQueries;
 
     let user = UserQueries::update(
-        &state.biz_context.pool,
+        &state.pool,
         &auth.user.id,
         body.name.as_deref(),
         body.image.as_deref(),
@@ -532,7 +512,7 @@ pub async fn verify_email_handler(
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::custom(StatusCode::BAD_REQUEST, "Verification token required"))?;
 
-    let record = VerificationTokenQueries::get_by_token(&state.biz_context.pool, token)
+    let record = VerificationTokenQueries::get_by_token(&state.pool, token)
         .await?
         .ok_or_else(|| AppError::custom(StatusCode::BAD_REQUEST, "Invalid verification link"))?;
 
@@ -543,12 +523,12 @@ pub async fn verify_email_handler(
         ));
     }
 
-    let user = UserQueries::get_by_email(&state.biz_context.pool, &record.identifier)
+    let user = UserQueries::get_by_email(&state.pool, &record.identifier)
         .await?
         .ok_or_else(|| AppError::custom(StatusCode::BAD_REQUEST, "User not found"))?;
 
-    let updated = UserQueries::update_verified(&state.biz_context.pool, &user.id, true).await?;
-    let _ = VerificationTokenQueries::delete(&state.biz_context.pool, &record.id).await;
+    let updated = UserQueries::update_verified(&state.pool, &user.id, true).await?;
+    let _ = VerificationTokenQueries::delete(&state.pool, &record.id).await;
 
     Ok(Json(serde_json::json!({ "user": user_json(&updated) })))
 }
@@ -564,14 +544,14 @@ pub async fn verify_email_otp_handler(
 
     let email = body.email.trim().to_lowercase();
     let identifier = otp_identifier("email-verification", &email);
-    VerificationTokenQueries::consume(&state.biz_context.pool, &identifier, body.otp.trim())
+    VerificationTokenQueries::consume(&state.pool, &identifier, body.otp.trim())
         .await?
         .ok_or_else(|| AppError::custom(StatusCode::UNAUTHORIZED, "Invalid or expired OTP"))?;
 
-    let user = UserQueries::get_by_email(&state.biz_context.pool, &email)
+    let user = UserQueries::get_by_email(&state.pool, &email)
         .await?
         .ok_or_else(|| AppError::custom(StatusCode::BAD_REQUEST, "User not found"))?;
-    let updated = UserQueries::update_verified(&state.biz_context.pool, &user.id, true).await?;
+    let updated = UserQueries::update_verified(&state.pool, &user.id, true).await?;
 
     Ok(Json(serde_json::json!({ "user": user_json(&updated) })))
 }
@@ -589,19 +569,15 @@ pub async fn request_email_change_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_db::auth::{UserQueries, VerificationTokenQueries};
 
-    let creator = UserQueries::get_by_id(&state.biz_context.pool, &auth.user.id)
+    let creator = UserQueries::get_by_id(&state.pool, &auth.user.id)
         .await?
         .ok_or(AppError::Unauthorized)?;
 
     // Confirm the OTP sent to the current email.
     let current_identifier = otp_identifier("email-verification", &creator.email);
-    VerificationTokenQueries::consume(
-        &state.biz_context.pool,
-        &current_identifier,
-        body.otp.trim(),
-    )
-    .await?
-    .ok_or_else(|| AppError::custom(StatusCode::UNAUTHORIZED, "Invalid or expired OTP"))?;
+    VerificationTokenQueries::consume(&state.pool, &current_identifier, body.otp.trim())
+        .await?
+        .ok_or_else(|| AppError::custom(StatusCode::UNAUTHORIZED, "Invalid or expired OTP"))?;
 
     // Issue and deliver a separate code to the requested new address.
     let new_email = body.new_email.trim().to_lowercase();
@@ -610,7 +586,7 @@ pub async fn request_email_change_handler(
             "New email must differ from current email".to_string(),
         ));
     }
-    if UserQueries::get_by_email(&state.biz_context.pool, &new_email)
+    if UserQueries::get_by_email(&state.pool, &new_email)
         .await?
         .is_some()
     {
@@ -638,7 +614,7 @@ pub async fn change_email_handler(
 
     let new_email = body.new_email.trim().to_lowercase();
     let identifier = otp_identifier("email-verification", &new_email);
-    VerificationTokenQueries::consume(&state.biz_context.pool, &identifier, body.otp.trim())
+    VerificationTokenQueries::consume(&state.pool, &identifier, body.otp.trim())
         .await?
         .ok_or_else(|| AppError::custom(StatusCode::UNAUTHORIZED, "Invalid or expired OTP"))?;
 
@@ -649,11 +625,11 @@ pub async fn change_email_handler(
     .bind(&new_email)
     .bind(chrono::Utc::now())
     .bind(&auth.user.id)
-    .execute(&state.biz_context.pool)
+    .execute(&state.pool)
     .await
     .map_err(AppError::Database)?;
 
-    let user = cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &auth.user.id)
+    let user = cms_db::auth::UserQueries::get_by_id(&state.pool, &auth.user.id)
         .await?
         .ok_or(AppError::Unauthorized)?;
     Ok(Json(serde_json::json!({ "user": user_json(&user) })))
@@ -670,7 +646,7 @@ pub async fn stop_impersonating_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     use cms_db::auth::{SessionQueries, UserQueries};
 
-    let user = UserQueries::get_by_id(&state.biz_context.pool, &auth.user.id)
+    let user = UserQueries::get_by_id(&state.pool, &auth.user.id)
         .await?
         .ok_or(AppError::Unauthorized)?;
 
@@ -686,7 +662,7 @@ pub async fn stop_impersonating_handler(
             })
         });
     let session = match session_token {
-        Some(token) => SessionQueries::get_by_token(&state.biz_context.pool, &token).await?,
+        Some(token) => SessionQueries::get_by_token(&state.pool, &token).await?,
         None => None,
     };
 
@@ -789,13 +765,14 @@ pub async fn sign_in_social_handler(
 }
 
 /// Setup MFA for authenticated user
-pub async fn setup_mfa_handler(
-    auth: AuthExtractor,
-) -> Result<Json<MfaSetupResponse>, AppError> {
-    let enrollment = cms_mfa::generate_enrollment(&auth.user.email, "Company CMS")
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to generate MFA enrollment: {}", e)))?;
+pub async fn setup_mfa_handler(auth: AuthExtractor) -> Result<Json<MfaSetupResponse>, AppError> {
+    let enrollment =
+        cms_mfa::generate_enrollment(&auth.user.email, "Company CMS").map_err(|e| {
+            AppError::Internal(anyhow::anyhow!("Failed to generate MFA enrollment: {}", e))
+        })?;
 
-    let (plain_codes, _hashes) = cms_mfa::generate_recovery_codes(cms_mfa::DEFAULT_RECOVERY_CODE_COUNT);
+    let (plain_codes, _hashes) =
+        cms_mfa::generate_recovery_codes(cms_mfa::DEFAULT_RECOVERY_CODE_COUNT);
 
     Ok(Json(MfaSetupResponse {
         secret: enrollment.secret,
@@ -813,7 +790,9 @@ pub async fn verify_mfa_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let is_valid = cms_mfa::verify_totp(&payload.secret, &payload.code);
     if !is_valid {
-        return Err(AppError::Validation("Invalid 6-digit authentication code".to_string()));
+        return Err(AppError::Validation(
+            "Invalid 6-digit authentication code".to_string(),
+        ));
     }
 
     let hashes: Vec<String> = payload
@@ -822,13 +801,8 @@ pub async fn verify_mfa_handler(
         .map(|c| cms_mfa::hash_recovery_code(c))
         .collect();
 
-    cms_db::auth::UserQueries::enable_mfa(
-        &state.biz_context.pool,
-        &auth.user.id,
-        &payload.secret,
-        &hashes,
-    )
-    .await?;
+    cms_db::auth::UserQueries::enable_mfa(&state.pool, &auth.user.id, &payload.secret, &hashes)
+        .await?;
 
     Ok(Json(serde_json::json!({ "success": true })))
 }
@@ -839,7 +813,7 @@ pub async fn disable_mfa_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<MfaDisablePayload>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let creds = cms_db::auth::UserQueries::get_mfa_credentials(&state.biz_context.pool, &auth.user.id)
+    let creds = cms_db::auth::UserQueries::get_mfa_credentials(&state.pool, &auth.user.id)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -859,10 +833,12 @@ pub async fn disable_mfa_handler(
     }
 
     if !verified {
-        return Err(AppError::Validation("Invalid authentication or recovery code".to_string()));
+        return Err(AppError::Validation(
+            "Invalid authentication or recovery code".to_string(),
+        ));
     }
 
-    cms_db::auth::UserQueries::disable_mfa(&state.biz_context.pool, &auth.user.id).await?;
+    cms_db::auth::UserQueries::disable_mfa(&state.pool, &auth.user.id).await?;
 
     Ok(Json(serde_json::json!({ "success": true })))
 }
@@ -872,22 +848,25 @@ pub async fn mfa_challenge_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<MfaChallengePayload>,
 ) -> Result<(HeaderMap, Json<UserResponse>), AppError> {
-    let creds = cms_db::auth::UserQueries::get_mfa_credentials_by_email(&state.biz_context.pool, &payload.email)
-        .await?
-        .ok_or(AppError::Unauthorized)?;
+    let creds =
+        cms_db::auth::UserQueries::get_mfa_credentials_by_email(&state.pool, &payload.email)
+            .await?
+            .ok_or(AppError::Unauthorized)?;
 
     let (user_id, mfa_enabled, secret_opt, recovery_codes) = creds;
     if !mfa_enabled {
-        return Err(AppError::Validation("MFA is not enabled for this account".to_string()));
+        return Err(AppError::Validation(
+            "MFA is not enabled for this account".to_string(),
+        ));
     }
 
     if payload.is_recovery_code {
         let mut codes: Vec<String> = recovery_codes;
-        let match_idx = cms_mfa::verify_recovery_code(&payload.code, &codes)
-            .ok_or(AppError::Unauthorized)?;
+        let match_idx =
+            cms_mfa::verify_recovery_code(&payload.code, &codes).ok_or(AppError::Unauthorized)?;
 
         codes.remove(match_idx);
-        cms_db::auth::UserQueries::update_recovery_codes(&state.biz_context.pool, &user_id, &codes).await?;
+        cms_db::auth::UserQueries::update_recovery_codes(&state.pool, &user_id, &codes).await?;
     } else {
         let secret = secret_opt.ok_or(AppError::Unauthorized)?;
         if !cms_mfa::verify_totp(&secret, &payload.code) {
@@ -895,19 +874,14 @@ pub async fn mfa_challenge_handler(
         }
     }
 
-    let user = cms_db::auth::UserQueries::get_by_id(&state.biz_context.pool, &user_id)
+    let user = cms_db::auth::UserQueries::get_by_id(&state.pool, &user_id)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     let session_token = uuid::Uuid::new_v4().to_string();
     let expires_at = chrono::Utc::now() + chrono::Duration::days(30);
-    let _ = cms_db::auth::SessionQueries::create(
-        &state.biz_context.pool,
-        &user.id,
-        &session_token,
-        expires_at,
-    )
-    .await;
+    let _ = cms_db::auth::SessionQueries::create(&state.pool, &user.id, &session_token, expires_at)
+        .await;
 
     let mut res_headers = HeaderMap::new();
     let cookie_val = state.config.auth.session_cookie_value(

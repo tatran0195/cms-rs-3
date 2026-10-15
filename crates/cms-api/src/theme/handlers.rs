@@ -65,7 +65,7 @@ pub async fn list_themes_handler(
     )
     .await?;
 
-    let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, project_id).await?;
+    let themes = ThemeService::list_themes(&state.biz_context(), &auth.user.id, project_id).await?;
 
     Ok(Json(themes))
 }
@@ -107,7 +107,8 @@ pub async fn create_theme_handler(
 
     let project_id = request.project_id.clone();
     let theme =
-        ThemeService::create_theme(&state.biz_context, &auth.user.id, &project_id, request).await?;
+        ThemeService::create_theme(&state.biz_context(), &auth.user.id, &project_id, request)
+            .await?;
 
     Ok(Json(theme))
 }
@@ -143,13 +144,13 @@ pub async fn get_theme_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Theme(theme_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let theme = ThemeService::get_theme(&state.biz_context, &auth.user.id, &theme_id).await?;
+    let theme = ThemeService::get_theme(&state.biz_context(), &auth.user.id, &theme_id).await?;
 
     Ok(Json(theme))
 }
@@ -189,14 +190,14 @@ pub async fn update_theme_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Theme(theme_uuid),
         Relation::Admin,
     )
     .await?;
 
     let theme =
-        ThemeService::update_theme(&state.biz_context, &auth.user.id, &theme_id, request).await?;
+        ThemeService::update_theme(&state.biz_context(), &auth.user.id, &theme_id, request).await?;
 
     Ok(Json(theme))
 }
@@ -233,13 +234,13 @@ pub async fn delete_theme_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Theme(theme_uuid),
         Relation::Admin,
     )
     .await?;
 
-    ThemeService::delete_theme(&state.biz_context, &auth.user.id, &theme_id).await?;
+    ThemeService::delete_theme(&state.biz_context(), &auth.user.id, &theme_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteThemeResponse {
         success: true,
@@ -278,14 +279,14 @@ pub async fn get_theme_css_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Theme(theme_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let css_vars =
-        ThemeService::get_theme_css(&state.biz_context, &auth.user.id, &theme_id).await?;
+        ThemeService::get_theme_css(&state.biz_context(), &auth.user.id, &theme_id).await?;
 
     Ok(Json(css_vars))
 }
@@ -338,9 +339,13 @@ pub async fn set_project_theme_handler(
     )
     .map_err(|_| AppError::BadRequest("Invalid theme_id".to_string()))?;
 
-    let theme =
-        ThemeService::set_project_theme(&state.biz_context, &auth.user.id, &project_id, &theme_id)
-            .await?;
+    let theme = ThemeService::set_project_theme(
+        &state.biz_context(),
+        &auth.user.id,
+        &project_id,
+        &theme_id,
+    )
+    .await?;
 
     Ok(Json(theme))
 }

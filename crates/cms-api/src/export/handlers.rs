@@ -57,7 +57,7 @@ pub async fn list_export_jobs_handler(
     let snapshot_id = query.snapshot_id.as_deref().ok_or_else(|| {
         AppError::BadRequest("snapshot_id query parameter is required".to_string())
     })?;
-    let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(&state.biz_context.pool, snapshot_id)
+    let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, snapshot_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
     let project_uuid = Uuid::parse_str(&snapshot.project_id)
@@ -74,7 +74,7 @@ pub async fn list_export_jobs_handler(
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = ExportService::list_export_jobs(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         snapshot_id,
         page,
@@ -115,12 +115,10 @@ pub async fn create_export_job_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateExportJobRequest>,
 ) -> Result<Json<ExportJobResponse>, AppError> {
-    let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(
-        &state.biz_context.pool,
-        &request.snapshot_id,
-    )
-    .await?
-    .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
+    let snapshot =
+        cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, &request.snapshot_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
     let project_uuid = Uuid::parse_str(&snapshot.project_id)
         .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
     require_project_access(
@@ -132,7 +130,7 @@ pub async fn create_export_job_handler(
     .await?;
 
     let job = ExportService::create_export_job(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &request.snapshot_id,
         request.format,
@@ -183,13 +181,13 @@ pub async fn get_export_job_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::ExportJob(job_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let job = ExportService::get_export_job(&state.biz_context, &auth.user.id, &job_id).await?;
+    let job = ExportService::get_export_job(&state.biz_context(), &auth.user.id, &job_id).await?;
 
     Ok(Json(job.into()))
 }
@@ -225,14 +223,14 @@ pub async fn download_export_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::ExportJob(job_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let download_url =
-        ExportService::get_download_url(&state.biz_context, &auth.user.id, &job_id).await?;
+        ExportService::get_download_url(&state.biz_context(), &auth.user.id, &job_id).await?;
 
     Ok(Json(serde_json::json!({"download_url": download_url})))
 }
@@ -274,7 +272,7 @@ pub async fn list_export_schedules_handler(
     .await?;
 
     let schedules =
-        ExportService::list_export_schedules(&state.biz_context, &auth.user.id, &project_id)
+        ExportService::list_export_schedules(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
 
     Ok(Json(schedules.into_iter().map(|s| s.into()).collect()))
@@ -320,7 +318,7 @@ pub async fn create_export_schedule_handler(
     .await?;
 
     let schedule = ExportService::create_export_schedule(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         request.format,
@@ -369,14 +367,14 @@ pub async fn update_export_schedule_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::ExportSchedule(sched_uuid),
         Relation::Editor,
     )
     .await?;
 
     let schedule = ExportService::update_export_schedule(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &schedule_id,
         request,
@@ -418,13 +416,14 @@ pub async fn delete_export_schedule_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::ExportSchedule(sched_uuid),
         Relation::Editor,
     )
     .await?;
 
-    ExportService::delete_export_schedule(&state.biz_context, &auth.user.id, &schedule_id).await?;
+    ExportService::delete_export_schedule(&state.biz_context(), &auth.user.id, &schedule_id)
+        .await?;
 
     Ok(Json(
         serde_json::json!({"success": true, "id": schedule_id}),

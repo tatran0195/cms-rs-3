@@ -52,10 +52,7 @@ impl CommentService {
     }
 
     /// Helper to enforce required role using in-memory member role
-    fn require_role(
-        member_role: Option<MemberRole>,
-        min_role: MemberRole,
-    ) -> Result<(), AppError> {
+    fn require_role(member_role: Option<MemberRole>, min_role: MemberRole) -> Result<(), AppError> {
         if let Some(role) = member_role {
             if role >= min_role {
                 return Ok(());

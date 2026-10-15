@@ -86,10 +86,7 @@ pub struct RequestContext {
 }
 
 impl RequestContext {
-    pub fn new(
-        request_id: impl Into<String>,
-        user_id: Option<EntityUserId>,
-    ) -> Self {
+    pub fn new(request_id: impl Into<String>, user_id: Option<EntityUserId>) -> Self {
         Self {
             request_id: request_id.into(),
             user_id,

@@ -63,8 +63,7 @@ pub async fn list_project_api_keys_handler(
 ) -> Result<Json<ApiResponse<Vec<ProjectApiKeyResponse>>>, AppError> {
     verify_project_access(&state, &auth, &project_id).await?;
     let keys =
-        cms_db::auth::ApiKeyQueries::get_all_for_user_raw(&state.biz_context.pool, &auth.user.id)
-            .await?;
+        cms_db::auth::ApiKeyQueries::get_all_for_user_raw(&state.pool, &auth.user.id).await?;
     let items: Vec<ProjectApiKeyResponse> =
         keys.iter().map(|k| api_key_to_response(k, None)).collect();
     Ok(Json(ApiResponse::new(items)))
@@ -90,8 +89,7 @@ pub async fn create_project_api_key_handler(
     let raw_key = format!("nbl_{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
     let hashed = cms_auth::api_key::hash_key(&raw_key);
     let key =
-        cms_db::auth::ApiKeyQueries::create(&state.biz_context.pool, &auth.user.id, &name, &hashed)
-            .await?;
+        cms_db::auth::ApiKeyQueries::create(&state.pool, &auth.user.id, &name, &hashed).await?;
 
     Ok(Json(ApiResponse::new(api_key_to_response(
         &key,
@@ -108,7 +106,7 @@ pub async fn delete_project_api_key_handler(
     Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     verify_project_access(&state, &auth, &project_id).await?;
-    cms_biz::auth::AuthService::delete_api_key(&state.biz_context, &auth.user.id, &id).await?;
+    cms_biz::auth::AuthService::delete_api_key(&state.biz_context(), &auth.user.id, &id).await?;
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
         id,
@@ -127,7 +125,7 @@ pub async fn rotate_project_api_key_handler(
 ) -> Result<Json<ApiResponse<ProjectApiKeyResponse>>, AppError> {
     verify_project_access(&state, &auth, &project_id).await?;
 
-    let existing = cms_db::auth::ApiKeyQueries::get_by_id(&state.biz_context.pool, &id)
+    let existing = cms_db::auth::ApiKeyQueries::get_by_id(&state.pool, &id)
         .await?
         .ok_or_else(|| AppError::NotFound("API key not found".to_string()))?;
     if existing.user_id != auth.user.id {
@@ -142,9 +140,8 @@ pub async fn rotate_project_api_key_handler(
     let raw_key = format!("nbl_{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
     let hashed = cms_auth::api_key::hash_key(&raw_key);
     let new_key =
-        cms_db::auth::ApiKeyQueries::create(&state.biz_context.pool, &auth.user.id, &name, &hashed)
-            .await?;
-    let _ = cms_db::auth::ApiKeyQueries::delete(&state.biz_context.pool, &id).await;
+        cms_db::auth::ApiKeyQueries::create(&state.pool, &auth.user.id, &name, &hashed).await?;
+    let _ = cms_db::auth::ApiKeyQueries::delete(&state.pool, &id).await;
 
     Ok(Json(ApiResponse::new(api_key_to_response(
         &new_key,

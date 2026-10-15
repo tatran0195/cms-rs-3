@@ -26,5 +26,8 @@ fn test_locale_and_catalog_negotiation() {
 
     let mut args = cms_i18n::Args::new();
     args.set("name", "Taro");
-    assert_eq!(cat.format(&negotiated, "greeting", &args).unwrap(), "こんにちは Taro！");
+    assert_eq!(
+        cat.format(&negotiated, "greeting", &args).unwrap(),
+        "こんにちは Taro！"
+    );
 }

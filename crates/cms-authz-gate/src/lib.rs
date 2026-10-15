@@ -30,10 +30,14 @@ pub enum ParentLink {
     Audience(Uuid),
     ExportJob(Uuid),
     ExportSchedule(Uuid),
+    Integration(Uuid),
 }
 
 /// Resolve a child resource to its parent project ID in a single indexed query.
-pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<Option<Uuid>, AppError> {
+pub async fn resolve_parent_project(
+    pool: &PgPool,
+    link: ParentLink,
+) -> Result<Option<Uuid>, AppError> {
     let project_id = match link {
         ParentLink::Page(id) => {
             sqlx::query_scalar::<_, Uuid>(
@@ -153,6 +157,15 @@ pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<O
             .await
             .map_err(AppError::Database)?
         }
+        ParentLink::Integration(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "ProjectIntegration" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
     };
 
     Ok(project_id)
@@ -232,8 +245,9 @@ pub async fn require_system_admin(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use cms_authz::TestAuthzBackend;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_require_project_access_allowed() {

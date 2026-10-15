@@ -68,7 +68,7 @@ pub async fn record_trusted_tls_observation(
     let Some(domain_id) = resolution.domain_id.as_deref() else {
         return;
     };
-    if let Err(error) = DomainQueries::mark_tls_active(&state.biz_context.pool, domain_id).await {
+    if let Err(error) = DomainQueries::mark_tls_active(&state.pool, domain_id).await {
         // TLS status reporting must never take down a successfully published site.
         tracing::warn!(%error, domain_id, "failed to record trusted TLS observation");
     }
@@ -92,11 +92,11 @@ pub async fn load_published_site_snapshot(
 ) -> Result<PublishedSiteSnapshot, AppError> {
     // Public visibility can be revoked immediately, even though old snapshots
     // remain retained for rollback and audit history.
-    let current_project = ProjectQueries::get_by_id(&state.biz_context.pool, project_id)
+    let current_project = ProjectQueries::get_by_id(&state.pool, project_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
     if !current_project.is_public
-        || cms_db::project::ProjectQueries::is_taken_down(&state.biz_context.pool, project_id)
+        || cms_db::project::ProjectQueries::is_taken_down(&state.pool, project_id)
             .await?
             .unwrap_or(false)
     {
@@ -104,28 +104,21 @@ pub async fn load_published_site_snapshot(
     }
 
     let snapshot = if let Some(preferred_deployment_id) = preferred_deployment_id {
-        DeploymentQueries::get_snapshot_by_deployment(
-            &state.biz_context.pool,
-            preferred_deployment_id,
-        )
-        .await?
-        .filter(|snapshot| snapshot.project_id == project_id)
-        .ok_or_else(|| AppError::NotFound("Domain release is not published".to_string()))?
+        DeploymentQueries::get_snapshot_by_deployment(&state.pool, preferred_deployment_id)
+            .await?
+            .filter(|snapshot| snapshot.project_id == project_id)
+            .ok_or_else(|| AppError::NotFound("Domain release is not published".to_string()))?
     } else {
         let releases =
-            DeploymentQueries::get_latest_branch_releases(&state.biz_context.pool, project_id)
-                .await?;
+            DeploymentQueries::get_latest_branch_releases(&state.pool, project_id).await?;
         let default_release = releases
             .iter()
             .find(|release| release.is_default)
             .ok_or_else(|| AppError::NotFound("No default-branch release found".to_string()))?;
-        DeploymentQueries::get_snapshot_by_deployment(
-            &state.biz_context.pool,
-            &default_release.deployment_id,
-        )
-        .await?
-        .filter(|snapshot| snapshot.project_id == project_id)
-        .ok_or_else(|| AppError::NotFound("Published release not found".to_string()))?
+        DeploymentQueries::get_snapshot_by_deployment(&state.pool, &default_release.deployment_id)
+            .await?
+            .filter(|snapshot| snapshot.project_id == project_id)
+            .ok_or_else(|| AppError::NotFound("Published release not found".to_string()))?
     };
     let deployment_id = snapshot.deployment_id.clone();
     let content: DeploymentSnapshotContent = serde_json::from_value(snapshot.snapshot)?;
@@ -143,9 +136,12 @@ pub async fn load_published_site_snapshot(
             .languages
             .iter()
             .find(|language| {
-                (language.code.eq_ignore_ascii_case(lang) || language.id == lang) && language.enabled
+                (language.code.eq_ignore_ascii_case(lang) || language.id == lang)
+                    && language.enabled
             })
-            .ok_or_else(|| AppError::NotFound(format!("Language '{}' not found or disabled", lang)))?
+            .ok_or_else(|| {
+                AppError::NotFound(format!("Language '{}' not found or disabled", lang))
+            })?
     } else {
         content
             .languages
@@ -168,7 +164,7 @@ pub async fn load_published_site_page_listing(
     site: &PublishedSiteSnapshot,
 ) -> Result<Vec<cms_db::deployment::DeploymentSnapshotPageListing>, AppError> {
     DeploymentQueries::get_snapshot_page_listing(
-        &state.biz_context.pool,
+        &state.pool,
         &site.deployment_id,
         &site.language_id,
     )
@@ -243,7 +239,10 @@ pub async fn wildcard_handler(
     let requested_lang = query.get("lang").map(|s| s.as_str());
 
     // Check if the path targets the published sites viewer (/sites/{projectId}/**)
-    if let Some(sites_path) = path.strip_prefix("sites/").or_else(|| (path == "sites").then_some("")) {
+    if let Some(sites_path) = path
+        .strip_prefix("sites/")
+        .or_else(|| (path == "sites").then_some(""))
+    {
         let clean = sites_path.trim_matches('/');
         if clean.is_empty() {
             return serve_not_found().map(|html| html.into_response());
@@ -253,9 +252,9 @@ pub async fn wildcard_handler(
         let project_ref = parts.next().unwrap_or("");
         let doc_path = parts.next().unwrap_or("");
 
-        let project = match ProjectQueries::get_by_id(&state.biz_context.pool, project_ref).await? {
+        let project = match ProjectQueries::get_by_id(&state.pool, project_ref).await? {
             Some(p) => Some(p),
-            None => ProjectQueries::get_by_slug_global(&state.biz_context.pool, project_ref).await?,
+            None => ProjectQueries::get_by_slug_global(&state.pool, project_ref).await?,
         };
 
         let Some(project) = project else {
@@ -329,14 +328,13 @@ pub async fn serve_project_index(
     let base_url = site_base_url(state, resolution, &site.project);
     match root_page_id {
         Some(page_id) => {
-            let page = DeploymentQueries::get_snapshot_page(
-                &state.biz_context.pool,
-                &site.deployment_id,
-                &page_id,
-            )
-            .await?
-            .filter(|page| page.is_published && page.kind.eq_ignore_ascii_case("PAGE"))
-            .ok_or_else(|| AppError::NotFound("Published root page not found".to_string()))?;
+            let page =
+                DeploymentQueries::get_snapshot_page(&state.pool, &site.deployment_id, &page_id)
+                    .await?
+                    .filter(|page| page.is_published && page.kind.eq_ignore_ascii_case("PAGE"))
+                    .ok_or_else(|| {
+                        AppError::NotFound("Published root page not found".to_string())
+                    })?;
             let html = render_page(
                 state,
                 &page,
@@ -381,7 +379,7 @@ pub async fn serve_page(
 
     let clean_path = path.trim_matches('/');
     let page = DeploymentQueries::get_snapshot_page_by_path(
-        &state.biz_context.pool,
+        &state.pool,
         &site.deployment_id,
         &site.language_id,
         clean_path,

@@ -82,13 +82,14 @@ pub fn oauth_provider_spec(code: &str) -> Option<&'static OAuthProviderSpec> {
 /// Generate a 32-byte URL-safe random string.
 fn random_url_safe(bytes_len: usize) -> Result<String, OAuthError> {
     let mut buf = vec![0u8; bytes_len];
-    getrandom::getrandom(&mut buf).map_err(|e| OAuthError::Entropy(e.to_string()))?;
+    getrandom::fill(&mut buf).map_err(|e| OAuthError::Entropy(e.to_string()))?;
     Ok(B64URL.encode(&buf))
 }
 
 /// Generate an RFC 7636 PKCE S256 code verifier and challenge.
 pub fn generate_pkce() -> PkceChallenge {
-    let verifier = random_url_safe(32).unwrap_or_else(|_| "fallback_verifier_32_bytes_entropy".to_string());
+    let verifier =
+        random_url_safe(32).unwrap_or_else(|_| "fallback_verifier_32_bytes_entropy".to_string());
     let mut hasher = Sha256::new();
     hasher.update(verifier.as_bytes());
     let challenge = B64URL.encode(hasher.finalize());
@@ -101,15 +102,16 @@ pub fn generate_pkce() -> PkceChallenge {
 
 /// Generate cryptographically secure state and nonce for OAuth authorization requests.
 pub fn generate_state_nonce() -> (String, String) {
-    let state = random_url_safe(32).unwrap_or_else(|_| "fallback_state_32_bytes_entropy".to_string());
-    let nonce = random_url_safe(32).unwrap_or_else(|_| "fallback_nonce_32_bytes_entropy".to_string());
+    let state =
+        random_url_safe(32).unwrap_or_else(|_| "fallback_state_32_bytes_entropy".to_string());
+    let nonce =
+        random_url_safe(32).unwrap_or_else(|_| "fallback_nonce_32_bytes_entropy".to_string());
     (state, nonce)
 }
 
 /// Encode callback state containing an arbitrary payload and CSRF token.
 pub fn encode_callback_state<T: Serialize>(payload: &T) -> Result<String, OAuthError> {
-    let json = serde_json::to_vec(payload)
-        .map_err(|e| OAuthError::InvalidState(e.to_string()))?;
+    let json = serde_json::to_vec(payload).map_err(|e| OAuthError::InvalidState(e.to_string()))?;
     Ok(B64URL.encode(&json))
 }
 

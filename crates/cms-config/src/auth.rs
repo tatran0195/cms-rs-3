@@ -185,8 +185,7 @@ mod tests {
         let prod_cookie = auth.session_cookie_value("test-token", 3600, true, false);
         assert_eq!(
             prod_cookie,
-            "cms_session=test-token; Path=/; HttpOnly; SameSite=Lax; Secure; \
-             Max-Age=3600"
+            "cms_session=test-token; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=3600"
         );
 
         // Explicit Strict SameSite:
@@ -195,8 +194,7 @@ mod tests {
         let strict_cookie = auth.session_cookie_value("test-token", 3600, false, false);
         assert_eq!(
             strict_cookie,
-            "cms_session=test-token; Path=/; HttpOnly; SameSite=Strict; Secure; \
-             Max-Age=3600"
+            "cms_session=test-token; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=3600"
         );
 
         // Clear session cookie:

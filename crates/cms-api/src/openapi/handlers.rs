@@ -67,7 +67,7 @@ pub async fn list_openapi_documents_handler(
     .await?;
 
     let documents =
-        OpenApiService::list_documents(&state.biz_context, &auth.user.id, project_id).await?;
+        OpenApiService::list_documents(&state.biz_context(), &auth.user.id, project_id).await?;
     let total = documents.len() as u64;
 
     Ok(Json(PaginatedResponse::new(documents, total, 1, 20)))
@@ -109,7 +109,7 @@ pub async fn create_openapi_document_handler(
     .await?;
 
     let document =
-        OpenApiService::create_document(&state.biz_context, &auth.user.id, request).await?;
+        OpenApiService::create_document(&state.biz_context(), &auth.user.id, request).await?;
 
     Ok(Json(document))
 }
@@ -145,14 +145,14 @@ pub async fn get_openapi_document_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::OpenApiDocument(doc_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let document =
-        OpenApiService::get_document(&state.biz_context, &auth.user.id, &document_id).await?;
+        OpenApiService::get_document(&state.biz_context(), &auth.user.id, &document_id).await?;
 
     Ok(Json(document))
 }
@@ -192,14 +192,14 @@ pub async fn update_openapi_document_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::OpenApiDocument(doc_uuid),
         Relation::Editor,
     )
     .await?;
 
     let document =
-        OpenApiService::update_document(&state.biz_context, &auth.user.id, &document_id, request)
+        OpenApiService::update_document(&state.biz_context(), &auth.user.id, &document_id, request)
             .await?;
 
     Ok(Json(document))
@@ -237,13 +237,13 @@ pub async fn delete_openapi_document_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::OpenApiDocument(doc_uuid),
         Relation::Editor,
     )
     .await?;
 
-    OpenApiService::delete_document(&state.biz_context, &auth.user.id, &document_id).await?;
+    OpenApiService::delete_document(&state.biz_context(), &auth.user.id, &document_id).await?;
 
     Ok(Json(
         serde_json::json!({"success": true, "id": document_id}),
@@ -284,13 +284,14 @@ pub async fn parse_openapi_document_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::OpenApiDocument(doc_uuid),
         Relation::Editor,
     )
     .await?;
 
-    let result = OpenApiService::parse_document(&state.biz_context, &auth.user.id, request).await?;
+    let result =
+        OpenApiService::parse_document(&state.biz_context(), &auth.user.id, request).await?;
 
     Ok(Json(result))
 }
@@ -326,14 +327,14 @@ pub async fn get_openapi_content_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::OpenApiDocument(doc_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let content =
-        OpenApiService::get_document_content(&state.biz_context, &auth.user.id, &document_id)
+        OpenApiService::get_document_content(&state.biz_context(), &auth.user.id, &document_id)
             .await?;
 
     Ok(Json(serde_json::json!({"content": content})))

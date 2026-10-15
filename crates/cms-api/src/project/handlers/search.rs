@@ -5,6 +5,8 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::require_project_access;
 use cms_entity::{
     common::ApiResponse,
     search::{
@@ -12,8 +14,6 @@ use cms_entity::{
         SearchSettingsResponse, UpdateSearchSettingsRequest,
     },
 };
-use cms_authz::Relation;
-use cms_authz_gate::require_project_access;
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 use uuid::Uuid;
@@ -25,13 +25,11 @@ async fn ensure_project_settings(
     state: &Arc<AppState>,
     project_id: &str,
 ) -> Result<cms_entity::project::ProjectSettings, AppError> {
-    if let Some(s) =
-        cms_db::project::ProjectSettingsQueries::get(&state.biz_context.pool, project_id).await?
-    {
+    if let Some(s) = cms_db::project::ProjectSettingsQueries::get(&state.pool, project_id).await? {
         return Ok(s);
     }
     cms_db::project::ProjectSettingsQueries::upsert(
-        &state.biz_context.pool,
+        &state.pool,
         project_id,
         None,
         None,
@@ -50,7 +48,8 @@ pub async fn get_project_search_settings_handler(
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<SearchSettingsResponse>>, AppError> {
     use cms_biz::project::ProjectService;
-    let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+    let proj =
+        ProjectService::get_project(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     ensure_project_settings(&state, &project_id).await?;
 
@@ -135,7 +134,8 @@ pub async fn update_project_search_settings_handler(
     .await?;
 
     use cms_biz::project::ProjectService;
-    let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+    let proj =
+        ProjectService::get_project(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     let settings = ensure_project_settings(&state, &project_id).await?;
 
@@ -143,7 +143,7 @@ pub async fn update_project_search_settings_handler(
     let enabled = body.enabled.unwrap_or(true);
 
     cms_db::project::ProjectSettingsQueries::upsert(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         settings.theme.as_deref(),
         settings.default_language.as_deref(),
@@ -199,7 +199,7 @@ pub async fn update_project_search_settings_handler(
     }
 
     cms_db::project::ProjectQueries::update(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         None,
         None,
@@ -274,14 +274,14 @@ pub async fn get_project_search_diagnostics_handler(
     use cms_biz::search::SearchService;
 
     // Permission / availability check
-    SearchService::get_search_status(&state.biz_context, &auth.user.id, &project_id).await?;
+    SearchService::get_search_status(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     // --- Live Tantivy stats ---------------------------------------------------
     let stats = state.search_engine.index_stats(&project_id).await?;
 
     // --- DB metadata (languages, branches) -----------------------------------
     let langs = cms_db::language::LanguageQueries::get_by_project(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         Some(100),
         None,
@@ -290,7 +290,7 @@ pub async fn get_project_search_diagnostics_handler(
     .unwrap_or_default();
 
     let branches = cms_db::branch::BranchQueries::get_by_project(
-        &state.biz_context.pool,
+        &state.pool,
         &project_id,
         None,
         Some(100),
@@ -386,7 +386,7 @@ pub async fn reindex_project_search_handler(
     use cms_entity::search::ReindexRequest;
 
     let run = SearchService::reindex(
-        &state.biz_context,
+        &state.biz_context(),
         state.search_engine.clone(),
         &auth.user.id,
         ReindexRequest {

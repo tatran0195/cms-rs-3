@@ -141,10 +141,7 @@ impl ProjectQueries {
     }
 
     /// Get a project by slug
-    pub async fn get_by_slug(
-        pool: &PgPool,
-        slug: &str,
-    ) -> Result<Option<Project>, AppError> {
+    pub async fn get_by_slug(pool: &PgPool, slug: &str) -> Result<Option<Project>, AppError> {
         let row =
             sqlx::query_as::<_, ProjectRow>("SELECT * FROM \"Project\" WHERE slug = $1 LIMIT 1")
                 .bind(slug)

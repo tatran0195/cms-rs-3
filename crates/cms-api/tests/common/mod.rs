@@ -115,22 +115,20 @@ pub async fn wait_for_deployment_ready(
 ) -> anyhow::Result<(i64, i64)> {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
     loop {
-        let deployment = cms_db::deployment::DeploymentQueries::get_by_id(
-            &state.biz_context.pool,
-            deployment_id,
-        )
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("deployment {deployment_id} disappeared"))?;
+        let deployment =
+            cms_db::deployment::DeploymentQueries::get_by_id(&state.pool, deployment_id)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("deployment {deployment_id} disappeared"))?;
         match &deployment.status {
             cms_entity::deployment::DeploymentStatus::Active => {
                 let snapshot = cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(
-                    &state.biz_context.pool,
+                    &state.pool,
                     deployment_id,
                 )
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("ready deployment has no immutable snapshot"))?;
                 let page_count = cms_db::deployment::DeploymentQueries::get_snapshot_page_count(
-                    &state.biz_context.pool,
+                    &state.pool,
                     deployment_id,
                 )
                 .await?;
@@ -194,7 +192,7 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
            VALUES ('default', false, true)
            ON CONFLICT (id) DO UPDATE SET allow_public_signup = true"#,
     )
-    .execute(&state.biz_context.pool)
+    .execute(&state.pool)
     .await?;
 
     let registered_user = expect_status(
@@ -219,7 +217,7 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
            WHERE user_id = $1 AND event_type = 'signup_completed'"#,
     )
     .bind(&user_id)
-    .fetch_one(&state.biz_context.pool)
+    .fetch_one(&state.pool)
     .await?;
     anyhow::ensure!(
         signup_events == 1,
@@ -233,7 +231,7 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
     .bind(&platform_admin_id)
     .bind(platform_admin_email)
     .bind(now)
-    .execute(&state.biz_context.pool)
+    .execute(&state.pool)
     .await?;
 
     sqlx::query(
@@ -245,7 +243,7 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
     .bind(&session_token)
     .bind(now + Duration::hours(2))
     .bind(now)
-    .execute(&state.biz_context.pool)
+    .execute(&state.pool)
     .await?;
 
     sqlx::query(
@@ -257,7 +255,7 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
     .bind(&platform_admin_session_token)
     .bind(now + Duration::hours(2))
     .bind(now)
-    .execute(&state.biz_context.pool)
+    .execute(&state.pool)
     .await?;
 
     Ok(Seed {
@@ -278,11 +276,11 @@ pub async fn seed(state: &Arc<AppState>) -> anyhow::Result<Seed> {
 pub async fn cleanup(state: &AppState, seed: &Seed) -> anyhow::Result<()> {
     sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
         .bind(&seed.user_id)
-        .execute(&state.biz_context.pool)
+        .execute(&state.pool)
         .await?;
     sqlx::query(r#"DELETE FROM "User" WHERE id = $1"#)
         .bind(&seed.platform_admin_id)
-        .execute(&state.biz_context.pool)
+        .execute(&state.pool)
         .await?;
     if seed.storage_root.exists() {
         tokio::fs::remove_dir_all(&seed.storage_root).await?;
@@ -398,7 +396,7 @@ impl TestContext {
             let _ = handle.await;
         }
         let cleanup_result = cleanup(&self.state, &self.seed).await;
-        self.state.biz_context.pool.close().await;
+        self.state.pool.close().await;
         cleanup_result
     }
 }

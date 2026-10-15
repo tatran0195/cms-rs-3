@@ -115,12 +115,6 @@ pub fn create_api_router(state: Arc<AppState>) -> Router {
     // Health check endpoint
     router = router.route("/health", get(get_health).with_state(state.clone()));
 
-    // Prometheus metrics scrape endpoint
-    router = router.route(
-        "/metrics",
-        get(admin::handlers::get_system_metrics_handler).with_state(state.clone()),
-    );
-
     // Caddy on-demand TLS check internal endpoint: /api/v1/internal/domains/check
     let internal_domain_router = Router::new()
         .route(
@@ -152,7 +146,7 @@ async fn get_health(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
 ) -> Result<axum::Json<cms_entity::common::SystemHealthResponse>, cms_error::AppError> {
     let health_val =
-        cms_biz::platform_event::PlatformEventService::get_system_health(&state.biz_context)
+        cms_biz::platform_event::PlatformEventService::get_system_health(&state.biz_context())
             .await?;
     let health: cms_entity::common::SystemHealthResponse = serde_json::from_value(health_val)
         .map_err(|e| {

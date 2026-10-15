@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use thiserror::Error;
-use totp_rs::{Algorithm, Secret, TOTP};
+use totp_rs::{Algorithm, Secret, Totp};
 
 pub const DEFAULT_RECOVERY_CODE_COUNT: usize = 8;
 
@@ -31,32 +31,31 @@ pub enum MfaError {
 }
 
 /// Construct a TOTP generator for an account and issuer.
-pub fn build_totp(secret_b32: &str, account: &str, issuer: &str) -> Result<TOTP, MfaError> {
-    let secret = Secret::Encoded(secret_b32.to_owned())
-        .to_bytes()
+pub fn build_totp(secret_b32: &str, account: &str, issuer: &str) -> Result<Totp, MfaError> {
+    let secret = Secret::try_from_base32(secret_b32)
         .map_err(|e| MfaError::Build(format!("secret decode: {e:?}")))?;
-    TOTP::new(
-        Algorithm::SHA1,
-        6,
-        1,
-        30,
-        secret,
-        Some(issuer.to_owned()),
-        account.to_owned(),
-    )
-    .map_err(|e| MfaError::Build(e.to_string()))
+    totp_rs::Builder::new()
+        .with_algorithm(Algorithm::SHA1)
+        .with_digits(6)
+        .with_skew(1)
+        .with_step_duration(30)
+        .with_secret(secret)
+        .with_issuer(Some(issuer.to_owned()))
+        .with_account_name(account.to_owned())
+        .build()
+        .map_err(|e| MfaError::Build(e.to_string()))
 }
 
 /// Generate a new MFA enrollment bundle (base32 secret, otpauth URI, QR PNG base64).
 pub fn generate_enrollment(account: &str, issuer: &str) -> Result<MfaEnrollment, MfaError> {
     let mut raw_bytes = [0u8; 20];
-    getrandom::getrandom(&mut raw_bytes).map_err(|e| MfaError::Entropy(e.to_string()))?;
-    let secret_b32 = Secret::Raw(raw_bytes.to_vec()).to_encoded().to_string();
+    getrandom::fill(&mut raw_bytes).map_err(|e| MfaError::Entropy(e.to_string()))?;
+    let secret_b32 = Secret::new_stack(raw_bytes).to_base32();
 
     let totp = build_totp(&secret_b32, account, issuer)?;
-    let otpauth_uri = totp.get_url();
+    let otpauth_uri = totp.to_url().map_err(|e| MfaError::Build(e.to_string()))?;
     let qr_png_base64 = totp
-        .get_qr_base64()
+        .to_qr_base64()
         .map_err(|e| MfaError::Build(format!("qr generate: {e:?}")))?;
 
     Ok(MfaEnrollment {
@@ -75,7 +74,7 @@ pub fn verify_totp(secret_b32: &str, code: &str) -> bool {
     let Ok(totp) = build_totp(secret_b32, "verify", "verify") else {
         return false;
     };
-    totp.check_current(code).unwrap_or(false)
+    totp.check_current(code).is_some()
 }
 
 /// SHA-256 hash of a single recovery code.
@@ -93,7 +92,7 @@ pub fn generate_recovery_codes(count: usize) -> (Vec<String>, Vec<String>) {
 
     for _ in 0..count {
         let mut buf = [0u8; 8];
-        let _ = getrandom::getrandom(&mut buf);
+        let _ = getrandom::fill(&mut buf);
         let code = format!("{}-{}", hex::encode(&buf[..4]), hex::encode(&buf[4..]));
         hashes.push(hash_recovery_code(&code));
         plain.push(code);
@@ -132,7 +131,7 @@ mod tests {
         assert!(!enrollment.qr_png_base64.is_empty());
 
         let totp = build_totp(&enrollment.secret, "admin@company.internal", "CMS").unwrap();
-        let current_code = totp.generate_current().unwrap();
+        let current_code = totp.generate_current().to_string();
         assert!(verify_totp(&enrollment.secret, &current_code));
         assert!(!verify_totp(&enrollment.secret, "000000"));
     }

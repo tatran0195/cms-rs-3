@@ -174,9 +174,10 @@ impl DomainService {
         deployment_id: &str,
         domain_id: &str,
     ) -> Result<DomainResponse, AppError> {
-        let _deployment = cms_db::deployment::DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
+        let _deployment =
+            cms_db::deployment::DeploymentQueries::get_by_id(&ctx.pool, deployment_id)
+                .await?
+                .ok_or_else(|| AppError::NotFound("Deployment not found".to_string()))?;
         let updated =
             DomainQueries::set_primary_for_deployment(&ctx.pool, deployment_id, domain_id).await?;
         Ok(updated.into())

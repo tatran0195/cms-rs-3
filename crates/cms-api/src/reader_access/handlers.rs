@@ -62,7 +62,7 @@ pub async fn create_audience_handler(
 
     let project_id = request.project_id.clone();
     let audience = ReaderAccessService::create_audience(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         request,
@@ -109,7 +109,8 @@ pub async fn list_audiences_handler(
     .await?;
 
     let audiences =
-        ReaderAccessService::list_audiences(&state.biz_context, &auth.user.id, &project_id).await?;
+        ReaderAccessService::list_audiences(&state.biz_context(), &auth.user.id, &project_id)
+            .await?;
 
     Ok(Json(audiences))
 }
@@ -145,14 +146,15 @@ pub async fn get_audience_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let audience =
-        ReaderAccessService::get_audience(&state.biz_context, &auth.user.id, &audience_id).await?;
+        ReaderAccessService::get_audience(&state.biz_context(), &auth.user.id, &audience_id)
+            .await?;
 
     Ok(Json(audience))
 }
@@ -192,14 +194,14 @@ pub async fn update_audience_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Admin,
     )
     .await?;
 
     let audience = ReaderAccessService::update_audience(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &audience_id,
         request.name.as_deref(),
@@ -242,13 +244,13 @@ pub async fn delete_audience_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Admin,
     )
     .await?;
 
-    ReaderAccessService::delete_audience(&state.biz_context, &auth.user.id, &audience_id).await?;
+    ReaderAccessService::delete_audience(&state.biz_context(), &auth.user.id, &audience_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteAudienceResponse {
         success: true,
@@ -286,7 +288,7 @@ pub async fn create_audience_grant_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Admin,
     )
@@ -303,7 +305,7 @@ pub async fn create_audience_grant_handler(
     .await?;
 
     let grant = ReaderAccessService::create_audience_grant(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &request.audience_id,
         &request.project_id,
@@ -346,15 +348,18 @@ pub async fn list_audience_grants_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let grants =
-        ReaderAccessService::list_audience_grants(&state.biz_context, &auth.user.id, &audience_id)
-            .await?;
+    let grants = ReaderAccessService::list_audience_grants(
+        &state.biz_context(),
+        &auth.user.id,
+        &audience_id,
+    )
+    .await?;
 
     Ok(Json(grants))
 }
@@ -386,7 +391,7 @@ pub async fn delete_audience_grant_handler(
     auth: AuthExtractor,
     Path(grant_id): Path<Id>,
 ) -> Result<Json<ApiResponse<DeleteAudienceResponse>>, AppError> {
-    let grant = cms_db::reader_access::AudienceGrantQueries::get_by_id(&state.biz_context.pool, &grant_id)
+    let grant = cms_db::reader_access::AudienceGrantQueries::get_by_id(&state.pool, &grant_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Audience grant not found".to_string()))?;
     let aud_uuid = Uuid::parse_str(&grant.audience_id)
@@ -394,13 +399,13 @@ pub async fn delete_audience_grant_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Admin,
     )
     .await?;
 
-    ReaderAccessService::delete_audience_grant(&state.biz_context, &auth.user.id, &grant_id)
+    ReaderAccessService::delete_audience_grant(&state.biz_context(), &auth.user.id, &grant_id)
         .await?;
 
     Ok(Json(ApiResponse::new(DeleteAudienceResponse {
@@ -439,14 +444,14 @@ pub async fn create_reader_invitation_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Audience(aud_uuid),
         Relation::Admin,
     )
     .await?;
 
     let invitation = ReaderAccessService::create_reader_invitation(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &request.audience_id,
         cms_entity::reader_access::CreateInvitationRequest {
@@ -489,7 +494,7 @@ pub async fn accept_reader_invitation_handler(
     .map_err(|_| AppError::BadRequest("Invalid token".to_string()))?;
 
     let audience =
-        ReaderAccessService::accept_reader_invitation(&state.biz_context, &token).await?;
+        ReaderAccessService::accept_reader_invitation(&state.biz_context(), &token).await?;
 
     Ok(Json(ReaderSessionResponse {
         id: audience.id,

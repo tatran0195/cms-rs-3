@@ -209,7 +209,10 @@ pub fn extract_request_i18n_locale(parts: &Parts) -> cms_i18n::Locale {
     if let Some(cookies) = parts.headers.get(header::COOKIE) {
         if let Ok(cookie_str) = cookies.to_str() {
             let cookie_map = parse_cookies(cookie_str);
-            if let Some(locale_str) = cookie_map.get("locale").or_else(|| cookie_map.get("language")) {
+            if let Some(locale_str) = cookie_map
+                .get("locale")
+                .or_else(|| cookie_map.get("language"))
+            {
                 if let Ok(locale) = cms_i18n::Locale::parse(locale_str) {
                     return cms_i18n::embedded_catalog().negotiate([locale.as_str()]);
                 }

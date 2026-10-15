@@ -41,7 +41,7 @@ lettre = { workspace = true }
 # Export generation
 printpdf = { workspace = true }
 epub-builder = { workspace = true }
-rusqlite = { workspace = true }
+sqlx = { workspace = true, default-features = false }
 tempfile = { workspace = true }
 
 # Logging & error handling

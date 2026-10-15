@@ -15,9 +15,18 @@ async fn test_task_local_locale_scoping() {
 
 #[test]
 fn test_error_code_mapping() {
-    assert_eq!(error_code_to_key("auth:invalid_credentials"), "api_error_auth_invalid_credentials");
-    assert_eq!(error_code_to_key("http:not_found"), "api_error_http_not_found");
-    assert_eq!(error_code_to_key("validation.failed"), "api_error_validation_failed");
+    assert_eq!(
+        error_code_to_key("auth:invalid_credentials"),
+        "api_error_auth_invalid_credentials"
+    );
+    assert_eq!(
+        error_code_to_key("http:not_found"),
+        "api_error_http_not_found"
+    );
+    assert_eq!(
+        error_code_to_key("validation.failed"),
+        "api_error_validation_failed"
+    );
 }
 
 #[test]
@@ -28,7 +37,10 @@ fn test_embedded_error_localization() {
     let zh = Locale::parse("zh-CN").unwrap();
 
     let ja_msg = localize_error("auth:invalid_credentials", &ja, &empty_args);
-    assert_eq!(ja_msg.as_deref(), Some("メールアドレスまたはパスワードが無効です"));
+    assert_eq!(
+        ja_msg.as_deref(),
+        Some("メールアドレスまたはパスワードが無効です")
+    );
 
     let en_msg = localize_error("auth:invalid_credentials", &en, &empty_args);
     assert_eq!(en_msg.as_deref(), Some("Invalid email or password"));
@@ -39,5 +51,8 @@ fn test_embedded_error_localization() {
     let mut path_args = Args::new();
     path_args.set("path", "/api/v1/projects/xyz");
     let ja_not_found = localize_error("http:not_found", &ja, &path_args);
-    assert_eq!(ja_not_found.as_deref(), Some("リソースが見つかりません: /api/v1/projects/xyz"));
+    assert_eq!(
+        ja_not_found.as_deref(),
+        Some("リソースが見つかりません: /api/v1/projects/xyz")
+    );
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf};
 
 use axum::{
     extract::{Query, State},
@@ -8,10 +8,9 @@ use axum::{
     Json, Router,
 };
 use clap::Parser;
-use parking_lot::Mutex;
-use rusqlite::{Connection, OpenFlags};
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
+use sqlx::{Row, SqlitePool};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -50,7 +49,7 @@ struct Args {
 
 #[derive(Clone)]
 struct AppState {
-    db: Arc<Mutex<Connection>>,
+    db: SqlitePool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -215,24 +214,29 @@ struct SearchQuery {
 
 // ── Database Queries ─────────────────────────────────────────────────────────
 
-fn query_bootstrap(
-    conn: &Connection,
+async fn query_bootstrap(
+    pool: &SqlitePool,
     target_lang: Option<&str>,
     target_version: Option<&str>,
 ) -> anyhow::Result<SiteShell> {
     // 1. Project metadata
-    let (project_id, project_name, project_slug, exported_at): (String, String, String, String) =
-        conn.query_row(
-            "SELECT project_id, project_name, project_slug, exported_at FROM export_meta LIMIT 1",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-        )?;
+    let meta_row = sqlx::query(
+        "SELECT project_id, project_name, project_slug, exported_at FROM export_meta LIMIT 1",
+    )
+    .fetch_one(pool)
+    .await?;
+    let project_id: String = meta_row.try_get(0)?;
+    let project_name: String = meta_row.try_get(1)?;
+    let project_slug: String = meta_row.try_get(2)?;
+    let exported_at: String = meta_row.try_get(3)?;
 
     let mut project_config = serde_json::Map::new();
-    let mut stmt = conn.prepare("SELECT key, value FROM project_config")?;
-    let config_rows =
-        stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
-    for (k, v) in config_rows.flatten() {
+    let config_rows = sqlx::query("SELECT key, value FROM project_config")
+        .fetch_all(pool)
+        .await?;
+    for r in config_rows {
+        let k: String = r.try_get(0)?;
+        let v: String = r.try_get(1)?;
         if let Ok(json_val) = serde_json::from_str(&v) {
             project_config.insert(k, json_val);
         } else {
@@ -257,30 +261,27 @@ fn query_bootstrap(
     // 2. Languages
     let mut languages = Vec::new();
     let mut default_lang = "en".to_string();
-    let mut stmt = conn.prepare("SELECT code, label, is_default, is_rtl FROM languages")?;
-    let lang_rows = stmt.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, i32>(2)? == 1,
-            r.get::<_, i32>(3)? == 1,
-        ))
-    })?;
-
-    for row in lang_rows {
-        let (code, label, is_default, is_rtl) = row?;
-        if is_default {
+    let lang_rows = sqlx::query("SELECT code, label, is_default, is_rtl FROM languages")
+        .fetch_all(pool)
+        .await?;
+    for r in lang_rows {
+        let code: String = r.try_get(0)?;
+        let label: String = r.try_get(1)?;
+        let is_default: i32 = r.try_get(2)?;
+        let is_rtl: i32 = r.try_get(3)?;
+        let is_default_bool = is_default == 1;
+        if is_default_bool {
             default_lang = code.clone();
         }
         languages.push(LanguageItem {
             code,
             label,
-            direction: if is_rtl {
+            direction: if is_rtl == 1 {
                 "RTL".to_string()
             } else {
                 "LTR".to_string()
             },
-            is_default,
+            is_default: is_default_bool,
             enabled: true,
         });
     }
@@ -299,20 +300,17 @@ fn query_bootstrap(
     let mut versions = Vec::new();
     let mut default_version_id = String::new();
     let mut default_version_slug = String::new();
-    let mut stmt =
-        conn.prepare("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")?;
-    let ver_rows = stmt.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, i32>(3)? == 1,
-        ))
-    })?;
-
-    for (idx, row) in ver_rows.enumerate() {
-        let (id, slug, name, is_default) = row?;
-        if is_default || (idx == 0 && default_version_id.is_empty()) {
+    let ver_rows =
+        sqlx::query("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")
+            .fetch_all(pool)
+            .await?;
+    for (idx, r) in ver_rows.into_iter().enumerate() {
+        let id: String = r.try_get(0)?;
+        let slug: String = r.try_get(1)?;
+        let name: String = r.try_get(2)?;
+        let is_default: i32 = r.try_get(3)?;
+        let is_default_bool = is_default == 1;
+        if is_default_bool || (idx == 0 && default_version_id.is_empty()) {
             default_version_id = id.clone();
             default_version_slug = slug.clone();
         }
@@ -320,7 +318,7 @@ fn query_bootstrap(
             id,
             name,
             slug,
-            is_default,
+            is_default: is_default_bool,
         });
     }
 
@@ -350,24 +348,24 @@ fn query_bootstrap(
     }
 
     let mut raw_pages = Vec::new();
-    let mut stmt = conn.prepare(
+    let page_rows = sqlx::query(
         "SELECT id, parent_id, kind, title, path, icon, sort_order FROM pages WHERE version_id = \
          ?1 ORDER BY sort_order ASC",
-    )?;
-    let page_rows = stmt.query_map([&active_version_id], |r| {
-        Ok(RawPageNode {
-            id: r.get(0)?,
-            parent_id: r.get(1)?,
-            kind: r.get(2)?,
-            title: r.get(3)?,
-            path: r.get(4)?,
-            icon: r.get(5)?,
-            sort_order: r.get(6)?,
-        })
-    })?;
+    )
+    .bind(&active_version_id)
+    .fetch_all(pool)
+    .await?;
 
-    for row in page_rows {
-        raw_pages.push(row?);
+    for r in page_rows {
+        raw_pages.push(RawPageNode {
+            id: r.try_get(0)?,
+            parent_id: r.try_get(1)?,
+            kind: r.try_get(2)?,
+            title: r.try_get(3)?,
+            path: r.try_get(4)?,
+            icon: r.try_get(5)?,
+            sort_order: r.try_get(6)?,
+        });
     }
 
     // Assemble tree
@@ -444,13 +442,13 @@ fn extract_headings(markdown: &str) -> Vec<HeadingItem> {
     headings
 }
 
-fn query_page(
-    conn: &Connection,
+async fn query_page(
+    pool: &SqlitePool,
     target_path: &str,
     target_lang: Option<&str>,
     target_version: Option<&str>,
 ) -> anyhow::Result<Option<SitePageResponse>> {
-    let bootstrap = match query_bootstrap(conn, target_lang, target_version) {
+    let bootstrap = match query_bootstrap(pool, target_lang, target_version).await {
         Ok(b) => b,
         Err(_) => return Ok(None),
     };
@@ -504,19 +502,23 @@ fn query_page(
 
     let mut found_page: Option<PageRow> = None;
     for cand in &path_candidates {
-        let mut stmt = conn.prepare(
-            "SELECT id, version_id, parent_id, path, title, icon FROM pages WHERE version_id = ?1 \
-             AND path = ?2 LIMIT 1",
-        )?;
-        let mut rows = stmt.query(rusqlite::params![active_version_id, cand])?;
-        if let Some(r) = rows.next()? {
+        let row_opt = sqlx::query(
+            "SELECT id, version_id, parent_id, path, title, icon FROM pages WHERE version_id = \
+             ?1 AND path = ?2 LIMIT 1",
+        )
+        .bind(active_version_id)
+        .bind(cand)
+        .fetch_optional(pool)
+        .await?;
+
+        if let Some(r) = row_opt {
             found_page = Some(PageRow {
-                id: r.get(0)?,
-                version_id: r.get(1)?,
-                parent_id: r.get(2)?,
-                path: r.get(3)?,
-                title: r.get(4)?,
-                icon: r.get(5)?,
+                id: r.try_get(0)?,
+                version_id: r.try_get(1)?,
+                parent_id: r.try_get(2)?,
+                path: r.try_get(3)?,
+                title: r.try_get(4)?,
+                icon: r.try_get(5)?,
             });
             break;
         }
@@ -528,17 +530,20 @@ fn query_page(
     };
 
     // Query content for the page specifically for active_lang (no cross-language fallback)
-    let mut content_query = conn.prepare(
+    let content_opt = sqlx::query(
         "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 AND \
          language = ?2 LIMIT 1",
-    )?;
-    let mut content_rows = content_query.query(rusqlite::params![page_row.id, active_lang])?;
+    )
+    .bind(&page_row.id)
+    .bind(&active_lang)
+    .fetch_optional(pool)
+    .await?;
 
-    let (markdown, description, updated_at) = match content_rows.next()? {
+    let (markdown, description, updated_at): (String, Option<String>, String) = match content_opt {
         Some(r) => (
-            r.get::<_, String>(0)?,
-            r.get::<_, Option<String>>(1)?,
-            r.get::<_, String>(2)?,
+            r.try_get(0)?,
+            r.try_get(1)?,
+            r.try_get(2)?,
         ),
         None => return Ok(None),
     };
@@ -558,15 +563,17 @@ fn query_page(
     let mut breadcrumbs = Vec::new();
     let mut curr_parent = page_row.parent_id.clone();
     while let Some(parent_id) = curr_parent {
-        let mut stmt =
-            conn.prepare("SELECT title, path, parent_id FROM pages WHERE id = ?1 LIMIT 1")?;
-        let mut rows = stmt.query([&parent_id])?;
-        if let Some(r) = rows.next()? {
+        let row_opt =
+            sqlx::query("SELECT title, path, parent_id FROM pages WHERE id = ?1 LIMIT 1")
+                .bind(&parent_id)
+                .fetch_optional(pool)
+                .await?;
+        if let Some(r) = row_opt {
             breadcrumbs.push(BreadcrumbItem {
-                title: r.get(0)?,
-                path: r.get(1)?,
+                title: r.try_get(0)?,
+                path: r.try_get(1)?,
             });
-            curr_parent = r.get(2)?;
+            curr_parent = r.try_get(2)?;
         } else {
             break;
         }
@@ -579,16 +586,18 @@ fn query_page(
 
     // Query prev & next siblings in version
     let mut siblings = Vec::new();
-    let mut stmt = conn
-        .prepare("SELECT title, path FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC")?;
-    let sib_rows = stmt.query_map([&page_row.version_id], |r| {
-        Ok(AdjacentPage {
-            title: r.get(0)?,
-            path: r.get(1)?,
-        })
-    })?;
-    for s in sib_rows {
-        siblings.push(s?);
+    let sib_rows = sqlx::query(
+        "SELECT title, path FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC",
+    )
+    .bind(&page_row.version_id)
+    .fetch_all(pool)
+    .await?;
+
+    for r in sib_rows {
+        siblings.push(AdjacentPage {
+            title: r.try_get(0)?,
+            path: r.try_get(1)?,
+        });
     }
 
     let mut prev = None;
@@ -638,38 +647,37 @@ fn query_page(
     }))
 }
 
+
 // ── HTTP Handlers ────────────────────────────────────────────────────────────
 
 async fn healthz() -> impl IntoResponse {
     Json(serde_json::json!({ "ok": true }))
 }
 
-fn query_changelog(conn: &Connection) -> Vec<ChangelogEntry> {
+async fn query_changelog(pool: &SqlitePool) -> Vec<ChangelogEntry> {
     let mut entries = Vec::new();
-    if let Ok(mut stmt) =
-        conn.prepare("SELECT slug, title, published_at FROM changelog ORDER BY published_at DESC")
+    if let Ok(rows) = sqlx::query(
+        "SELECT slug, title, published_at FROM changelog ORDER BY published_at DESC",
+    )
+    .fetch_all(pool)
+    .await
     {
-        if let Ok(rows) = stmt.query_map([], |r| {
-            Ok(ChangelogEntry {
-                version: 1,
-                date: Some(r.get(2)?),
-                title: r.get(1)?,
+        for (idx, r) in rows.into_iter().enumerate() {
+            let title: String = r.try_get(1).unwrap_or_default();
+            let date: Option<String> = r.try_get(2).ok();
+            entries.push(ChangelogEntry {
+                version: (idx + 1) as i64,
+                date,
+                title,
                 pages: 1,
-            })
-        }) {
-            for (idx, r) in rows.enumerate() {
-                if let Ok(mut entry) = r {
-                    entry.version = (idx + 1) as i64;
-                    entries.push(entry);
-                }
-            }
+            });
         }
     }
     entries
 }
 
-fn execute_search(
-    conn: &Connection,
+async fn execute_search(
+    pool: &SqlitePool,
     clean_q: &str,
     limit: usize,
     target_lang: Option<&str>,
@@ -688,11 +696,12 @@ fn execute_search(
 
     let resolved_version_id = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty())
     {
-        let mut stmt =
-            conn.prepare("SELECT id FROM versions WHERE slug = ?1 OR id = ?1 LIMIT 1")?;
-        let mut rows = stmt.query([req_ver])?;
-        if let Some(r) = rows.next()? {
-            Some(r.get::<_, String>(0)?)
+        let row_opt = sqlx::query("SELECT id FROM versions WHERE slug = ?1 OR id = ?1 LIMIT 1")
+            .bind(req_ver)
+            .fetch_optional(pool)
+            .await?;
+        if let Some(r) = row_opt {
+            Some(r.try_get::<String, _>(0)?)
         } else {
             return Ok(Vec::new());
         }
@@ -702,7 +711,7 @@ fn execute_search(
 
     let clean_lang = target_lang.filter(|s| !s.trim().is_empty());
 
-    let mut sql = String::from(
+    let mut builder = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
         r#"
         SELECT p.id, p.title, p.path, p.icon, c.description,
                snippet(page_fts, 4, '<mark>', '</mark>', '...', 12) as snippet,
@@ -711,53 +720,48 @@ fn execute_search(
         FROM page_fts f
         JOIN pages p ON p.id = f.page_id
         LEFT JOIN page_content c ON c.page_id = p.id AND c.language = f.language
-        WHERE page_fts MATCH ?1
+        WHERE page_fts MATCH 
         "#,
     );
 
-    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(fts_query)];
+    builder.push_bind(fts_query);
 
     if let Some(vid) = resolved_version_id {
-        params.push(Box::new(vid));
-        sql.push_str(&format!(" AND p.version_id = ?{}", params.len()));
+        builder.push(" AND p.version_id = ");
+        builder.push_bind(vid);
     }
 
     if let Some(lang) = clean_lang {
-        params.push(Box::new(lang.to_string()));
-        sql.push_str(&format!(" AND f.language = ?{}", params.len()));
+        builder.push(" AND f.language = ");
+        builder.push_bind(lang.to_string());
     }
 
-    params.push(Box::new(limit as i64));
-    sql.push_str(&format!(
-        " ORDER BY f.rank ASC, p.sort_order ASC, p.id ASC LIMIT ?{}",
-        params.len()
-    ));
+    builder.push(" ORDER BY f.rank ASC, p.sort_order ASC, p.id ASC LIMIT ");
+    builder.push_bind(limit as i64);
 
-    let mut stmt = conn.prepare(&sql)?;
-    let params_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
-    let rows = stmt.query_map(params_refs.as_slice(), |r| {
-        let rank: f64 = r.get(7)?;
-        Ok(SiteSearchHit {
-            id: r.get(0)?,
-            title: r.get(1)?,
-            path: r.get(2)?,
-            icon: r.get(3)?,
-            description: r.get::<_, Option<String>>(4)?.unwrap_or_default(),
-            snippet: r.get::<_, Option<String>>(5)?.unwrap_or_default(),
-            score: -rank,
-            language: r.get(6)?,
-        })
-    })?;
+    let rows = builder.build().fetch_all(pool).await?;
 
     let mut hits = Vec::new();
-    for hit in rows {
-        hits.push(hit?);
+    for r in rows {
+        let rank: f64 = r.try_get(7)?;
+        let desc: Option<String> = r.try_get(4)?;
+        let snippet: Option<String> = r.try_get(5)?;
+        hits.push(SiteSearchHit {
+            id: r.try_get(0)?,
+            title: r.try_get(1)?,
+            path: r.try_get(2)?,
+            icon: r.try_get(3)?,
+            description: desc.unwrap_or_default(),
+            snippet: snippet.unwrap_or_default(),
+            score: -rank,
+            language: r.try_get(6)?,
+        });
     }
 
     Ok(hits)
 }
 
-fn query_asset_from_db(conn: &Connection, clean_path: &str) -> Option<(String, Vec<u8>)> {
+async fn query_asset_from_db(pool: &SqlitePool, clean_path: &str) -> Option<(String, Vec<u8>)> {
     let candidates = [
         clean_path.to_string(),
         format!("assets/{}", clean_path),
@@ -765,11 +769,15 @@ fn query_asset_from_db(conn: &Connection, clean_path: &str) -> Option<(String, V
     ];
 
     for cand in &candidates {
-        if let Ok((mime, data)) = conn.query_row(
-            "SELECT mime_type, data FROM assets WHERE path = ?1 LIMIT 1",
-            [cand],
-            |r| Ok((r.get::<_, String>(0)?, r.get::<_, Vec<u8>>(1)?)),
-        ) {
+        let row_opt = sqlx::query("SELECT mime_type, data FROM assets WHERE path = ?1 LIMIT 1")
+            .bind(cand)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten();
+        if let Some(r) = row_opt {
+            let mime: String = r.try_get(0).ok()?;
+            let data: Vec<u8> = r.try_get(1).ok()?;
             return Some((mime, data));
         }
     }
@@ -783,25 +791,16 @@ async fn api_bootstrap(
 ) -> Response {
     let lang = query.lang;
     let version = query.version;
-    let res = tokio::task::spawn_blocking(move || {
-        let conn = state.db.lock();
-        query_bootstrap(&conn, lang.as_deref(), version.as_deref())
-    })
-    .await;
 
-    match res {
-        Ok(Ok(shell)) => Json(shell).into_response(),
-        Ok(Err(e)) => {
+    match query_bootstrap(&state.db, lang.as_deref(), version.as_deref()).await {
+        Ok(shell) => Json(shell).into_response(),
+        Err(e) => {
             tracing::warn!("Failed to query bootstrap: {}", e);
             (
                 StatusCode::NOT_FOUND,
                 "Site configuration or version not found",
             )
                 .into_response()
-        }
-        Err(e) => {
-            tracing::error!("Spawn blocking task join error in api_bootstrap: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
         }
     }
 }
@@ -810,41 +809,20 @@ async fn api_page(State(state): State<AppState>, Query(query): Query<PageQuery>)
     let path = query.path.unwrap_or_else(|| "/".to_string());
     let lang = query.lang;
     let version = query.version;
-    let path_clone = path.clone();
-    let res = tokio::task::spawn_blocking(move || {
-        let conn = state.db.lock();
-        query_page(&conn, &path_clone, lang.as_deref(), version.as_deref())
-    })
-    .await;
 
-    match res {
-        Ok(Ok(Some(page))) => Json(page).into_response(),
-        Ok(Ok(None)) => (StatusCode::NOT_FOUND, "Page not found").into_response(),
-        Ok(Err(e)) => {
+    match query_page(&state.db, &path, lang.as_deref(), version.as_deref()).await {
+        Ok(Some(page)) => Json(page).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "Page not found").into_response(),
+        Err(e) => {
             tracing::error!("Failed to query page {}: {}", path, e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to load page").into_response()
-        }
-        Err(e) => {
-            tracing::error!("Spawn blocking task join error in api_page: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
         }
     }
 }
 
 async fn api_changelog(State(state): State<AppState>) -> Response {
-    let res = tokio::task::spawn_blocking(move || {
-        let conn = state.db.lock();
-        query_changelog(&conn)
-    })
-    .await;
-
-    match res {
-        Ok(entries) => Json(entries).into_response(),
-        Err(e) => {
-            tracing::error!("Spawn blocking task join error in api_changelog: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        }
-    }
+    let entries = query_changelog(&state.db).await;
+    Json(entries).into_response()
 }
 
 async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQuery>) -> Response {
@@ -857,27 +835,13 @@ async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQue
     let lang = query.lang;
     let version = query.version;
 
-    let res = tokio::task::spawn_blocking(move || {
-        let conn = state.db.lock();
-        execute_search(&conn, &clean_q, limit, lang.as_deref(), version.as_deref())
-    })
-    .await;
-
-    match res {
-        Ok(Ok(hits)) => Json(serde_json::json!({ "hits": hits })).into_response(),
-        Ok(Err(e)) => {
+    match execute_search(&state.db, &clean_q, limit, lang.as_deref(), version.as_deref()).await {
+        Ok(hits) => Json(serde_json::json!({ "hits": hits })).into_response(),
+        Err(e) => {
             tracing::error!("Search query execution failed: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "error": "Search failed", "detail": e.to_string() })),
-            )
-                .into_response()
-        }
-        Err(e) => {
-            tracing::error!("Spawn blocking task join error in api_search: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": "Internal server error" })),
             )
                 .into_response()
         }
@@ -904,16 +868,9 @@ async fn serve_asset(
             .into_response();
     }
 
-    // 2. Query SQLite assets table for uploaded images/attachments via blocking task
-    let clean_path_owned = clean_path.to_string();
-    let res = tokio::task::spawn_blocking(move || {
-        let conn = state.db.lock();
-        query_asset_from_db(&conn, &clean_path_owned)
-    })
-    .await;
-
-    match res {
-        Ok(Some((mime, data))) => (
+    // 2. Query SQLite assets table for uploaded images/attachments
+    match query_asset_from_db(&state.db, clean_path).await {
+        Some((mime, data)) => (
             [
                 (header::CONTENT_TYPE, mime),
                 (header::CACHE_CONTROL, "public, max-age=86400".to_string()),
@@ -921,11 +878,7 @@ async fn serve_asset(
             data,
         )
             .into_response(),
-        Ok(None) => (StatusCode::NOT_FOUND, "Asset not found").into_response(),
-        Err(e) => {
-            tracing::error!("Spawn blocking task join error in serve_asset: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
-        }
+        None => (StatusCode::NOT_FOUND, "Asset not found").into_response(),
     }
 }
 
@@ -962,20 +915,8 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
         }
     };
 
-    // Fast Bootstrap Injection into index.html via blocking task
-    let res = tokio::task::spawn_blocking(move || {
-        let conn = state.db.lock();
-        query_bootstrap(&conn, None, None).ok()
-    })
-    .await;
-
-    let shell = match res {
-        Ok(shell_opt) => shell_opt,
-        Err(e) => {
-            tracing::error!("Spawn blocking task join error in serve_spa: {}", e);
-            None
-        }
-    };
+    // Fast Bootstrap Injection into index.html
+    let shell = query_bootstrap(&state.db, None, None).await.ok();
 
     let injected_html = inject_bootstrap_and_meta(raw_html, shell.as_ref());
     Html(injected_html).into_response()
@@ -1125,24 +1066,27 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    // Open SQLite connection in read-only mode
-    let conn = rusqlite::Connection::open_with_flags(
-        &args.db,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to open SQLite database at {}: {}",
-            args.db.display(),
-            e
-        )
-    })?;
+    // Open SQLite connection pool in read-only mode
+    let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(&args.db)
+        .read_only(true);
+
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(10)
+        .connect_with(opts)
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to open SQLite database at {}: {}",
+                args.db.display(),
+                e
+            )
+        })?;
 
     // Validate schema version
-    let schema_version: i32 = conn
-        .query_row("SELECT schema_version FROM export_meta LIMIT 1", [], |r| {
-            r.get(0)
-        })
+    let meta_row = sqlx::query("SELECT schema_version, project_name FROM export_meta LIMIT 1")
+        .fetch_one(&pool)
+        .await
         .map_err(|e| {
             anyhow::anyhow!(
                 "Failed to read schema_version from export_meta in {}: {}",
@@ -1150,6 +1094,8 @@ async fn main() -> anyhow::Result<()> {
                 e
             )
         })?;
+
+    let schema_version: i32 = meta_row.try_get(0)?;
 
     if schema_version != 1 {
         eprintln!(
@@ -1160,11 +1106,7 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    let project_name: String = conn
-        .query_row("SELECT project_name FROM export_meta LIMIT 1", [], |r| {
-            r.get(0)
-        })
-        .unwrap_or_else(|_| "Documentation".to_string());
+    let project_name: String = meta_row.try_get(1).unwrap_or_else(|_| "Documentation".to_string());
 
     tracing::info!(
         "Loaded project: '{}' (schema v{}) from {}",
@@ -1174,7 +1116,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let state = AppState {
-        db: Arc::new(Mutex::new(conn)),
+        db: pool,
     };
 
     let bind_host = resolve_bind_host(&args.bind, args.network);
@@ -1530,9 +1472,13 @@ mod tests {
         assert!(invalid_origin.is_err());
     }
 
-    fn setup_test_db() -> Connection {
-        let conn = Connection::open_in_memory().expect("open in-memory db");
-        conn.execute_batch(
+    async fn setup_test_db() -> sqlx::SqlitePool {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open in-memory db");
+        sqlx::raw_sql(
             r#"
             CREATE TABLE export_meta (
                 schema_version INTEGER NOT NULL,
@@ -1618,16 +1564,18 @@ mod tests {
             INSERT INTO assets VALUES ('logo.png', 'image/png', X'89504E47');
             "#,
         )
+        .execute(&pool)
+        .await
         .expect("setup tables");
-        conn
+        pool
     }
 
     #[tokio::test]
     async fn test_same_origin_policy_on_loopback() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
 
         // Loopback binding with no cors
@@ -1655,9 +1603,9 @@ mod tests {
     #[tokio::test]
     async fn test_cors_allowed_origin_on_network_binding() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
 
         // Network binding with explicit origin
@@ -1683,9 +1631,9 @@ mod tests {
     #[tokio::test]
     async fn test_spawn_blocking_handlers_work_with_db() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
 
         let app = create_runner_router(state, None);
@@ -1757,9 +1705,9 @@ mod tests {
     #[tokio::test]
     async fn test_version_scoping_duplicate_path() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
         let app = create_runner_router(state, None);
 
@@ -1831,9 +1779,9 @@ mod tests {
     #[tokio::test]
     async fn test_language_scoping_no_cross_language_fallback() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
         let app = create_runner_router(state, None);
 
@@ -1862,9 +1810,9 @@ mod tests {
     #[tokio::test]
     async fn test_root_path_no_cross_version_fallback() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
         let app = create_runner_router(state, None);
 
@@ -1884,9 +1832,9 @@ mod tests {
     #[tokio::test]
     async fn test_search_version_and_language_scoping_and_ranking() {
         use tower::ServiceExt;
-        let conn = setup_test_db();
+        let pool = setup_test_db().await;
         let state = AppState {
-            db: Arc::new(Mutex::new(conn)),
+            db: pool,
         };
         let app = create_runner_router(state, None);
 

@@ -52,12 +52,11 @@ pub async fn list_project_pages_handler(
     query.project_id = project_id.to_string();
     if query.branch_id.is_empty() {
         if let Ok(Some(b)) =
-            cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, project_id.as_str())
-                .await
+            cms_db::branch::BranchQueries::get_default(&state.pool, project_id.as_str()).await
         {
             query.branch_id = b.id;
         } else if let Ok(Some(b)) = cms_db::branch::BranchQueries::get_by_project(
-            &state.biz_context.pool,
+            &state.pool,
             project_id.as_str(),
             None,
             Some(1),
@@ -73,12 +72,11 @@ pub async fn list_project_pages_handler(
     let default_lang_id = if let Some(lid) = query.language_id.clone() {
         Some(lid)
     } else if let Ok(Some(dl)) =
-        cms_db::language::LanguageQueries::get_default(&state.biz_context.pool, project_id.as_str())
-            .await
+        cms_db::language::LanguageQueries::get_default(&state.pool, project_id.as_str()).await
     {
         Some(dl.id)
     } else if let Ok(langs) = cms_db::language::LanguageQueries::get_by_project(
-        &state.biz_context.pool,
+        &state.pool,
         project_id.as_str(),
         Some(1),
         None,
@@ -91,7 +89,7 @@ pub async fn list_project_pages_handler(
     };
 
     let mut result =
-        cms_biz::page::PageService::list_pages(&state.biz_context, &auth.user.id, query, 1, 100)
+        cms_biz::page::PageService::list_pages(&state.biz_context(), &auth.user.id, query, 1, 100)
             .await?;
 
     if let Some(ref default_lang) = default_lang_id {
@@ -137,12 +135,11 @@ pub async fn create_project_page_handler(
     request.project_id = project_id.to_string();
     if request.branch_id.is_empty() {
         if let Ok(Some(b)) =
-            cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, project_id.as_str())
-                .await
+            cms_db::branch::BranchQueries::get_default(&state.pool, project_id.as_str()).await
         {
             request.branch_id = b.id;
         } else if let Ok(Some(b)) = cms_db::branch::BranchQueries::get_by_project(
-            &state.biz_context.pool,
+            &state.pool,
             project_id.as_str(),
             None,
             Some(1),
@@ -160,7 +157,7 @@ pub async fn create_project_page_handler(
     }
     let branch_id = request.branch_id.clone();
     let page = cms_biz::page::PageService::create_page(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         project_id.as_str(),
         &branch_id,
@@ -205,7 +202,7 @@ pub async fn get_project_page_handler(
     )
     .await?;
     let mut page =
-        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
+        cms_biz::page::PageService::get_page(&state.biz_context(), &auth.user.id, page_id.as_str())
             .await?;
 
     if page.project_id != project_id.as_str() {
@@ -215,11 +212,8 @@ pub async fn get_project_page_handler(
     }
 
     if page.language_id.is_none() {
-        if let Ok(Some(dl)) = cms_db::language::LanguageQueries::get_default(
-            &state.biz_context.pool,
-            project_id.as_str(),
-        )
-        .await
+        if let Ok(Some(dl)) =
+            cms_db::language::LanguageQueries::get_default(&state.pool, project_id.as_str()).await
         {
             page.language_id = Some(dl.id);
         }
@@ -271,7 +265,7 @@ pub async fn update_project_page_handler(
     )
     .await?;
     let existing =
-        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
+        cms_biz::page::PageService::get_page(&state.biz_context(), &auth.user.id, page_id.as_str())
             .await?;
     if existing.project_id != project_id.as_str() {
         return Err(AppError::NotFound(
@@ -293,7 +287,7 @@ pub async fn update_project_page_handler(
     }
 
     let mut page = cms_biz::page::PageService::update_page(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         page_id.as_str(),
         request,
@@ -301,11 +295,8 @@ pub async fn update_project_page_handler(
     .await?;
 
     if page.language_id.is_none() {
-        if let Ok(Some(dl)) = cms_db::language::LanguageQueries::get_default(
-            &state.biz_context.pool,
-            project_id.as_str(),
-        )
-        .await
+        if let Ok(Some(dl)) =
+            cms_db::language::LanguageQueries::get_default(&state.pool, project_id.as_str()).await
         {
             page.language_id = Some(dl.id);
         }
@@ -346,14 +337,14 @@ pub async fn delete_project_page_handler(
     )
     .await?;
     let page =
-        cms_biz::page::PageService::get_page(&state.biz_context, &auth.user.id, page_id.as_str())
+        cms_biz::page::PageService::get_page(&state.biz_context(), &auth.user.id, page_id.as_str())
             .await?;
     if page.project_id != project_id.as_str() {
         return Err(AppError::NotFound(
             "Page not found for this project".to_string(),
         ));
     }
-    cms_biz::page::PageService::delete_page(&state.biz_context, &auth.user.id, page_id.as_str())
+    cms_biz::page::PageService::delete_page(&state.biz_context(), &auth.user.id, page_id.as_str())
         .await?;
     Ok(Json(ApiResponse::new(DeletePageResponse {
         success: true,
@@ -405,12 +396,8 @@ pub async fn reorder_project_pages_handler(
         })
         .collect();
 
-    cms_db::page::PageQueries::reorder_tree(
-        &state.biz_context.pool,
-        project_id.as_str(),
-        &reorder_items,
-    )
-    .await?;
+    cms_db::page::PageQueries::reorder_tree(&state.pool, project_id.as_str(), &reorder_items)
+        .await?;
 
     Ok(Json(ApiResponse::new(ReorderPageTreeResponse {
         success: true,

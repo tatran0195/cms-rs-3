@@ -60,14 +60,14 @@ pub async fn list_domains_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Deployment(dep_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let domains = DomainService::list_domains(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         Some(dep_id),
         query.is_primary,
@@ -108,13 +108,13 @@ pub async fn create_domain_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Deployment(dep_uuid),
         Relation::Editor,
     )
     .await?;
 
-    let domain = DomainService::create_domain(&state.biz_context, &auth.user.id, request).await?;
+    let domain = DomainService::create_domain(&state.biz_context(), &auth.user.id, request).await?;
     state.invalidate_host_resolution_cache();
 
     Ok(Json(domain))
@@ -151,13 +151,13 @@ pub async fn get_domain_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Domain(dom_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let domain = DomainService::get_domain(&state.biz_context, &auth.user.id, &domain_id).await?;
+    let domain = DomainService::get_domain(&state.biz_context(), &auth.user.id, &domain_id).await?;
 
     Ok(Json(domain))
 }
@@ -197,14 +197,14 @@ pub async fn update_domain_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Domain(dom_uuid),
         Relation::Editor,
     )
     .await?;
 
     let domain =
-        DomainService::update_domain(&state.biz_context, &auth.user.id, &domain_id, request)
+        DomainService::update_domain(&state.biz_context(), &auth.user.id, &domain_id, request)
             .await?;
     state.invalidate_host_resolution_cache();
 
@@ -243,13 +243,13 @@ pub async fn delete_domain_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Domain(dom_uuid),
         Relation::Editor,
     )
     .await?;
 
-    DomainService::delete_domain(&state.biz_context, &auth.user.id, &domain_id).await?;
+    DomainService::delete_domain(&state.biz_context(), &auth.user.id, &domain_id).await?;
     state.invalidate_host_resolution_cache();
 
     Ok(Json(serde_json::json!({"success": true, "id": domain_id})))
@@ -289,14 +289,14 @@ pub async fn verify_domain_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Domain(dom_uuid),
         Relation::Editor,
     )
     .await?;
 
     let result = DomainService::verify_domain(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &domain_id,
         &request.verification_token,
@@ -335,7 +335,7 @@ pub async fn check_domain_availability_handler(
     _auth: AuthExtractor,
     Path(hostname): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let is_available = DomainService::is_domain_available(&state.biz_context, &hostname).await?;
+    let is_available = DomainService::is_domain_available(&state.biz_context(), &hostname).await?;
 
     Ok(Json(
         serde_json::json!({"available": is_available, "hostname": hostname}),
@@ -362,7 +362,8 @@ pub async fn check_domain_tls_handler(
         return Ok((StatusCode::BAD_REQUEST, "Missing domain query parameter").into_response());
     };
 
-    let is_allowed = DomainService::is_domain_allowed_for_tls(&state.biz_context, &domain).await?;
+    let is_allowed =
+        DomainService::is_domain_allowed_for_tls(&state.biz_context(), &domain).await?;
     if is_allowed {
         Ok((StatusCode::OK, "Domain is authorized for TLS certificate").into_response())
     } else {
@@ -409,7 +410,7 @@ pub async fn set_primary_domain_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Deployment(dep_uuid),
         Relation::Editor,
     )
@@ -424,7 +425,7 @@ pub async fn set_primary_domain_handler(
     .map_err(|_| AppError::BadRequest("Invalid domain_id".to_string()))?;
 
     let domain = DomainService::set_primary_domain(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &deployment_id,
         &domain_id,

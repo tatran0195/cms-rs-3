@@ -11,8 +11,8 @@ use cms_entity::{
     id::ProjectId,
     project::{
         CreateProjectRequest, DeleteProjectResponse, ListProjectsQuery, ListProjectsResponse,
-        ProjectAddonResponse, ProjectResponse, ProjectSettings,
-        UpdateProjectRequest, UpdateProjectSettingsRequest,
+        ProjectAddonResponse, ProjectResponse, ProjectSettings, UpdateProjectRequest,
+        UpdateProjectSettingsRequest,
     },
 };
 use cms_error::AppError;
@@ -47,7 +47,7 @@ pub async fn list_projects_handler(
     Query(query): Query<ListProjectsQuery>,
 ) -> Result<Json<ApiResponse<Vec<ProjectResponse>>>, AppError> {
     let candidates = ProjectService::list_all_projects_for_user(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         query.page.unwrap_or(1),
         query.limit.unwrap_or(100),
@@ -108,7 +108,7 @@ pub async fn create_project_handler(
     ValidatedJson(request): ValidatedJson<CreateProjectRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<ProjectResponse>>), AppError> {
     let project =
-        ProjectService::create_project(&state.biz_context, &auth.user.id, request).await?;
+        ProjectService::create_project(&state.biz_context(), &auth.user.id, request).await?;
 
     Ok((StatusCode::CREATED, Json(ApiResponse::new(project))))
 }
@@ -138,7 +138,7 @@ pub async fn get_project_handler(
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<ApiResponse<ProjectResponse>>, AppError> {
     let project =
-        ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+        ProjectService::get_project(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     if !project.is_public {
         let project_uuid = uuid::Uuid::parse_str(project_id.as_str())
@@ -192,7 +192,7 @@ pub async fn update_project_handler(
     .await?;
 
     let project =
-        ProjectService::update_project(&state.biz_context, &auth.user.id, &project_id, request)
+        ProjectService::update_project(&state.biz_context(), &auth.user.id, &project_id, request)
             .await?;
 
     Ok(Json(ApiResponse::new(project)))
@@ -231,7 +231,7 @@ pub async fn delete_project_handler(
     )
     .await?;
 
-    ProjectService::delete_project(&state.biz_context, &auth.user.id, &project_id).await?;
+    ProjectService::delete_project(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteProjectResponse::new(
         project_id,
@@ -272,7 +272,7 @@ pub async fn get_project_settings_handler(
     .await?;
 
     let settings =
-        ProjectService::get_project_settings(&state.biz_context, &auth.user.id, &project_id)
+        ProjectService::get_project_settings(&state.biz_context(), &auth.user.id, &project_id)
             .await?;
 
     Ok(Json(ApiResponse::new(settings)))
@@ -315,7 +315,7 @@ pub async fn update_project_settings_handler(
     .await?;
 
     let settings = ProjectService::update_project_settings(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &project_id,
         request,
@@ -359,7 +359,8 @@ pub async fn list_project_addons_handler(
     .await?;
 
     let addons =
-        ProjectService::list_project_addons(&state.biz_context, &auth.user.id, &project_id).await?;
+        ProjectService::list_project_addons(&state.biz_context(), &auth.user.id, &project_id)
+            .await?;
 
     Ok(Json(ApiResponse::new(addons)))
 }

@@ -64,13 +64,13 @@ pub async fn list_mcp_audit_events_handler(
         cms_authz_gate::require_system_admin(
             state.authz_backend(),
             &auth.authz_context(),
-            &state.biz_context.pool,
+            &state.pool,
         )
         .await?;
     }
 
     let result = McpService::list_audit_events(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         query.project_id.as_deref(),
         query.user_id.as_deref(),

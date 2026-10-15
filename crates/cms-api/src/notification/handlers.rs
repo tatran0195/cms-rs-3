@@ -54,7 +54,7 @@ pub async fn list_notifications_handler(
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = NotificationService::list_notifications(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         query.status,
         page,
@@ -91,9 +91,12 @@ pub async fn get_notification_handler(
     auth: AuthExtractor,
     Path(notification_id): Path<Id>,
 ) -> Result<Json<NotificationResponse>, AppError> {
-    let notification =
-        NotificationService::get_notification(&state.biz_context, &auth.user.id, &notification_id)
-            .await?;
+    let notification = NotificationService::get_notification(
+        &state.biz_context(),
+        &auth.user.id,
+        &notification_id,
+    )
+    .await?;
 
     Ok(Json(notification))
 }
@@ -123,7 +126,7 @@ pub async fn mark_notification_read_handler(
     Json(request): Json<MarkNotificationReadRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     NotificationService::mark_notifications_read(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &request.notification_ids,
     )
@@ -153,7 +156,7 @@ pub async fn mark_all_notifications_read_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    NotificationService::mark_all_notifications_read(&state.biz_context, &auth.user.id).await?;
+    NotificationService::mark_all_notifications_read(&state.biz_context(), &auth.user.id).await?;
 
     Ok(Json(serde_json::json!({"success": true})))
 }
@@ -186,8 +189,12 @@ pub async fn archive_notification_handler(
     Path(notification_id): Path<Id>,
     Json(_request): Json<ArchiveNotificationRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    NotificationService::archive_notification(&state.biz_context, &auth.user.id, &notification_id)
-        .await?;
+    NotificationService::archive_notification(
+        &state.biz_context(),
+        &auth.user.id,
+        &notification_id,
+    )
+    .await?;
 
     Ok(Json(serde_json::json!({"success": true})))
 }
@@ -214,7 +221,7 @@ pub async fn get_notification_count_handler(
     auth: AuthExtractor,
 ) -> Result<Json<NotificationCountResponse>, AppError> {
     let count =
-        NotificationService::get_notification_count(&state.biz_context, &auth.user.id).await?;
+        NotificationService::get_notification_count(&state.biz_context(), &auth.user.id).await?;
 
     Ok(Json(count))
 }

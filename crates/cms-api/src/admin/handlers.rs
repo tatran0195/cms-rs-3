@@ -4,20 +4,15 @@
 
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::Json;
+use axum::{extract::State, Json};
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
 use crate::auth::AuthExtractor;
 
 async fn require_system_admin(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
-    cms_authz_gate::require_system_admin(
-        state.authz_backend(),
-        &auth.authz_context(),
-        &state.biz_context.pool,
-    )
-    .await
+    cms_authz_gate::require_system_admin(state.authz_backend(), &auth.authz_context(), &state.pool)
+        .await
 }
 
 /// Get system statistics (admin only)
@@ -45,7 +40,8 @@ pub async fn get_system_stats_handler(
 ) -> Result<Json<serde_json::Value>, AppError> {
     require_system_admin(&state, &auth).await?;
 
-    let stats = cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context).await?;
+    let stats =
+        cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context()).await?;
 
     Ok(Json(serde_json::json!(stats)))
 }
@@ -76,7 +72,7 @@ pub async fn get_system_health_handler(
     require_system_admin(&state, &auth).await?;
 
     let health =
-        cms_biz::platform_event::PlatformEventService::get_system_health(&state.biz_context)
+        cms_biz::platform_event::PlatformEventService::get_system_health(&state.biz_context())
             .await?;
 
     Ok(Json(serde_json::json!(health)))
@@ -93,13 +89,17 @@ pub async fn get_system_health_handler(
 )]
 pub async fn get_system_metrics_handler(
     State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
 ) -> Result<(axum::http::HeaderMap, String), AppError> {
-    let stats = cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context).await?;
+    require_system_admin(&state, &auth).await?;
+
+    let stats =
+        cms_biz::analytics::AnalyticsService::get_system_stats(&state.biz_context()).await?;
     let users = stats.get("users").and_then(|v| v.as_i64()).unwrap_or(0);
     let projects = stats.get("projects").and_then(|v| v.as_i64()).unwrap_or(0);
 
-    let active_db_connections = state.biz_context.pool.size();
-    let idle_db_connections = state.biz_context.pool.num_idle();
+    let active_db_connections = state.pool.size();
+    let idle_db_connections = state.pool.num_idle();
 
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
@@ -109,12 +109,12 @@ pub async fn get_system_metrics_handler(
 
     let body = format!(
         "# HELP cms_users_total Total registered users\n# TYPE cms_users_total \
-         gauge\ncms_users_total {}\n# HELP cms_projects_total \
-         Total projects\n# TYPE cms_projects_total gauge\ncms_projects_total {}\n# HELP \
-         cms_db_connections_active Number of active PostgreSQL pool connections\n# TYPE \
-         cms_db_connections_active gauge\ncms_db_connections_active {}\n# HELP \
-         cms_db_connections_idle Number of idle PostgreSQL pool connections\n# TYPE \
-         cms_db_connections_idle gauge\ncms_db_connections_idle {}\n",
+         gauge\ncms_users_total {}\n# HELP cms_projects_total Total projects\n# TYPE \
+         cms_projects_total gauge\ncms_projects_total {}\n# HELP cms_db_connections_active Number \
+         of active PostgreSQL pool connections\n# TYPE cms_db_connections_active \
+         gauge\ncms_db_connections_active {}\n# HELP cms_db_connections_idle Number of idle \
+         PostgreSQL pool connections\n# TYPE cms_db_connections_idle \
+         gauge\ncms_db_connections_idle {}\n",
         users, projects, active_db_connections, idle_db_connections
     );
 

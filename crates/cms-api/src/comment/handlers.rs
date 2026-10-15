@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, ParentLink};
 use cms_biz::comment::CommentService;
 use cms_entity::{
     comment::{
@@ -18,9 +20,6 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-
-use cms_authz::Relation;
-use cms_authz_gate::{require_parent_access, ParentLink};
 use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
@@ -55,25 +54,26 @@ pub async fn list_comments_handler(
     auth: AuthExtractor,
     Query(query): Query<ListCommentsQuery>,
 ) -> Result<Json<PaginatedResponse<CommentResponse>>, AppError> {
-    if let Some(ref page_id_str) = query.page_id {
-        if let Ok(page_uuid) = Uuid::parse_str(page_id_str) {
-            require_parent_access(
-                state.authz_backend(),
-                &auth.authz_context(),
-                &state.biz_context.pool,
-                ParentLink::Page(page_uuid),
-                Relation::Viewer,
-            )
-            .await?;
-        }
-    }
+    let page_id = query
+        .page_id
+        .as_deref()
+        .ok_or_else(|| AppError::BadRequest("page_id query parameter is required".to_string()))?;
+    let page_uuid =
+        Uuid::parse_str(page_id).map_err(|_| AppError::NotFound("Page not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Page(page_uuid),
+        Relation::Viewer,
+    )
+    .await?;
 
-    let page_id = query.page_id.as_deref().unwrap_or("");
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = CommentService::list_comments(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         page_id,
         query.parent_id.as_deref(),
@@ -116,7 +116,7 @@ pub async fn create_comment_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Page(page_uuid),
         Relation::Viewer,
     )
@@ -124,7 +124,7 @@ pub async fn create_comment_handler(
 
     let page_id = request.page_id.clone();
     let comment =
-        CommentService::create_comment(&state.biz_context, &auth.user.id, &page_id, request)
+        CommentService::create_comment(&state.biz_context(), &auth.user.id, &page_id, request)
             .await?;
 
     Ok(Json(comment))
@@ -157,7 +157,7 @@ pub async fn get_comment_handler(
     Path(comment_id): Path<Id>,
 ) -> Result<Json<CommentWithReplies>, AppError> {
     let comment =
-        CommentService::get_comment_with_replies(&state.biz_context, &auth.user.id, &comment_id)
+        CommentService::get_comment_with_replies(&state.biz_context(), &auth.user.id, &comment_id)
             .await?;
 
     Ok(Json(comment))
@@ -194,7 +194,7 @@ pub async fn update_comment_handler(
     Json(request): Json<UpdateCommentRequest>,
 ) -> Result<Json<CommentResponse>, AppError> {
     let comment = CommentService::update_comment(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &comment_id,
         None,
@@ -232,7 +232,7 @@ pub async fn delete_comment_handler(
     auth: AuthExtractor,
     Path(comment_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    CommentService::delete_comment(&state.biz_context, &auth.user.id, &comment_id, None).await?;
+    CommentService::delete_comment(&state.biz_context(), &auth.user.id, &comment_id, None).await?;
 
     Ok(Json(serde_json::json!({"success": true, "id": comment_id})))
 }
@@ -268,9 +268,9 @@ pub async fn resolve_comment_handler(
     Json(request): Json<ResolveCommentRequest>,
 ) -> Result<Json<CommentResponse>, AppError> {
     let comment = if request.resolved {
-        CommentService::resolve_comment(&state.biz_context, &auth.user.id, &comment_id).await?
+        CommentService::resolve_comment(&state.biz_context(), &auth.user.id, &comment_id).await?
     } else {
-        CommentService::unresolve_comment(&state.biz_context, &auth.user.id, &comment_id).await?
+        CommentService::unresolve_comment(&state.biz_context(), &auth.user.id, &comment_id).await?
     };
 
     Ok(Json(comment))
@@ -307,11 +307,22 @@ pub async fn list_page_comments_handler(
     Path(page_id): Path<Id>,
     Query(query): Query<ListCommentsQuery>,
 ) -> Result<Json<PaginatedResponse<CommentResponse>>, AppError> {
+    let page_uuid =
+        Uuid::parse_str(&page_id).map_err(|_| AppError::NotFound("Page not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::Page(page_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = CommentService::list_comments(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &page_id,
         query.parent_id.as_deref(),

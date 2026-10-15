@@ -31,7 +31,8 @@ impl BranchService {
 
         if let Some(ref from_branch_id) = request.from_branch_id {
             if !from_branch_id.trim().is_empty() {
-                return Self::duplicate_branch(ctx, _user_id, from_branch_id.trim(), &request.name).await;
+                return Self::duplicate_branch(ctx, _user_id, from_branch_id.trim(), &request.name)
+                    .await;
             }
         }
 

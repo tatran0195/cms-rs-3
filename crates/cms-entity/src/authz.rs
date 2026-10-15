@@ -1,8 +1,8 @@
 //! Authorization Domain Types for Project Members
 
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use ts_rs::TS;
+use utoipa::ToSchema;
 
 /// Member of a Project
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, TS)]

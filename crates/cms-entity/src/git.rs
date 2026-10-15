@@ -18,7 +18,9 @@ pub enum GitProvider {
 }
 
 /// Git sync operation type
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema, ts_rs::TS)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, utoipa::ToSchema, ts_rs::TS,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum GitSyncOperationType {
     Full,

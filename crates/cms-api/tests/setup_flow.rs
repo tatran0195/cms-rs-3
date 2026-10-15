@@ -52,14 +52,8 @@ async fn test_setup_status_and_completion_flow() -> anyhow::Result<()> {
     assert_eq!(complete_status, StatusCode::CONFLICT);
 
     // 3. Check public meta endpoint reflects requiresSetup and signupDisabled
-    let (meta_status, meta_body) = request(
-        &ctx.app,
-        Method::GET,
-        "/api/public/meta",
-        None,
-        None,
-    )
-    .await?;
+    let (meta_status, meta_body) =
+        request(&ctx.app, Method::GET, "/api/public/meta", None, None).await?;
 
     assert_eq!(meta_status, StatusCode::OK);
     assert!(meta_body.get("providers").is_some());

@@ -24,15 +24,28 @@ type Bundle = HashMap<Box<str>, Message>;
 #[derive(Debug, thiserror::Error)]
 pub enum CatalogError {
     #[error("[{locale}] invalid JSON: {source}")]
-    Json { locale: String, source: serde_json::Error },
-    #[error("[{locale}] `{key}` must be a plain string (message variants are not supported inside the loaded namespace)")]
+    Json {
+        locale: String,
+        source: serde_json::Error,
+    },
+    #[error(
+        "[{locale}] `{key}` must be a plain string (message variants are not supported inside the \
+         loaded namespace)"
+    )]
     UnsupportedValue { locale: String, key: String },
     #[error("[{locale}] `{key}`: {source}")]
-    Message { locale: String, key: String, source: ParseError },
+    Message {
+        locale: String,
+        key: String,
+        source: ParseError,
+    },
     #[error(transparent)]
     Locale(#[from] LocaleError),
     #[error("cannot read `{path}`: {source}")]
-    Io { path: String, source: std::io::Error },
+    Io {
+        path: String,
+        source: std::io::Error,
+    },
     #[error("default locale `{0}` has no messages")]
     MissingDefault(String),
 }
@@ -75,7 +88,11 @@ pub struct CatalogBuilder {
 
 impl CatalogBuilder {
     pub fn new(default: Locale) -> Self {
-        Self { default, namespaces: Vec::new(), bundles: BTreeMap::new() }
+        Self {
+            default,
+            namespaces: Vec::new(),
+            bundles: BTreeMap::new(),
+        }
     }
 
     /// Keep only keys starting with `prefix` (repeatable). With no namespace everything is kept.
@@ -90,19 +107,26 @@ impl CatalogBuilder {
     /// Add one locale's JSON document using mutable reference.
     pub fn append_json(&mut self, locale: &str, json: &str) -> Result<(), CatalogError> {
         let locale = Locale::parse(locale)?;
-        let map: Map<String, Value> = serde_json::from_str(json)
-            .map_err(|source| CatalogError::Json { locale: locale.to_string(), source })?;
+        let map: Map<String, Value> =
+            serde_json::from_str(json).map_err(|source| CatalogError::Json {
+                locale: locale.to_string(),
+                source,
+            })?;
 
         let namespaces = &self.namespaces;
         let bundle = self.bundles.entry(locale.clone()).or_default();
         for (key, value) in map {
             let wanted = !key.starts_with('$')
-                && (namespaces.is_empty() || namespaces.iter().any(|ns| key.starts_with(ns.as_str())));
+                && (namespaces.is_empty()
+                    || namespaces.iter().any(|ns| key.starts_with(ns.as_str())));
             if !wanted {
                 continue;
             }
             let Value::String(text) = value else {
-                return Err(CatalogError::UnsupportedValue { locale: locale.to_string(), key });
+                return Err(CatalogError::UnsupportedValue {
+                    locale: locale.to_string(),
+                    key,
+                });
             };
             let message = Message::parse(&text).map_err(|source| CatalogError::Message {
                 locale: locale.to_string(),
@@ -134,7 +158,9 @@ impl CatalogBuilder {
             .collect();
         files.sort(); // deterministic merge order
         for path in files {
-            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else { continue };
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
             let json = fs::read_to_string(&path).map_err(io(&path))?;
             self = self.add_json(stem, &json)?;
         }
@@ -142,10 +168,17 @@ impl CatalogBuilder {
     }
 
     pub fn build(self) -> Result<Catalog, CatalogError> {
-        if self.bundles.get(&self.default).is_none_or(HashMap::is_empty) {
+        if self
+            .bundles
+            .get(&self.default)
+            .is_none_or(HashMap::is_empty)
+        {
             return Err(CatalogError::MissingDefault(self.default.to_string()));
         }
-        Ok(Catalog { default: self.default, bundles: self.bundles })
+        Ok(Catalog {
+            default: self.default,
+            bundles: self.bundles,
+        })
     }
 }
 
@@ -265,7 +298,10 @@ impl Catalog {
 
         message
             .render(args)
-            .map_err(|MissingArg(var)| I18nError::MissingArg { key: display_key.to_owned(), var })
+            .map_err(|MissingArg(var)| I18nError::MissingArg {
+                key: display_key.to_owned(),
+                var,
+            })
     }
 
     /// Verify the catalog against what the code needs. Run once at boot (errors) and in CI
@@ -279,12 +315,16 @@ impl Catalog {
     /// Warnings: keys missing from other locales; keys nothing uses (typos/orphans).
     pub fn audit(&self, required: &[&str], plural_bases: &[&str]) -> Audit {
         let mut audit = Audit::default();
-        let Some(base) = self.bundles.get(&self.default) else { return audit };
+        let Some(base) = self.bundles.get(&self.default) else {
+            return audit;
+        };
         let known: HashSet<&str> = required.iter().copied().collect();
 
         for key in required {
             if !base.contains_key(*key) {
-                audit.errors.push(format!("[{}] missing required key `{key}`", self.default));
+                audit
+                    .errors
+                    .push(format!("[{}] missing required key `{key}`", self.default));
             }
         }
         for b in plural_bases {
@@ -298,7 +338,9 @@ impl Catalog {
 
         let reference = |key: &str| -> Option<&Message> {
             match plural_base(key, plural_bases) {
-                Some(b) => base.get(format!("{b}_other").as_str()).or_else(|| base.get(b)),
+                Some(b) => base
+                    .get(format!("{b}_other").as_str())
+                    .or_else(|| base.get(b)),
                 None => base.get(key),
             }
         };
@@ -309,14 +351,19 @@ impl Catalog {
 
             for (key, message) in entries {
                 if !known.contains(&**key) && plural_base(key, plural_bases).is_none() {
-                    audit.warnings.push(format!("[{locale}] `{key}` is not used by this crate (orphan or typo?)"));
+                    audit.warnings.push(format!(
+                        "[{locale}] `{key}` is not used by this crate (orphan or typo?)"
+                    ));
                     continue;
                 }
-                let Some(expected) = reference(key) else { continue };
+                let Some(expected) = reference(key) else {
+                    continue;
+                };
                 for var in message.vars() {
                     if !expected.vars().any(|v| v == var) {
                         audit.errors.push(format!(
-                            "[{locale}] `{key}` uses {{{var}}}, which the `{}` text does not provide",
+                            "[{locale}] `{key}` uses {{{var}}}, which the `{}` text does not \
+                             provide",
                             self.default
                         ));
                     }
@@ -326,12 +373,21 @@ impl Catalog {
             if *locale != self.default {
                 for key in required {
                     if !bundle.contains_key(*key) {
-                        audit.warnings.push(format!("[{locale}] missing `{key}` (falls back to `{}`)", self.default));
+                        audit.warnings.push(format!(
+                            "[{locale}] missing `{key}` (falls back to `{}`)",
+                            self.default
+                        ));
                     }
                 }
                 for b in plural_bases {
-                    if !bundle.keys().any(|k| plural_base(k, std::slice::from_ref(b)).is_some()) {
-                        audit.warnings.push(format!("[{locale}] missing plural group `{b}` (falls back to `{}`)", self.default));
+                    if !bundle
+                        .keys()
+                        .any(|k| plural_base(k, std::slice::from_ref(b)).is_some())
+                    {
+                        audit.warnings.push(format!(
+                            "[{locale}] missing plural group `{b}` (falls back to `{}`)",
+                            self.default
+                        ));
                     }
                 }
             }
@@ -362,8 +418,20 @@ fn plural_base<'b>(key: &str, bases: &[&'b str]) -> Option<&'b str> {
 fn plural_category(language: &str, n: u64) -> &'static str {
     match language {
         "ja" | "zh" | "ko" | "vi" | "th" | "id" | "ms" | "lo" | "my" | "km" => "other",
-        "fr" => if n <= 1 { "one" } else { "other" },
-        _ => if n == 1 { "one" } else { "other" },
+        "fr" => {
+            if n <= 1 {
+                "one"
+            } else {
+                "other"
+            }
+        }
+        _ => {
+            if n == 1 {
+                "one"
+            } else {
+                "other"
+            }
+        }
     }
 }
 
@@ -397,8 +465,15 @@ mod tests {
     #[test]
     fn namespace_filters_and_skips_schema_and_foreign_variants() {
         let c = catalog(&[("en", EN)]);
-        assert_eq!(c.format(&loc("en"), "t_hello", &Args::new().with("name", "Ta")).unwrap(), "Hello Ta");
-        assert!(matches!(c.format(&loc("en"), "ui_ignored", &Args::new()), Err(I18nError::MissingKey { .. })));
+        assert_eq!(
+            c.format(&loc("en"), "t_hello", &Args::new().with("name", "Ta"))
+                .unwrap(),
+            "Hello Ta"
+        );
+        assert!(matches!(
+            c.format(&loc("en"), "ui_ignored", &Args::new()),
+            Err(I18nError::MissingKey { .. })
+        ));
     }
 
     #[test]
@@ -412,7 +487,9 @@ mod tests {
 
     #[test]
     fn malformed_message_reports_locale_and_key() {
-        let err = Catalog::builder(loc("en")).add_json("en", r#"{ "t_bad": "oops {name" }"#).unwrap_err();
+        let err = Catalog::builder(loc("en"))
+            .add_json("en", r#"{ "t_bad": "oops {name" }"#)
+            .unwrap_err();
         let text = err.to_string();
         assert!(text.contains("[en]") && text.contains("t_bad"), "{text}");
     }
@@ -421,17 +498,35 @@ mod tests {
     fn per_key_fallback_to_default() {
         let c = catalog(&[("en", EN), ("ja", JA)]);
         let ja = loc("ja");
-        assert_eq!(c.format(&ja, "t_hello", &Args::new().with("name", "Ta")).unwrap(), "こんにちは Ta");
-        assert_eq!(c.format(&ja, "t_only_en", &Args::new()).unwrap(), "English only");
+        assert_eq!(
+            c.format(&ja, "t_hello", &Args::new().with("name", "Ta"))
+                .unwrap(),
+            "こんにちは Ta"
+        );
+        assert_eq!(
+            c.format(&ja, "t_only_en", &Args::new()).unwrap(),
+            "English only"
+        );
     }
 
     #[test]
     fn region_and_sibling_fallback() {
-        let c = catalog(&[("en", EN), ("ja", JA), ("zh-CN", r#"{ "t_hello": "你好 {name}" }"#)]);
+        let c = catalog(&[
+            ("en", EN),
+            ("ja", JA),
+            ("zh-CN", r#"{ "t_hello": "你好 {name}" }"#),
+        ]);
         let args = Args::new().with("name", "Ta");
-        assert_eq!(c.format(&loc("ja-JP"), "t_hello", &args).unwrap(), "こんにちは Ta"); // drop region
-        assert_eq!(c.format(&loc("zh-TW"), "t_hello", &args).unwrap(), "你好 Ta"); // sibling
-        assert_eq!(c.format(&loc("fr"), "t_hello", &args).unwrap(), "Hello Ta"); // default
+        assert_eq!(
+            c.format(&loc("ja-JP"), "t_hello", &args).unwrap(),
+            "こんにちは Ta"
+        ); // drop region
+        assert_eq!(
+            c.format(&loc("zh-TW"), "t_hello", &args).unwrap(),
+            "你好 Ta"
+        ); // sibling
+        assert_eq!(c.format(&loc("fr"), "t_hello", &args).unwrap(), "Hello Ta");
+        // default
     }
 
     #[test]
@@ -446,19 +541,24 @@ mod tests {
     #[test]
     fn plural_forms() {
         let c = catalog(&[("en", EN), ("ja", JA)]);
-        let f = |l: &str, n| c.format_plural(&loc(l), "t_days", "days", n, &Args::new()).unwrap();
+        let f = |l: &str, n| {
+            c.format_plural(&loc(l), "t_days", "days", n, &Args::new())
+                .unwrap()
+        };
         assert_eq!(f("en", 1), "1 day");
         assert_eq!(f("en", 7), "7 days");
         assert_eq!(f("en", 0), "0 days");
         assert_eq!(f("ja", 1), "1 日間"); // ja has only `other`
-        // `de` has no bundle → default text, still correct for the count.
+                                          // `de` has no bundle → default text, still correct for the count.
         assert_eq!(f("de", 1), "1 day");
     }
 
     #[test]
     fn plural_falls_back_to_bare_legacy_key() {
         let c = catalog(&[("en", EN)]);
-        let out = c.format_plural(&loc("en"), "t_legacy", "n", 1, &Args::new()).unwrap();
+        let out = c
+            .format_plural(&loc("en"), "t_legacy", "n", 1, &Args::new())
+            .unwrap();
         assert_eq!(out, "1 items");
     }
 
@@ -466,7 +566,9 @@ mod tests {
     fn half_translated_locale_keeps_its_own_language() {
         // `de` provides only the `other` form; n = 1 must not jump to English `_one`.
         let c = catalog(&[("en", EN), ("de", r#"{ "t_days_other": "{days} Tage" }"#)]);
-        let out = c.format_plural(&loc("de"), "t_days", "days", 1, &Args::new()).unwrap();
+        let out = c
+            .format_plural(&loc("de"), "t_days", "days", 1, &Args::new())
+            .unwrap();
         assert_eq!(out, "1 Tage");
     }
 
@@ -475,24 +577,37 @@ mod tests {
         let c = catalog(&[("en", EN)]);
         assert_eq!(
             c.format(&loc("en"), "t_hello", &Args::new()),
-            Err(I18nError::MissingArg { key: "t_hello".into(), var: "name".into() })
+            Err(I18nError::MissingArg {
+                key: "t_hello".into(),
+                var: "name".into()
+            })
         );
-        assert!(matches!(c.format(&loc("en"), "t_nope", &Args::new()), Err(I18nError::MissingKey { .. })));
+        assert!(matches!(
+            c.format(&loc("en"), "t_nope", &Args::new()),
+            Err(I18nError::MissingKey { .. })
+        ));
     }
 
     #[test]
     fn later_sources_override_earlier_ones() {
         let c = Catalog::builder(loc("en"))
-            .add_json("en", r#"{ "t_a": "old", "t_b": "kept" }"#).unwrap()
-            .add_json("en", r#"{ "t_a": "new" }"#).unwrap()
-            .build().unwrap();
+            .add_json("en", r#"{ "t_a": "old", "t_b": "kept" }"#)
+            .unwrap()
+            .add_json("en", r#"{ "t_a": "new" }"#)
+            .unwrap()
+            .build()
+            .unwrap();
         assert_eq!(c.format(&loc("en"), "t_a", &Args::new()).unwrap(), "new");
         assert_eq!(c.format(&loc("en"), "t_b", &Args::new()).unwrap(), "kept");
     }
 
     #[test]
     fn build_requires_default_locale() {
-        let err = Catalog::builder(loc("en")).add_json("ja", JA).unwrap().build().unwrap_err();
+        let err = Catalog::builder(loc("en"))
+            .add_json("ja", JA)
+            .unwrap()
+            .build()
+            .unwrap_err();
         assert!(matches!(err, CatalogError::MissingDefault(_)));
     }
 
@@ -505,19 +620,50 @@ mod tests {
                 r#"{ "t_hello": "{name} {extra}", "t_typo_key": "x", "t_days_other": "{days} 日間" }"#,
             ),
         ]);
-        let a = c.audit(&["t_hello", "t_only_en", "t_absent"], &["t_days", "t_legacy"]);
+        let a = c.audit(
+            &["t_hello", "t_only_en", "t_absent"],
+            &["t_days", "t_legacy"],
+        );
         // errors: default lacks a required key; ja invents a placeholder
-        assert!(a.errors.iter().any(|e| e.contains("missing required key `t_absent`")), "{:?}", a.errors);
-        assert!(a.errors.iter().any(|e| e.contains("[ja]") && e.contains("{extra}")), "{:?}", a.errors);
+        assert!(
+            a.errors
+                .iter()
+                .any(|e| e.contains("missing required key `t_absent`")),
+            "{:?}",
+            a.errors
+        );
+        assert!(
+            a.errors
+                .iter()
+                .any(|e| e.contains("[ja]") && e.contains("{extra}")),
+            "{:?}",
+            a.errors
+        );
         // warnings: ja lacks t_only_en; ja has an unused key
-        assert!(a.warnings.iter().any(|w| w.contains("[ja] missing `t_only_en`")), "{:?}", a.warnings);
-        assert!(a.warnings.iter().any(|w| w.contains("t_typo_key")), "{:?}", a.warnings);
+        assert!(
+            a.warnings
+                .iter()
+                .any(|w| w.contains("[ja] missing `t_only_en`")),
+            "{:?}",
+            a.warnings
+        );
+        assert!(
+            a.warnings.iter().any(|w| w.contains("t_typo_key")),
+            "{:?}",
+            a.warnings
+        );
         assert!(!a.is_ok());
     }
 
     #[test]
     fn audit_is_clean_for_a_consistent_catalog() {
-        let c = catalog(&[("en", EN), ("ja", r#"{ "t_hello": "{name}", "t_only_en": "x", "t_days_other": "{days}" }"#)]);
+        let c = catalog(&[
+            ("en", EN),
+            (
+                "ja",
+                r#"{ "t_hello": "{name}", "t_only_en": "x", "t_days_other": "{days}" }"#,
+            ),
+        ]);
         let a = c.audit(&["t_hello", "t_only_en"], &["t_days", "t_legacy"]);
         assert!(a.errors.is_empty(), "{:?}", a.errors);
         // ja lacks the `t_legacy` group → one warning only

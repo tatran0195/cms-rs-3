@@ -61,7 +61,7 @@ pub async fn create_git_connection_handler(
 
     let project_id = request.project_id.clone();
     let connection =
-        GitService::create_connection(&state.biz_context, &auth.user.id, &project_id, request)
+        GitService::create_connection(&state.biz_context(), &auth.user.id, &project_id, request)
             .await?;
 
     Ok(Json(connection))
@@ -98,15 +98,16 @@ pub async fn get_git_connection_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Viewer,
     )
     .await?;
 
-    let connection = GitService::get_connection(&state.biz_context, &auth.user.id, &connection_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
+    let connection =
+        GitService::get_connection(&state.biz_context(), &auth.user.id, &connection_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
 
     Ok(Json(connection))
 }
@@ -148,7 +149,7 @@ pub async fn list_git_connections_handler(
     .await?;
 
     let connections =
-        GitService::list_connections(&state.biz_context, &auth.user.id, &project_id).await?;
+        GitService::list_connections(&state.biz_context(), &auth.user.id, &project_id).await?;
 
     Ok(Json(connections))
 }
@@ -188,14 +189,14 @@ pub async fn update_git_connection_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Admin,
     )
     .await?;
 
     let connection =
-        GitService::update_connection(&state.biz_context, &auth.user.id, &connection_id, request)
+        GitService::update_connection(&state.biz_context(), &auth.user.id, &connection_id, request)
             .await?;
 
     Ok(Json(connection))
@@ -233,13 +234,13 @@ pub async fn delete_git_connection_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Admin,
     )
     .await?;
 
-    GitService::delete_connection(&state.biz_context, &auth.user.id, &connection_id).await?;
+    GitService::delete_connection(&state.biz_context(), &auth.user.id, &connection_id).await?;
 
     Ok(Json(
         serde_json::json!({"success": true, "message": "Git connection deleted"}),
@@ -278,14 +279,14 @@ pub async fn trigger_git_sync_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Editor,
     )
     .await?;
 
     let operation = GitService::trigger_sync(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &connection_id,
         cms_entity::git::GitSyncOperationType::Manual,
@@ -340,7 +341,7 @@ pub async fn list_git_sync_operations_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Viewer,
     )
@@ -350,7 +351,7 @@ pub async fn list_git_sync_operations_handler(
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
     let result = GitService::list_sync_operations(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         &connection_id,
         page,
@@ -387,7 +388,7 @@ pub async fn get_git_sync_operation_handler(
     auth: AuthExtractor,
     Path(operation_id): Path<Id>,
 ) -> Result<Json<GitSyncOperationResponse>, AppError> {
-    let op = cms_db::git::GitSyncOperationQueries::get_by_id(&state.biz_context.pool, &operation_id)
+    let op = cms_db::git::GitSyncOperationQueries::get_by_id(&state.pool, &operation_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Git sync operation not found".to_string()))?;
     let conn_uuid = Uuid::parse_str(&op.connection_id)
@@ -395,14 +396,14 @@ pub async fn get_git_sync_operation_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let operation =
-        GitService::get_sync_operation(&state.biz_context, &auth.user.id, &operation_id).await?;
+        GitService::get_sync_operation(&state.biz_context(), &auth.user.id, &operation_id).await?;
 
     Ok(Json(operation))
 }
@@ -438,14 +439,14 @@ pub async fn get_git_sync_status_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::GitConnection(conn_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let status =
-        GitService::get_sync_status(&state.biz_context, &auth.user.id, &connection_id).await?;
+        GitService::get_sync_status(&state.biz_context(), &auth.user.id, &connection_id).await?;
 
     Ok(Json(status))
 }

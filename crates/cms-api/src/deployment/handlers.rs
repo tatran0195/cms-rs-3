@@ -62,7 +62,7 @@ pub async fn list_deployments_handler(
     let offset = query.offset.unwrap_or(0) as u64;
     let page = offset.checked_div(limit).unwrap_or(0).saturating_add(1);
     let result = DeploymentService::list_deployments(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         project_id,
         page,
@@ -109,13 +109,13 @@ pub async fn create_deployment_handler(
     .await?;
 
     let branch_id = if let Some(ref bid) = request.branch_id {
-        let branch = cms_db::branch::BranchQueries::get_by_id(&state.biz_context.pool, bid)
+        let branch = cms_db::branch::BranchQueries::get_by_id(&state.pool, bid)
             .await?
             .filter(|b| b.project_id == request.project_id)
             .ok_or_else(|| AppError::NotFound("Branch not found".to_string()))?;
         branch.id
     } else {
-        cms_db::branch::BranchQueries::get_default(&state.biz_context.pool, &request.project_id)
+        cms_db::branch::BranchQueries::get_default(&state.pool, &request.project_id)
             .await?
             .map(|b| b.id)
             .unwrap_or_default()
@@ -165,14 +165,14 @@ pub async fn get_deployment_handler(
     cms_authz_gate::require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         cms_authz_gate::ParentLink::Deployment(dep_uuid),
         cms_authz::Relation::Viewer,
     )
     .await?;
 
     let deployment =
-        DeploymentService::get_deployment(&state.biz_context, &auth.user.id, &deployment_id)
+        DeploymentService::get_deployment(&state.biz_context(), &auth.user.id, &deployment_id)
             .await?;
 
     Ok(Json(deployment))
@@ -209,14 +209,14 @@ pub async fn get_deployment_logs_handler(
     cms_authz_gate::require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         cms_authz_gate::ParentLink::Deployment(dep_uuid),
         cms_authz::Relation::Viewer,
     )
     .await?;
 
     let logs =
-        DeploymentService::get_deployment_logs(&state.biz_context, &auth.user.id, &deployment_id)
+        DeploymentService::get_deployment_logs(&state.biz_context(), &auth.user.id, &deployment_id)
             .await?;
 
     Ok(Json(serde_json::json!({"logs": logs})))
@@ -254,14 +254,14 @@ pub async fn retry_deployment_handler(
     cms_authz_gate::require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         cms_authz_gate::ParentLink::Deployment(dep_uuid),
         cms_authz::Relation::Editor,
     )
     .await?;
 
     let deployment =
-        DeploymentService::retry_deployment(&state.biz_context, &auth.user.id, &deployment_id)
+        DeploymentService::retry_deployment(&state.biz_context(), &auth.user.id, &deployment_id)
             .await?;
 
     Ok(Json(deployment))
@@ -300,14 +300,14 @@ pub async fn cancel_deployment_handler(
     cms_authz_gate::require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         cms_authz_gate::ParentLink::Deployment(dep_uuid),
         cms_authz::Relation::Editor,
     )
     .await?;
 
     let deployment =
-        DeploymentService::cancel_deployment(&state.biz_context, &auth.user.id, &deployment_id)
+        DeploymentService::cancel_deployment(&state.biz_context(), &auth.user.id, &deployment_id)
             .await?;
 
     Ok(Json(deployment))

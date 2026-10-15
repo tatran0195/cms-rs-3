@@ -63,7 +63,7 @@ pub async fn list_languages_handler(
     .await?;
 
     let result =
-        LanguageService::list_languages(&state.biz_context, &auth.user.id, query, 1, 20).await?;
+        LanguageService::list_languages(&state.biz_context(), &auth.user.id, query, 1, 20).await?;
 
     Ok(Json(result))
 }
@@ -104,7 +104,7 @@ pub async fn create_language_handler(
     .await?;
 
     let language =
-        LanguageService::create_language(&state.biz_context, &auth.user.id, request).await?;
+        LanguageService::create_language(&state.biz_context(), &auth.user.id, request).await?;
 
     Ok(Json(language))
 }
@@ -140,14 +140,14 @@ pub async fn get_language_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Language(lang_uuid),
         Relation::Viewer,
     )
     .await?;
 
     let language =
-        LanguageService::get_language(&state.biz_context, &auth.user.id, &language_id).await?;
+        LanguageService::get_language(&state.biz_context(), &auth.user.id, &language_id).await?;
 
     Ok(Json(language))
 }
@@ -187,15 +187,19 @@ pub async fn update_language_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Language(lang_uuid),
         Relation::Editor,
     )
     .await?;
 
-    let language =
-        LanguageService::update_language(&state.biz_context, &auth.user.id, &language_id, request)
-            .await?;
+    let language = LanguageService::update_language(
+        &state.biz_context(),
+        &auth.user.id,
+        &language_id,
+        request,
+    )
+    .await?;
 
     Ok(Json(language))
 }
@@ -232,13 +236,13 @@ pub async fn delete_language_handler(
     require_parent_access(
         state.authz_backend(),
         &auth.authz_context(),
-        &state.biz_context.pool,
+        &state.pool,
         ParentLink::Language(lang_uuid),
         Relation::Editor,
     )
     .await?;
 
-    LanguageService::delete_language(&state.biz_context, &auth.user.id, &language_id).await?;
+    LanguageService::delete_language(&state.biz_context(), &auth.user.id, &language_id).await?;
 
     Ok(Json(
         serde_json::json!({"success": true, "id": language_id}),
@@ -294,7 +298,7 @@ pub async fn set_default_language_handler(
     .map_err(|_| AppError::BadRequest("Invalid language_id".to_string()))?;
 
     LanguageService::set_default_language(
-        &state.biz_context,
+        &state.biz_context(),
         &auth.user.id,
         cms_entity::language::SetDefaultLanguageRequest { language_id },
     )

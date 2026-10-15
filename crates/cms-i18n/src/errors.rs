@@ -1,4 +1,5 @@
 use std::sync::OnceLock;
+
 use crate::{
     catalog::{Catalog, CatalogBuilder},
     locale::Locale,
@@ -21,7 +22,10 @@ pub fn embedded_catalog() -> &'static Catalog {
         }
         builder.build().unwrap_or_else(|_| {
             CatalogBuilder::new(Locale::default())
-                .add_json("en", r#"{"api_error_internal_error":"An internal error occurred"}"#)
+                .add_json(
+                    "en",
+                    r#"{"api_error_internal_error":"An internal error occurred"}"#,
+                )
                 .expect("fallback en catalog")
                 .build()
                 .expect("fallback catalog must build")

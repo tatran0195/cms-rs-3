@@ -49,10 +49,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/sign-in/social", post(sign_in_social_handler))
         .route("/verify-email", post(verify_email_handler))
         .route("/update-user", post(update_user_handler))
-        .route(
-            "/invitations/accept",
-            post(accept_invitation_handler),
-        )
+        .route("/invitations/accept", post(accept_invitation_handler))
         .route("/sign-out", post(sign_out_better_auth_handler))
         .route("/refresh", post(refresh_session_handler))
         .route("/api-keys", get(list_api_keys_handler))

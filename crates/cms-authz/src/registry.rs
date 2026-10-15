@@ -14,7 +14,12 @@ pub const REGISTERED_OBJECT_TYPES: &[ObjectTypeSpec] = &[
     },
     ObjectTypeSpec {
         object_type: "project",
-        allowed_relations: &[Relation::Owner, Relation::Admin, Relation::Editor, Relation::Viewer],
+        allowed_relations: &[
+            Relation::Owner,
+            Relation::Admin,
+            Relation::Editor,
+            Relation::Viewer,
+        ],
     },
 ];
 

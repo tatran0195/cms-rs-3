@@ -150,8 +150,9 @@ pub async fn process_email_job(
     mailer: Arc<dyn Mailer>,
     payload: &serde_json::Value,
 ) -> Result<(), AppError> {
-    let renderer = EmailRenderer::embedded()
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to initialize email renderer: {e}")))?;
+    let renderer = EmailRenderer::embedded().map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Failed to initialize email renderer: {e}"))
+    })?;
     process_email_job_with_renderer(mailer, &renderer, payload).await
 }
 
@@ -200,15 +201,9 @@ mod tests {
             purpose: VerificationPurpose::SignIn,
             ttl_minutes: 10,
         };
-        EmailService::send_typed_email(
-            mailer.clone(),
-            &renderer,
-            "user@example.com",
-            &email,
-            None,
-        )
-        .await
-        .unwrap();
+        EmailService::send_typed_email(mailer.clone(), &renderer, "user@example.com", &email, None)
+            .await
+            .unwrap();
 
         let sent = mailer.get_sent().await;
         assert_eq!(sent.len(), 1);

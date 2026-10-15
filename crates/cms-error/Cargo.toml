@@ -10,7 +10,7 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true, default-features = false }
 tracing = { workspace = true }
 uuid = { workspace = true }
 cms-i18n = { workspace = true }

@@ -231,7 +231,6 @@ impl SearchService {
         _user_id: &str,
         request: ReindexRequest,
     ) -> Result<SearchIndexRunResponse, AppError> {
-
         let branch = if let Some(branch_id) = request.branch_id.as_deref() {
             let branch = cms_db::branch::BranchQueries::get_by_id(&ctx.pool, branch_id)
                 .await?
@@ -348,7 +347,11 @@ impl SearchService {
             };
 
             if let Err(e) = result {
-                tracing::error!("Failed to update search index run {} completion status: {}", run_id, e);
+                tracing::error!(
+                    "Failed to update search index run {} completion status: {}",
+                    run_id,
+                    e
+                );
             } else {
                 tracing::info!(
                     "Reindex completed for project {} branch {}: {} page(s) indexed, {} failure(s)",
