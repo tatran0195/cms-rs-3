@@ -84,3 +84,5 @@ export const queryKeys = {
     changelog: (id: string) => ['site', id, 'changelog'] as const,
   },
 } as const;
+
+export { analyticsQueryKeys } from './hooks/analytics';

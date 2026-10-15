@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { GitWorkflowStatus } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 
-export const useGitWorkflow = <T = any>(projectId: string) => {
+export const useGitWorkflow = <T = GitWorkflowStatus | null>(projectId: string) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.gitWorkflow.detail(projectId),

@@ -5,6 +5,13 @@ import type { ResolvedTheme, ThemeConfigChange, ThemeTemplateV1 } from '@cms/sha
 import type { LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
 
 export type { AnalyticsRange, LanguageConfig, PageConfig, ProjectConfig } from '@cms/validators';
+export type {
+  ProjectInvitationItem,
+  ProjectInvitationResponse,
+  ProjectMemberItem,
+  ProjectMembersResponse,
+  ProjectMemberUser,
+} from '../resources/projects';
 
 export type PublishedLanguageConfig = LanguageConfig & { name?: string; description?: string };
 

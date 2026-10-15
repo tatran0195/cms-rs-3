@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  ChangelogEntry,
+  ReaderAccessData,
+  SearchAnswer,
+  SitePage,
+  SiteSearchHit,
+  SiteShell,
+} from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 
-export const useSite = <T = any>(
+export const useSite = <T = SiteShell>(
   siteId: string | undefined,
   options?: { language?: string; version?: string; enabled?: boolean }
 ) => {
@@ -20,7 +28,7 @@ export const useSite = <T = any>(
   });
 };
 
-export const useSitePage = <T = any>(
+export const useSitePage = <T = SitePage>(
   siteId: string | undefined,
   path: string,
   options?: { language?: string; version?: string; enabled?: boolean }
@@ -39,7 +47,7 @@ export const useSitePage = <T = any>(
   });
 };
 
-export const useSiteChangelog = <T = any>(siteId: string | undefined, options?: { enabled?: boolean }) => {
+export const useSiteChangelog = <T = ChangelogEntry>(siteId: string | undefined, options?: { enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.site.changelog(siteId ?? ''),
@@ -51,7 +59,7 @@ export const useSiteChangelog = <T = any>(siteId: string | undefined, options?: 
   });
 };
 
-export const useSiteSearch = <T = any>(
+export const useSiteSearch = <T = SiteSearchHit>(
   siteId: string | undefined,
   query: string,
   options?: { language?: string; version?: string; limit?: number },
@@ -68,7 +76,7 @@ export const useSiteSearch = <T = any>(
   });
 };
 
-export const useAnswerSite = <T = any>() => {
+export const useAnswerSite = <T = SearchAnswer>() => {
   const client = useCmsClient();
   return useMutation({
     mutationFn: async (input: { projectId: string; query: string; language?: string; version?: string }) =>
@@ -90,7 +98,7 @@ export const useRecordSiteEvent = (projectId: string) => {
 
 export const useCreateSiteAnalyticsEvent = useRecordSiteEvent;
 
-export const useReaderAccess = <T = any>(projectId: string | undefined) => {
+export const useReaderAccess = <T = ReaderAccessData>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.readerAccess.detail(projectId ?? ''),

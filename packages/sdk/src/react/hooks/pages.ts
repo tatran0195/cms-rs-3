@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Branch, Comment, Language, Page, PageNode } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 
-export const usePages = <T = any>(projectId: string | undefined, languageId?: string, branchId?: string) => {
+export const usePages = <T = PageNode>(projectId: string | undefined, languageId?: string, branchId?: string) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.pages.all(projectId ?? '', languageId, branchId),
@@ -17,7 +18,7 @@ export const usePages = <T = any>(projectId: string | undefined, languageId?: st
   });
 };
 
-export const usePage = <T = any>(projectId: string | undefined, pageId: string | undefined) => {
+export const usePage = <T = Page>(projectId: string | undefined, pageId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.pages.detail(projectId ?? '', pageId ?? ''),
@@ -29,7 +30,7 @@ export const usePage = <T = any>(projectId: string | undefined, pageId: string |
   });
 };
 
-export const useBranches = <T = any>(projectId: string | undefined) => {
+export const useBranches = <T = Branch>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.branches.all(projectId ?? ''),
@@ -41,7 +42,7 @@ export const useBranches = <T = any>(projectId: string | undefined) => {
   });
 };
 
-export const useLanguages = <T = any>(projectId: string | undefined) => {
+export const useLanguages = <T = Language>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.languages.all(projectId ?? ''),
@@ -53,7 +54,7 @@ export const useLanguages = <T = any>(projectId: string | undefined) => {
   });
 };
 
-export const useComments = <T = any>(projectId: string | undefined, pageId?: string) => {
+export const useComments = <T = Comment>(projectId: string | undefined, pageId?: string) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.comments.all(projectId ?? '', pageId),

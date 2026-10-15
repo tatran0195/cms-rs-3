@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Project, ProjectMembersResponse } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 
-export const useProjects = <T = any>(options?: { enabled?: boolean }) => {
+export const useProjects = <T = Project>(options?: { enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.projects.all(),
@@ -11,7 +12,7 @@ export const useProjects = <T = any>(options?: { enabled?: boolean }) => {
   });
 };
 
-export const useProject = <T = any>(projectId: string | undefined, options?: { enabled?: boolean }) => {
+export const useProject = <T = Project>(projectId: string | undefined, options?: { enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.projects.detail(projectId ?? ''),
@@ -23,7 +24,7 @@ export const useProject = <T = any>(projectId: string | undefined, options?: { e
   });
 };
 
-export const useProjectMembers = <T = any>(projectId: string | undefined, options?: { enabled?: boolean }) => {
+export const useProjectMembers = <T = ProjectMembersResponse>(projectId: string | undefined, options?: { enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.members.forProject(projectId ?? ''),

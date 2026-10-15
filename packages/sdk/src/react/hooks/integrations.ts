@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IntegrationCatalogEntry } from '@cms/shared/integrations';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 import { CmsApiError } from '../../errors';
 
-export const useProjectIntegrations = <T = any>(projectId: string) => {
+export const useProjectIntegrations = <T = IntegrationCatalogEntry>(projectId: string) => {
   const client = useCmsClient();
   return useQuery({
     enabled: Boolean(projectId),

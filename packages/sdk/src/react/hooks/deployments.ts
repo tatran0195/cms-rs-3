@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Deployment, PendingChangesResponse } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 
 const isInFlight = (status?: string): boolean => status === 'PENDING' || status === 'BUILDING';
 
-export const useDeployments = <T = any>(
+export const useDeployments = <T = Deployment>(
   projectId: string | undefined,
   options?: { enabled?: boolean; pollIntervalMs?: number }
 ) => {
@@ -23,7 +24,7 @@ export const useDeployments = <T = any>(
   });
 };
 
-export const usePendingChanges = <T = any>(
+export const usePendingChanges = <T = PendingChangesResponse>(
   projectId: string | undefined,
   options?: { enabled?: boolean }
 ) => {

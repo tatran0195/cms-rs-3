@@ -1,9 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  ApiKey,
+  Domain,
+  NotificationList,
+  OpenApiConfiguration,
+  ProjectAddon,
+  ProjectUsageTelemetryResponse,
+  WorkspaceMembersResponse,
+  WorkspaceSettings,
+} from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 import { CmsApiError } from '../../errors';
 
-export const useDomains = <T = any>(projectId: string | undefined) => {
+export const useDomains = <T = Domain>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.domains.all(projectId ?? ''),
@@ -15,7 +25,7 @@ export const useDomains = <T = any>(projectId: string | undefined) => {
   });
 };
 
-export const useApiKeys = <T = any>(projectId: string | undefined) => {
+export const useApiKeys = <T = ApiKey>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.apiKeys.all(projectId ?? ''),
@@ -27,7 +37,7 @@ export const useApiKeys = <T = any>(projectId: string | undefined) => {
   });
 };
 
-export const useOpenApiConfiguration = <T = any>(projectId: string | undefined) => {
+export const useOpenApiConfiguration = <T = OpenApiConfiguration>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.openapi.detail(projectId ?? ''),
@@ -39,7 +49,7 @@ export const useOpenApiConfiguration = <T = any>(projectId: string | undefined) 
   });
 };
 
-export const useProjectUsage = <T = any>(projectId: string | undefined) => {
+export const useProjectUsage = <T = ProjectUsageTelemetryResponse>(projectId: string | undefined) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.usage.forProject(projectId ?? ''),
@@ -51,7 +61,7 @@ export const useProjectUsage = <T = any>(projectId: string | undefined) => {
   });
 };
 
-export const useProjectAddons = <T = any>(projectId: string) => {
+export const useProjectAddons = <T = ProjectAddon>(projectId: string) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.addons.all(projectId),
@@ -59,7 +69,7 @@ export const useProjectAddons = <T = any>(projectId: string) => {
   });
 };
 
-export const useWorkspaceSettings = <T = any>(projectId?: string) => {
+export const useWorkspaceSettings = <T = WorkspaceSettings>(projectId?: string) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings(),
@@ -332,7 +342,7 @@ export const useDeleteWorkspace = () => {
   });
 };
 
-export const useMembers = <T = any>() => {
+export const useMembers = <T = WorkspaceMembersResponse>() => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.members.all(),
@@ -367,7 +377,7 @@ export const useRemoveMember = () => {
   });
 };
 
-export const useNotifications = <T = any>(options?: { enabled?: boolean }) => {
+export const useNotifications = <T = NotificationList>(options?: { enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.notifications.list(),
