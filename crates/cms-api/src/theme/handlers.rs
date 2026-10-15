@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::theme::ThemeService;
 use cms_entity::{
     common::{ApiResponse, Id},
@@ -18,6 +20,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -49,7 +52,19 @@ pub async fn list_themes_handler(
     auth: AuthExtractor,
     Query(query): Query<ListThemesQuery>,
 ) -> Result<Json<Vec<ThemeResponse>>, AppError> {
-    let project_id = query.project_id.as_deref().unwrap_or("");
+    let project_id = query.project_id.as_deref().ok_or_else(|| {
+        AppError::BadRequest("project_id query parameter is required".to_string())
+    })?;
+    let project_uuid = Uuid::parse_str(project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, project_id).await?;
 
     Ok(Json(themes))
@@ -80,6 +95,16 @@ pub async fn create_theme_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateThemeRequest>,
 ) -> Result<Json<ThemeResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let project_id = request.project_id.clone();
     let theme =
         ThemeService::create_theme(&state.biz_context, &auth.user.id, &project_id, request).await?;
@@ -113,6 +138,17 @@ pub async fn get_theme_handler(
     auth: AuthExtractor,
     Path(theme_id): Path<Id>,
 ) -> Result<Json<ThemeResponse>, AppError> {
+    let theme_uuid = Uuid::parse_str(&theme_id)
+        .map_err(|_| AppError::NotFound("Theme not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Theme(theme_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let theme = ThemeService::get_theme(&state.biz_context, &auth.user.id, &theme_id).await?;
 
     Ok(Json(theme))
@@ -148,6 +184,17 @@ pub async fn update_theme_handler(
     Path(theme_id): Path<Id>,
     Json(request): Json<UpdateThemeRequest>,
 ) -> Result<Json<ThemeResponse>, AppError> {
+    let theme_uuid = Uuid::parse_str(&theme_id)
+        .map_err(|_| AppError::NotFound("Theme not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Theme(theme_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     let theme =
         ThemeService::update_theme(&state.biz_context, &auth.user.id, &theme_id, request).await?;
 
@@ -181,6 +228,17 @@ pub async fn delete_theme_handler(
     auth: AuthExtractor,
     Path(theme_id): Path<Id>,
 ) -> Result<Json<ApiResponse<DeleteThemeResponse>>, AppError> {
+    let theme_uuid = Uuid::parse_str(&theme_id)
+        .map_err(|_| AppError::NotFound("Theme not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Theme(theme_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     ThemeService::delete_theme(&state.biz_context, &auth.user.id, &theme_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteThemeResponse {
@@ -215,6 +273,17 @@ pub async fn get_theme_css_handler(
     auth: AuthExtractor,
     Path(theme_id): Path<Id>,
 ) -> Result<Json<ThemeCssVariables>, AppError> {
+    let theme_uuid = Uuid::parse_str(&theme_id)
+        .map_err(|_| AppError::NotFound("Theme not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Theme(theme_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let css_vars =
         ThemeService::get_theme_css(&state.biz_context, &auth.user.id, &theme_id).await?;
 
@@ -251,6 +320,16 @@ pub async fn set_project_theme_handler(
     Path(project_id): Path<Id>,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<ThemeResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let theme_id: String = serde_json::from_value(
         request
             .get("theme_id")

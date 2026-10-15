@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, ParentLink};
 use cms_biz::domain::DomainService;
 use cms_entity::{
     common::Id,
@@ -18,6 +20,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -49,10 +52,24 @@ pub async fn list_domains_handler(
     auth: AuthExtractor,
     Query(query): Query<ListDomainsQuery>,
 ) -> Result<Json<Vec<DomainResponse>>, AppError> {
+    let dep_id = query.deployment_id.as_deref().ok_or_else(|| {
+        AppError::BadRequest("deployment_id query parameter is required".to_string())
+    })?;
+    let dep_uuid = Uuid::parse_str(dep_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Deployment(dep_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let domains = DomainService::list_domains(
         &state.biz_context,
         &auth.user.id,
-        query.deployment_id.as_deref(),
+        Some(dep_id),
         query.is_primary,
         query.is_verified,
     )
@@ -86,6 +103,17 @@ pub async fn create_domain_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateDomainRequest>,
 ) -> Result<Json<DomainResponse>, AppError> {
+    let dep_uuid = Uuid::parse_str(&request.deployment_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Deployment(dep_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let domain = DomainService::create_domain(&state.biz_context, &auth.user.id, request).await?;
     state.invalidate_host_resolution_cache();
 
@@ -118,6 +146,17 @@ pub async fn get_domain_handler(
     auth: AuthExtractor,
     Path(domain_id): Path<Id>,
 ) -> Result<Json<DomainResponse>, AppError> {
+    let dom_uuid = Uuid::parse_str(&domain_id)
+        .map_err(|_| AppError::NotFound("Domain not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Domain(dom_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let domain = DomainService::get_domain(&state.biz_context, &auth.user.id, &domain_id).await?;
 
     Ok(Json(domain))
@@ -153,6 +192,17 @@ pub async fn update_domain_handler(
     Path(domain_id): Path<Id>,
     Json(request): Json<UpdateDomainRequest>,
 ) -> Result<Json<DomainResponse>, AppError> {
+    let dom_uuid = Uuid::parse_str(&domain_id)
+        .map_err(|_| AppError::NotFound("Domain not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Domain(dom_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let domain =
         DomainService::update_domain(&state.biz_context, &auth.user.id, &domain_id, request)
             .await?;
@@ -188,6 +238,17 @@ pub async fn delete_domain_handler(
     auth: AuthExtractor,
     Path(domain_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let dom_uuid = Uuid::parse_str(&domain_id)
+        .map_err(|_| AppError::NotFound("Domain not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Domain(dom_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     DomainService::delete_domain(&state.biz_context, &auth.user.id, &domain_id).await?;
     state.invalidate_host_resolution_cache();
 
@@ -223,6 +284,17 @@ pub async fn verify_domain_handler(
     Path(domain_id): Path<Id>,
     Json(request): Json<VerifyDomainRequest>,
 ) -> Result<Json<DomainVerificationResult>, AppError> {
+    let dom_uuid = Uuid::parse_str(&domain_id)
+        .map_err(|_| AppError::NotFound("Domain not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Domain(dom_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let result = DomainService::verify_domain(
         &state.biz_context,
         &auth.user.id,
@@ -332,6 +404,17 @@ pub async fn set_primary_domain_handler(
     Path(deployment_id): Path<Id>,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<DomainResponse>, AppError> {
+    let dep_uuid = Uuid::parse_str(&deployment_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Deployment(dep_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let domain_id: String = serde_json::from_value(
         request
             .get("domain_id")

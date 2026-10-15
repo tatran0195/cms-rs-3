@@ -21,6 +21,13 @@ pub async fn list_project_branches_handler(
     Path(project_id): Path<String>,
     Query(mut query): Query<ListBranchesQuery>,
 ) -> Result<Json<ApiResponse<Vec<BranchResponse>>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
     query.project_id = project_id.clone();
     let result = cms_biz::branch::BranchService::list_branches(
         &state.biz_context,
@@ -41,6 +48,13 @@ pub async fn create_project_branch_handler(
     Path(project_id): Path<String>,
     Json(mut request): Json<CreateBranchRequest>,
 ) -> Result<Json<ApiResponse<BranchResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
     request.project_id = project_id.clone();
     let branch = cms_biz::branch::BranchService::create_branch(
         &state.biz_context,
@@ -63,8 +77,13 @@ pub async fn delete_project_branch_handler(
 ) -> Result<Json<ApiResponse<DeleteBranchResponse>>, AppError> {
     use cms_db::branch::BranchQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::Relation::Editor,
+    )
+    .await?;
 
     let branch = BranchQueries::get_by_id(&state.biz_context.pool, &branch_id)
         .await?

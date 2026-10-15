@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
 use cms_entity::{
     common::ApiResponse,
     workspace::WorkspaceMutationResponse,
@@ -82,8 +83,7 @@ pub async fn get_project_reader_access_handler(
 ) -> Result<Json<ApiResponse<ProjectReaderAccessResponse>>, AppError> {
     use cms_db::reader_access::{AudienceQueries, JwtAccessProviderQueries, ReaderQueries};
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
     let audiences = AudienceQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
     let readers = ReaderQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
@@ -116,8 +116,7 @@ pub async fn update_project_reader_access_handler(
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<ProjectReaderAccessResponse>>, AppError> {
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let mode = body
         .get("mode")
@@ -144,8 +143,7 @@ pub async fn create_reader_audience_handler(
 ) -> Result<Json<ApiResponse<ProjectAudienceItem>>, AppError> {
     use cms_db::reader_access::AudienceQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let name = body
         .get("name")
@@ -166,9 +164,15 @@ pub async fn delete_reader_audience_handler(
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
     use cms_db::reader_access::AudienceQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
-    let _ = AudienceQueries::delete(&state.biz_context.pool, &audience_id).await;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
+
+    let existing = AudienceQueries::get_by_id(&state.biz_context.pool, &audience_id).await?;
+    if let Some(aud) = existing {
+        if aud.project_id != project_id {
+            return Err(AppError::NotFound("Audience not found".to_string()));
+        }
+        let _ = AudienceQueries::delete(&state.biz_context.pool, &audience_id).await;
+    }
 
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
@@ -183,10 +187,9 @@ pub async fn invite_project_reader_handler(
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<ProjectReaderInvitationResponse>>, AppError> {
-    use cms_db::reader_access::ReaderInvitationQueries;
+    use cms_db::reader_access::{AudienceQueries, ReaderInvitationQueries};
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let audience_id = body
         .get("audienceId")
@@ -196,6 +199,13 @@ pub async fn invite_project_reader_handler(
         .get("email")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("email is required".to_string()))?;
+
+    let aud = AudienceQueries::get_by_id(&state.biz_context.pool, audience_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
+    if aud.project_id != project_id {
+        return Err(AppError::NotFound("Audience not found".to_string()));
+    }
 
     let token = format!(
         "nblrinv_{}",
@@ -229,15 +239,22 @@ pub async fn revoke_project_reader_handler(
     Path((project_id, reader_id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
-    use cms_db::reader_access::ReaderAudienceQueries;
+    use cms_db::reader_access::{AudienceQueries, ReaderAudienceQueries};
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let audience_id = body
         .get("audienceId")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("audienceId is required".to_string()))?;
+
+    let aud = AudienceQueries::get_by_id(&state.biz_context.pool, audience_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Audience not found".to_string()))?;
+    if aud.project_id != project_id {
+        return Err(AppError::NotFound("Audience not found".to_string()));
+    }
+
     let _ = ReaderAudienceQueries::delete(&state.biz_context.pool, &reader_id, audience_id).await;
 
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
@@ -255,8 +272,7 @@ pub async fn configure_reader_jwt_handler(
 ) -> Result<Json<ApiResponse<ProjectJwtProviderItem>>, AppError> {
     use cms_db::reader_access::JwtAccessProviderQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let issuer = body
         .get("issuer")
@@ -307,8 +323,7 @@ pub async fn test_reader_jwt_handler(
 ) -> Result<Json<ApiResponse<ProjectJwtTestResponse>>, AppError> {
     use cms_db::reader_access::JwtAccessProviderQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
     let provider = JwtAccessProviderQueries::get_by_issuer_and_audience(
         &state.biz_context.pool,
@@ -333,8 +348,7 @@ pub async fn emergency_revoke_reader_handler(
 ) -> Result<Json<ApiResponse<ProjectReaderEmergencyRevokeResponse>>, AppError> {
     use cms_db::reader_access::JwtAccessProviderQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let provider = JwtAccessProviderQueries::get_by_issuer_and_audience(
         &state.biz_context.pool,

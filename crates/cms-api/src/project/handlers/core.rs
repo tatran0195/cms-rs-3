@@ -183,6 +183,14 @@ pub async fn update_project_handler(
     Path(project_id): Path<ProjectId>,
     ValidatedJson(request): ValidatedJson<UpdateProjectRequest>,
 ) -> Result<Json<ApiResponse<ProjectResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::Relation::Admin,
+    )
+    .await?;
+
     let project =
         ProjectService::update_project(&state.biz_context, &auth.user.id, &project_id, request)
             .await?;
@@ -215,6 +223,14 @@ pub async fn delete_project_handler(
     auth: AuthExtractor,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<ApiResponse<DeleteProjectResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::Relation::Owner,
+    )
+    .await?;
+
     ProjectService::delete_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteProjectResponse::new(
@@ -247,6 +263,14 @@ pub async fn get_project_settings_handler(
     auth: AuthExtractor,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<ApiResponse<ProjectSettings>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let settings =
         ProjectService::get_project_settings(&state.biz_context, &auth.user.id, &project_id)
             .await?;
@@ -282,6 +306,14 @@ pub async fn update_project_settings_handler(
     Path(project_id): Path<ProjectId>,
     Json(request): Json<UpdateProjectSettingsRequest>,
 ) -> Result<Json<ApiResponse<ProjectSettings>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::Relation::Admin,
+    )
+    .await?;
+
     let settings = ProjectService::update_project_settings(
         &state.biz_context,
         &auth.user.id,
@@ -318,6 +350,14 @@ pub async fn list_project_addons_handler(
     auth: AuthExtractor,
     Path(project_id): Path<ProjectId>,
 ) -> Result<Json<ApiResponse<Vec<ProjectAddonResponse>>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        project_id.as_str(),
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let addons =
         ProjectService::list_project_addons(&state.biz_context, &auth.user.id, &project_id).await?;
 

@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::openapi::OpenApiService;
 use cms_entity::{
     common::{Id, PaginatedResponse},
@@ -18,6 +20,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -50,7 +53,19 @@ pub async fn list_openapi_documents_handler(
     auth: AuthExtractor,
     Query(query): Query<ListOpenApiDocumentsQuery>,
 ) -> Result<Json<PaginatedResponse<OpenApiDocumentResponse>>, AppError> {
-    let project_id = query.project_id.as_deref().unwrap_or("");
+    let project_id = query.project_id.as_deref().ok_or_else(|| {
+        AppError::BadRequest("project_id query parameter is required".to_string())
+    })?;
+    let project_uuid = Uuid::parse_str(project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let documents =
         OpenApiService::list_documents(&state.biz_context, &auth.user.id, project_id).await?;
     let total = documents.len() as u64;
@@ -83,6 +98,16 @@ pub async fn create_openapi_document_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateOpenApiDocumentRequest>,
 ) -> Result<Json<OpenApiDocumentResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let document =
         OpenApiService::create_document(&state.biz_context, &auth.user.id, request).await?;
 
@@ -115,6 +140,17 @@ pub async fn get_openapi_document_handler(
     auth: AuthExtractor,
     Path(document_id): Path<Id>,
 ) -> Result<Json<OpenApiDocumentResponse>, AppError> {
+    let doc_uuid = Uuid::parse_str(&document_id)
+        .map_err(|_| AppError::NotFound("OpenAPI document not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::OpenApiDocument(doc_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let document =
         OpenApiService::get_document(&state.biz_context, &auth.user.id, &document_id).await?;
 
@@ -151,6 +187,17 @@ pub async fn update_openapi_document_handler(
     Path(document_id): Path<Id>,
     Json(request): Json<UpdateOpenApiDocumentRequest>,
 ) -> Result<Json<OpenApiDocumentResponse>, AppError> {
+    let doc_uuid = Uuid::parse_str(&document_id)
+        .map_err(|_| AppError::NotFound("OpenAPI document not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::OpenApiDocument(doc_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let document =
         OpenApiService::update_document(&state.biz_context, &auth.user.id, &document_id, request)
             .await?;
@@ -185,6 +232,17 @@ pub async fn delete_openapi_document_handler(
     auth: AuthExtractor,
     Path(document_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let doc_uuid = Uuid::parse_str(&document_id)
+        .map_err(|_| AppError::NotFound("OpenAPI document not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::OpenApiDocument(doc_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     OpenApiService::delete_document(&state.biz_context, &auth.user.id, &document_id).await?;
 
     Ok(Json(
@@ -218,9 +276,20 @@ pub async fn delete_openapi_document_handler(
 pub async fn parse_openapi_document_handler(
     State(state): State<Arc<AppState>>,
     auth: AuthExtractor,
-    Path(_document_id): Path<Id>,
+    Path(document_id): Path<Id>,
     Json(request): Json<ParseOpenApiDocumentRequest>,
 ) -> Result<Json<OpenApiParsingResult>, AppError> {
+    let doc_uuid = Uuid::parse_str(&document_id)
+        .map_err(|_| AppError::NotFound("OpenAPI document not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::OpenApiDocument(doc_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let result = OpenApiService::parse_document(&state.biz_context, &auth.user.id, request).await?;
 
     Ok(Json(result))
@@ -252,6 +321,17 @@ pub async fn get_openapi_content_handler(
     auth: AuthExtractor,
     Path(document_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let doc_uuid = Uuid::parse_str(&document_id)
+        .map_err(|_| AppError::NotFound("OpenAPI document not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::OpenApiDocument(doc_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let content =
         OpenApiService::get_document_content(&state.biz_context, &auth.user.id, &document_id)
             .await?;

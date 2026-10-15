@@ -50,6 +50,25 @@ pub async fn list_mcp_audit_events_handler(
     auth: AuthExtractor,
     Query(query): Query<ListMcpAuditEventsQuery>,
 ) -> Result<Json<PaginatedResponse<McpAuditEventResponse>>, AppError> {
+    if let Some(ref pid) = query.project_id {
+        let project_uuid = uuid::Uuid::parse_str(pid)
+            .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+        cms_authz_gate::require_project_access(
+            state.authz_backend(),
+            &auth.authz_context(),
+            project_uuid,
+            cms_authz::Relation::Viewer,
+        )
+        .await?;
+    } else {
+        cms_authz_gate::require_system_admin(
+            state.authz_backend(),
+            &auth.authz_context(),
+            &state.biz_context.pool,
+        )
+        .await?;
+    }
+
     let result = McpService::list_audit_events(
         &state.biz_context,
         &auth.user.id,

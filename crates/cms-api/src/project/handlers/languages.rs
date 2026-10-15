@@ -22,7 +22,16 @@ pub async fn list_project_languages_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<LanguageResponse>>>, AppError> {
-    let query = ListLanguagesQuery { project_id };
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+    let query = ListLanguagesQuery {
+        project_id: project_id.clone(),
+    };
     let result = cms_biz::language::LanguageService::list_languages(
         &state.biz_context,
         &auth.user.id,

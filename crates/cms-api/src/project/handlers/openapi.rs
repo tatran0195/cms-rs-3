@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
 use cms_entity::{
     common::{ApiResponse, SuccessResponse},
     openapi::{OpenApiDocument, ProjectOpenApiConfigurationResponse, ProjectOpenApiSourceResponse},
@@ -41,8 +42,7 @@ pub async fn get_project_openapi_handler(
 ) -> Result<Json<ApiResponse<Option<ProjectOpenApiConfigurationResponse>>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
     let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
     Ok(Json(ApiResponse::new(
@@ -63,8 +63,7 @@ pub async fn save_project_openapi_handler(
 ) -> Result<Json<ApiResponse<ProjectOpenApiConfigurationResponse>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Editor).await?;
 
     let title = body
         .get("title")
@@ -125,8 +124,7 @@ pub async fn sync_project_openapi_handler(
 ) -> Result<Json<ApiResponse<Option<ProjectOpenApiConfigurationResponse>>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Editor).await?;
 
     let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
     Ok(Json(ApiResponse::new(
@@ -144,8 +142,7 @@ pub async fn delete_project_openapi_handler(
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     use cms_db::openapi::OpenApiDocumentQueries;
 
-    cms_biz::project::ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id)
-        .await?;
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Editor).await?;
 
     let docs = OpenApiDocumentQueries::get_by_project(&state.biz_context.pool, &project_id).await?;
     for d in &docs {

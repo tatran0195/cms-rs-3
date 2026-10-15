@@ -48,6 +48,16 @@ pub async fn list_deployments_handler(
     Query(query): Query<ListDeploymentsQuery>,
 ) -> Result<Json<PaginatedResponse<DeploymentResponse>>, AppError> {
     let project_id = query.project_id.as_deref().unwrap_or("");
+    let project_uuid = uuid::Uuid::parse_str(project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let limit = query.limit.unwrap_or(20) as u64;
     let offset = query.offset.unwrap_or(0) as u64;
     let page = offset.checked_div(limit).unwrap_or(0).saturating_add(1);
@@ -150,6 +160,17 @@ pub async fn get_deployment_handler(
     auth: AuthExtractor,
     Path(deployment_id): Path<Id>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
+    let dep_uuid = uuid::Uuid::parse_str(&deployment_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    cms_authz_gate::require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        cms_authz_gate::ParentLink::Deployment(dep_uuid),
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let deployment =
         DeploymentService::get_deployment(&state.biz_context, &auth.user.id, &deployment_id)
             .await?;
@@ -183,6 +204,17 @@ pub async fn get_deployment_logs_handler(
     auth: AuthExtractor,
     Path(deployment_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let dep_uuid = uuid::Uuid::parse_str(&deployment_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    cms_authz_gate::require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        cms_authz_gate::ParentLink::Deployment(dep_uuid),
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let logs =
         DeploymentService::get_deployment_logs(&state.biz_context, &auth.user.id, &deployment_id)
             .await?;
@@ -217,6 +249,17 @@ pub async fn retry_deployment_handler(
     auth: AuthExtractor,
     Path(deployment_id): Path<Id>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
+    let dep_uuid = uuid::Uuid::parse_str(&deployment_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    cms_authz_gate::require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        cms_authz_gate::ParentLink::Deployment(dep_uuid),
+        cms_authz::Relation::Editor,
+    )
+    .await?;
+
     let deployment =
         DeploymentService::retry_deployment(&state.biz_context, &auth.user.id, &deployment_id)
             .await?;
@@ -252,6 +295,17 @@ pub async fn cancel_deployment_handler(
     auth: AuthExtractor,
     Path(deployment_id): Path<Id>,
 ) -> Result<Json<DeploymentResponse>, AppError> {
+    let dep_uuid = uuid::Uuid::parse_str(&deployment_id)
+        .map_err(|_| AppError::NotFound("Deployment not found".to_string()))?;
+    cms_authz_gate::require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        cms_authz_gate::ParentLink::Deployment(dep_uuid),
+        cms_authz::Relation::Editor,
+    )
+    .await?;
+
     let deployment =
         DeploymentService::cancel_deployment(&state.biz_context, &auth.user.id, &deployment_id)
             .await?;

@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::git::GitService;
 use cms_entity::{
     common::{Id, PaginatedResponse},
@@ -18,6 +20,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -46,6 +49,16 @@ pub async fn create_git_connection_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateGitConnectionRequest>,
 ) -> Result<Json<GitConnectionResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let project_id = request.project_id.clone();
     let connection =
         GitService::create_connection(&state.biz_context, &auth.user.id, &project_id, request)
@@ -80,6 +93,17 @@ pub async fn get_git_connection_handler(
     auth: AuthExtractor,
     Path(connection_id): Path<Id>,
 ) -> Result<Json<GitConnectionResponse>, AppError> {
+    let conn_uuid = Uuid::parse_str(&connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let connection = GitService::get_connection(&state.biz_context, &auth.user.id, &connection_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Git connection not found".to_string()))?;
@@ -113,6 +137,16 @@ pub async fn list_git_connections_handler(
     auth: AuthExtractor,
     Path(project_id): Path<Id>,
 ) -> Result<Json<Vec<GitConnectionResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let connections =
         GitService::list_connections(&state.biz_context, &auth.user.id, &project_id).await?;
 
@@ -149,6 +183,17 @@ pub async fn update_git_connection_handler(
     Path(connection_id): Path<Id>,
     Json(request): Json<UpdateGitConnectionRequest>,
 ) -> Result<Json<GitConnectionResponse>, AppError> {
+    let conn_uuid = Uuid::parse_str(&connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     let connection =
         GitService::update_connection(&state.biz_context, &auth.user.id, &connection_id, request)
             .await?;
@@ -183,6 +228,17 @@ pub async fn delete_git_connection_handler(
     auth: AuthExtractor,
     Path(connection_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let conn_uuid = Uuid::parse_str(&connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     GitService::delete_connection(&state.biz_context, &auth.user.id, &connection_id).await?;
 
     Ok(Json(
@@ -217,6 +273,17 @@ pub async fn trigger_git_sync_handler(
     auth: AuthExtractor,
     Path(connection_id): Path<Id>,
 ) -> Result<Json<GitSyncOperationResponse>, AppError> {
+    let conn_uuid = Uuid::parse_str(&connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let operation = GitService::trigger_sync(
         &state.biz_context,
         &auth.user.id,
@@ -268,6 +335,17 @@ pub async fn list_git_sync_operations_handler(
     Path(connection_id): Path<Id>,
     Query(query): Query<ListGitSyncOperationsQuery>,
 ) -> Result<Json<PaginatedResponse<GitSyncOperationResponse>>, AppError> {
+    let conn_uuid = Uuid::parse_str(&connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
@@ -309,6 +387,20 @@ pub async fn get_git_sync_operation_handler(
     auth: AuthExtractor,
     Path(operation_id): Path<Id>,
 ) -> Result<Json<GitSyncOperationResponse>, AppError> {
+    let op = cms_db::git::GitSyncOperationQueries::get_by_id(&state.biz_context.pool, &operation_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Git sync operation not found".to_string()))?;
+    let conn_uuid = Uuid::parse_str(&op.connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let operation =
         GitService::get_sync_operation(&state.biz_context, &auth.user.id, &operation_id).await?;
 
@@ -341,6 +433,17 @@ pub async fn get_git_sync_status_handler(
     auth: AuthExtractor,
     Path(connection_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let conn_uuid = Uuid::parse_str(&connection_id)
+        .map_err(|_| AppError::NotFound("Git connection not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::GitConnection(conn_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let status =
         GitService::get_sync_status(&state.biz_context, &auth.user.id, &connection_id).await?;
 

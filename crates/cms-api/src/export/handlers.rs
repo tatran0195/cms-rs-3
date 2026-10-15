@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::export::ExportService;
 use cms_entity::{
     common::{Id, PaginatedResponse},
@@ -18,6 +20,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -51,7 +54,22 @@ pub async fn list_export_jobs_handler(
     auth: AuthExtractor,
     Query(query): Query<ListExportJobsQuery>,
 ) -> Result<Json<PaginatedResponse<ExportJobResponse>>, AppError> {
-    let snapshot_id = query.snapshot_id.as_deref().unwrap_or("");
+    let snapshot_id = query.snapshot_id.as_deref().ok_or_else(|| {
+        AppError::BadRequest("snapshot_id query parameter is required".to_string())
+    })?;
+    let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(&state.biz_context.pool, snapshot_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
+    let project_uuid = Uuid::parse_str(&snapshot.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
@@ -97,6 +115,22 @@ pub async fn create_export_job_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateExportJobRequest>,
 ) -> Result<Json<ExportJobResponse>, AppError> {
+    let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(
+        &state.biz_context.pool,
+        &request.snapshot_id,
+    )
+    .await?
+    .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
+    let project_uuid = Uuid::parse_str(&snapshot.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let job = ExportService::create_export_job(
         &state.biz_context,
         &auth.user.id,
@@ -144,6 +178,17 @@ pub async fn get_export_job_handler(
     auth: AuthExtractor,
     Path(job_id): Path<Id>,
 ) -> Result<Json<ExportJobResponse>, AppError> {
+    let job_uuid = Uuid::parse_str(&job_id)
+        .map_err(|_| AppError::NotFound("Export job not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::ExportJob(job_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let job = ExportService::get_export_job(&state.biz_context, &auth.user.id, &job_id).await?;
 
     Ok(Json(job.into()))
@@ -175,6 +220,17 @@ pub async fn download_export_handler(
     auth: AuthExtractor,
     Path(job_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let job_uuid = Uuid::parse_str(&job_id)
+        .map_err(|_| AppError::NotFound("Export job not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::ExportJob(job_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let download_url =
         ExportService::get_download_url(&state.biz_context, &auth.user.id, &job_id).await?;
 
@@ -207,6 +263,16 @@ pub async fn list_export_schedules_handler(
     auth: AuthExtractor,
     Path(project_id): Path<Id>,
 ) -> Result<Json<Vec<ExportScheduleResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let schedules =
         ExportService::list_export_schedules(&state.biz_context, &auth.user.id, &project_id)
             .await?;
@@ -243,6 +309,16 @@ pub async fn create_export_schedule_handler(
     Path(project_id): Path<Id>,
     Json(request): Json<CreateExportScheduleRequest>,
 ) -> Result<Json<ExportScheduleResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let schedule = ExportService::create_export_schedule(
         &state.biz_context,
         &auth.user.id,
@@ -288,6 +364,17 @@ pub async fn update_export_schedule_handler(
     Path(schedule_id): Path<Id>,
     Json(request): Json<UpdateExportScheduleRequest>,
 ) -> Result<Json<ExportScheduleResponse>, AppError> {
+    let sched_uuid = Uuid::parse_str(&schedule_id)
+        .map_err(|_| AppError::NotFound("Export schedule not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::ExportSchedule(sched_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let schedule = ExportService::update_export_schedule(
         &state.biz_context,
         &auth.user.id,
@@ -326,6 +413,17 @@ pub async fn delete_export_schedule_handler(
     auth: AuthExtractor,
     Path(schedule_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let sched_uuid = Uuid::parse_str(&schedule_id)
+        .map_err(|_| AppError::NotFound("Export schedule not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::ExportSchedule(sched_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     ExportService::delete_export_schedule(&state.biz_context, &auth.user.id, &schedule_id).await?;
 
     Ok(Json(

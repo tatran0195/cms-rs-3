@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
 use cms_entity::{
     common::ApiResponse,
     project::ProjectAddonResponse,
@@ -23,6 +24,8 @@ pub async fn get_project_theme_template_handler(
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<Option<ProjectThemeTemplateResponse>>>, AppError> {
     use cms_biz::theme::ThemeService;
+
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
     let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, &project_id).await?;
     let theme = themes.first();
@@ -61,6 +64,8 @@ pub async fn get_project_theme_repository_handler(
     Path(project_id): Path<String>,
 ) -> Result<impl axum::response::IntoResponse, AppError> {
     use cms_biz::theme::ThemeService;
+
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Viewer).await?;
 
     let themes = ThemeService::list_themes(&state.biz_context, &auth.user.id, &project_id).await?;
     let theme = themes.first();
@@ -101,6 +106,8 @@ pub async fn import_project_theme_template_handler(
 ) -> Result<Json<ApiResponse<ImportProjectThemeTemplateResponse>>, AppError> {
     use cms_biz::theme::ThemeService;
     use cms_entity::theme::CreateThemeRequest;
+
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
 
     let template = body
         .get("template")
@@ -175,6 +182,8 @@ pub async fn update_project_addon_handler(
 ) -> Result<Json<ApiResponse<ProjectAddonResponse>>, AppError> {
     use cms_biz::project::ProjectService;
 
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
+
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
         &auth.user.id,
@@ -194,6 +203,9 @@ pub async fn activate_project_addon_handler(
     Path((project_id, addon_id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<ProjectAddonResponse>>, AppError> {
     use cms_biz::project::ProjectService;
+
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
+
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
         &auth.user.id,
@@ -213,6 +225,9 @@ pub async fn deactivate_project_addon_handler(
     Path((project_id, addon_id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<ProjectAddonResponse>>, AppError> {
     use cms_biz::project::ProjectService;
+
+    super::common::authorize_project(&state, &auth, &project_id, Relation::Admin).await?;
+
     let addon = ProjectService::update_project_addon(
         &state.biz_context,
         &auth.user.id,

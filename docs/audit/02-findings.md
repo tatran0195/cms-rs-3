@@ -255,3 +255,102 @@ All findings are classified according to the mandatory Operating Rules, backed b
 * **Testing:** Verified `cargo check --workspace --all-targets` and crate test suites run without OS Error 1455.
 * **Migration or compatibility risks:** None.
 * **Effort:** S.
+
+---
+
+### [SEC-05] Missing Authorization Gates Across Project Subroutes
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`
+  - Modules: `cms_api::project::handlers` (`analytics`, `assets`, `branches`, `core`, `git`, `languages`, `openapi`, `reader_access`, `themes_addons`)
+  - Endpoints: All project-scoped subroutes (`/api/projects/:id/languages`, `/branches`, `/assets`, `/openapi`, `/git/*`, `/reader-access/*`, `/themes`, `/addons/*`)
+* **Evidence:**
+  - Handlers extracted `Path(project_id)` and called backend business services without invoking `authorize_project` or checking `AuthExtractor` claims.
+  - Business services discarded `_user_id` and performed direct database operations.
+* **Observed behavior:** Any authenticated user could list, create, update, or delete branches, languages, assets, OpenAPI schemas, Git configurations, reader access audiences, and project addons across any project.
+* **Impact:** Cross-tenant privilege escalation and complete unauthorized project manipulation.
+* **Root cause:** Authorization checks were only present on a subset of project subroutes while newly migrated subroutes relied on business services that ignored identity.
+* **Remediation implemented:**
+  1. Gated all read/list operations with `authorize_project(state.authz_backend(), &auth.authz_context(), project_id, Relation::Viewer)`.
+  2. Gated mutation operations (branch create/delete, asset upload, OpenAPI sync, Git conflict resolution) with `Relation::Editor`.
+  3. Gated administrative settings, Git connections, reader audience access, JWT configuration, and addons with `Relation::Admin`.
+  4. Gated project deletion with `Relation::Owner`.
+* **Testing:** Verified via `cargo check --workspace --all-targets` and `cargo clippy --workspace --all-targets -j 2 -- -D warnings`.
+* **Effort:** M.
+
+---
+
+### [SEC-06] Broken Object-Level Authorization (BOLA/IDOR) on Standalone Domain Routers
+
+* **Classification:** Confirmed security issue
+* **Severity:** Critical
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`, `cms-authz-gate`
+  - Modules: `cms_api` (`language`, `deployment`, `domain`, `asset`, `export`, `git`, `openapi`, `theme`, `reader_access`)
+  - Endpoints: Standalone routes (`/api/languages/*`, `/api/deployments/*`, `/api/domains/*`, `/api/assets/*`, `/api/export/*`, `/api/git/*`, `/api/openapi/*`, `/api/themes/*`, `/api/reader-access/*`)
+* **Evidence:**
+  - Standalone convenience handlers took direct entity UUIDs and queried `cms-db` without validating project parentage or user permissions.
+  - Unscoped list endpoints returned records across all projects and tenants when optional filter queries were omitted.
+* **Observed behavior:** An attacker could read, mutate, or delete arbitrary domains, deployments, export jobs, git connections, OpenAPI docs, themes, and audiences across the workspace by guessing or enumerating entity UUIDs.
+* **Impact:** Critical BOLA/IDOR and cross-tenant data leakage.
+* **Root cause:** Domain services operated without tenant context; standalone endpoints were not connected to the parent project ReBAC authorization tree.
+* **Remediation implemented:**
+  1. Extended `ParentLink` in `cms-authz-gate` to include single-hop SQL resolution variants for `Language`, `Domain`, `Asset`, `GitConnection`, `OpenApiDocument`, `Theme`, `Audience`, `ExportJob`, and `ExportSchedule`.
+  2. Gated all standalone handlers using `cms_authz_gate::require_parent_access` (or `require_project_access` for scoped lists) with consistent `(state.authz_backend(), &auth.authz_context(), &state.biz_context.pool, link, relation)` parameter order.
+  3. Enforced required project/parent IDs on collection list endpoints, eliminating unscoped cross-tenant data dumping.
+* **Testing:** Verified via `cargo check --workspace --all-targets` and `cargo test -p cms-authz-gate -j 2`.
+* **Effort:** L.
+
+---
+
+### [SEC-07] Cross-Tenant Information Disclosure on Platform Events, Telemetry, and MCP Audit Events
+
+* **Classification:** Confirmed security issue
+* **Severity:** High
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`, `cms-biz`
+  - Modules: `cms_api::platform_event`, `cms_api::analytics`, `cms_api::mcp`
+  - Endpoints: `GET /api/platform-events`, `GET /api/platform-events/:id`, `GET /api/analytics/events`, `POST /api/analytics/query`, `GET /api/analytics/dashboard/:id`, `GET /api/analytics/page-views/:id`, `GET /api/mcp/audit-events`
+* **Evidence:**
+  - `PlatformEventQueries::list` was called with `None` user ID, exposing all platform funnel and telemetry events.
+  - `AnalyticsService::query_events` and `McpService::list_audit_events` allowed arbitrary queries across all projects when `project_id` was not supplied.
+* **Observed behavior:** Any authenticated user could dump company-wide user activity, MCP audit operations, and funnel conversions.
+* **Impact:** High confidentiality breach of operational analytics and internal AI audit trails.
+* **Root cause:** Missing permission check determining whether the caller is a system administrator before allowing unscoped cross-project queries.
+* **Remediation implemented:**
+  1. Introduced `cms_authz_gate::require_system_admin` checking explicit `User.role = 'admin'` or ReBAC workspace Admin authority.
+  2. Guarded platform events with `require_system_admin`.
+  3. Scoped analytics events, custom queries, dashboards, page views, and MCP audit events: requiring `Relation::Viewer` on target projects when specified, and `require_system_admin` for global/cross-project aggregations.
+* **Testing:** Verified via `cargo check --workspace --all-targets` and `cargo clippy --workspace --all-targets -j 2 -- -D warnings`.
+* **Effort:** M.
+
+---
+
+### [SEC-08] Unscoped Search Reindexing and Run Inspection
+
+* **Classification:** Confirmed security issue
+* **Severity:** Medium
+* **Confidence:** High
+* **Status:** Remediated
+* **Affected components:**
+  - Crates: `cms-api`, `cms-biz`
+  - Modules: `cms_api::search::handlers`
+  - Endpoints: `GET /api/search`, `POST /api/search/reindex`, `GET /api/search/index-runs`, `GET /api/search/index-runs/:id`, `GET /api/search/status/:project_id`
+* **Evidence:**
+  - Search handlers took user parameters but did not verify ReBAC viewer or admin relations on the target `project_id`.
+* **Observed behavior:** Users could trigger reindexing on projects they do not manage or view indexing histories of private projects.
+* **Impact:** Unauthorized resource utilization and project discovery.
+* **Root cause:** Authorization checks were completely omitted from search handlers.
+* **Remediation implemented:**
+  1. Enforced `require_project_access(..., Relation::Viewer)` on `search`, `list_search_index_runs`, `get_search_index_run`, and `get_search_status`.
+  2. Enforced `require_project_access(..., Relation::Admin)` on `reindex`.
+* **Testing:** Verified via unit tests and workspace clippy check.
+* **Effort:** S.

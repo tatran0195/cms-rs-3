@@ -4,6 +4,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
 use cms_entity::{
     common::{ApiResponse, SuccessResponse},
     git::{GitConflict, ProjectGitWorkflowStatus},
@@ -29,10 +30,11 @@ pub async fn get_project_git_status_handler(
         GitPullRequestQueries, GitSyncOperationQueries,
     };
 
-    let proj = cms_biz::project::ProjectService::get_project(
-        &state.biz_context,
-        &auth.user.id,
+    let proj = super::common::authorize_project(
+        &state,
+        &auth,
         &project_id,
+        Relation::Viewer,
     )
     .await?;
 
@@ -203,15 +205,22 @@ pub async fn action_project_git_handler(
         CreateGitConnectionRequest, GitSyncOperationType, UpdateGitConnectionRequest,
     };
 
-    let proj = cms_biz::project::ProjectService::get_project(
-        &state.biz_context,
-        &auth.user.id,
-        &project_id,
-    )
-    .await?;
-
     // Determine operation by presence of body fields.
     let is_upsert = body.get("repository").is_some() || body.get("branch").is_some();
+    let is_trigger_sync = body.get("connectionId").is_some();
+    let relation = if is_trigger_sync {
+        Relation::Editor
+    } else {
+        Relation::Admin
+    };
+
+    let proj = super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        relation,
+    )
+    .await?;
 
     if is_upsert {
         let repository = body
@@ -377,10 +386,11 @@ pub async fn delete_project_git_connection_handler(
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
     use cms_biz::git::GitService;
 
-    let proj = cms_biz::project::ProjectService::get_project(
-        &state.biz_context,
-        &auth.user.id,
+    let proj = super::common::authorize_project(
+        &state,
+        &auth,
         &project_id,
+        Relation::Admin,
     )
     .await?;
 
@@ -418,6 +428,14 @@ pub async fn resolve_project_git_conflict_handler(
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<GitConflict>>, AppError> {
     use cms_biz::git::GitService;
+
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        Relation::Editor,
+    )
+    .await?;
 
     let resolved = body
         .get("content")

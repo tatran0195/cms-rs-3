@@ -8,6 +8,8 @@ use axum::{
     extract::{Multipart, Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::asset::AssetService;
 use cms_entity::{
     asset::{
@@ -17,6 +19,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -49,7 +52,19 @@ pub async fn list_assets_handler(
     auth: AuthExtractor,
     Query(query): Query<ListAssetsQuery>,
 ) -> Result<Json<PaginatedResponse<AssetResponse>>, AppError> {
-    let project_id = query.project_id.as_deref().unwrap_or("");
+    let project_id = query.project_id.as_deref().ok_or_else(|| {
+        AppError::BadRequest("project_id query parameter is required".to_string())
+    })?;
+    let project_uuid = Uuid::parse_str(project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
     let page = (offset / page_size) + 1;
@@ -90,6 +105,16 @@ pub async fn upload_asset_handler(
     auth: AuthExtractor,
     Json(request): Json<UploadAssetRequest>,
 ) -> Result<Json<AssetResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let asset = AssetService::create_asset(
         &state.biz_context,
         &auth.user.id,
@@ -132,6 +157,16 @@ pub async fn upload_asset_multipart_handler(
     Path(project_id): Path<String>,
     mut multipart: Multipart,
 ) -> Result<Json<AssetResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let mut file_name = None;
     let mut content_type = None;
     let mut file_data = Vec::new();
@@ -196,6 +231,17 @@ pub async fn get_asset_handler(
     auth: AuthExtractor,
     Path(asset_id): Path<Id>,
 ) -> Result<Json<AssetResponse>, AppError> {
+    let asset_uuid = Uuid::parse_str(&asset_id)
+        .map_err(|_| AppError::NotFound("Asset not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Asset(asset_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let asset = AssetService::get_asset(&state.biz_context, &auth.user.id, &asset_id).await?;
 
     Ok(Json(asset))
@@ -231,6 +277,17 @@ pub async fn update_asset_handler(
     Path(asset_id): Path<Id>,
     Json(request): Json<UpdateAssetRequest>,
 ) -> Result<Json<AssetResponse>, AppError> {
+    let asset_uuid = Uuid::parse_str(&asset_id)
+        .map_err(|_| AppError::NotFound("Asset not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Asset(asset_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let asset = AssetService::update_asset(
         &state.biz_context,
         &auth.user.id,
@@ -269,6 +326,17 @@ pub async fn delete_asset_handler(
     auth: AuthExtractor,
     Path(asset_id): Path<Id>,
 ) -> Result<Json<DeleteAssetResponse>, AppError> {
+    let asset_uuid = Uuid::parse_str(&asset_id)
+        .map_err(|_| AppError::NotFound("Asset not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Asset(asset_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let _ = AssetService::delete_asset(
         &state.biz_context,
         &auth.user.id,

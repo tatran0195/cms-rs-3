@@ -75,6 +75,25 @@ pub async fn list_analytics_events_handler(
     auth: AuthExtractor,
     Query(query): Query<ListAnalyticsEventsQuery>,
 ) -> Result<Json<PaginatedResponse<AnalyticsEventResponse>>, AppError> {
+    if let Some(ref pid) = query.project_id {
+        let project_uuid = uuid::Uuid::parse_str(pid)
+            .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+        cms_authz_gate::require_project_access(
+            state.authz_backend(),
+            &auth.authz_context(),
+            project_uuid,
+            cms_authz::Relation::Viewer,
+        )
+        .await?;
+    } else {
+        cms_authz_gate::require_system_admin(
+            state.authz_backend(),
+            &auth.authz_context(),
+            &state.biz_context.pool,
+        )
+        .await?;
+    }
+
     let result = AnalyticsService::list_events(&state.biz_context, &auth.user.id, query).await?;
 
     Ok(Json(result))
@@ -104,6 +123,25 @@ pub async fn query_analytics_handler(
     auth: AuthExtractor,
     Json(request): Json<AnalyticsQueryRequest>,
 ) -> Result<Json<AnalyticsQueryResponse>, AppError> {
+    if let Some(ref pid) = request.project_id {
+        let project_uuid = uuid::Uuid::parse_str(pid)
+            .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+        cms_authz_gate::require_project_access(
+            state.authz_backend(),
+            &auth.authz_context(),
+            project_uuid,
+            cms_authz::Relation::Viewer,
+        )
+        .await?;
+    } else {
+        cms_authz_gate::require_system_admin(
+            state.authz_backend(),
+            &auth.authz_context(),
+            &state.biz_context.pool,
+        )
+        .await?;
+    }
+
     let result =
         AnalyticsService::query_analytics(&state.biz_context, &auth.user.id, request).await?;
 
@@ -136,6 +174,16 @@ pub async fn get_analytics_dashboard_handler(
     auth: AuthExtractor,
     Path(project_id): Path<Id>,
 ) -> Result<Json<AnalyticsDashboardResponse>, AppError> {
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let dashboard =
         AnalyticsService::get_dashboard(&state.biz_context, &auth.user.id, &project_id).await?;
 
@@ -168,6 +216,17 @@ pub async fn get_page_views_handler(
     auth: AuthExtractor,
     Path(page_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let page_uuid = uuid::Uuid::parse_str(&page_id)
+        .map_err(|_| AppError::InvalidInput("Invalid page_id".to_string()))?;
+    cms_authz_gate::require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        cms_authz_gate::ParentLink::Page(page_uuid),
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let views =
         AnalyticsService::get_page_views(&state.biz_context, &auth.user.id, &page_id).await?;
 

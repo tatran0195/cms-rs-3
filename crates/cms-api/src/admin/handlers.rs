@@ -12,17 +12,10 @@ use cms_middleware::app_state::AppState;
 use crate::auth::AuthExtractor;
 
 async fn require_system_admin(state: &AppState, auth: &AuthExtractor) -> Result<(), AppError> {
-    if cms_db::auth::UserQueries::is_system_admin(&state.biz_context.pool, &auth.user.id)
-        .await
-        .unwrap_or(false)
-    {
-        return Ok(());
-    }
-
-    cms_authz_gate::require_workspace_access(
+    cms_authz_gate::require_system_admin(
         state.authz_backend(),
         &auth.authz_context(),
-        cms_authz::Relation::Admin,
+        &state.biz_context.pool,
     )
     .await
 }

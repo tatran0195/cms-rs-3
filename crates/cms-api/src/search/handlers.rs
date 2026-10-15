@@ -48,9 +48,19 @@ use crate::auth::AuthExtractor;
 )]
 pub async fn search_handler(
     State(state): State<Arc<AppState>>,
-    _auth: AuthExtractor,
+    auth: AuthExtractor,
     Query(request): Query<SearchRequest>,
 ) -> Result<Json<SearchResponse>, AppError> {
+    let project_uuid = uuid::Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let project_id = request.project_id.clone();
     let result = SearchService::search(
         &state.biz_context,
@@ -88,6 +98,16 @@ pub async fn reindex_handler(
     auth: AuthExtractor,
     Json(request): Json<ReindexRequest>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
+    let project_uuid = uuid::Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Admin,
+    )
+    .await?;
+
     SearchService::reindex(
         &state.biz_context,
         state.search_engine.clone(),
@@ -131,6 +151,19 @@ pub async fn list_search_index_runs_handler(
     auth: AuthExtractor,
     Query(query): Query<ListSearchIndexRunsQuery>,
 ) -> Result<Json<PaginatedResponse<SearchIndexRunResponse>>, AppError> {
+    let project_id_str = query.project_id.as_deref().ok_or_else(|| {
+        AppError::InvalidInput("project_id query param is required".to_string())
+    })?;
+    let project_uuid = uuid::Uuid::parse_str(project_id_str)
+        .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let result = SearchService::list_index_runs(&state.biz_context, &auth.user.id, query).await?;
 
     Ok(Json(result))
@@ -163,6 +196,15 @@ pub async fn get_search_index_run_handler(
     Path(run_id): Path<Id>,
 ) -> Result<Json<SearchIndexRunResponse>, AppError> {
     let run = SearchService::get_index_run(&state.biz_context, &auth.user.id, &run_id).await?;
+    let project_uuid = uuid::Uuid::parse_str(&run.project_id)
+        .map_err(|_| AppError::NotFound("Search index run not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
 
     Ok(Json(run))
 }
@@ -193,6 +235,16 @@ pub async fn get_search_status_handler(
     auth: AuthExtractor,
     Path(project_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::InvalidInput("Invalid project_id".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let status =
         SearchService::get_search_status(&state.biz_context, &auth.user.id, &project_id).await?;
 

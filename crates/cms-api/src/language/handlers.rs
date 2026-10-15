@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::language::LanguageService;
 use cms_entity::{
     common::{Id, PaginatedResponse},
@@ -17,6 +19,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -49,6 +52,16 @@ pub async fn list_languages_handler(
     auth: AuthExtractor,
     Query(query): Query<ListLanguagesQuery>,
 ) -> Result<Json<PaginatedResponse<LanguageResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&query.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let result =
         LanguageService::list_languages(&state.biz_context, &auth.user.id, query, 1, 20).await?;
 
@@ -80,6 +93,16 @@ pub async fn create_language_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateLanguageRequest>,
 ) -> Result<Json<LanguageResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let language =
         LanguageService::create_language(&state.biz_context, &auth.user.id, request).await?;
 
@@ -112,6 +135,17 @@ pub async fn get_language_handler(
     auth: AuthExtractor,
     Path(language_id): Path<Id>,
 ) -> Result<Json<LanguageResponse>, AppError> {
+    let lang_uuid = Uuid::parse_str(&language_id)
+        .map_err(|_| AppError::NotFound("Language not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Language(lang_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let language =
         LanguageService::get_language(&state.biz_context, &auth.user.id, &language_id).await?;
 
@@ -148,6 +182,17 @@ pub async fn update_language_handler(
     Path(language_id): Path<Id>,
     Json(request): Json<UpdateLanguageRequest>,
 ) -> Result<Json<LanguageResponse>, AppError> {
+    let lang_uuid = Uuid::parse_str(&language_id)
+        .map_err(|_| AppError::NotFound("Language not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Language(lang_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let language =
         LanguageService::update_language(&state.biz_context, &auth.user.id, &language_id, request)
             .await?;
@@ -182,6 +227,17 @@ pub async fn delete_language_handler(
     auth: AuthExtractor,
     Path(language_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let lang_uuid = Uuid::parse_str(&language_id)
+        .map_err(|_| AppError::NotFound("Language not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Language(lang_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     LanguageService::delete_language(&state.biz_context, &auth.user.id, &language_id).await?;
 
     Ok(Json(
@@ -219,6 +275,16 @@ pub async fn set_default_language_handler(
     Path(_project_id): Path<Id>,
     Json(request): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let project_uuid = Uuid::parse_str(&_project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let language_id: String = serde_json::from_value(
         request
             .get("language_id")

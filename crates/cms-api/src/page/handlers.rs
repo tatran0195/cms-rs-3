@@ -149,9 +149,9 @@ pub async fn get_page_handler(
     let page_uuid = Uuid::parse_str(page_id.as_str())
         .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Page(page_uuid),
         Relation::Viewer,
     )
@@ -195,9 +195,9 @@ pub async fn update_page_handler(
     let page_uuid = Uuid::parse_str(page_id.as_str())
         .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Page(page_uuid),
         Relation::Editor,
     )
@@ -239,9 +239,9 @@ pub async fn delete_page_handler(
     let page_uuid = Uuid::parse_str(page_id.as_str())
         .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Page(page_uuid),
         Relation::Editor,
     )

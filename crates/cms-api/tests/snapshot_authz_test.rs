@@ -79,7 +79,7 @@ async fn test_gatehouse_snapshot_project_and_platform_authorization() -> anyhow:
            VALUES ($1, $2, $3, $4, $5, $5)"#,
     )
     .bind(Uuid::new_v4().to_string())
-    .bind(&other_user_id)
+    .bind(other_user_id)
     .bind(&other_session_token)
     .bind(now + chrono::Duration::hours(2))
     .bind(now)

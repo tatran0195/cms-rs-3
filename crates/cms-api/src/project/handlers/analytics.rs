@@ -27,6 +27,14 @@ pub async fn get_project_analytics_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<ProjectAnalyticsResponse>>, AppError> {
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
+
     let dashboard = cms_biz::analytics::AnalyticsService::get_dashboard(
         &state.biz_context,
         &auth.user.id,
@@ -101,10 +109,13 @@ pub async fn get_project_settings_usage_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<ProjectUsageTelemetryResponse>>, AppError> {
-    use cms_biz::project::ProjectService;
-
-    let _project =
-        ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
+    super::common::authorize_project(
+        &state,
+        &auth,
+        &project_id,
+        cms_authz::Relation::Viewer,
+    )
+    .await?;
 
     let pages = cms_db::page::PageQueries::get_by_project(&state.biz_context.pool, &project_id)
         .await

@@ -21,6 +21,15 @@ pub enum ParentLink {
     Branch(Uuid),
     Deployment(Uuid),
     ApiKey(Uuid),
+    Language(Uuid),
+    Domain(Uuid),
+    Asset(Uuid),
+    GitConnection(Uuid),
+    OpenApiDocument(Uuid),
+    Theme(Uuid),
+    Audience(Uuid),
+    ExportJob(Uuid),
+    ExportSchedule(Uuid),
 }
 
 /// Resolve a child resource to its parent project ID in a single indexed query.
@@ -62,6 +71,87 @@ pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<O
             .await
             .map_err(AppError::Database)?
             .flatten()
+        }
+        ParentLink::Language(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "Language" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::Domain(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT d.project_id::uuid FROM "Domain" dm JOIN "Deployment" d ON dm.deployment_id = d.id WHERE dm.id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::Asset(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "Asset" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::GitConnection(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "GitConnection" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::OpenApiDocument(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "OpenApiDocument" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::Theme(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "Theme" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::Audience(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "Audience" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::ExportJob(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT s.project_id::uuid FROM "ExportJob" j JOIN "ExportSnapshot" s ON j.snapshot_id = s.id WHERE j.id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+        }
+        ParentLink::ExportSchedule(id) => {
+            sqlx::query_scalar::<_, Uuid>(
+                r#"SELECT project_id::uuid FROM "ExportSchedule" WHERE id = $1"#,
+            )
+            .bind(id.to_string())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
         }
     };
 
@@ -109,9 +199,9 @@ pub async fn require_workspace_access(
 /// Gate route on access to a child resource by resolving its parent project and checking access.
 /// Returns the resolved `project_id` on success, or `NotFound` if parent doesn't exist or access is denied.
 pub async fn require_parent_access(
-    pool: &PgPool,
     authz: &dyn AuthzBackend,
     ctx: &AuthzContext,
+    pool: &PgPool,
     link: ParentLink,
     relation: Relation,
 ) -> Result<Uuid, AppError> {
@@ -122,6 +212,22 @@ pub async fn require_parent_access(
     require_project_access(authz, ctx, project_id, relation).await?;
 
     Ok(project_id)
+}
+
+/// Verify that the principal is a system-level administrator (via explicit User role = 'admin' or workspace Admin).
+pub async fn require_system_admin(
+    authz: &dyn AuthzBackend,
+    ctx: &AuthzContext,
+    pool: &PgPool,
+) -> Result<(), AppError> {
+    if cms_db::auth::UserQueries::is_system_admin(pool, &ctx.user_id.to_string())
+        .await
+        .unwrap_or(false)
+    {
+        return Ok(());
+    }
+
+    require_workspace_access(authz, ctx, Relation::Admin).await
 }
 
 #[cfg(test)]

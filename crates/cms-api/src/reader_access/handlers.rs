@@ -8,6 +8,8 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
 use cms_biz::reader_access::ReaderAccessService;
 use cms_entity::{
     common::{ApiResponse, Id},
@@ -19,6 +21,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -47,6 +50,16 @@ pub async fn create_audience_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateAudienceRequest>,
 ) -> Result<Json<AudienceResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let project_id = request.project_id.clone();
     let audience = ReaderAccessService::create_audience(
         &state.biz_context,
@@ -85,6 +98,16 @@ pub async fn list_audiences_handler(
     auth: AuthExtractor,
     Path(project_id): Path<Id>,
 ) -> Result<Json<Vec<AudienceResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let audiences =
         ReaderAccessService::list_audiences(&state.biz_context, &auth.user.id, &project_id).await?;
 
@@ -117,6 +140,17 @@ pub async fn get_audience_handler(
     auth: AuthExtractor,
     Path(audience_id): Path<Id>,
 ) -> Result<Json<AudienceResponse>, AppError> {
+    let aud_uuid = Uuid::parse_str(&audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let audience =
         ReaderAccessService::get_audience(&state.biz_context, &auth.user.id, &audience_id).await?;
 
@@ -153,6 +187,17 @@ pub async fn update_audience_handler(
     Path(audience_id): Path<Id>,
     Json(request): Json<UpdateAudienceRequest>,
 ) -> Result<Json<AudienceResponse>, AppError> {
+    let aud_uuid = Uuid::parse_str(&audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     let audience = ReaderAccessService::update_audience(
         &state.biz_context,
         &auth.user.id,
@@ -192,6 +237,17 @@ pub async fn delete_audience_handler(
     auth: AuthExtractor,
     Path(audience_id): Path<Id>,
 ) -> Result<Json<ApiResponse<DeleteAudienceResponse>>, AppError> {
+    let aud_uuid = Uuid::parse_str(&audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     ReaderAccessService::delete_audience(&state.biz_context, &auth.user.id, &audience_id).await?;
 
     Ok(Json(ApiResponse::new(DeleteAudienceResponse {
@@ -225,6 +281,27 @@ pub async fn create_audience_grant_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateAudienceGrantRequest>,
 ) -> Result<Json<AudienceGrantResponse>, AppError> {
+    let aud_uuid = Uuid::parse_str(&request.audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let grant = ReaderAccessService::create_audience_grant(
         &state.biz_context,
         &auth.user.id,
@@ -264,6 +341,17 @@ pub async fn list_audience_grants_handler(
     auth: AuthExtractor,
     Path(audience_id): Path<Id>,
 ) -> Result<Json<Vec<AudienceGrantResponse>>, AppError> {
+    let aud_uuid = Uuid::parse_str(&audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let grants =
         ReaderAccessService::list_audience_grants(&state.biz_context, &auth.user.id, &audience_id)
             .await?;
@@ -298,6 +386,20 @@ pub async fn delete_audience_grant_handler(
     auth: AuthExtractor,
     Path(grant_id): Path<Id>,
 ) -> Result<Json<ApiResponse<DeleteAudienceResponse>>, AppError> {
+    let grant = cms_db::reader_access::AudienceGrantQueries::get_by_id(&state.biz_context.pool, &grant_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Audience grant not found".to_string()))?;
+    let aud_uuid = Uuid::parse_str(&grant.audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     ReaderAccessService::delete_audience_grant(&state.biz_context, &auth.user.id, &grant_id)
         .await?;
 
@@ -332,6 +434,17 @@ pub async fn create_reader_invitation_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateReaderInvitationRequest>,
 ) -> Result<Json<ReaderInvitationResponse>, AppError> {
+    let aud_uuid = Uuid::parse_str(&request.audience_id)
+        .map_err(|_| AppError::NotFound("Audience not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.biz_context.pool,
+        ParentLink::Audience(aud_uuid),
+        Relation::Admin,
+    )
+    .await?;
+
     let invitation = ReaderAccessService::create_reader_invitation(
         &state.biz_context,
         &auth.user.id,

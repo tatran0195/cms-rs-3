@@ -58,9 +58,9 @@ pub async fn list_comments_handler(
     if let Some(ref page_id_str) = query.page_id {
         if let Ok(page_uuid) = Uuid::parse_str(page_id_str) {
             require_parent_access(
-                &state.biz_context.pool,
                 state.authz_backend(),
                 &auth.authz_context(),
+                &state.biz_context.pool,
                 ParentLink::Page(page_uuid),
                 Relation::Viewer,
             )
@@ -114,9 +114,9 @@ pub async fn create_comment_handler(
     let page_uuid = Uuid::parse_str(&request.page_id)
         .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Page(page_uuid),
         Relation::Viewer,
     )

@@ -141,9 +141,9 @@ pub async fn get_branch_handler(
     let branch_uuid = Uuid::parse_str(branch_id.as_str())
         .map_err(|_| AppError::NotFound("Branch not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Branch(branch_uuid),
         Relation::Viewer,
     )
@@ -187,9 +187,9 @@ pub async fn update_branch_handler(
     let branch_uuid = Uuid::parse_str(branch_id.as_str())
         .map_err(|_| AppError::NotFound("Branch not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Branch(branch_uuid),
         Relation::Editor,
     )
@@ -232,9 +232,9 @@ pub async fn delete_branch_handler(
     let branch_uuid = Uuid::parse_str(branch_id.as_str())
         .map_err(|_| AppError::NotFound("Branch not found".to_string()))?;
     require_parent_access(
-        &state.biz_context.pool,
         state.authz_backend(),
         &auth.authz_context(),
+        &state.biz_context.pool,
         ParentLink::Branch(branch_uuid),
         Relation::Editor,
     )

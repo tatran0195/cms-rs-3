@@ -91,7 +91,7 @@ fn test_e2e_triple_cookie_and_jwt_claims() {
     assert_eq!(extracted_token, token);
 
     // Verify JWT claims from extracted token
-    let decoded = decode_jwt(&extracted_token, jwt_secret).expect("JWT decoding should succeed");
+    let decoded = decode_jwt(extracted_token, jwt_secret).expect("JWT decoding should succeed");
     assert_eq!(decoded.sub, user_id);
     assert_eq!(decoded.role, role);
     assert_eq!(decoded.tenant_id, SYSTEM_WORKSPACE_ID);
