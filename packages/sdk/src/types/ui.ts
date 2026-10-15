@@ -1,4 +1,14 @@
-// UI-facing canonical models for API responses.
+/**
+ * UI-facing canonical domain models for API responses.
+ *
+ * In contrast to the raw backend DTOs in `./generated/*` (which reflect internal Rust entity
+ * tables with `JsonValue` configs and flat DB projections), these interfaces represent the rich,
+ * validated models consumed across Studio and reader sites.
+ *
+ * They integrate strongly-typed schemas from `@cms/validators` (such as `ProjectConfig`, `PageConfig`),
+ * `@cms/shared` (themes, addons), normalized camelCase conventions, and composite pipeline structures
+ * (such as `SiteShell`, `SitePage`, `PendingChange`).
+ */
 
 import type { AddonGroup, AddonId } from '@cms/shared/addons';
 import type { ResolvedTheme, ThemeConfigChange, ThemeTemplateV1 } from '@cms/shared/themes';
