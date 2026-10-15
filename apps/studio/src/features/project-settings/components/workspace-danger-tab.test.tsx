@@ -24,7 +24,7 @@ vi.mock('@/features/auth', () => ({
   useSession: () => ({ data: { user: mockState.user } }),
 }));
 
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useMembers: () => ({
     data: { members: mockState.members, invitations: [] },
     isPending: false,

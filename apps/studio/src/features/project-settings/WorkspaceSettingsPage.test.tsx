@@ -26,7 +26,7 @@ vi.mock('@/features/auth', () => ({
   useMfaDisable: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useMembers: () => ({
     data: { members: mockState.members, invitations: [] },
     isPending: false,

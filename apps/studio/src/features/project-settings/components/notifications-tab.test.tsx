@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => key }));
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useWorkspaceSettings: () => ({ data: { notifications: {} } }),
   useUpdateWorkspaceSettings: () => ({ isPending: false, mutate: vi.fn() }),
 }));

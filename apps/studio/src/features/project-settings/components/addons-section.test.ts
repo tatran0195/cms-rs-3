@@ -3,7 +3,7 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProjectAddon } from '@/hooks/api/types';
+import type { ProjectAddon } from '@cms/sdk';
 import { AddonsSection } from './addons-section';
 
 const translations: Record<string, string> = {
@@ -30,7 +30,7 @@ const addons = [
 ] satisfies ProjectAddon[];
 
 vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => translations[key] ?? key }));
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useProjectAddons: () => ({ data: addons, isLoading: false, isError: false, refetch: vi.fn() }),
   useUpdateProjectAddon: () => mutation,
   useActivateProjectAddon: () => mutation,

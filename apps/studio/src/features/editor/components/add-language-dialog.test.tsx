@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@cms/i18n/react', () => ({ useT: () => mocks.t }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useCreateLanguage: () => ({ mutateAsync: mocks.mutateAsync }),
   useLanguages: mocks.useLanguages,
 }));

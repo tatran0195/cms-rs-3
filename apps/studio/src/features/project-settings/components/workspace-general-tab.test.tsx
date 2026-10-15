@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useWorkspaceSettings: () => ({
     data: { name: 'Acme Corp', slug: 'acme-corp', project_count: 5, member_count: 12 },
     isPending: false,

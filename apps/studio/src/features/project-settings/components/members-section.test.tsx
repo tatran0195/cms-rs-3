@@ -40,7 +40,7 @@ vi.mock('@cms/design-system/components/ui/confirm', () => ({
 vi.mock('@/features/auth', () => ({
   useSession: () => ({ data: { user: { id: currentUserId } } }),
 }));
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useProjectMembers: () => ({
     data: {
       members,

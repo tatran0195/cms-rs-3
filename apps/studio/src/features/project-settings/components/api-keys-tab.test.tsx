@@ -12,7 +12,7 @@ const hooks = vi.hoisted(() => ({
 vi.mock('@cms/i18n/react', () => ({
   useLocale: () => ({ locale: 'en', t: (key: string) => key }),
 }));
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useApiKeys: hooks.useApiKeys,
   useCreateApiKey: () => hooks.mutation,
   useRevokeApiKey: () => hooks.mutation,

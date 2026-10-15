@@ -14,7 +14,7 @@ vi.mock('@cms/i18n/react', () => ({ useT: () => mocks.t }));
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
 }));
-vi.mock('@/hooks/api', () => ({ useProjects: mocks.useProjects }));
+vi.mock('@cms/sdk/react', () => ({ useProjects: mocks.useProjects }));
 
 import { CommandPalette } from './CommandPalette';
 

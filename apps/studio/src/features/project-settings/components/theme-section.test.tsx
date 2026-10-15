@@ -4,7 +4,7 @@ import { resolveTheme, THEME_PRESETS } from '@cms/shared/themes';
 import { act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
 import { ThemeSection } from './theme-section';
 
 /** Option labels are deliberately distinct from the raw option ids so a trigger
@@ -52,7 +52,7 @@ vi.mock('@cms/i18n/react', () => ({
   useT: () => (key: string) => translations[key] ?? key,
   translateFn: (key: string) => key,
 }));
-vi.mock('@/hooks/api', () => ({
+vi.mock('@cms/sdk/react', () => ({
   useUpdateProjectConfig: () => mutation,
   useImportProjectTheme: () => mutation,
   useExportProjectTheme: () => mutation,
