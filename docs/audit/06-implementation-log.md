@@ -45,6 +45,14 @@ This document tracks all audit steps, baseline verification commands, findings v
 | 2026-10-15 07:54 UTC | `cargo test -p cms-mcp -j 2` | 0 | **Passed (11/11)** | MCP unit, integration, and e2e handshake suites passing. |
 | 2026-10-15 07:55 UTC | `cargo test -p cms-api-keys -j 2` | 0 | **Passed (3/3)** | API key generation and validation tests passing. |
 | 2026-10-15 07:56 UTC | `cargo test -p cms-api --lib -j 2` | 0 | **Passed (5/5)** | API layer unit tests passing. |
+| 2026-10-15 11:05 UTC | `cargo check --workspace --all-targets` | 0 | **Passed (0 errors)** | Full workspace check passes across all 24 crates with upgraded dependencies and `rusqlite` replaced by `sqlx`. |
+| 2026-10-15 11:10 UTC | `cargo test -p cms-error -p cms-authz -p cms-authz-gate -p cms-api-keys -p cms-auth` | 0 | **Passed (28/28)** | Error, Zanzibar ReBAC, authz gate, API keys, and auth unit tests passing. |
+| 2026-10-15 11:31 UTC | `cargo test -p cms-oauth -p cms-queue -p cms-storage -p cms-mcp` | 0 | **Passed (25/25)** | OAuth PKCE, in-memory/postgres queue, local storage, and MCP handshake suites passing. |
+| 2026-10-15 11:33 UTC | `cargo test -p cms-i18n -p cms-mailer` | 0 | **Passed (60/60)** | I18n message/catalog negotiation and mailer render/contract suites passing. |
+| 2026-10-15 11:38 UTC | `cargo test -p cms-entity` | 0 | **Passed (30/30)** | Entity serialization, validation, and TypeScript binding export tests passing. |
+| 2026-10-15 11:40 UTC | `cargo clippy --workspace --all-targets -- -D warnings` | 0 | **Passed (0 warnings)** | Strict clippy check clean across all 24 workspace targets with zero warnings. |
+| 2026-10-15 12:28 UTC | `bun run typecheck` (`design-system`, `validators`, `shared`, `site`, `studio`) | 0 | **Passed (0 errors)** | Full workspace TypeScript typecheck clean across all frontend packages and apps. |
+| 2026-10-15 12:29 UTC | `bun test` / `vitest run` (`validators`, `shared`, `site`, `studio`) | 0 | **Passed (453/453)** | Navbar infinite nested tabs, Snapshot merge, SiteNavTabs, MobileNav, and Studio tree editor tests all passing. |
 
 ---
 
