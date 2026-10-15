@@ -12,7 +12,7 @@ import { useT } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronsUpDown, LayoutGrid, Plus } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
-import { useProjects } from '@/hooks/api';
+import { useProjects } from '@cms/sdk/react';
 
 const subscribeToHydration = () => () => undefined;
 

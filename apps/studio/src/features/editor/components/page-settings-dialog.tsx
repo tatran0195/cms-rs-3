@@ -20,8 +20,8 @@ import { slugify } from '@cms/shared/utils';
 import { CirclePlus, type LucideIcon, PanelsTopLeft, SearchCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { PageConfig, PageNode } from '@/hooks/api';
-import { useUpdatePage } from '@/hooks/api';
+import type { PageConfig, PageNode } from '@cms/sdk';
+import { useUpdatePage } from '@cms/sdk/react';
 
 type PageMode = 'default' | 'wide' | 'center';
 type PageSettingsSection = 'general' | 'seo' | 'behaviour';

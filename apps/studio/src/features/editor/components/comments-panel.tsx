@@ -7,8 +7,8 @@ import { Check, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import type { Comment } from '@/hooks/api';
-import { useComments, useCreateComment, useDeleteComment, useResolveComment } from '@/hooks/api';
+import type { Comment } from '@cms/sdk';
+import { useComments, useCreateComment, useDeleteComment, useResolveComment } from '@cms/sdk/react';
 import { useFormatters } from '@/shared';
 
 interface CommentsPanelProps {

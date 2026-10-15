@@ -17,8 +17,8 @@ import { useT } from '@cms/i18n/react';
 import { ArrowLeft, FileText, Loader2, type LucideIcon, Minus, Pencil, Plus, Rocket, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { usePendingChanges, usePublish } from '@/hooks/api';
-import type { Deployment, PendingChange, Project } from '@/hooks/api/types';
+import { usePendingChanges, usePublish } from '@cms/sdk/react';
+import type { Deployment, PendingChange, Project } from '@cms/sdk';
 import { siteHref } from '@/shared';
 
 export interface PublishModalProps {

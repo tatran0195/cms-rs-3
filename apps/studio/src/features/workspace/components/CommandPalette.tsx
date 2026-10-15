@@ -3,7 +3,7 @@ import { useT } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
 import { BarChart3, BookOpen, BookText, Plus, Settings } from 'lucide-react';
 import { useEffect } from 'react';
-import { useProjects } from '@/hooks/api';
+import { useProjects } from '@cms/sdk/react';
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useT();

@@ -1,7 +1,7 @@
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@cms/design-system/components/ui/card';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { useT } from '@cms/i18n/react';
-import type { AnalyticsRange } from '@/hooks/api';
+import type { AnalyticsRange } from '@cms/sdk';
 import { RangeTabs } from './RangeTabs';
 import { type ViewsPoint, ViewsTimeseriesChart } from './ViewsTimeseriesChart';
 

@@ -19,8 +19,8 @@ import { useT } from '@cms/i18n/react';
 import { CirclePlus, type LucideIcon, SearchCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, LanguageConfig } from '@/hooks/api';
-import { useUpdateLanguage } from '@/hooks/api';
+import type { Language, LanguageConfig } from '@cms/sdk';
+import { useUpdateLanguage } from '@cms/sdk/react';
 
 type Direction = 'LTR' | 'RTL';
 type LangSettingsSection = 'general' | 'seo';

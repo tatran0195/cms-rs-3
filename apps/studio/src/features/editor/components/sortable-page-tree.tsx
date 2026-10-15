@@ -20,7 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
 import { type CSSProperties, memo, useMemo, useRef, useState } from 'react';
-import type { PageNode } from '@/hooks/api';
+import type { PageNode } from '@cms/sdk';
 
 /**
  * A Notion-style page tree with @dnd-kit: drag the handle to reorder, drag

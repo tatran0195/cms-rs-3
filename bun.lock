@@ -262,6 +262,8 @@
       "name": "@cms/sdk",
       "version": "0.0.0",
       "dependencies": {
+        "@cms/shared": "workspace:*",
+        "@cms/validators": "workspace:*",
         "ky": "^2.1.0",
       },
       "devDependencies": {

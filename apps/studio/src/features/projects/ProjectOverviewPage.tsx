@@ -26,9 +26,16 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { env } from '@/env';
 import { SectionCard, ViewsAreaChart } from '@/features/analytics';
-import type { AnalyticsRange, Deployment } from '@/hooks/api';
-import { useDeployments, useDomains, usePages, useProject, useProjectMembers, usePublishAnyway } from '@/hooks/api';
-import { useProjectAnalytics } from '@/hooks/api/analytics';
+import type { AnalyticsRange, Deployment } from '@cms/sdk';
+import {
+  useDeployments,
+  useDomains,
+  usePages,
+  useProject,
+  useProjectAnalytics,
+  useProjectMembers,
+  usePublishAnyway,
+} from '@cms/sdk/react';
 import { deploymentStatusLabel, deploymentStatusVariant } from '@/shared/lib/deployment-status';
 import { useFormatters, viewsTrend } from '@/shared/lib/format';
 

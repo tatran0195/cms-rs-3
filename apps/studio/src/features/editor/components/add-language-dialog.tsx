@@ -8,8 +8,8 @@ import { useT } from '@cms/i18n/react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import type { Language } from '@/hooks/api';
-import { useCreateLanguage, useLanguages } from '@/hooks/api';
+import type { Language } from '@cms/sdk';
+import { useCreateLanguage, useLanguages } from '@cms/sdk/react';
 import { type CatalogLanguage, LANGUAGE_CATALOG } from '@/shared';
 
 interface AddLanguageDialogProps {

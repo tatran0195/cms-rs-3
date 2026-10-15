@@ -14,8 +14,8 @@ import {
 } from '@cms/site';
 import { ChevronDown, Eye, FileText } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
-import { useBranches, useLanguages, usePage, usePages, useProject } from '@/hooks/api';
-import type { PageNode } from '@/hooks/api/types';
+import { useBranches, useLanguages, usePage, usePages, useProject } from '@cms/sdk/react';
+import type { PageNode } from '@cms/sdk';
 
 export interface ProjectPreviewPageProps {
   projectId: string;

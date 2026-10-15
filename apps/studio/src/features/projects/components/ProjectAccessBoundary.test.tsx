@@ -3,7 +3,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiResponseError } from '@/hooks/api/client-helpers';
+import { CmsApiError } from '@cms/sdk';
 
 const mocks = vi.hoisted(() => ({
   useProject: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => key }));
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children?: React.ReactNode }) => children ?? null,
 }));
-vi.mock('@/hooks/api', () => ({ useProject: mocks.useProject }));
+vi.mock('@cms/sdk/react', () => ({ useProject: mocks.useProject }));
 
 import { ProjectAccessBoundary } from './ProjectAccessBoundary';
 
@@ -82,7 +82,7 @@ describe('ProjectAccessBoundary', () => {
   it('hides children and shows 404 screen when access is revoked, even with cached project', async () => {
     mocks.useProject.mockReturnValue({
       data: { id: 'project-1', name: 'Alpha' },
-      error: new ApiResponseError('forbidden', 403),
+      error: new CmsApiError({ status: 403, code: 'forbidden', message: 'forbidden' }),
       isPending: false,
       refetch: mocks.refetch,
     });
@@ -97,7 +97,7 @@ describe('ProjectAccessBoundary', () => {
   it('shows an error screen with a retry button on non-auth failures', async () => {
     mocks.useProject.mockReturnValue({
       data: null,
-      error: new ApiResponseError('server error', 500),
+      error: new CmsApiError({ status: 500, code: 'server_error', message: 'server error' }),
       isPending: false,
       refetch: mocks.refetch,
     });

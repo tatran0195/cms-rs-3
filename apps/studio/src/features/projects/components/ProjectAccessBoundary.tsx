@@ -2,8 +2,8 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { useT } from '@cms/i18n/react';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { useProject } from '@/hooks/api';
-import { ApiResponseError } from '@/hooks/api/client-helpers';
+import { CmsApiError } from '@cms/sdk';
+import { useProject } from '@cms/sdk/react';
 
 /** Do not mount project tools until access has been resolved. A revoked
  * membership must also hide cached project data; a transient background error
@@ -11,7 +11,7 @@ import { ApiResponseError } from '@/hooks/api/client-helpers';
 export function ProjectAccessBoundary({ projectId, children }: { projectId: string; children: ReactNode }) {
   const t = useT();
   const { data: project, error, isPending, refetch } = useProject(projectId);
-  const unavailable = error instanceof ApiResponseError && [401, 403, 404].includes(error.status);
+  const unavailable = error instanceof CmsApiError && [401, 403, 404].includes(error.status);
 
   if (project && !unavailable) return children;
   if (isPending) {

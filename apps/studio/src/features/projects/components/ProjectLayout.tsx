@@ -5,7 +5,7 @@ import { Link, useRouterState } from '@tanstack/react-router';
 import { Eye } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { NotificationsPopover, ProjectSidebar } from '@/features/workspace';
-import { useProject } from '@/hooks/api';
+import { useProject } from '@cms/sdk/react';
 
 export { PublishControl } from '@/features/publishing';
 

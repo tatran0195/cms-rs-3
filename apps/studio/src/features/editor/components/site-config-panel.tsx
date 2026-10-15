@@ -29,7 +29,7 @@ import {
   TypographySection,
   VariablesSection,
 } from '@/features/project-settings';
-import type { Project } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
 
 /**
  * The authoring/appearance slice of a site's configuration, embedded in the

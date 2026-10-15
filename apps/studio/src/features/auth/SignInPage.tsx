@@ -1,7 +1,7 @@
 import { SignInForm } from '@cms/auth/forms';
 import { useT } from '@cms/i18n/react';
 import { useNavigate } from '@tanstack/react-router';
-import { useGetPublicMeta } from '@/hooks/api';
+import { useGetPublicMeta } from '@cms/sdk/react';
 import { readPendingInvitation } from '@/shared';
 
 import { cmsClient } from '@/shared/services/cms-client';

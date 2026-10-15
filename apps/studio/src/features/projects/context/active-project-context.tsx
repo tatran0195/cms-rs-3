@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Project } from '@/hooks/api';
-import { useProjects } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useProjects } from '@cms/sdk/react';
 
 const STORAGE_KEY = 'cms.activeProjectId';
 

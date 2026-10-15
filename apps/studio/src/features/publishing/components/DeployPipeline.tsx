@@ -6,8 +6,8 @@ import { useT } from '@cms/i18n/react';
 import { Check, ExternalLink, Loader2, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { useDeployments, useRollback } from '@/hooks/api';
-import type { DeploymentStatus, Project } from '@/hooks/api/types';
+import { useDeployments, useRollback } from '@cms/sdk/react';
+import type { DeploymentStatus, Project } from '@cms/sdk';
 import { siteHref } from '@/shared';
 
 export interface DeployPipelineProps {

@@ -7,8 +7,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { BarChart3, BookText, FileText, Plus, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { SectionCard, ViewsAreaChart } from '@/features/analytics';
-import type { AnalyticsRange } from '@/hooks/api';
-import { useProjects, useWorkspaceAnalytics } from '@/hooks/api';
+import type { AnalyticsRange } from '@cms/sdk';
+import { useProjects, useWorkspaceAnalytics } from '@cms/sdk/react';
 import { useFormatters, viewsTrend } from '@/shared';
 import { NewProjectDialog } from './components/NewProjectDialog';
 

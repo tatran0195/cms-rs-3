@@ -44,7 +44,7 @@ import { SortablePageTree } from '@/features/editor/components/sortable-page-tre
 import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
 import { PublishControl } from '@/features/publishing';
-import type { Language, PageNode } from '@/hooks/api';
+import type { Language, PageNode } from '@cms/sdk';
 import {
   useBranches,
   useComments,
@@ -57,7 +57,7 @@ import {
   useReorderPages,
   useUpdatePage,
   useUploadAsset,
-} from '@/hooks/api';
+} from '@cms/sdk/react';
 import { typographyVars } from '@/shared/lib/typography';
 import { type EditorSyncStatus, editorStore } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';

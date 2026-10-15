@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@cms/design-system/co
 import { ArrowLeft, ArrowRight, Loader2, Rocket } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useCompleteSetup, useSetupStatus } from '@/hooks/api';
+import { useCompleteSetup, useSetupStatus } from '@cms/sdk/react';
 import { type AdminAccountData, AdminAccountStep } from './components/AdminAccountStep';
 import { type AppearanceData, AppearanceStep } from './components/AppearanceStep';
 import { type AuthPoliciesData, AuthPoliciesStep } from './components/AuthPoliciesStep';

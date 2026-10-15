@@ -1,6 +1,6 @@
 import { Tabs, TabsList, TabsTrigger } from '@cms/design-system/components/ui/tabs';
 import { useT } from '@cms/i18n/react';
-import type { AnalyticsRange } from '@/hooks/api';
+import type { AnalyticsRange } from '@cms/sdk';
 
 const ANALYTICS_RANGES: readonly AnalyticsRange[] = ['24h', '7d', '30d', '90d'];
 
