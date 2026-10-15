@@ -25,6 +25,13 @@ export interface SnapshotNavAnchor extends SnapshotNavLink {
   icon?: string;
 }
 
+export interface SnapshotNavTabItem {
+  label: string;
+  href?: string;
+  external?: boolean;
+  items?: SnapshotNavTabItem[];
+}
+
 /** Per-language overrides baked into the snapshot. Mirrors
  *  `languageConfigSchema` in @cms/validators (kept inline to avoid a dep).
  *  The chrome sections override the matching `project.config` sections for
@@ -35,7 +42,7 @@ export interface SnapshotLanguageConfig {
   /** Localized site description (SEO description fallback). */
   description?: string;
   seo?: { metaTitle?: string; metaDescription?: string; socialImage?: string; allowIndex?: boolean };
-  navbar?: { ctaLabel?: string; links?: SnapshotNavLink[]; tabs?: SnapshotNavLink[]; anchors?: SnapshotNavAnchor[] } | null;
+  navbar?: { ctaLabel?: string; links?: SnapshotNavLink[]; tabs?: SnapshotNavTabItem[]; anchors?: SnapshotNavAnchor[] } | null;
   footer?: { copyright?: string } | null;
   banner?: { enabled?: boolean; message?: string; linkLabel?: string; linkUrl?: string; dismissible?: boolean } | null;
   search?: { placeholder?: string } | null;

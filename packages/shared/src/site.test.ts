@@ -458,6 +458,29 @@ describe('mergeLanguageChrome', () => {
     expect(merged?.banner).toEqual({ enabled: true, message: 'تحديث', dismissible: true });
   });
 
+  it('merges localized nested navbar tabs wholesale', () => {
+    const baseConfig = {
+      navbar: {
+        tabs: [
+          { label: 'Docs', items: [{ label: 'Quickstart', href: '/docs/quickstart' }] },
+        ],
+      },
+    };
+    const langConfig = {
+      navbar: {
+        tabs: [
+          { label: 'Tài liệu', items: [{ label: 'Bắt đầu', href: '/vi/docs/quickstart' }] },
+        ],
+      },
+    };
+    const merged = mergeLanguageChrome(baseConfig, langConfig as any);
+    expect(merged?.navbar).toEqual({
+      tabs: [
+        { label: 'Tài liệu', items: [{ label: 'Bắt đầu', href: '/vi/docs/quickstart' }] },
+      ],
+    });
+  });
+
   it('creates the section when the project config lacks it, and never mutates inputs', () => {
     const bare: Record<string, unknown> = {};
     const merged = mergeLanguageChrome(bare, { search: { placeholder: 'ابحث في المستندات' } });
