@@ -11,6 +11,7 @@ import { MobileNav } from '../components/mobile-nav';
 import { type SiteLanguageAlternate, SitePageAlternatesContext } from '../components/page-alternates-context';
 import { SiteBanner } from '../components/site-banner';
 import { firstLeafPath, SiteNav } from '../components/site-nav';
+import { SiteNavTabs } from '../components/site-nav-tabs';
 import { SiteSearch } from '../components/site-search';
 import { VersionSwitcher } from '../components/version-switcher';
 import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
@@ -402,6 +403,20 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                   </button>
                 </div>
               </header>
+              {navTabs.length > 0 && (
+                <div className="border-border/60 border-t py-1">
+                  <div className="mx-auto flex max-w-[90rem] items-center px-4 sm:px-6">
+                    <SiteNavTabs
+                      tabs={navTabs}
+                      currentPath={effectiveCurrentPath}
+                      projectId={projectId}
+                      lang={navigationLanguage}
+                      version={activeVersionPrefix}
+                      basePath={basePrefix}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           }
           navigation={
