@@ -2,13 +2,29 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
-import type { LanguageConfig } from '@cms/validators';
+import type { LanguageConfig, NavTabItem } from '@cms/validators';
 import { useForm } from '@tanstack/react-form';
-import { PanelTop, Plus, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CornerDownRight,
+  ExternalLink,
+  PanelTop,
+  Plus,
+  X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import type { Language, Project } from '@cms/sdk';
 import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
+import {
+  cleanTabItems,
+  insertTabChild,
+  moveTabNode,
+  removeTabNode,
+  updateTabNode,
+} from './tabs-tree-utils';
 import {
   DirtyStateReporter,
   FIELD_COMPACT,
@@ -34,6 +50,11 @@ interface AnchorRow extends NavRow {
   icon: string;
 }
 
+/** Prevent TanStack Form DeepKeys infinite recursion by breaking the cycle in the form state type: */
+export type FormNavTabItem = Omit<NavTabItem, 'items'> & {
+  items?: any[];
+};
+
 /** The editable navbar values shared by the project scope and a language scope.
  *  Language scopes localize labels/links only — the CTA URL and the search /
  *  changelog toggles stay global (project scope). */
@@ -41,7 +62,7 @@ interface NavbarValues {
   ctaLabel: string;
   ctaUrl: string;
   links: NavRow[];
-  tabs: NavRow[];
+  tabs: FormNavTabItem[];
   anchors: AnchorRow[];
 }
 
@@ -98,6 +119,14 @@ const cleanAnchorRows = (rows: AnchorRow[]): Array<{ label: string; href: string
       external: row.external,
     }));
 
+const normalizeTabs = (items?: unknown[]): NavTabItem[] =>
+  (items ?? []).map((tab: any) => ({
+    label: typeof tab?.label === 'string' ? tab.label : '',
+    href: typeof tab?.href === 'string' ? tab.href : '',
+    external: Boolean(tab?.external),
+    items: Array.isArray(tab?.items) && tab.items.length > 0 ? normalizeTabs(tab.items) : undefined,
+  }));
+
 /** Default scope: the project-level navbar in `project.config.navbar` (unchanged). */
 function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
   const t = useT();
@@ -134,11 +163,7 @@ function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDir
           href: link.href,
           external: link.external,
         })),
-        tabs: (navbar.tabs ?? []).map((tab) => ({
-          label: tab.label,
-          href: tab.href,
-          external: tab.external,
-        })),
+        tabs: normalizeTabs(navbar.tabs),
         anchors: (navbar.anchors ?? []).map((anchor) => ({
           label: anchor.label,
           href: anchor.href,
@@ -152,7 +177,7 @@ function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDir
             ctaLabel: value.ctaLabel.trim() || undefined,
             ctaUrl: value.ctaUrl.trim() || undefined,
             links: cleanRows(value.links),
-            tabs: cleanRows(value.tabs),
+            tabs: cleanTabItems(value.tabs as NavTabItem[]),
             anchors: cleanAnchorRows(value.anchors),
             showSearch,
             changelog: showChangelog,
@@ -200,11 +225,7 @@ function LanguageNavbarForm({
           href: link.href,
           external: link.external,
         })),
-        tabs: (override.tabs ?? []).map((tab) => ({
-          label: tab.label,
-          href: tab.href,
-          external: tab.external,
-        })),
+        tabs: normalizeTabs(override.tabs),
         anchors: (override.anchors ?? []).map((anchor) => ({
           label: anchor.label,
           href: anchor.href,
@@ -221,7 +242,7 @@ function LanguageNavbarForm({
         if (links.length > 0) {
           navbar.links = links;
         }
-        const tabs = cleanRows(value.tabs);
+        const tabs = cleanTabItems(value.tabs as NavTabItem[]);
         if (tabs.length > 0) {
           navbar.tabs = tabs;
         }
@@ -244,6 +265,231 @@ function LanguageNavbarForm({
         }
       }}
     />
+  );
+}
+
+interface TabTreeNodeProps {
+  item: NavTabItem;
+  path: number[];
+  depth: number;
+  isFirst: boolean;
+  isLast: boolean;
+  direction?: 'ltr' | 'rtl';
+  tree: NavTabItem[];
+  onChange: (next: NavTabItem[]) => void;
+}
+
+function TabTreeNodeItem({
+  item,
+  path,
+  depth,
+  isFirst,
+  isLast,
+  direction,
+  tree,
+  onChange,
+}: TabTreeNodeProps) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = Boolean(item.items && item.items.length > 0);
+
+  const handleUpdate = (patch: Partial<NavTabItem>) => {
+    onChange(updateTabNode(tree, path, patch));
+  };
+
+  const handleAddChild = () => {
+    onChange(insertTabChild(tree, path, { label: '', href: '' }));
+    setExpanded(true);
+  };
+
+  const handleRemove = () => {
+    onChange(removeTabNode(tree, path));
+  };
+
+  const handleMove = (dir: 'up' | 'down') => {
+    onChange(moveTabNode(tree, path, dir));
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-card/60 p-2 text-xs transition-colors hover:border-border">
+        {/* Expand / collapse or bullet spacer */}
+        {hasChildren ? (
+          <Button
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+            className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setExpanded(!expanded)}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          >
+            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          </Button>
+        ) : (
+          <span className="grid size-6 shrink-0 place-items-center font-bold text-muted-foreground/40">
+            •
+          </span>
+        )}
+
+        {/* Depth Badge */}
+        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          L{depth + 1}
+        </span>
+
+        {/* Label Input */}
+        <Input
+          className={cn(FIELD_COMPACT, 'min-w-[130px] flex-1')}
+          dir={direction ?? 'auto'}
+          onChange={(e) => handleUpdate({ label: e.target.value })}
+          placeholder={t('settings.navbar.tabs.labelPlaceholder')}
+          value={item.label}
+        />
+
+        {/* URL Input */}
+        <Input
+          className={cn(FIELD_COMPACT_MONO, 'min-w-[140px] flex-1')}
+          dir="ltr"
+          onChange={(e) => handleUpdate({ href: e.target.value })}
+          placeholder={hasChildren ? '(Optional for group)' : '/guides'}
+          value={item.href ?? ''}
+        />
+
+        {/* External Link Toggle */}
+        <Button
+          aria-label={item.external ? 'External link enabled' : 'External link disabled'}
+          className={cn(
+            'size-7 shrink-0 text-xs',
+            item.external ? 'border border-primary/30 bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
+          )}
+          onClick={() => handleUpdate({ external: !item.external })}
+          size="icon-xs"
+          title="Open in new window (external)"
+          type="button"
+          variant="ghost"
+        >
+          <ExternalLink className="size-3.5" />
+        </Button>
+
+        {/* Actions: Add sub-tab, move up/down, remove */}
+        <div className="flex items-center gap-0.5 border-border/50 border-s ps-1.5">
+          <Button
+            aria-label="Add sub-tab"
+            className="h-7 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+            onClick={handleAddChild}
+            size="sm"
+            title="Add sub-tab"
+            type="button"
+            variant="ghost"
+          >
+            <CornerDownRight className="me-1 size-3" />
+            <span>Sub-tab</span>
+          </Button>
+
+          <Button
+            aria-label="Move up"
+            className="size-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            disabled={isFirst}
+            onClick={() => handleMove('up')}
+            size="icon-xs"
+            title="Move up"
+            type="button"
+            variant="ghost"
+          >
+            <ChevronUp className="size-3.5" />
+          </Button>
+
+          <Button
+            aria-label="Move down"
+            className="size-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            disabled={isLast}
+            onClick={() => handleMove('down')}
+            size="icon-xs"
+            title="Move down"
+            type="button"
+            variant="ghost"
+          >
+            <ChevronDown className="size-3.5" />
+          </Button>
+
+          <Button
+            aria-label={t('settings.navbar.tabs.remove')}
+            className="size-7 text-muted-foreground hover:text-destructive"
+            onClick={handleRemove}
+            size="icon-xs"
+            title="Remove tab"
+            type="button"
+            variant="ghost"
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Recursive Children rendering */}
+      {hasChildren && expanded && (
+        <div className="mt-1.5 ms-4 space-y-1.5 border-border/60 border-s ps-3">
+          {item.items?.map((child, index) => (
+            <TabTreeNodeItem
+              depth={depth + 1}
+              direction={direction}
+              isFirst={index === 0}
+              isLast={index === (item.items?.length ?? 1) - 1}
+              item={child}
+              key={index}
+              onChange={onChange}
+              path={[...path, index]}
+              tree={tree}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabsTreeEditor({
+  value,
+  onChange,
+  direction,
+}: {
+  value: NavTabItem[];
+  onChange: (next: NavTabItem[]) => void;
+  direction?: 'ltr' | 'rtl';
+}) {
+  const t = useT();
+
+  const handleAddRoot = () => {
+    onChange([...value, { label: '', href: '' }]);
+  };
+
+  return (
+    <div className="space-y-2">
+      {value.length > 0 ? (
+        <div className="space-y-2 overflow-hidden rounded-xl border border-border/80 bg-muted/20 p-2.5">
+          {value.map((item, index) => (
+            <TabTreeNodeItem
+              depth={0}
+              direction={direction}
+              isFirst={index === 0}
+              isLast={index === value.length - 1}
+              item={item}
+              key={index}
+              onChange={onChange}
+              path={[index]}
+              tree={value}
+            />
+          ))}
+        </div>
+      ) : null}
+      <Button
+        className="mb-1.5 border-dashed text-muted-foreground"
+        onClick={handleAddRoot}
+        type="button"
+        variant="outline"
+      >
+        <Plus className="size-3.5" /> {t('settings.navbar.tabs.add')}
+      </Button>
+    </div>
   );
 }
 
@@ -384,59 +630,13 @@ function NavbarScopeForm({
 
       <GroupLabel className="mt-6 mb-1">{t('settings.navbar.tabs.label')}</GroupLabel>
       <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">{t('settings.navbar.tabs.hint')}</p>
-      <form.Field mode="array" name="tabs">
+      <form.Field name="tabs">
         {(field) => (
-          <>
-            {field.state.value.length > 0 ? (
-              <div className="mb-3 overflow-hidden rounded-xl border border-border">
-                {field.state.value.map((_, index) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
-                  <div className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0" key={index}>
-                    <form.Field name={`tabs[${index}].label`}>
-                      {(sub) => (
-                        <Input
-                          className={cn(FIELD_COMPACT, 'flex-1')}
-                          dir={direction ?? 'auto'}
-                          onChange={(e) => sub.handleChange(e.target.value)}
-                          placeholder={t('settings.navbar.tabs.labelPlaceholder')}
-                          value={sub.state.value}
-                        />
-                      )}
-                    </form.Field>
-                    <form.Field name={`tabs[${index}].href`}>
-                      {(sub) => (
-                        <Input
-                          className={cn(FIELD_COMPACT_MONO, 'flex-1')}
-                          dir="ltr"
-                          onChange={(e) => sub.handleChange(e.target.value)}
-                          placeholder="/guides"
-                          value={sub.state.value}
-                        />
-                      )}
-                    </form.Field>
-                    <Button
-                      aria-label={t('settings.navbar.tabs.remove')}
-                      className="text-muted-foreground"
-                      onClick={() => field.removeValue(index)}
-                      size="icon-xs"
-                      type="button"
-                      variant="ghost"
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <Button
-              className="mb-1.5 border-dashed text-muted-foreground"
-              onClick={() => field.pushValue({ label: '', href: '', external: undefined })}
-              type="button"
-              variant="outline"
-            >
-              <Plus className="size-3.5" /> {t('settings.navbar.tabs.add')}
-            </Button>
-          </>
+          <TabsTreeEditor
+            direction={direction}
+            onChange={(next) => field.handleChange(next)}
+            value={field.state.value as NavTabItem[]}
+          />
         )}
       </form.Field>
 

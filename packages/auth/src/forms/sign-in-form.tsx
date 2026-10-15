@@ -76,7 +76,7 @@ export function SignInForm({
         email: normalizedEmail,
         otp: otp.trim(),
       });
-      if (session?.mfaRequired) {
+      if ((session as unknown as { mfaRequired?: boolean })?.mfaRequired) {
         setMfaRequired(true);
         setError(null);
         return;

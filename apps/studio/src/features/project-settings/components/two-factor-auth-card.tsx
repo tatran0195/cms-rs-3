@@ -19,7 +19,8 @@ export function TwoFactorAuthCard() {
   const mfaVerify = useMfaVerify();
   const mfaDisable = useMfaDisable();
 
-  const isMfaEnabled = Boolean(session?.user?.mfaEnabled ?? session?.user?.mfa_enabled);
+  const userRecord = session?.user as Record<string, unknown> | undefined;
+  const isMfaEnabled = Boolean(userRecord?.mfaEnabled ?? userRecord?.mfa_enabled);
 
   // Setup modal state
   const [setupOpen, setSetupOpen] = useState(false);

@@ -3,6 +3,7 @@ import type { NavTabItem } from '@cms/validators';
 export function updateTabNode(tree: NavTabItem[], path: number[], patch: Partial<NavTabItem>): NavTabItem[] {
   if (path.length === 0) return tree;
   const [index, ...rest] = path;
+  if (index === undefined) return tree;
   return tree.map((node, i) => {
     if (i !== index) return node;
     if (rest.length === 0) {
@@ -20,6 +21,7 @@ export function insertTabChild(tree: NavTabItem[], path: number[], newChild: Nav
     return [...tree, newChild];
   }
   const [index, ...rest] = path;
+  if (index === undefined) return tree;
   return tree.map((node, i) => {
     if (i !== index) return node;
     if (rest.length === 0) {
@@ -38,6 +40,7 @@ export function insertTabChild(tree: NavTabItem[], path: number[], newChild: Nav
 export function removeTabNode(tree: NavTabItem[], path: number[]): NavTabItem[] {
   if (path.length === 0) return tree;
   const [index, ...rest] = path;
+  if (index === undefined) return tree;
   if (rest.length === 0) {
     return tree.filter((_, i) => i !== index);
   }
@@ -53,13 +56,17 @@ export function removeTabNode(tree: NavTabItem[], path: number[]): NavTabItem[] 
 export function moveTabNode(tree: NavTabItem[], path: number[], direction: 'up' | 'down'): NavTabItem[] {
   if (path.length === 0) return tree;
   const [index, ...rest] = path;
+  if (index === undefined) return tree;
   if (rest.length === 0) {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= tree.length) return tree;
     const next = [...tree];
-    const temp = next[index];
-    next[index] = next[targetIndex];
-    next[targetIndex] = temp;
+    const current = next[index];
+    const target = next[targetIndex];
+    if (current && target) {
+      next[index] = target;
+      next[targetIndex] = current;
+    }
     return next;
   }
   return tree.map((node, i) => {
