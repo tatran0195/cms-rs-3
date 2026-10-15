@@ -450,7 +450,7 @@ function TabTreeNodeItem({
   );
 }
 
-function TabsTreeEditor({
+export function TabsTreeEditor({
   value,
   onChange,
   direction,

@@ -14,6 +14,7 @@ import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as TabsPreviewRouteImport } from './routes/tabs-preview'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as authResetPasswordRouteImport } from './routes/(auth)/reset-password'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
@@ -60,6 +61,11 @@ const AppRouteRoute = AppRouteRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TabsPreviewRoute = TabsPreviewRouteImport.update({
+  id: '/tabs-preview',
+  path: '/tabs-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authForgotPasswordRoute = authForgotPasswordRouteImport.update({
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppdashboardRouteRouteWithChildren
   '/accept-invitation': typeof AcceptInvitationRoute
   '/onboarding': typeof OnboardingRoute
+  '/tabs-preview': typeof TabsPreviewRoute
   '/sites/$projectId': typeof SitesProjectIdRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/reset-password': typeof authResetPasswordRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppdashboardIndexRoute
   '/accept-invitation': typeof AcceptInvitationRoute
   '/onboarding': typeof OnboardingRoute
+  '/tabs-preview': typeof TabsPreviewRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/reset-password': typeof authResetPasswordRoute
   '/sign-in': typeof authSignInRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteRouteWithChildren
   '/accept-invitation': typeof AcceptInvitationRoute
   '/onboarding': typeof OnboardingRoute
+  '/tabs-preview': typeof TabsPreviewRoute
   '/app/(dashboard)': typeof AppdashboardRouteRouteWithChildren
   '/sites/$projectId': typeof SitesProjectIdRouteRouteWithChildren
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
@@ -275,6 +284,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/accept-invitation'
     | '/onboarding'
+    | '/tabs-preview'
     | '/sites/$projectId'
     | '/forgot-password'
     | '/reset-password'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/accept-invitation'
     | '/onboarding'
+    | '/tabs-preview'
     | '/forgot-password'
     | '/reset-password'
     | '/sign-in'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/accept-invitation'
     | '/onboarding'
+    | '/tabs-preview'
     | '/app/(dashboard)'
     | '/sites/$projectId'
     | '/(auth)/forgot-password'
@@ -360,6 +372,7 @@ export interface RootRouteChildren {
   AppRouteRoute: typeof AppRouteRouteWithChildren
   AcceptInvitationRoute: typeof AcceptInvitationRoute
   OnboardingRoute: typeof OnboardingRoute
+  TabsPreviewRoute: typeof TabsPreviewRoute
   SitesProjectIdRouteRoute: typeof SitesProjectIdRouteRouteWithChildren
   AcceptInviteInvitationIdRoute: typeof AcceptInviteInvitationIdRoute
   GitPreviewTokenRoute: typeof GitPreviewTokenRoute
@@ -400,6 +413,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tabs-preview': {
+      id: '/tabs-preview'
+      path: '/tabs-preview'
+      fullPath: '/tabs-preview'
+      preLoaderRoute: typeof TabsPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/forgot-password': {
@@ -662,6 +682,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRouteRoute: AppRouteRouteWithChildren,
   AcceptInvitationRoute: AcceptInvitationRoute,
   OnboardingRoute: OnboardingRoute,
+  TabsPreviewRoute: TabsPreviewRoute,
   SitesProjectIdRouteRoute: SitesProjectIdRouteRouteWithChildren,
   AcceptInviteInvitationIdRoute: AcceptInviteInvitationIdRoute,
   GitPreviewTokenRoute: GitPreviewTokenRoute,
