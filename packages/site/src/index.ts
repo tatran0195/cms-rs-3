@@ -26,6 +26,7 @@ export { type SiteLanguageAlternate, SitePageAlternatesContext, useSitePageAlter
 export { hasIcon, PageIcon } from './components/page-icon';
 export { SiteBanner } from './components/site-banner';
 export { firstLeafPath, isVersionIndependentNavNode, SiteNav } from './components/site-nav';
+export { SiteNavTabs, type SiteNavTabsProps } from './components/site-nav-tabs';
 export { SitePageView } from './components/site-page-view';
 export { SiteSearch } from './components/site-search';
 export { TableOfContents } from './components/toc';
