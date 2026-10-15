@@ -24,13 +24,9 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
 }));
 
-vi.mock('@/shared', async () => {
-  const actual = await vi.importActual<typeof import('@/shared')>('@/shared');
-  return {
-    ...actual,
-    useProjects: mocks.useProjects,
-  };
-});
+vi.mock('@cms/sdk/react', () => ({
+  useProjects: mocks.useProjects,
+}));
 
 vi.mock('./components/NewProjectDialog', () => ({
   NewProjectDialog: () => null,
