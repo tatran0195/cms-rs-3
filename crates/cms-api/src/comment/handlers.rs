@@ -19,6 +19,10 @@ use cms_entity::{
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, ParentLink};
+use uuid::Uuid;
+
 use crate::auth::AuthExtractor;
 
 /// List comments
@@ -51,6 +55,19 @@ pub async fn list_comments_handler(
     auth: AuthExtractor,
     Query(query): Query<ListCommentsQuery>,
 ) -> Result<Json<PaginatedResponse<CommentResponse>>, AppError> {
+    if let Some(ref page_id_str) = query.page_id {
+        if let Ok(page_uuid) = Uuid::parse_str(page_id_str) {
+            require_parent_access(
+                &state.biz_context.pool,
+                state.authz_backend(),
+                &auth.authz_context(),
+                ParentLink::Page(page_uuid),
+                Relation::Viewer,
+            )
+            .await?;
+        }
+    }
+
     let page_id = query.page_id.as_deref().unwrap_or("");
     let page_size = query.limit.unwrap_or(20).max(1) as u64;
     let offset = query.offset.unwrap_or(0).max(0) as u64;
@@ -94,6 +111,17 @@ pub async fn create_comment_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateCommentRequest>,
 ) -> Result<Json<CommentResponse>, AppError> {
+    let page_uuid = Uuid::parse_str(&request.page_id)
+        .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
+    require_parent_access(
+        &state.biz_context.pool,
+        state.authz_backend(),
+        &auth.authz_context(),
+        ParentLink::Page(page_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let page_id = request.page_id.clone();
     let comment =
         CommentService::create_comment(&state.biz_context, &auth.user.id, &page_id, request)

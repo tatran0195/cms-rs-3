@@ -4,6 +4,8 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use cms_authz::Relation;
+use cms_authz_gate::require_project_access;
 use cms_entity::{
     common::{ApiResponse, SuccessResponse},
     workspace::{
@@ -13,6 +15,7 @@ use cms_entity::{
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -35,6 +38,16 @@ pub async fn list_project_members_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<Json<ApiResponse<WorkspaceMembersResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let _project = cms_db::project::ProjectQueries::get_by_id(&state.biz_context.pool, &project_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
@@ -93,10 +106,20 @@ pub async fn list_project_members_handler(
 /// Project member invite
 pub async fn invite_project_member_handler(
     State(state): State<Arc<AppState>>,
-    _auth: AuthExtractor,
+    auth: AuthExtractor,
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<WorkspaceInvitationResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let email = body
         .get("email")
         .and_then(|v| v.as_str())
@@ -104,6 +127,10 @@ pub async fn invite_project_member_handler(
         .to_string();
     let role = parse_member_role(body.get("role").and_then(|v| v.as_str()))?;
     let role_str = format!("{:?}", role).to_lowercase();
+    let db_role = match role {
+        cms_entity::common::MemberRole::Owner => "owner",
+        _ => "member",
+    };
     let role_id = body
         .get("roleId")
         .or_else(|| body.get("role_id"))
@@ -116,7 +143,7 @@ pub async fn invite_project_member_handler(
             &state.biz_context.pool,
             &project_id,
             &existing_user.id,
-            &role_str,
+            db_role,
             role_id,
         )
         .await;
@@ -143,8 +170,21 @@ pub async fn update_project_member_role_handler(
     Path((project_id, id)): Path<(String, String)>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<WorkspaceMemberItem>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let role = parse_member_role(body.get("role").and_then(|v| v.as_str()))?;
-    let role_str = format!("{:?}", role).to_lowercase();
+    let db_role = match role {
+        cms_entity::common::MemberRole::Owner => "owner",
+        _ => "member",
+    };
     let role_id = body
         .get("roleId")
         .or_else(|| body.get("role_id"))
@@ -154,7 +194,7 @@ pub async fn update_project_member_role_handler(
         &state.biz_context.pool,
         &project_id,
         &id,
-        Some(&role_str),
+        Some(db_role),
         role_id,
     )
     .await?;
@@ -189,9 +229,19 @@ pub async fn update_project_member_role_handler(
 /// Project member remove
 pub async fn remove_project_member_handler(
     State(state): State<Arc<AppState>>,
-    _auth: AuthExtractor,
+    auth: AuthExtractor,
     Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     cms_db::authz::ProjectMemberQueries::remove(&state.biz_context.pool, &project_id, &id).await?;
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
@@ -206,6 +256,16 @@ pub async fn transfer_project_ownership_handler(
     Path(project_id): Path<String>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<SuccessResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Owner,
+    )
+    .await?;
+
     let target_id = body
         .get("memberId")
         .and_then(|v| v.as_str())
@@ -225,7 +285,7 @@ pub async fn transfer_project_ownership_handler(
         &state.biz_context.pool,
         &project_id,
         &auth.user.id,
-        Some("admin"),
+        Some("member"),
         None,
     )
     .await;
@@ -235,10 +295,20 @@ pub async fn transfer_project_ownership_handler(
 
 /// Project invitation revoke
 pub async fn cancel_project_invitation_handler(
-    State(_state): State<Arc<AppState>>,
-    _auth: AuthExtractor,
-    Path((_project_id, id)): Path<(String, String)>,
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Path((project_id, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<WorkspaceMutationResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     Ok(Json(ApiResponse::new(WorkspaceMutationResponse {
         success: true,
         id,

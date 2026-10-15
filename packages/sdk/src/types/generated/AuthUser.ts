@@ -3,4 +3,4 @@
 /**
  * Authenticated user representation matching CMS auth format
  */
-export type AuthUser = { id: string, email: string, name?: string | null, image?: string | null, emailVerified?: boolean, mfaEnabled?: boolean, mfa_enabled?: boolean, createdAt?: string, updatedAt?: string, };
+export type AuthUser = { id: string, email: string, name?: string | null, image?: string | null, emailVerified?: boolean, createdAt?: string, updatedAt?: string, };

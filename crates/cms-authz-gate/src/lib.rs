@@ -33,7 +33,7 @@ pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<O
             .bind(id.to_string())
             .fetch_optional(pool)
             .await
-            .map_err(|e| AppError::Database(e.into()))?
+            .map_err(AppError::Database)?
         }
         ParentLink::Branch(id) => {
             sqlx::query_scalar::<_, Uuid>(
@@ -42,7 +42,7 @@ pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<O
             .bind(id.to_string())
             .fetch_optional(pool)
             .await
-            .map_err(|e| AppError::Database(e.into()))?
+            .map_err(AppError::Database)?
         }
         ParentLink::Deployment(id) => {
             sqlx::query_scalar::<_, Uuid>(
@@ -51,7 +51,7 @@ pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<O
             .bind(id.to_string())
             .fetch_optional(pool)
             .await
-            .map_err(|e| AppError::Database(e.into()))?
+            .map_err(AppError::Database)?
         }
         ParentLink::ApiKey(id) => {
             sqlx::query_scalar::<_, Option<Uuid>>(
@@ -60,7 +60,7 @@ pub async fn resolve_parent_project(pool: &PgPool, link: ParentLink) -> Result<O
             .bind(id.to_string())
             .fetch_optional(pool)
             .await
-            .map_err(|e| AppError::Database(e.into()))?
+            .map_err(AppError::Database)?
             .flatten()
         }
     };

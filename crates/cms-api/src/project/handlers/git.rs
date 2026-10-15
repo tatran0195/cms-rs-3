@@ -317,6 +317,16 @@ pub async fn action_project_git_handler(
             GitSyncOperationType::Manual,
         )
         .await?;
+        let job_envelope = cms_queue::JobEnvelope::new(
+            cms_queue::JobType::Git,
+            serde_json::json!({
+                "operation_id": op.id,
+                "connection_id": conn_id,
+                "project_id": project_id.as_str(),
+                "operation_type": "manual"
+            }),
+        );
+        let _ = state.job_queue.enqueue(job_envelope).await;
         let val = serde_json::to_value(&op).unwrap_or_default();
         return Ok(Json(ApiResponse::new(val)));
     }

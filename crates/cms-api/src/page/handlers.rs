@@ -16,6 +16,10 @@ use cms_entity::{
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
 
+use cms_authz::Relation;
+use cms_authz_gate::{require_parent_access, require_project_access, ParentLink};
+use uuid::Uuid;
+
 use crate::auth::AuthExtractor;
 
 /// List pages for a project and branch
@@ -50,6 +54,18 @@ pub async fn list_pages_handler(
     auth: AuthExtractor,
     Query(query): Query<ListPagesQuery>,
 ) -> Result<Json<PaginatedResponse<PageListItem>>, AppError> {
+    if !query.project_id.is_empty() {
+        if let Ok(project_uuid) = Uuid::parse_str(query.project_id.as_str()) {
+            require_project_access(
+                state.authz_backend(),
+                &auth.authz_context(),
+                project_uuid,
+                Relation::Viewer,
+            )
+            .await?;
+        }
+    }
+
     let result = PageService::list_pages(&state.biz_context, &auth.user.id, query, 1, 20).await?;
 
     Ok(Json(result))
@@ -80,6 +96,16 @@ pub async fn create_page_handler(
     auth: AuthExtractor,
     Json(request): Json<CreatePageRequest>,
 ) -> Result<Json<PageResponse>, AppError> {
+    let project_uuid = Uuid::parse_str(&request.project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Editor,
+    )
+    .await?;
+
     let project_id = request.project_id.clone();
     let branch_id = request.branch_id.clone();
     let page = PageService::create_page(
@@ -120,6 +146,17 @@ pub async fn get_page_handler(
     auth: AuthExtractor,
     Path(page_id): Path<Id>,
 ) -> Result<Json<PageResponse>, AppError> {
+    let page_uuid = Uuid::parse_str(page_id.as_str())
+        .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
+    require_parent_access(
+        &state.biz_context.pool,
+        state.authz_backend(),
+        &auth.authz_context(),
+        ParentLink::Page(page_uuid),
+        Relation::Viewer,
+    )
+    .await?;
+
     let page = PageService::get_page(&state.biz_context, &auth.user.id, &page_id).await?;
 
     Ok(Json(page))
@@ -155,6 +192,17 @@ pub async fn update_page_handler(
     Path(page_id): Path<Id>,
     Json(request): Json<UpdatePageRequest>,
 ) -> Result<Json<PageResponse>, AppError> {
+    let page_uuid = Uuid::parse_str(page_id.as_str())
+        .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
+    require_parent_access(
+        &state.biz_context.pool,
+        state.authz_backend(),
+        &auth.authz_context(),
+        ParentLink::Page(page_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     let page =
         PageService::update_page(&state.biz_context, &auth.user.id, &page_id, request).await?;
 
@@ -188,6 +236,17 @@ pub async fn delete_page_handler(
     auth: AuthExtractor,
     Path(page_id): Path<Id>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let page_uuid = Uuid::parse_str(page_id.as_str())
+        .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
+    require_parent_access(
+        &state.biz_context.pool,
+        state.authz_backend(),
+        &auth.authz_context(),
+        ParentLink::Page(page_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
     PageService::delete_page(&state.biz_context, &auth.user.id, &page_id).await?;
 
     Ok(Json(serde_json::json!({"success": true, "id": page_id})))

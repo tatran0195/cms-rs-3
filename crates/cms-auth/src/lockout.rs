@@ -32,7 +32,7 @@ pub async fn record_failed_login(pool: &PgPool, user_id: &str) -> Result<bool, A
     .bind(LOCKOUT_MINUTES)
     .fetch_one(pool)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
     if now_locked {
         tracing::warn!(user_id = %user_id, "Account locked after repeated failed logins");
@@ -52,7 +52,7 @@ pub async fn reset_failed_logins(pool: &PgPool, user_id: &str) -> Result<(), App
     .bind(user_id)
     .execute(pool)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
     Ok(())
 }
@@ -66,7 +66,7 @@ pub async fn is_account_locked(pool: &PgPool, user_id: &str) -> Result<bool, App
     .bind(user_id)
     .fetch_optional(pool)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
     Ok(locked.unwrap_or(false))
 }

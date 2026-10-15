@@ -225,6 +225,16 @@ pub async fn trigger_git_sync_handler(
     )
     .await?;
 
+    let job_envelope = cms_queue::JobEnvelope::new(
+        cms_queue::JobType::Git,
+        serde_json::json!({
+            "operation_id": operation.id,
+            "connection_id": connection_id.as_str(),
+            "operation_type": "manual"
+        }),
+    );
+    let _ = state.job_queue.enqueue(job_envelope).await;
+
     Ok(Json(operation))
 }
 

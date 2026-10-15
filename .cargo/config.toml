@@ -1,2 +1,5 @@
 [alias]
 xtask = "run --package cms-xtask --"
+
+[build]
+jobs = 2

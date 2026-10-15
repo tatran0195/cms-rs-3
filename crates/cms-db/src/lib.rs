@@ -32,9 +32,11 @@ pub mod reader_access;
 pub mod search_index;
 pub mod setup;
 pub mod theme;
+pub mod workspace;
 
 use cms_error::AppError;
 pub use setup::SetupQueries;
+pub use workspace::WorkspaceQueries;
 pub use sqlx;
 use sqlx::postgres::PgPoolOptions;
 

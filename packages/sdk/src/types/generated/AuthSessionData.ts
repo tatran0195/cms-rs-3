@@ -5,4 +5,4 @@ import type { AuthUser } from "./AuthUser";
 /**
  * Active auth session payload containing both user and session
  */
-export type AuthSessionData = { user: AuthUser, session: AuthSession, mfaRequired?: boolean, };
+export type AuthSessionData = { user: AuthUser, session: AuthSession, };

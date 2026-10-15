@@ -12,8 +12,11 @@ use cms_entity::{
         ProjectIntegrationHealth,
     },
 };
+use cms_authz::Relation;
+use cms_authz_gate::require_project_access;
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -57,6 +60,16 @@ pub async fn list_project_integrations_handler(
 ) -> Result<Json<ApiResponse<Vec<ProjectIntegrationCatalogItem>>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Viewer,
+    )
+    .await?;
+
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
@@ -74,6 +87,16 @@ pub async fn create_project_integration_handler(
 ) -> Result<Json<ApiResponse<ProjectIntegrationCatalogItem>>, AppError> {
     use cms_biz::integration::IntegrationService;
     use cms_entity::integration::{CreateProjectIntegrationRequest, IntegrationProvider};
+
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
 
     let provider_str = body
         .get("provider")
@@ -123,6 +146,16 @@ pub async fn update_project_integration_handler(
     use cms_biz::integration::IntegrationService;
     use cms_entity::integration::UpdateProjectIntegrationRequest;
 
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
@@ -165,6 +198,16 @@ pub async fn delete_project_integration_handler(
 ) -> Result<Json<ApiResponse<DeleteProjectIntegrationResponse>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
@@ -195,6 +238,16 @@ pub async fn verify_project_integration_handler(
 ) -> Result<Json<ApiResponse<serde_json::Value>>, AppError> {
     use cms_biz::integration::IntegrationService;
 
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)
             .await?;
@@ -223,6 +276,16 @@ pub async fn delete_project_integration_confirmation_handler(
     Json(_body): Json<serde_json::Value>,
 ) -> Result<Json<ApiResponse<ProjectIntegrationConfirmationResponse>>, AppError> {
     use cms_biz::integration::IntegrationService;
+
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
 
     let integrations =
         IntegrationService::list_integrations(&state.biz_context, &auth.user.id, &project_id)

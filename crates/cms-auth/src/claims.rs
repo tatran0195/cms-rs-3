@@ -63,8 +63,10 @@ pub fn encode_jwt(claims: &Claims, secret: &[u8]) -> Result<String, AppError> {
 
 /// Decode and validate `Claims` using HS256 and the provided secret.
 pub fn decode_jwt(token: &str, secret: &[u8]) -> Result<Claims, AppError> {
-    let mut validation = Validation::default();
-    validation.validate_exp = true;
+    let validation = Validation {
+        validate_exp: true,
+        ..Default::default()
+    };
     let decoding_key = DecodingKey::from_secret(secret);
     let token_data = decode::<Claims>(token, &decoding_key, &validation)
         .map_err(|e| {

@@ -32,12 +32,14 @@ pub mod reader_access;
 pub mod search;
 pub mod setup;
 pub mod theme;
+pub mod workspace;
 
 // Re-export commonly used types
 pub use cms_db::PgPool;
 pub use cms_entity::*;
 pub use cms_error::AppError;
 pub use setup::SetupService;
+pub use workspace::WorkspaceService;
 
 /// Business context passed to most biz functions
 ///

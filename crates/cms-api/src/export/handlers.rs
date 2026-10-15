@@ -105,6 +105,16 @@ pub async fn create_export_job_handler(
     )
     .await?;
 
+    let job_envelope = cms_queue::JobEnvelope::new(
+        cms_queue::JobType::Export,
+        serde_json::json!({
+            "job_id": job.id,
+            "snapshot_id": request.snapshot_id,
+            "format": format!("{:?}", request.format).to_lowercase(),
+        }),
+    );
+    let _ = state.job_queue.enqueue(job_envelope).await;
+
     Ok(Json(job.into()))
 }
 

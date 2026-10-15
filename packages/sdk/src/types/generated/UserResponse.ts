@@ -3,4 +3,4 @@
 /**
  * User response (with sensitive fields removed)
  */
-export type UserResponse = { id: string, email: string, name: string | null, image: string | null, email_verified: boolean, created_at: string, updated_at: string, };
+export type UserResponse = { id: string, email: string, name: string | null, image: string | null, email_verified: boolean, mfa_enabled: boolean, created_at: string, updated_at: string, };

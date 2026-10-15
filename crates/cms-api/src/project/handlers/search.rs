@@ -12,8 +12,11 @@ use cms_entity::{
         SearchSettingsResponse, UpdateSearchSettingsRequest,
     },
 };
+use cms_authz::Relation;
+use cms_authz_gate::require_project_access;
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
+use uuid::Uuid;
 
 use crate::auth::AuthExtractor;
 
@@ -121,6 +124,16 @@ pub async fn update_project_search_settings_handler(
     Path(project_id): Path<String>,
     Json(body): Json<UpdateSearchSettingsRequest>,
 ) -> Result<Json<ApiResponse<SearchSettingsResponse>>, AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     use cms_biz::project::ProjectService;
     let proj = ProjectService::get_project(&state.biz_context, &auth.user.id, &project_id).await?;
 
@@ -359,6 +372,16 @@ pub async fn reindex_project_search_handler(
     auth: AuthExtractor,
     Path(project_id): Path<String>,
 ) -> Result<(StatusCode, Json<ApiResponse<SearchReindexResponse>>), AppError> {
+    let project_uuid = Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        Relation::Admin,
+    )
+    .await?;
+
     use cms_biz::search::SearchService;
     use cms_entity::search::ReindexRequest;
 

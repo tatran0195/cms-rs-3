@@ -271,68 +271,96 @@ impl SearchService {
         )
         .await?;
 
-        let pages = PageQueries::get_by_project_branch_and_language(
-            &ctx.pool,
-            &request.project_id,
-            &branch.id,
-            language_id,
-            None,
-            Some(true),
-            None,
-            None,
-            None,
-        )
-        .await?;
+        // Offload heavy indexing and embedding loop to a background task so HTTP request returns 202 Accepted immediately
+        let pool = ctx.pool.clone();
+        let run_id = run.id.clone();
+        let project_id = request.project_id.clone();
+        let branch_id = branch.id.clone();
+        let branch_slug = branch.slug.clone();
+        let lang_id = language_id.map(|s| s.to_string());
 
-        let mut indexed_count = 0;
-        let mut failures = Vec::new();
-        for page_item in pages {
-            if !page_item
-                .kind
-                .as_deref()
-                .unwrap_or("PAGE")
-                .eq_ignore_ascii_case("PAGE")
+        tokio::spawn(async move {
+            let pages = match PageQueries::get_by_project_branch_and_language(
+                &pool,
+                &project_id,
+                &branch_id,
+                lang_id.as_deref(),
+                None,
+                Some(true),
+                None,
+                None,
+                None,
+            )
+            .await
             {
-                continue;
-            }
-            match PageQueries::get_by_id(&ctx.pool, &page_item.id).await {
-                Ok(Some(page)) if page.is_published && page.is_indexed => {
-                    match search_engine.index_page(&page).await {
-                        Ok(()) => indexed_count += 1,
-                        Err(error) => failures.push(format!("{}: {}", page.id, error)),
+                Ok(p) => p,
+                Err(e) => {
+                    tracing::error!("Failed to fetch pages for reindexing run {}: {}", run_id, e);
+                    let _ = SearchIndexRunQueries::mark_failed(
+                        &pool,
+                        &run_id,
+                        0,
+                        &format!("Failed to fetch pages: {}", e),
+                    )
+                    .await;
+                    return;
+                }
+            };
+
+            let mut indexed_count = 0;
+            let mut failures = Vec::new();
+            for page_item in pages {
+                if !page_item
+                    .kind
+                    .as_deref()
+                    .unwrap_or("PAGE")
+                    .eq_ignore_ascii_case("PAGE")
+                {
+                    continue;
+                }
+                match PageQueries::get_by_id(&pool, &page_item.id).await {
+                    Ok(Some(page)) if page.is_published && page.is_indexed => {
+                        match search_engine.index_page(&page).await {
+                            Ok(()) => indexed_count += 1,
+                            Err(error) => failures.push(format!("{}: {}", page.id, error)),
+                        }
                     }
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        failures.push(format!("{}: page disappeared during reindex", page_item.id))
+                    }
+                    Err(error) => failures.push(format!("{}: {}", page_item.id, error)),
                 }
-                Ok(Some(_)) => {}
-                Ok(None) => {
-                    failures.push(format!("{}: page disappeared during reindex", page_item.id))
-                }
-                Err(error) => failures.push(format!("{}: {}", page_item.id, error)),
             }
-        }
 
-        let completed = if failures.is_empty() {
-            SearchIndexRunQueries::mark_completed(&ctx.pool, &run.id, indexed_count).await?
-        } else {
-            let error_message = failures
-                .iter()
-                .take(20)
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join("; ");
-            let error_message = error_message.chars().take(4_000).collect::<String>();
-            SearchIndexRunQueries::mark_failed(&ctx.pool, &run.id, indexed_count, &error_message)
-                .await?
-        };
+            let result = if failures.is_empty() {
+                SearchIndexRunQueries::mark_completed(&pool, &run_id, indexed_count).await
+            } else {
+                let error_message = failures
+                    .iter()
+                    .take(20)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                let error_message = error_message.chars().take(4_000).collect::<String>();
+                SearchIndexRunQueries::mark_failed(&pool, &run_id, indexed_count, &error_message)
+                    .await
+            };
 
-        tracing::info!(
-            "Reindex completed for project {} branch {}: {} page(s) indexed, {} failure(s)",
-            request.project_id,
-            branch.slug,
-            indexed_count,
-            failures.len()
-        );
+            if let Err(e) = result {
+                tracing::error!("Failed to update search index run {} completion status: {}", run_id, e);
+            } else {
+                tracing::info!(
+                    "Reindex completed for project {} branch {}: {} page(s) indexed, {} failure(s)",
+                    project_id,
+                    branch_slug,
+                    indexed_count,
+                    failures.len()
+                );
+            }
+        });
 
-        Ok(completed.into())
+        Ok(run.into())
     }
 }
 
