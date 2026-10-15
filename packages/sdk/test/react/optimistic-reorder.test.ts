@@ -2,8 +2,8 @@
 
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import type { PageNode } from './index';
-import { queryKeys } from './query-keys';
+import { queryKeys } from '../../src/react';
+import type { PageNode } from '../../src/types';
 
 describe('Optimistic Reorder Mutation Pipeline', () => {
   it('immediately updates cache before network resolve and supports rollback', async () => {

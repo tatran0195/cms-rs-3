@@ -1,32 +1,25 @@
 // @vitest-environment jsdom
 
-import { CmsApiError } from '@cms/sdk';
-
-import { CmsClientProvider } from '@cms/sdk/react';
+import { CmsApiError } from '../../src/errors';
+import { CmsClientProvider, queryKeys, useActivateProjectAddon, useUpdateProjectAddon } from '../../src/react';
+import type { ProjectAddon } from '../../src/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cmsClient } from '../../services/cms-client';
-import { useActivateProjectAddon, useUpdateProjectAddon } from './mutations';
-import { queryKeys } from './query-keys';
-import type { ProjectAddon } from './types';
 
 const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
   update: vi.fn(),
 }));
 
-vi.mock('../../services/cms-client', () => ({
-  cmsClient: {
-    addons: {
-      update: mocks.update,
-      activate: mocks.activate,
-      deactivate: vi.fn(),
-    },
+const mockClient = {
+  addons: {
+    update: mocks.update,
+    activate: mocks.activate,
+    deactivate: vi.fn(),
   },
-}));
-
+};
 
 const conflictError = () =>
   new CmsApiError({
@@ -63,8 +56,8 @@ describe('add-on mutation conflict recovery', () => {
       const activate = useActivateProjectAddon(projectId);
       mutate = () =>
         action === 'update'
-          ? update.mutateAsync({ addonId, body: { expectedRevision: 1, config: { placement: 'after-content', presentation: 'compact' } } })
-          : activate.mutateAsync({ addonId, expectedRevision: 1 });
+          ? update.mutateAsync({ addonId, body: { enabled: true, expectedRevision: 2, idempotencyKey: 'update-key' } })
+          : activate.mutateAsync({ addonId, expectedRevision: 2 });
       return null;
     }
 
@@ -74,7 +67,7 @@ describe('add-on mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: cmsClient as any }, createElement(Probe))
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
         )
       )
     );
@@ -82,14 +75,45 @@ describe('add-on mutation conflict recovery', () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'addon:revision_conflict' });
     });
 
-
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.addons.detail(projectId, addonId),
-      exact: true,
-      refetchType: 'all',
-    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.addons.detail(projectId, addonId), exact: true, refetchType: 'all' });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.addons.all(projectId), exact: true, refetchType: 'all' });
     expect(invalidate).toHaveBeenCalledTimes(2);
+    act(() => root.unmount());
+  });
+
+  it('does not invalidate add-on caches for unrelated mutation errors', async () => {
+    mocks.update.mockRejectedValue(
+      new CmsApiError({
+        status: 400,
+        code: 'addon:invalid_config',
+        message: 'Invalid configuration.',
+      })
+    );
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
+    let mutate: () => Promise<ProjectAddon> = () => Promise.reject(new Error('mutation hook was not ready'));
+
+    function Probe() {
+      const update = useUpdateProjectAddon(projectId);
+      mutate = () => update.mutateAsync({ addonId, body: { enabled: true, expectedRevision: 2, idempotencyKey: 'update-key' } });
+      return null;
+    }
+
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
+        )
+      )
+    );
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    await act(async () => {
+      await expect(mutate()).rejects.toMatchObject({ code: 'addon:invalid_config' });
+    });
+
+    expect(invalidate).not.toHaveBeenCalled();
     act(() => root.unmount());
   });
 });

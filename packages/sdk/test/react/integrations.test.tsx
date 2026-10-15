@@ -1,32 +1,23 @@
 // @vitest-environment jsdom
 
-import { CmsApiError } from '@cms/sdk';
-
-import { CmsClientProvider } from '@cms/sdk/react';
+import { CmsApiError } from '../../src/errors';
+import { CmsClientProvider, queryKeys, useActivateProjectIntegration, useUpdateProjectIntegration } from '../../src/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cmsClient } from '../../services/cms-client';
-import { useActivateProjectIntegration, useUpdateProjectIntegration } from './mutations';
-import { queryKeys } from './query-keys';
-
-
 
 const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
   update: vi.fn(),
 }));
 
-vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => key }));
-vi.mock('../../services/cms-client', () => ({
-  cmsClient: {
-    integrations: {
-      update: mocks.update,
-      activate: mocks.activate,
-    },
+const mockClient = {
+  integrations: {
+    update: mocks.update,
+    activate: mocks.activate,
   },
-}));
+};
 
 const makeError = (code: string) =>
   new CmsApiError({
@@ -76,7 +67,7 @@ describe('integration mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: cmsClient as any }, createElement(Probe))
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
         )
       )
     );
@@ -106,7 +97,7 @@ describe('integration mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: cmsClient as any }, createElement(Probe))
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
         )
       )
     );
@@ -119,4 +110,3 @@ describe('integration mutation conflict recovery', () => {
     act(() => root.unmount());
   });
 });
-
