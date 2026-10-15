@@ -2,7 +2,7 @@ import { ThemeProvider } from '@cms/design-system/theme';
 import { siteThemeNoFlashScript } from '@cms/site';
 import { createRootRoute, HeadContent, Outlet, useRouterState } from '@tanstack/react-router';
 import { type ReactNode, useEffect } from 'react';
-import type { SiteShell } from '@/shared';
+import type { SiteShell } from '@cms/sdk';
 import appCss from '@/styles.css?url';
 
 export const Route = createRootRoute({
@@ -53,13 +53,14 @@ function RootDocument({ children }: { children: ReactNode }) {
         };
       }
       const code = (state.location.search as { lang?: string }).lang ?? site.activeLanguage;
-      const active = site.languages.find((l) => l.code === code) ?? site.languages.find((l) => l.isDefault) ?? site.languages[0];
+      const languages = site.languages ?? [];
+      const active = languages.find((l) => l.code === code) ?? languages.find((l) => l.isDefault) ?? languages[0];
       return {
         lang: active?.code ?? 'en',
         dir: active?.direction === 'RTL' ? ('rtl' as const) : ('ltr' as const),
         pathname: state.location.pathname,
         siteProjectId: (match?.params as { projectId?: string } | undefined)?.projectId,
-        siteThemeDefault: site.project.config?.styling?.theme ?? 'light',
+        siteThemeDefault: site.project?.config?.styling?.theme ?? 'light',
       };
     },
   });

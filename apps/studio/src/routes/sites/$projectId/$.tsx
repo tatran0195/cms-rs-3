@@ -1,7 +1,8 @@
 import { type SitePage, type SiteShell, pageHead, redirectIfConfigured, resolveLanguagePathRedirect, SitePageView } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import { ApiResponseError, cmsClient } from '@/shared';
+import { CmsApiError } from '@cms/sdk';
+import { cmsClient } from '@/shared';
 
 const OpenApiReferenceView = lazy(() => import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })));
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
     try {
       page = await cmsClient.sites.getPage<SitePage>(params.projectId, path, { language: deps.lang, version });
     } catch (error) {
-      if (!(error instanceof ApiResponseError) || error.status !== 404) {
+      if (!(error instanceof CmsApiError) || error.status !== 404) {
         throw error;
       }
       // The API Reference is a published snapshot resource rather than an MDX

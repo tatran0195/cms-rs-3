@@ -1,6 +1,7 @@
 import { type SitePage, type SiteShell, pageHead, redirectIfConfigured, SitePageView } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
-import { ApiResponseError, cmsClient } from '@/shared';
+import { CmsApiError } from '@cms/sdk';
+import { cmsClient } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId/')({
   component: SiteHome,
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/sites/$projectId/')({
       const page = await cmsClient.sites.getPage<SitePage>(params.projectId, '', { language: deps.lang });
       return { page, lang: deps.lang };
     } catch (error) {
-      if (!(error instanceof ApiResponseError) || error.status !== 404) {
+      if (!(error instanceof CmsApiError) || error.status !== 404) {
         throw error;
       }
       // A site may intentionally publish only an API reference. Give that

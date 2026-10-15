@@ -2,7 +2,6 @@
   "extends": "@cms/tsconfig/react.json",
   "compilerOptions": {
     "paths": {
-      "@/hooks/*": ["./src/shared/hooks/*"],
       "@/*": ["./src/*"],
       "@cms/ui": ["../../packages/ui/dist/index.d.ts"]
     }
