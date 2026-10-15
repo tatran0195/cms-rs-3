@@ -82,6 +82,24 @@ const url = z
 const navLink = z.object({ label: z.string().max(80), href: url, external: z.boolean().optional() }).strict();
 const navAnchor = z.object({ label: z.string().max(80), href: url, icon: z.string().max(40).optional(), external: z.boolean().optional() }).strict();
 
+export type NavTabItem = {
+  label: string;
+  href?: string;
+  external?: boolean;
+  items?: NavTabItem[];
+};
+
+export const navTabItemSchema: z.ZodType<NavTabItem> = z.lazy(() =>
+  z
+    .object({
+      label: z.string().trim().min(1).max(80),
+      href: url.optional().or(z.literal('')),
+      external: z.boolean().optional(),
+      items: z.array(navTabItemSchema).max(30).optional(),
+    })
+    .strict()
+);
+
 const redirectsSchema = z
   .array(z.object({ from: z.string().max(300), to: z.string().max(300) }).strict())
   .max(MAX_REDIRECT_RULES)
@@ -289,7 +307,7 @@ export const projectConfigSchema = z
         links: z.array(navLink).max(20).optional(),
         // Top-level tabs (a secondary nav row) and pinned sidebar anchors —
         // Mintlify-style IA primitives for larger docs.
-        tabs: z.array(navLink).max(10).optional(),
+        tabs: z.array(navTabItemSchema).max(30).optional(),
         anchors: z.array(navAnchor).max(12).optional(),
         showSearch: z.boolean().optional(),
         // Opt-in built-in "Changelog" navbar link (localized label, links to the
@@ -422,7 +440,7 @@ export const languageConfigSchema = z
       .object({
         ctaLabel: z.string().max(60).optional(),
         links: z.array(navLink).max(20).optional(),
-        tabs: z.array(navLink).max(10).optional(),
+        tabs: z.array(navTabItemSchema).max(30).optional(),
         anchors: z.array(navAnchor).max(12).optional(),
       })
       .strict()

@@ -293,6 +293,62 @@ describe('languageConfigSchema (per-language chrome overrides)', () => {
   });
 });
 
+describe('navTabItemSchema & navbar.tabs recursive validation', () => {
+  it('validates a flat list of tabs for backward compatibility', () => {
+    const flatTabs = [
+      { label: 'Guides', href: '/guides' },
+      { label: 'API', href: 'https://api.example.com', external: true },
+    ];
+    const parsed = projectConfigSchema.safeParse({ navbar: { tabs: flatTabs } });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('validates infinite nested tabs with arbitrary depth', () => {
+    const nestedTabs = [
+      {
+        label: 'Products',
+        items: [
+          {
+            label: 'Cloud',
+            href: '/products/cloud',
+            items: [
+              {
+                label: 'Storage',
+                href: '/products/cloud/storage',
+                items: [
+                  { label: 'S3 Compatible', href: '/products/cloud/storage/s3' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const parsed = projectConfigSchema.safeParse({ navbar: { tabs: nestedTabs } });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('allows parent tab items with empty or omitted href', () => {
+    const parsed = projectConfigSchema.safeParse({
+      navbar: {
+        tabs: [
+          { label: 'Docs', items: [{ label: 'Overview', href: '/overview' }] },
+        ],
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects tab item without label', () => {
+    const parsed = projectConfigSchema.safeParse({
+      navbar: {
+        tabs: [{ href: '/test' } as any],
+      },
+    });
+    expect(parsed.success).toBe(false);
+  });
+});
+
 describe('project translation input', () => {
   it('accepts localized project identity through the language update body', () => {
     expect(updateLanguageBody.safeParse({ translation: { name: 'Acme ドキュメント', description: '製品ガイド' } }).success).toBe(true);
