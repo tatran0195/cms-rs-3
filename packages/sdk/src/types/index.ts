@@ -76,7 +76,6 @@ export * from './generated/DeploymentChangesResponse';
 export * from './generated/DeploymentListItem';
 // Deployment
 export * from './generated/DeploymentResponse';
-export * from './generated/DeploymentStatus';
 export * from './generated/DnsRecord';
 // Domain
 export * from './generated/DomainResponse';
@@ -252,3 +251,5 @@ export interface MfaChallengePayload {
   code: string;
   isRecoveryCode?: boolean;
 }
+
+export * from './ui';

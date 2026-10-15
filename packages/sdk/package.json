@@ -20,6 +20,8 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@cms/shared": "workspace:*",
+    "@cms/validators": "workspace:*",
     "ky": "^2.1.0"
   },
   "peerDependencies": {

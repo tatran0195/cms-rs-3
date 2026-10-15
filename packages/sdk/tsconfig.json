@@ -1,8 +1,9 @@
 {
-  "extends": "@cms/tsconfig/hono.json",
+  "extends": "@cms/tsconfig/react.json",
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["node"]
   },
   "include": ["src", "test"],
   "exclude": ["node_modules", "dist"]

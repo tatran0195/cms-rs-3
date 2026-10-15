@@ -1,38 +1,7 @@
 import type { HttpClient } from '../http';
+import type { ChangelogEntry, SearchAnswer, SitePage, SiteSearchHit, SiteShell } from '../types';
 
-export interface SiteShell {
-  id: string;
-  name?: string;
-  [key: string]: unknown;
-}
-
-export interface SitePage {
-  id: string;
-  path: string;
-  content: string;
-  [key: string]: unknown;
-}
-
-export interface ChangelogEntry {
-  id: string;
-  title: string;
-  publishedAt: string;
-  [key: string]: unknown;
-}
-
-export interface SiteSearchHit {
-  id: string;
-  title: string;
-  path: string;
-  snippet?: string;
-  [key: string]: unknown;
-}
-
-export interface SearchAnswer {
-  answer: string;
-  references?: Array<{ id: string; title: string; path: string }>;
-  [key: string]: unknown;
-}
+export type { ChangelogEntry, SearchAnswer, SitePage, SiteSearchHit, SiteShell };
 
 export class SitesResource {
   constructor(private readonly http: HttpClient) {}
