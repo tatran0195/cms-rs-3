@@ -326,6 +326,8 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                   label={t('docs')}
                   isRtl={isRtl}
                   links={headerLinks}
+                  tabs={navTabs}
+                  basePath={basePrefix}
                 />
 
                 <div className="flex min-w-0 shrink-0 items-center gap-2.5">
