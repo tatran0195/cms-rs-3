@@ -342,7 +342,7 @@ describe('navTabItemSchema & navbar.tabs recursive validation', () => {
   it('rejects tab item without label', () => {
     const parsed = projectConfigSchema.safeParse({
       navbar: {
-        tabs: [{ href: '/test' } as any],
+        tabs: [{ href: '/test' } as unknown as NavTabItem],
       },
     });
     expect(parsed.success).toBe(false);

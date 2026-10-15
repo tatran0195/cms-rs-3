@@ -52,7 +52,7 @@ interface AnchorRow extends NavRow {
 
 /** Prevent TanStack Form DeepKeys infinite recursion by breaking the cycle in the form state type: */
 export type FormNavTabItem = Omit<NavTabItem, 'items'> & {
-  items?: any[];
+  items?: unknown[];
 };
 
 /** The editable navbar values shared by the project scope and a language scope.
@@ -120,12 +120,15 @@ const cleanAnchorRows = (rows: AnchorRow[]): Array<{ label: string; href: string
     }));
 
 const normalizeTabs = (items?: unknown[]): NavTabItem[] =>
-  (items ?? []).map((tab: any) => ({
-    label: typeof tab?.label === 'string' ? tab.label : '',
-    href: typeof tab?.href === 'string' ? tab.href : '',
-    external: Boolean(tab?.external),
-    items: Array.isArray(tab?.items) && tab.items.length > 0 ? normalizeTabs(tab.items) : undefined,
-  }));
+  (items ?? []).map((tab) => {
+    const item = typeof tab === 'object' && tab !== null ? (tab as Record<string, unknown>) : {};
+    return {
+      label: typeof item.label === 'string' ? item.label : '',
+      href: typeof item.href === 'string' ? item.href : '',
+      external: Boolean(item.external),
+      items: Array.isArray(item.items) && item.items.length > 0 ? normalizeTabs(item.items) : undefined,
+    };
+  });
 
 /** Default scope: the project-level navbar in `project.config.navbar` (unchanged). */
 function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
