@@ -23,8 +23,8 @@ import {
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { Project } from '@/hooks/api';
-import { useProject } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useProject } from '@cms/sdk/react';
 import { AddonsSection } from './components/addons-section';
 import { ApiKeysTab } from './components/api-keys-tab';
 import { AuthenticationSection } from './components/authentication-section';

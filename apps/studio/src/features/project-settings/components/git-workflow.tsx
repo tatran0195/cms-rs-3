@@ -22,8 +22,8 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { env } from '@/env';
+import type { GitConflict as Conflict } from '@cms/sdk';
 import {
-  type GitConflict as Conflict,
   useAuthorizeGitWorkflow,
   useConnectGitWorkflow,
   useDisconnectGitWorkflow,
@@ -31,7 +31,7 @@ import {
   useQueueGitOperation,
   useResolveGitConflict,
   useRotateGitWorkflowWebhookSecret,
-} from '@/hooks/api';
+} from '@cms/sdk/react';
 import { cmsClient, localeTag } from '@/shared';
 
 type GitIdentity = { login: string; name: string | null };

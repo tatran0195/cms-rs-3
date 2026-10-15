@@ -10,8 +10,8 @@ import { useLocale } from '@cms/i18n/react';
 import { jwtAccessConfigBody } from '@cms/validators';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import type { Project } from '@cms/sdk';
 import {
-  type Project,
   useCreateReaderAudience,
   useDeleteReaderAudience,
   useEmergencyRevokeReaderAccess,
@@ -22,7 +22,7 @@ import {
   useTestReaderJwt,
   useUpdateReaderAccessMode,
   useUpdateReaderJwt,
-} from '@/hooks/api';
+} from '@cms/sdk/react';
 import { localeTag } from '@/shared';
 import { Field, SectionHeader, Segmented } from './shared';
 

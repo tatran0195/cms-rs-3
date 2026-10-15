@@ -5,8 +5,8 @@ import { useForm } from '@tanstack/react-form';
 import { Type } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useState } from 'react';
-import type { Project } from '@/hooks/api';
-import { useUpdateProjectConfig } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { Field, SaveBar, SectionHeader, Segmented, saveConfigSection } from './shared';
 
 const HEADING_FONTS: [string, ...string[]] = ['Geist', 'Inter', 'Söhne', 'IBM Plex Sans', 'System UI'];

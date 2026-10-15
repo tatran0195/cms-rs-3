@@ -3,8 +3,8 @@ import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
 import { useForm } from '@tanstack/react-form';
 import { useState } from 'react';
-import type { Project } from '@/hooks/api';
-import { useUpdateProjectConfig } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { FIELD_MONO, Field, SaveBar, SectionHeader, saveConfigSection, ToggleRow } from './shared';
 
 // Match the shapes the live-site injector accepts, so an invalid id is caught in

@@ -7,8 +7,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddLanguageDialog } from '@/features/editor';
-import type { Language, Project } from '@/hooks/api';
-import { useDeleteLanguage, useLanguages, useUpdateLanguage } from '@/hooks/api';
+import type { Language, Project } from '@cms/sdk';
+import { useDeleteLanguage, useLanguages, useUpdateLanguage } from '@cms/sdk/react';
 import { SectionHeader, sortLanguagesDefaultFirst } from './shared';
 
 /** A small uppercase chip (direction / default / hidden badges). */

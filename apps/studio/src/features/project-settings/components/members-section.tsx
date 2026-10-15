@@ -20,7 +20,7 @@ import {
   useRemoveProjectMember,
   useTransferProjectOwnership,
   useUpdateProjectMemberRole,
-} from '@/hooks/api';
+} from '@cms/sdk/react';
 import { copyToClipboard, inviteAcceptUrl, email as validateEmail } from '@/shared';
 import { GradientAvatar } from './section';
 import { SectionHeader } from './shared';

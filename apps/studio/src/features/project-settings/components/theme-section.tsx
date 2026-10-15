@@ -25,7 +25,8 @@ import type { ProjectConfig } from '@cms/validators';
 import { Download, FileJson, LayoutTemplate, RotateCcw, Undo2, Upload } from 'lucide-react';
 import { type ChangeEvent, type CSSProperties, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { type Project, type ProjectThemeImportResult, useExportProjectTheme, useImportProjectTheme, useUpdateProjectConfig } from '@/hooks/api';
+import type { Project, ProjectThemeImportResult } from '@cms/sdk';
+import { useExportProjectTheme, useImportProjectTheme, useUpdateProjectConfig } from '@cms/sdk/react';
 import { Field, SaveBar, SectionHeader, Segmented } from './shared';
 
 type Appearance = 'light' | 'dark' | 'system';

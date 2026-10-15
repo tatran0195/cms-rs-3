@@ -10,8 +10,8 @@ import { CirclePlus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { env } from '@/env';
-import type { Language, Project } from '@/hooks/api';
-import { useLanguages, useUpdateLanguage, useUpdateProject } from '@/hooks/api';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useUpdateLanguage, useUpdateProject } from '@cms/sdk/react';
 import { required } from '@/shared';
 import {
   FIELD_INPUT,

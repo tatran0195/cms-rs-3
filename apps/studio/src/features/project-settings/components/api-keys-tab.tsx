@@ -8,8 +8,8 @@ import { Check, Copy, KeyRound, RefreshCw, ShieldCheck, Trash2 } from 'lucide-re
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@/hooks/api';
-import type { ApiKey } from '@/hooks/api/types';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@cms/sdk/react';
+import type { ApiKey } from '@cms/sdk';
 import { cmsClient, localeTag, useFormatters } from '@/shared';
 import {
   AlertDialog,

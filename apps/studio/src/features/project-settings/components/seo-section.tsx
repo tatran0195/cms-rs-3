@@ -6,8 +6,8 @@ import { useForm } from '@tanstack/react-form';
 import { SearchCheck, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, Project } from '@/hooks/api';
-import { useLanguages, useUpdateLanguage, useUpdateProjectConfig, useUploadAsset } from '@/hooks/api';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig, useUploadAsset } from '@cms/sdk/react';
 import {
   DirtyStateReporter,
   FIELD_INPUT,

@@ -9,7 +9,7 @@ import { useT } from '@cms/i18n/react';
 import { AlertTriangle, Braces, FileUp, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { useDeleteOpenApi, useOpenApiConfiguration, useSyncOpenApi, useUpsertOpenApi } from '@/hooks/api';
+import { useDeleteOpenApi, useOpenApiConfiguration, useSyncOpenApi, useUpsertOpenApi } from '@cms/sdk/react';
 import { localeTag } from '@/shared';
 import { FIELD_INPUT, FIELD_MONO, Field, SectionHeader, Segmented } from './shared';
 

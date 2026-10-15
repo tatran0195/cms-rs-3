@@ -10,8 +10,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, ChevronDown, DownloadCloud, Ghost, GitBranch, Leaf, Loader2, Upload } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { type ContentImportSummary, useImportFromGhost, useImportFromMintlify } from '@/hooks/api';
-import { ApiResponseError } from '@/hooks/api/client-helpers';
+import { type ContentImportSummary, CmsApiError } from '@cms/sdk';
+import { useImportFromGhost, useImportFromMintlify } from '@cms/sdk/react';
 import { SettingsSection } from './section';
 
 /** Matches the server-side body cap for Ghost exports. */
@@ -176,7 +176,7 @@ export function ImportTab({ projectId }: { projectId?: string }) {
     toast.success(t('settings.import.success'));
   };
   const handleError = (error: unknown) => {
-    if (error instanceof ApiResponseError && error.code === 'import:invalid_document') {
+    if (error instanceof CmsApiError && error.code === 'import:invalid_document') {
       toast.error(source === 'ghost' ? t('settings.import.ghost.invalidJson') : t('settings.import.error'));
       return;
     }

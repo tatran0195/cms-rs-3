@@ -8,7 +8,7 @@ import { AlertTriangle, ShieldAlert, UserCheck } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import { useDeleteWorkspace, useMembers, useTransferWorkspaceOwnership, useWorkspaceSettings } from '@/hooks/api';
+import { useDeleteWorkspace, useMembers, useTransferWorkspaceOwnership, useWorkspaceSettings } from '@cms/sdk/react';
 import { SettingsSection } from './section';
 
 

@@ -7,7 +7,7 @@ import { useT } from '@cms/i18n/react';
 import { Check, Copy, FolderGit2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@/hooks/api';
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@cms/sdk/react';
 import { copyToClipboard } from '@/shared';
 import { SettingsSection } from './section';
 

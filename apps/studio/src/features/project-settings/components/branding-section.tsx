@@ -5,8 +5,8 @@ import { useForm } from '@tanstack/react-form';
 import { Badge, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { Project } from '@/hooks/api';
-import { useUpdateProjectConfig, useUploadAsset } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig, useUploadAsset } from '@cms/sdk/react';
 import { FIELD_INPUT, FIELD_MONO, Field, SaveBar, SectionHeader, saveConfigSection } from './shared';
 
 type BrandingField = 'logoLight' | 'logoDark' | 'favicon' | 'logoHref';

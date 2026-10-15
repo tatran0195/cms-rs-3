@@ -5,8 +5,8 @@ import { useForm } from '@tanstack/react-form';
 import { Megaphone } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, Project } from '@/hooks/api';
-import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@/hooks/api';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
 import {
   DirtyStateReporter,
   FIELD_INPUT,

@@ -10,7 +10,7 @@ import { useForm } from '@tanstack/react-form';
 import { ArrowUpRight, Check, CircleAlert, Copy, DownloadCloud, Eye, EyeOff, GitBranch, Globe, Hammer, Loader2, RefreshCw } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { Deployment } from '@/hooks/api';
+import type { Deployment } from '@cms/sdk';
 import {
   useBranches,
   useDeployments,
@@ -19,7 +19,7 @@ import {
   useRotateGitWebhookSecret,
   useUpdateWorkspaceSettings,
   useWorkspaceSettings,
-} from '@/hooks/api';
+} from '@cms/sdk/react';
 import { cmsClient, copyToClipboard, GithubIcon, useFormatters } from '@/shared';
 import { GitWorkflow } from './git-workflow';
 import { SettingsSection } from './section';

@@ -9,7 +9,7 @@ import { useT } from '@cms/i18n/react';
 import { useForm } from '@tanstack/react-form';
 import { Mail, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '@/hooks/api';
+import { useInviteMember, useMembers, useRemoveMember, useUpdateMemberRole } from '@cms/sdk/react';
 import { email as validateEmail } from '@/shared';
 
 type AssignableRole = 'admin' | 'member';

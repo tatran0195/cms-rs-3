@@ -6,8 +6,8 @@ import { useForm } from '@tanstack/react-form';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, Project } from '@/hooks/api';
-import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@/hooks/api';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@cms/sdk/react';
 import { SearchIndexDiagnostics } from './search-index-diagnostics';
 import {
   DirtyStateReporter,

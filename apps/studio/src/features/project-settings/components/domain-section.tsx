@@ -9,8 +9,8 @@ import { useT } from '@cms/i18n/react';
 import { Check, ChevronDown, Copy, ExternalLink, Globe2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Project } from '@/hooks/api';
-import { useAddDomain, useDeleteDomain, useDomains, useSetPrimaryDomain, useVerifyDomain } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useAddDomain, useDeleteDomain, useDomains, useSetPrimaryDomain, useVerifyDomain } from '@cms/sdk/react';
 import { copyToClipboard, localeTag } from '@/shared';
 import { FIELD_MONO, SectionHeader } from './shared';
 

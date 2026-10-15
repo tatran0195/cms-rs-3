@@ -6,7 +6,7 @@ import { useT } from '@cms/i18n/react';
 import { canAdminister } from '@cms/shared/rbac';
 import { AlertTriangle, Building2, type LucideIcon, Palette, UserRound, Users } from 'lucide-react';
 import { useSession } from '@/features/auth';
-import { useMembers } from '@/hooks/api';
+import { useMembers } from '@cms/sdk/react';
 import { AccountTab } from './components/account-tab';
 import { AppearanceTab } from './components/appearance-tab';
 import { WorkspaceDangerTab } from './components/workspace-danger-tab';

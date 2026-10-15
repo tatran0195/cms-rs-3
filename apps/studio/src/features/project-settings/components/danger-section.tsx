@@ -7,8 +7,8 @@ import { TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import type { Project } from '@/hooks/api';
-import { useDeleteProject, useProjectMembers, useTransferProjectOwnership } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useDeleteProject, useProjectMembers, useTransferProjectOwnership } from '@cms/sdk/react';
 import { SectionHeader } from './shared';
 
 interface ProjectMemberUser {

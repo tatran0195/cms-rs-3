@@ -8,7 +8,7 @@ import type { SearchIndexDiagnosticsResult } from '@cms/validators';
 import { ChevronLeft, ChevronRight, Database, LoaderCircle, RefreshCw, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
-import { useCreateProjectSearchReindex, useProjectSearchIndexDiagnostics } from '@/hooks/api';
+import { useCreateProjectSearchReindex, useProjectSearchIndexDiagnostics } from '@cms/sdk/react';
 import { localeTag } from '@/shared';
 
 const healthVariant = (health: string) => {

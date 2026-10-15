@@ -33,8 +33,8 @@ import {
 } from 'lucide-react';
 import { type ComponentType, type FormEvent, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import type { Project } from '@cms/sdk';
 import {
-  type Project,
   useActivateProjectIntegration,
   useCreateProjectIntegration,
   useDeactivateProjectIntegration,
@@ -42,7 +42,7 @@ import {
   useProjectIntegrations,
   useUpdateProjectIntegration,
   useVerifyProjectIntegration,
-} from '@/hooks/api';
+} from '@cms/sdk/react';
 import { GithubIcon, SlackIcon } from '@/shared';
 import { AnalyticsSection } from './analytics-section';
 import { SEARCH_RUNTIME_MESSAGE_KEYS } from './integration-config-values';

@@ -3,8 +3,8 @@ import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
 import { useForm } from '@tanstack/react-form';
 import { Plus, X } from 'lucide-react';
-import type { Project } from '@/hooks/api';
-import { useUpdateProjectConfig } from '@/hooks/api';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { FIELD_COMPACT_MONO, SaveBar, SectionHeader, saveConfigSection } from './shared';
 
 export function VariablesSection({ project }: { project: Project }) {

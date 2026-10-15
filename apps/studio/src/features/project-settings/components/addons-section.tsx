@@ -13,8 +13,8 @@ import { Blocks, CheckCircle2, MessageSquareText, TriangleAlert } from 'lucide-r
 import { type ComponentType, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import type { ProjectAddon } from '@/hooks/api';
-import { useActivateProjectAddon, useDeactivateProjectAddon, useProjectAddons, useUpdateProjectAddon } from '@/hooks/api';
+import type { ProjectAddon } from '@cms/sdk';
+import { useActivateProjectAddon, useDeactivateProjectAddon, useProjectAddons, useUpdateProjectAddon } from '@cms/sdk/react';
 import { SectionHeader } from './shared';
 
 const GROUPS = [{ id: 'engagement', icon: MessageSquareText }] as const satisfies ReadonlyArray<{
