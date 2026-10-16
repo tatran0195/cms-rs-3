@@ -861,6 +861,137 @@ pub async fn generate_sqlite_export(
     build_sqlite_export_database(project, branches, pages.to_vec(), languages, assets).await
 }
 
+use std::path::Path;
+use cms_search::tokenizer::{JapaneseTokenizer, LinderaTantivyTokenizer, JAPANESE_TOKENIZER_NAME};
+use tantivy::schema::*;
+
+/// Tantivy schema fields for isolated exported site
+#[derive(Clone, Copy)]
+pub struct TantivyExportFields {
+    pub id: Field,
+    pub page_id: Field,
+    pub version_id: Field,
+    pub language: Field,
+    pub title: Field,
+    pub path: Field,
+    pub description: Field,
+    pub body: Field,
+    pub chunk_index: Field,
+    pub sort_order: Field,
+}
+
+impl TantivyExportFields {
+    pub fn build_schema() -> (Schema, Self) {
+        let mut builder = Schema::builder();
+        let id = builder.add_text_field("id", STRING | STORED);
+        let page_id = builder.add_text_field("page_id", STRING | STORED | FAST);
+        let version_id = builder.add_text_field("version_id", STRING | STORED | FAST);
+        let language = builder.add_text_field("language", STRING | STORED | FAST);
+
+        let japanese_text_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(JAPANESE_TOKENIZER_NAME)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+
+        let title = builder.add_text_field("title", japanese_text_options.clone());
+        let path = builder.add_text_field("path", STRING | STORED);
+        let description = builder.add_text_field("description", japanese_text_options.clone());
+        let body = builder.add_text_field("body", japanese_text_options);
+
+        let chunk_index = builder.add_i64_field(
+            "chunk_index",
+            NumericOptions::default().set_stored().set_fast(),
+        );
+        let sort_order = builder.add_i64_field(
+            "sort_order",
+            NumericOptions::default().set_stored().set_fast(),
+        );
+
+        let schema = builder.build();
+        let fields = Self {
+            id,
+            page_id,
+            version_id,
+            language,
+            title,
+            path,
+            description,
+            body,
+            chunk_index,
+            sort_order,
+        };
+        (schema, fields)
+    }
+}
+
+/// Build isolated Tantivy search index directly in the specified destination directory
+pub fn build_tantivy_export_index(
+    pages: &[cms_entity::page::PageListItem],
+    branches: &[cms_entity::branch::Branch],
+    dest_dir: &Path,
+) -> Result<(), AppError> {
+    let (schema, fields) = TantivyExportFields::build_schema();
+    std::fs::create_dir_all(dest_dir).map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Failed to create tantivy export dir: {}", e))
+    })?;
+
+    let index = tantivy::Index::create_in_dir(dest_dir, schema).map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Failed to create tantivy index: {}", e))
+    })?;
+
+    let tokenizer = JapaneseTokenizer::new();
+    index.tokenizers().register(
+        JAPANESE_TOKENIZER_NAME,
+        LinderaTantivyTokenizer::with_tokenizer(tokenizer),
+    );
+
+    // Map branch id to slug for version matching
+    let branch_map: std::collections::HashMap<String, String> = branches
+        .iter()
+        .map(|b| (b.id.clone(), b.slug.clone()))
+        .collect();
+
+    let mut writer = index
+        .writer_with_num_threads(1, 50 * 1024 * 1024)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to open tantivy writer: {}", e)))?;
+
+    for page in pages {
+        let version_slug = branch_map
+            .get(&page.branch_id)
+            .cloned()
+            .unwrap_or_else(|| page.branch_id.clone());
+
+        let raw_md = page.content.as_deref().unwrap_or("");
+        let plain_text = cms_search::markdown::markdown_to_plain_text(raw_md);
+
+        let mut doc = tantivy::TantivyDocument::default();
+        let doc_id = format!("{}_0", page.id);
+        doc.add_text(fields.id, &doc_id);
+        doc.add_text(fields.page_id, &page.id);
+        doc.add_text(fields.version_id, &version_slug);
+        doc.add_text(fields.language, "en");
+        doc.add_text(fields.title, &page.title);
+        doc.add_text(fields.path, &page.path);
+        doc.add_text(fields.description, page.description.as_deref().unwrap_or(""));
+        doc.add_text(fields.body, &plain_text);
+        doc.add_i64(fields.chunk_index, 0);
+        doc.add_i64(fields.sort_order, page.position as i64);
+
+        writer.add_document(doc).map_err(|e| {
+            AppError::Internal(anyhow::anyhow!("Failed to add document to tantivy export: {}", e))
+        })?;
+    }
+
+    writer.commit().map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Failed to commit tantivy export: {}", e))
+    })?;
+
+    Ok(())
+}
+
 /// Helper function to build the isolated SQLite artifact from entity records
 pub async fn build_sqlite_export_database(
     project: cms_entity::project::Project,
@@ -1583,5 +1714,33 @@ mod tests {
         assert_eq!(asset_data, vec![1, 2, 3, 4]);
 
         pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_build_tantivy_export_index() {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let pages = mock_pages();
+        let branches = vec![cms_entity::branch::Branch {
+            id: "branch-v1".to_string(),
+            project_id: "proj-1".to_string(),
+            name: "v1.0".to_string(),
+            slug: "v1.0".to_string(),
+            description: None,
+            is_default: true,
+            is_protected: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }];
+
+        build_tantivy_export_index(&pages, &branches, temp_dir.path())
+            .expect("build tantivy index");
+
+        assert!(temp_dir.path().join("meta.json").exists(), "meta.json must exist");
+
+        // Verify index can be opened with Tantivy
+        let index = tantivy::Index::open_in_dir(temp_dir.path()).expect("open tantivy index");
+        let reader = index.reader().expect("reader");
+        let searcher = reader.searcher();
+        assert_eq!(searcher.num_docs(), 2, "must index both pages");
     }
 }
