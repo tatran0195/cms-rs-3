@@ -373,9 +373,9 @@ pub(crate) fn resolve_runner_paths(args: &Args) -> anyhow::Result<(PathBuf, Opti
 }
 
 #[derive(Clone)]
-struct AppState {
-    db: SqlitePool,
-    search: Option<Arc<TantivySiteSearch>>,
+pub struct AppState {
+    pub db: SqlitePool,
+    pub search: Option<Arc<TantivySiteSearch>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1183,6 +1183,103 @@ async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQue
     }
 }
 
+async fn fast_path_redirect(
+    State(state): State<AppState>,
+    uri: axum::http::Uri,
+    axum::extract::Path(raw_id): axum::extract::Path<String>,
+) -> Response {
+    let clean_id = raw_id.trim().trim_matches('/');
+    if clean_id.is_empty() {
+        return (StatusCode::BAD_REQUEST, "Missing identifier or path").into_response();
+    }
+
+    // Try lookup: 1. by id, 2. by custom_id, 3. by path or slug
+    let row_opt = sqlx::query(
+        "SELECT id, kind, path FROM pages WHERE id = ?1 OR custom_id = ?1 OR path = ?1 OR path = ?2 OR slug = ?1 LIMIT 1",
+    )
+    .bind(clean_id)
+    .bind(format!("/{}", clean_id))
+    .fetch_optional(&state.db)
+    .await;
+
+    let (page_id, kind, mut target_path) = match row_opt {
+        Ok(Some(row)) => {
+            let id: String = row.try_get(0).unwrap_or_default();
+            let kind: String = row.try_get(1).unwrap_or_default();
+            let path: String = row.try_get(2).unwrap_or_default();
+            (id, kind, path)
+        }
+        Ok(None) => {
+            return (StatusCode::NOT_FOUND, "Document or group not found").into_response();
+        }
+        Err(e) => {
+            tracing::error!("Failed to resolve fast-path ID '{}': {}", clean_id, e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
+        }
+    };
+
+    // If target node is a GROUP, resolve to its first child leaf page
+    if kind.eq_ignore_ascii_case("GROUP") {
+        let child_opt = sqlx::query(
+            "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
+        )
+        .bind(&page_id)
+        .fetch_optional(&state.db)
+        .await;
+
+        match child_opt {
+            Ok(Some(child_row)) => {
+                if let Ok(child_path) = child_row.try_get::<String, _>(0) {
+                    target_path = child_path;
+                }
+            }
+            Ok(None) => {
+                // If no direct child with kind='PAGE', try any first child (could be sub-group or document)
+                if let Ok(Some(any_child)) = sqlx::query(
+                    "SELECT id, kind, path FROM pages WHERE parent_id = ?1 ORDER BY sort_order ASC, id ASC LIMIT 1",
+                )
+                .bind(&page_id)
+                .fetch_optional(&state.db)
+                .await {
+                    let child_id: String = any_child.try_get(0).unwrap_or_default();
+                    let child_kind: String = any_child.try_get(1).unwrap_or_default();
+                    let child_p: String = any_child.try_get(2).unwrap_or_default();
+                    if child_kind.eq_ignore_ascii_case("GROUP") {
+                        if let Ok(Some(leaf)) = sqlx::query(
+                            "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
+                        )
+                        .bind(&child_id)
+                        .fetch_optional(&state.db)
+                        .await {
+                            target_path = leaf.try_get(0).unwrap_or(child_p);
+                        } else {
+                            target_path = child_p;
+                        }
+                    } else {
+                        target_path = child_p;
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to unwrap group child for '{}': {}", page_id, e);
+            }
+        }
+    }
+
+    // Preserve query parameters if present (e.g. ?lang=ja&version=v2)
+    let redirect_url = if let Some(query) = uri.query() {
+        format!("{}?{}", target_path, query)
+    } else {
+        target_path
+    };
+
+    (
+        StatusCode::TEMPORARY_REDIRECT,
+        [(header::LOCATION, redirect_url)],
+    )
+        .into_response()
+}
+
 async fn serve_asset(
     State(state): State<AppState>,
     axum::extract::Path(path): axum::extract::Path<String>,
@@ -1580,6 +1677,7 @@ pub(crate) fn build_cors_layer(
 pub(crate) fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer>) -> Router {
     let mut app = Router::new()
         .route("/healthz", get(healthz))
+        .route("/p/{*id_or_path}", get(fast_path_redirect))
         .route("/api/v1/bootstrap", get(api_bootstrap))
         .route("/api/v1/page", get(api_page))
         .route("/api/v1/changelog", get(api_changelog))
@@ -2348,5 +2446,86 @@ mod tests {
         let (found_db, found_idx) = resolve_runner_paths(&args).unwrap();
         assert_eq!(found_db, db_path);
         assert_eq!(found_idx, Some(idx_dir));
+    }
+
+    #[tokio::test]
+    async fn test_fast_path_redirects() {
+        use tower::ServiceExt;
+        let pool = setup_test_db().await;
+        sqlx::query("ALTER TABLE pages ADD COLUMN custom_id TEXT")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // Seed custom_id and a group with child
+        sqlx::query("UPDATE pages SET custom_id = 'guide-intro' WHERE id = 'page1'")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO pages (id, custom_id, version_id, parent_id, kind, slug, title, path, sort_order) VALUES ('group1', 'api-ref', 'v1', NULL, 'GROUP', 'api', 'API Reference', '/api', 10)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO pages (id, custom_id, version_id, parent_id, kind, slug, title, path, sort_order) VALUES ('child1', 'api-overview', 'v1', 'group1', 'PAGE', 'overview', 'Overview', '/api/overview', 1)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO pages (id, custom_id, version_id, parent_id, kind, slug, title, path, sort_order) VALUES ('child2', 'api-endpoints', 'v1', 'group1', 'PAGE', 'endpoints', 'Endpoints', '/api/endpoints', 2)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let state = AppState {
+            db: pool,
+            search: None,
+        };
+        let app = create_runner_router(state, None);
+
+        // 1. Direct redirect by custom_id
+        let req = axum::http::Request::builder()
+            .uri("/p/guide-intro")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.headers().get("location").unwrap(), "/getting-started");
+
+        // 2. Direct redirect by page ID
+        let req = axum::http::Request::builder()
+            .uri("/p/page1")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.headers().get("location").unwrap(), "/getting-started");
+
+        // 3. Group unwrapping to first child page (child1 with sort_order 1)
+        let req = axum::http::Request::builder()
+            .uri("/p/api-ref")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.headers().get("location").unwrap(), "/api/overview");
+
+        // 4. Preserve query parameters
+        let req = axum::http::Request::builder()
+            .uri("/p/guide-intro?lang=ja&version=v2.0")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(res.headers().get("location").unwrap(), "/getting-started?lang=ja&version=v2.0");
+
+        // 5. Non-existent ID returns 404
+        let req = axum::http::Request::builder()
+            .uri("/p/does-not-exist")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::NOT_FOUND);
     }
 }
