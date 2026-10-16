@@ -44,6 +44,8 @@ printpdf = { workspace = true }
 epub-builder = { workspace = true }
 sqlx = { workspace = true, default-features = false }
 tempfile = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
 
 # Logging & error handling
 tracing = { workspace = true }

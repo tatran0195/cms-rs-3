@@ -151,6 +151,8 @@ reqwest = { version = "0.13.5", features = ["json", "rustls", "query", "form"], 
 # Export generation
 printpdf = { version = "0.12.8" }
 epub-builder = { version = "0.8.3" }
+tar = "0.4.44"
+flate2 = "1.1.0"
 
 # Optional & feature dependencies
 aws-sdk-s3 = { version = "1.144.0", features = ["rt-tokio"] }

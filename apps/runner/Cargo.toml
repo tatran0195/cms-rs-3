@@ -22,6 +22,13 @@ clap = { workspace = true }
 rust-embed = { workspace = true }
 mime_guess = { workspace = true }
 anyhow = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
+tantivy = { workspace = true }
+cms-search = { path = "../../crates/cms-search", default-features = false }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
