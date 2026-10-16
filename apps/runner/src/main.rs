@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use axum::{
     extract::{Query, State},
@@ -13,6 +13,18 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use tantivy::{
+    collector::TopDocs,
+    directory::MmapDirectory,
+    query::{BooleanQuery, Occur, Query as TantivyQuery, QueryParser, TermQuery},
+    schema::{
+        Field, IndexRecordOption, NumericOptions, Schema, TextFieldIndexing, TextOptions, Value,
+        STRING,
+    },
+    snippet::SnippetGenerator,
+    Index, IndexReader, ReloadPolicy, TantivyDocument, Term,
+};
 
 #[derive(Embed)]
 #[folder = "../../dist/reader/"]
@@ -29,6 +41,18 @@ struct Args {
     /// Path to the exported SQLite database
     #[arg(short, long, default_value = "docs.sqlite")]
     db: PathBuf,
+
+    /// Path to a site export directory containing docs.sqlite and search_index/
+    #[arg(long)]
+    dir: Option<PathBuf>,
+
+    /// Explicit path to Tantivy search index directory
+    #[arg(long, visible_alias = "search-index")]
+    index_dir: Option<PathBuf>,
+
+    /// Path to a .tar.gz site bundle archive to unpack and run
+    #[arg(long)]
+    bundle: Option<PathBuf>,
 
     /// HTTP port to bind to
     #[arg(short, long, default_value_t = 8080)]
@@ -47,9 +71,309 @@ struct Args {
     cors_origin: Option<String>,
 }
 
+#[derive(Clone, Copy)]
+pub struct RunnerTantivyFields {
+    pub id: Field,
+    pub page_id: Field,
+    pub version_id: Field,
+    pub language: Field,
+    pub title: Field,
+    pub path: Field,
+    pub description: Field,
+    pub body: Field,
+    pub chunk_index: Field,
+    pub sort_order: Field,
+}
+
+impl RunnerTantivyFields {
+    pub fn build_schema() -> (Schema, Self) {
+        let mut builder = Schema::builder();
+        let id = builder.add_text_field("id", STRING | tantivy::schema::STORED);
+        let page_id = builder.add_text_field(
+            "page_id",
+            STRING | tantivy::schema::STORED | tantivy::schema::FAST,
+        );
+        let version_id = builder.add_text_field(
+            "version_id",
+            STRING | tantivy::schema::STORED | tantivy::schema::FAST,
+        );
+        let language = builder.add_text_field(
+            "language",
+            STRING | tantivy::schema::STORED | tantivy::schema::FAST,
+        );
+
+        let japanese_text_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(cms_search::tokenizer::JAPANESE_TOKENIZER_NAME)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+
+        let title = builder.add_text_field("title", japanese_text_options.clone());
+        let path = builder.add_text_field("path", STRING | tantivy::schema::STORED);
+        let description = builder.add_text_field("description", japanese_text_options.clone());
+        let body = builder.add_text_field("body", japanese_text_options);
+        let chunk_index = builder.add_i64_field(
+            "chunk_index",
+            NumericOptions::default().set_stored().set_fast(),
+        );
+        let sort_order = builder.add_i64_field(
+            "sort_order",
+            NumericOptions::default().set_stored().set_fast(),
+        );
+
+        let schema = builder.build();
+        let fields = Self {
+            id,
+            page_id,
+            version_id,
+            language,
+            title,
+            path,
+            description,
+            body,
+            chunk_index,
+            sort_order,
+        };
+        (schema, fields)
+    }
+
+    pub fn from_schema(schema: &Schema) -> anyhow::Result<Self> {
+        let id = schema
+            .get_field("id")
+            .map_err(|_| anyhow::anyhow!("field 'id' missing in tantivy schema"))?;
+        let page_id = schema
+            .get_field("page_id")
+            .map_err(|_| anyhow::anyhow!("field 'page_id' missing in tantivy schema"))?;
+        let version_id = schema
+            .get_field("version_id")
+            .map_err(|_| anyhow::anyhow!("field 'version_id' missing in tantivy schema"))?;
+        let language = schema
+            .get_field("language")
+            .map_err(|_| anyhow::anyhow!("field 'language' missing in tantivy schema"))?;
+        let title = schema
+            .get_field("title")
+            .map_err(|_| anyhow::anyhow!("field 'title' missing in tantivy schema"))?;
+        let path = schema
+            .get_field("path")
+            .map_err(|_| anyhow::anyhow!("field 'path' missing in tantivy schema"))?;
+        let description = schema
+            .get_field("description")
+            .map_err(|_| anyhow::anyhow!("field 'description' missing in tantivy schema"))?;
+        let body = schema
+            .get_field("body")
+            .map_err(|_| anyhow::anyhow!("field 'body' missing in tantivy schema"))?;
+        let chunk_index = schema
+            .get_field("chunk_index")
+            .map_err(|_| anyhow::anyhow!("field 'chunk_index' missing in tantivy schema"))?;
+        let sort_order = schema
+            .get_field("sort_order")
+            .map_err(|_| anyhow::anyhow!("field 'sort_order' missing in tantivy schema"))?;
+
+        Ok(Self {
+            id,
+            page_id,
+            version_id,
+            language,
+            title,
+            path,
+            description,
+            body,
+            chunk_index,
+            sort_order,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct TantivySiteSearch {
+    reader: IndexReader,
+    fields: RunnerTantivyFields,
+    index: Index,
+}
+
+impl TantivySiteSearch {
+    pub fn open(index_dir: &std::path::Path) -> anyhow::Result<Self> {
+        let mmap_dir = MmapDirectory::open(index_dir)?;
+        let index = Index::open(mmap_dir)?;
+
+        let tokenizer = cms_search::tokenizer::JapaneseTokenizer::new();
+        index.tokenizers().register(
+            cms_search::tokenizer::JAPANESE_TOKENIZER_NAME,
+            cms_search::tokenizer::LinderaTantivyTokenizer::with_tokenizer(tokenizer),
+        );
+
+        let fields = RunnerTantivyFields::from_schema(&index.schema())?;
+
+        let reader = index
+            .reader_builder()
+            .reload_policy(ReloadPolicy::Manual)
+            .try_into()?;
+
+        Ok(Self {
+            reader,
+            fields,
+            index,
+        })
+    }
+
+    pub fn search(
+        &self,
+        query_str: &str,
+        target_lang: Option<&str>,
+        target_version: Option<&str>,
+        limit: usize,
+    ) -> anyhow::Result<Vec<SiteSearchHit>> {
+        let searcher = self.reader.searcher();
+        let fields = self.fields;
+
+        let mut parser = QueryParser::for_index(
+            &self.index,
+            vec![fields.title, fields.description, fields.body],
+        );
+        parser.set_field_boost(fields.title, 2.5);
+        parser.set_field_boost(fields.description, 1.5);
+        parser.set_field_boost(fields.body, 1.0);
+
+        let (text_query, _) = parser.parse_query_lenient(query_str);
+        let (snippet_query, _) = parser.parse_query_lenient(query_str);
+
+        let mut clauses: Vec<(Occur, Box<dyn TantivyQuery>)> = vec![(Occur::Must, text_query)];
+
+        if let Some(ver) = target_version.filter(|s| !s.trim().is_empty()) {
+            let term = Term::from_field_text(fields.version_id, ver);
+            clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic))));
+        }
+
+        if let Some(lang) = target_lang.filter(|s| !s.trim().is_empty()) {
+            let term = Term::from_field_text(fields.language, lang);
+            clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic))));
+        }
+
+        let boolean_query: Box<dyn TantivyQuery> = Box::new(BooleanQuery::new(clauses));
+        let top_docs = searcher.search(
+            &*boolean_query,
+            &TopDocs::with_limit(limit).order_by_score(),
+        )?;
+
+        let snippet_generator =
+            SnippetGenerator::create(&searcher, &*snippet_query, fields.body).ok();
+
+        let mut hits = Vec::new();
+        for (score, doc_addr) in top_docs {
+            let doc: TantivyDocument = searcher.doc(doc_addr)?;
+            let page_id = doc
+                .get_first(fields.page_id)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let title = doc
+                .get_first(fields.title)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let path = doc
+                .get_first(fields.path)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let description = doc
+                .get_first(fields.description)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let language = doc
+                .get_first(fields.language)
+                .and_then(|v| v.as_str())
+                .unwrap_or("en")
+                .to_string();
+
+            let snippet = if let Some(ref gen) = snippet_generator {
+                let snip = gen.snippet_from_doc(&doc);
+                if !snip.is_empty() {
+                    snip.to_html()
+                        .replace("<b>", "<mark>")
+                        .replace("</b>", "</mark>")
+                } else {
+                    description.clone()
+                }
+            } else {
+                description.clone()
+            };
+
+            hits.push(SiteSearchHit {
+                id: page_id,
+                title,
+                path,
+                description,
+                icon: None,
+                snippet,
+                score: score as f64,
+                language,
+            });
+        }
+
+        Ok(hits)
+    }
+}
+
+pub(crate) fn resolve_runner_paths(args: &Args) -> anyhow::Result<(PathBuf, Option<PathBuf>)> {
+    // 1. If --bundle is specified, unpack to a folder next to the bundle or in temp
+    if let Some(ref bundle_path) = args.bundle {
+        if !bundle_path.exists() {
+            anyhow::bail!("Bundle file not found: {}", bundle_path.display());
+        }
+        let unpack_dir = bundle_path.with_extension("unpacked");
+        if !unpack_dir.exists() {
+            std::fs::create_dir_all(&unpack_dir)?;
+            let file = std::fs::File::open(bundle_path)?;
+            let gz = flate2::read::GzDecoder::new(file);
+            let mut archive = tar::Archive::new(gz);
+            archive.unpack(&unpack_dir)?;
+        }
+        let db_file = unpack_dir.join("docs.sqlite");
+        let idx_dir = unpack_dir.join("search_index");
+        return Ok((db_file, idx_dir.exists().then_some(idx_dir)));
+    }
+
+    // 2. If --dir is specified
+    if let Some(ref dir) = args.dir {
+        let db_file = dir.join("docs.sqlite");
+        let idx_dir = dir.join("search_index");
+        return Ok((db_file, idx_dir.exists().then_some(idx_dir)));
+    }
+
+    // 3. If --db is specified
+    let db_file = args.db.clone();
+    let idx_dir = if let Some(ref explicit_idx) = args.index_dir {
+        Some(explicit_idx.clone())
+    } else {
+        // Auto-discover sibling directory
+        let sibling1 = db_file
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("search_index");
+        let sibling2 = db_file
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .join("tantivy");
+        if sibling1.exists() {
+            Some(sibling1)
+        } else if sibling2.exists() {
+            Some(sibling2)
+        } else {
+            None
+        }
+    };
+
+    Ok((db_file, idx_dir))
+}
+
 #[derive(Clone)]
 struct AppState {
     db: SqlitePool,
+    search: Option<Arc<TantivySiteSearch>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -180,15 +504,15 @@ struct ChangelogEntry {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct SiteSearchHit {
-    id: String,
-    title: String,
-    path: String,
-    description: String,
-    icon: Option<String>,
-    snippet: String,
-    score: f64,
-    language: String,
+pub struct SiteSearchHit {
+    pub id: String,
+    pub title: String,
+    pub path: String,
+    pub description: String,
+    pub icon: Option<String>,
+    pub snippet: String,
+    pub score: f64,
+    pub language: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -835,6 +1159,15 @@ async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQue
     let lang = query.lang;
     let version = query.version;
 
+    if let Some(ref search_engine) = state.search {
+        match search_engine.search(&clean_q, lang.as_deref(), version.as_deref(), limit) {
+            Ok(hits) => return Json(serde_json::json!({ "hits": hits })).into_response(),
+            Err(e) => {
+                tracing::warn!("Tantivy search error ({}); falling back to SQLite FTS5", e);
+            }
+        }
+    }
+
     match execute_search(&state.db, &clean_q, limit, lang.as_deref(), version.as_deref()).await {
         Ok(hits) => Json(serde_json::json!({ "hits": hits })).into_response(),
         Err(e) => {
@@ -1057,18 +1390,20 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
-    if !args.db.exists() {
+    let (db_path, idx_dir_opt) = resolve_runner_paths(&args)?;
+
+    if !db_path.exists() {
         eprintln!(
             "Error: Database file not found: {}\nPlease provide a valid CMS SQLite export using \
-             --db <path>",
-            args.db.display()
+             --db <path>, --dir <path>, or --bundle <path.tar.gz>",
+            db_path.display()
         );
         std::process::exit(1);
     }
 
     // Open SQLite connection pool in read-only mode
     let opts = sqlx::sqlite::SqliteConnectOptions::new()
-        .filename(&args.db)
+        .filename(&db_path)
         .read_only(true);
 
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
@@ -1078,7 +1413,7 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|e| {
             anyhow::anyhow!(
                 "Failed to open SQLite database at {}: {}",
-                args.db.display(),
+                db_path.display(),
                 e
             )
         })?;
@@ -1090,7 +1425,7 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|e| {
             anyhow::anyhow!(
                 "Failed to read schema_version from export_meta in {}: {}",
-                args.db.display(),
+                db_path.display(),
                 e
             )
         })?;
@@ -1112,11 +1447,32 @@ async fn main() -> anyhow::Result<()> {
         "Loaded project: '{}' (schema v{}) from {}",
         project_name,
         schema_version,
-        args.db.display()
+        db_path.display()
     );
+
+    let search = if let Some(ref idx_dir) = idx_dir_opt {
+        match TantivySiteSearch::open(idx_dir) {
+            Ok(s) => {
+                tracing::info!("Loaded Tantivy search index from {}", idx_dir.display());
+                Some(Arc::new(s))
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to open Tantivy index at {}: {}. Falling back to SQLite FTS5.",
+                    idx_dir.display(),
+                    e
+                );
+                None
+            }
+        }
+    } else {
+        tracing::info!("No Tantivy search index found; using SQLite FTS5 search.");
+        None
+    };
 
     let state = AppState {
         db: pool,
+        search,
     };
 
     let bind_host = resolve_bind_host(&args.bind, args.network);
@@ -1576,6 +1932,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
 
         // Loopback binding with no cors
@@ -1606,6 +1963,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
 
         // Network binding with explicit origin
@@ -1634,6 +1992,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
 
         let app = create_runner_router(state, None);
@@ -1708,6 +2067,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
         let app = create_runner_router(state, None);
 
@@ -1782,6 +2142,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
         let app = create_runner_router(state, None);
 
@@ -1813,6 +2174,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
         let app = create_runner_router(state, None);
 
@@ -1835,6 +2197,7 @@ mod tests {
         let pool = setup_test_db().await;
         let state = AppState {
             db: pool,
+            search: None,
         };
         let app = create_runner_router(state, None);
 
@@ -1893,5 +2256,95 @@ mod tests {
             0,
             "No hits should be returned for unmatched language"
         );
+    }
+
+    #[tokio::test]
+    async fn test_runner_tantivy_search_execution() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let index_dir = temp_dir.path().join("search_index");
+        std::fs::create_dir_all(&index_dir).unwrap();
+
+        let (schema, fields) = RunnerTantivyFields::build_schema();
+        let index = tantivy::Index::create_in_dir(&index_dir, schema).unwrap();
+        let tokenizer = cms_search::tokenizer::JapaneseTokenizer::new();
+        index.tokenizers().register(
+            cms_search::tokenizer::JAPANESE_TOKENIZER_NAME,
+            cms_search::tokenizer::LinderaTantivyTokenizer::with_tokenizer(tokenizer),
+        );
+
+        let mut writer = index.writer_with_num_threads(1, 15 * 1024 * 1024).unwrap();
+        let mut doc = tantivy::TantivyDocument::default();
+        doc.add_text(fields.id, "p1_0");
+        doc.add_text(fields.page_id, "page1");
+        doc.add_text(fields.version_id, "v1.0");
+        doc.add_text(fields.language, "en");
+        doc.add_text(fields.title, "Distributed Raft Consensus");
+        doc.add_text(fields.path, "/raft");
+        doc.add_text(fields.description, "Consensus algorithm");
+        doc.add_text(fields.body, "Raft is a consensus algorithm designed as an alternative to Paxos.");
+        doc.add_i64(fields.chunk_index, 0);
+        doc.add_i64(fields.sort_order, 1);
+        writer.add_document(doc).unwrap();
+        writer.commit().unwrap();
+
+        let site_search = TantivySiteSearch::open(&index_dir).expect("open site search");
+        let hits = site_search.search("consensus", Some("en"), Some("v1.0"), 10).expect("search");
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, "page1");
+        assert_eq!(hits[0].title, "Distributed Raft Consensus");
+        assert!(hits[0].snippet.contains("<mark>consensus</mark>"));
+
+        // Scoping check: non-matching version yields 0 hits
+        let v2_hits = site_search.search("consensus", Some("en"), Some("v2.0"), 10).expect("search");
+        assert_eq!(v2_hits.len(), 0);
+    }
+
+    #[test]
+    fn test_resolve_runner_paths_from_dir() {
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("docs.sqlite");
+        std::fs::write(&db_path, b"mock sqlite").unwrap();
+        let idx_dir = temp.path().join("search_index");
+        std::fs::create_dir(&idx_dir).unwrap();
+
+        let args = Args {
+            db: PathBuf::from("docs.sqlite"),
+            dir: Some(temp.path().to_path_buf()),
+            index_dir: None,
+            bundle: None,
+            port: 8080,
+            bind: "127.0.0.1".into(),
+            network: false,
+            cors_origin: None,
+        };
+
+        let (found_db, found_idx) = resolve_runner_paths(&args).unwrap();
+        assert_eq!(found_db, db_path);
+        assert_eq!(found_idx, Some(idx_dir));
+    }
+
+    #[test]
+    fn test_resolve_runner_paths_from_sibling_dir() {
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("docs.sqlite");
+        std::fs::write(&db_path, b"mock sqlite").unwrap();
+        let idx_dir = temp.path().join("search_index");
+        std::fs::create_dir(&idx_dir).unwrap();
+
+        let args = Args {
+            db: db_path.clone(),
+            dir: None,
+            index_dir: None,
+            bundle: None,
+            port: 8080,
+            bind: "127.0.0.1".into(),
+            network: false,
+            cors_origin: None,
+        };
+
+        let (found_db, found_idx) = resolve_runner_paths(&args).unwrap();
+        assert_eq!(found_db, db_path);
+        assert_eq!(found_idx, Some(idx_dir));
     }
 }
