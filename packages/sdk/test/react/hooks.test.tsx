@@ -3,11 +3,11 @@
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React, { act } from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { createCmsClient } from '../../src';
-import { CmsClientProvider, useProjects, useUploadAsset, useSite } from '../../src/react';
+import { CmsClientProvider, useProjects, useSite, useUploadAsset } from '../../src/react';
 
 const waitForHook = async (getVal: () => any) => {
   for (let i = 0; i < 20; i++) {
@@ -45,7 +45,7 @@ describe('TanStack Query hooks in @cms/sdk/react', () => {
           <CmsClientProvider client={client}>
             <TestConsumer />
           </CmsClientProvider>
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
     });
 
@@ -83,7 +83,7 @@ describe('TanStack Query hooks in @cms/sdk/react', () => {
           <CmsClientProvider client={client}>
             <TestUploadConsumer />
           </CmsClientProvider>
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
     });
 
@@ -127,7 +127,7 @@ describe('TanStack Query hooks in @cms/sdk/react', () => {
           <CmsClientProvider client={client}>
             <TestSiteConsumer />
           </CmsClientProvider>
-        </QueryClientProvider>
+        </QueryClientProvider>,
       );
     });
 

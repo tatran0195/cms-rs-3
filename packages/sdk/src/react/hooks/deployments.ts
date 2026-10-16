@@ -5,10 +5,7 @@ import { queryKeys } from '../query-keys';
 
 const isInFlight = (status?: string): boolean => status === 'PENDING' || status === 'BUILDING';
 
-export const useDeployments = <T = Deployment>(
-  projectId: string | undefined,
-  options?: { enabled?: boolean; pollIntervalMs?: number }
-) => {
+export const useDeployments = <T = Deployment>(projectId: string | undefined, options?: { enabled?: boolean; pollIntervalMs?: number }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.deployments.all(projectId ?? ''),
@@ -18,16 +15,11 @@ export const useDeployments = <T = Deployment>(
       return (await client.deployments.list(projectId)) as unknown as T[];
     },
     refetchInterval: (query) =>
-      Array.isArray(query.state.data) && query.state.data.some((d: any) => isInFlight(d?.status))
-        ? (options?.pollIntervalMs ?? 2500)
-        : false,
+      Array.isArray(query.state.data) && query.state.data.some((d: any) => isInFlight(d?.status)) ? (options?.pollIntervalMs ?? 2500) : false,
   });
 };
 
-export const usePendingChanges = <T = PendingChangesResponse>(
-  projectId: string | undefined,
-  options?: { enabled?: boolean }
-) => {
+export const usePendingChanges = <T = PendingChangesResponse>(projectId: string | undefined, options?: { enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.deployments.changes(projectId ?? ''),
@@ -70,8 +62,7 @@ export const useRollback = <T = any>(projectId: string) => {
   const client = useCmsClient();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (deploymentId: string) =>
-      (await client.deployments.rollback(projectId, deploymentId)) as unknown as T,
+    mutationFn: async (deploymentId: string) => (await client.deployments.rollback(projectId, deploymentId)) as unknown as T,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.deployments.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });

@@ -3,10 +3,10 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { useT } from '@cms/i18n/react';
+import { useProjects } from '@cms/sdk/react';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowUpRight, FileText, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useProjects } from '@cms/sdk/react';
 import { useFormatters } from '@/shared';
 import { NewProjectDialog } from './components/NewProjectDialog';
 

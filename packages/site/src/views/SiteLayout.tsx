@@ -2,13 +2,14 @@ import { cn } from '@cms/design-system/lib/utils';
 import { THEME_STORAGE_KEY } from '@cms/design-system/theme';
 import { siteT } from '@cms/i18n/site';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BookOpen, Moon, Search, Sun } from 'lucide-react';
+import { BookOpen, ExternalLink, Link2, Moon, Search, Sun } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { DocumentationReaderLayout, DocumentationThemeProvider } from '../components/documentation-theme-provider';
 import { LanguageSwitcher } from '../components/language-switcher';
 import { MadeWithBadge } from '../components/made-with-badge';
 import { MobileNav } from '../components/mobile-nav';
 import { type SiteLanguageAlternate, SitePageAlternatesContext } from '../components/page-alternates-context';
+import { hasIcon, PageIcon } from '../components/page-icon';
 import { SiteBanner } from '../components/site-banner';
 import { firstLeafPath, SiteNav } from '../components/site-nav';
 import { SiteNavTabs } from '../components/site-nav-tabs';
@@ -187,7 +188,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const searchHotkey = config?.search?.hotkey;
   const navLinks = config?.navbar?.links ?? [];
   const navTabs = config?.navbar?.tabs ?? [];
-  const _navAnchors = config?.navbar?.anchors ?? [];
+  const navAnchors = config?.navbar?.anchors ?? [];
   const ctaLabel = config?.navbar?.ctaLabel;
   const ctaUrl = config?.navbar?.ctaUrl;
   const footer = config?.footer;
@@ -347,62 +348,77 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
-                  <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
-                </div>
-
-                <nav className="ms-1 hidden items-center gap-1 md:flex" aria-label={t('docs')}>
-                  {headerLinks.map((link) => (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      className={cn(
-                        'rounded-md px-2.5 py-1.5 font-medium text-xs transition-colors',
-                        link.active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      target={link.external ? '_blank' : undefined}
-                      rel={link.external ? 'noopener noreferrer' : undefined}
-                    >
-                      {link.label}
-                    </a>
-                  ))}
-                </nav>
-
-                <div className="ms-auto flex items-center gap-1.5 sm:gap-2">
+                {/* Centered search (Mintlify-style); collapses to an icon on phones. */}
+                <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">
                   {showSearch && (
                     <button
                       type="button"
                       onClick={() => setSearchOpen(true)}
-                      className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 text-muted-foreground text-xs transition-colors hover:border-foreground/20 hover:bg-muted/70 hover:text-foreground"
+                      className="hidden h-9 w-full max-w-md cursor-pointer items-center gap-2.5 rounded-full border border-border/80 bg-muted/50 px-4 text-muted-foreground text-sm transition-colors hover:border-foreground/25 hover:bg-muted sm:flex"
                     >
-                      <Search className="size-3.5" />
-                      <span className="hidden sm:inline">{t('searchPlaceholder')}</span>
-                      <kbd className="pointer-events-none hidden rounded bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shadow-xs sm:inline">
-                        {searchHotkey || searchShortcut}
+                      <Search className="size-3.5 shrink-0" />
+                      <span className="truncate">{config?.search?.placeholder ?? t('search')}</span>
+                      <kbd
+                        className="ms-auto hidden shrink-0 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] md:inline-flex"
+                        dir="ltr"
+                      >
+                        {searchHotkey === 'slash' ? '/' : searchShortcut}
                       </kbd>
                     </button>
                   )}
+                </div>
 
+                {showSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
+                    aria-label={t('search')}
+                  >
+                    <Search className="size-4" />
+                  </button>
+                )}
+
+                <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
+                  {headerLinks.map((link) => (
+                    <a
+                      key={`${link.label}-${link.href}`}
+                      href={link.href}
+                      target={link.external ? '_blank' : undefined}
+                      rel={link.external ? 'noopener noreferrer' : undefined}
+                      aria-current={link.active ? 'page' : undefined}
+                      className={cn(
+                        'inline-flex items-center gap-1 transition-colors',
+                        link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {link.label}
+                      {link.external && <ExternalLink className="size-3" />}
+                    </a>
+                  ))}
+                </nav>
+
+                <div className="ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex-nowrap">
+                  <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
+                  <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
+                  <button
+                    type="button"
+                    onClick={toggleSiteTheme}
+                    className="grid size-9 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label={t('toggleTheme')}
+                  >
+                    {siteTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+                  </button>
                   {ctaLabel && ctaUrl && (
                     <a
                       href={ctaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-9 items-center rounded-lg bg-primary px-3 font-medium text-primary-foreground text-xs hover:bg-primary/90"
+                      className="ms-1 hidden h-9 cursor-pointer items-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm shadow-sm transition-opacity hover:opacity-90 sm:inline-flex"
                     >
                       {ctaLabel}
                     </a>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={toggleSiteTheme}
-                    className="grid size-9 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
-                    aria-label={t('toggleTheme')}
-                  >
-                    {siteTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                  </button>
                 </div>
               </header>
               {navTabs.length > 0 && (
@@ -422,7 +438,26 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
             </div>
           }
           navigation={
-            <aside className="hidden w-64 shrink-0 border-border/70 border-e py-6 pe-4 lg:block">
+            <>
+              {navAnchors.length > 0 && (
+                <ul className="mb-4 space-y-1 border-border/60 border-b pb-5">
+                  {navAnchors.map((anchor) => (
+                    <li key={`${anchor.label}-${anchor.href}`}>
+                      <a
+                        href={resolveNavHref(anchor.href)}
+                        target={anchor.external ? '_blank' : undefined}
+                        rel={anchor.external ? 'noopener noreferrer' : undefined}
+                        className="group flex items-center gap-3 rounded-lg px-2 py-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+                      >
+                        <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs transition-colors group-hover:border-primary/40 group-hover:text-primary">
+                          {hasIcon(anchor.icon) ? <PageIcon name={anchor.icon} className="size-3.5" /> : <Link2 className="size-3.5" />}
+                        </span>
+                        <span className="truncate">{anchor.label}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <SiteNav
                 nodes={site?.nav ?? []}
                 projectId={projectId}
@@ -430,9 +465,13 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                 lang={navigationLanguage}
                 version={activeVersionPrefix}
               />
-            </aside>
+            </>
           }
-          content={<SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>}
+          content={
+            <main className="min-w-0">
+              <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
+            </main>
+          }
           footer={
             hasFooterContent || showBadge ? (
               <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">

@@ -2,6 +2,7 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
 import {
   Badge,
   Braces,
@@ -29,7 +30,6 @@ import {
   TypographySection,
   VariablesSection,
 } from '@/features/project-settings';
-import type { Project } from '@cms/sdk';
 
 /**
  * The authoring/appearance slice of a site's configuration, embedded in the

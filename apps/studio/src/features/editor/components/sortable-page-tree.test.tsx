@@ -1,9 +1,9 @@
 /** @vitest-environment jsdom */
 
+import type { PageNode } from '@cms/sdk';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PageNode } from '@cms/sdk';
 import { flatten, getProjection, hideCollapsed, removeDescendants, reorderTree, SortablePageTree } from './sortable-page-tree';
 
 vi.mock('@cms/i18n/react', () => ({ useT: () => (key: string) => key }));

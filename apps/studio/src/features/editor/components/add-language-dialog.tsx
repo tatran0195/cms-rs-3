@@ -5,11 +5,11 @@ import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { useT } from '@cms/i18n/react';
+import type { Language } from '@cms/sdk';
+import { useCreateLanguage, useLanguages } from '@cms/sdk/react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import type { Language } from '@cms/sdk';
-import { useCreateLanguage, useLanguages } from '@cms/sdk/react';
 import { type CatalogLanguage, LANGUAGE_CATALOG } from '@/shared';
 
 interface AddLanguageDialogProps {

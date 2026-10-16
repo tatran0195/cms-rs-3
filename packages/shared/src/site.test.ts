@@ -461,23 +461,17 @@ describe('mergeLanguageChrome', () => {
   it('merges localized nested navbar tabs wholesale', () => {
     const baseConfig = {
       navbar: {
-        tabs: [
-          { label: 'Docs', items: [{ label: 'Quickstart', href: '/docs/quickstart' }] },
-        ],
+        tabs: [{ label: 'Docs', items: [{ label: 'Quickstart', href: '/docs/quickstart' }] }],
       },
     };
     const langConfig = {
       navbar: {
-        tabs: [
-          { label: 'Tài liệu', items: [{ label: 'Bắt đầu', href: '/vi/docs/quickstart' }] },
-        ],
+        tabs: [{ label: 'Tài liệu', items: [{ label: 'Bắt đầu', href: '/vi/docs/quickstart' }] }],
       },
     };
     const merged = mergeLanguageChrome(baseConfig, langConfig as any);
     expect(merged?.navbar).toEqual({
-      tabs: [
-        { label: 'Tài liệu', items: [{ label: 'Bắt đầu', href: '/vi/docs/quickstart' }] },
-      ],
+      tabs: [{ label: 'Tài liệu', items: [{ label: 'Bắt đầu', href: '/vi/docs/quickstart' }] }],
     });
   });
 

@@ -1,6 +1,6 @@
-import { type SitePage, type SiteShell, pageHead, redirectIfConfigured, SitePageView } from '@cms/site';
-import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { CmsApiError } from '@cms/sdk';
+import { pageHead, redirectIfConfigured, type SitePage, SitePageView, type SiteShell } from '@cms/site';
+import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { cmsClient } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId/')({

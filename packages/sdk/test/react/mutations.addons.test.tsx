@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
-import { CmsApiError } from '../../src/errors';
-import { CmsClientProvider, queryKeys, useActivateProjectAddon, useUpdateProjectAddon } from '../../src/react';
-import type { ProjectAddon } from '../../src/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CmsApiError } from '../../src/errors';
+import { CmsClientProvider, queryKeys, useActivateProjectAddon, useUpdateProjectAddon } from '../../src/react';
+import type { ProjectAddon } from '../../src/types';
 
 const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
@@ -67,9 +67,9 @@ describe('add-on mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
-        )
-      )
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe)),
+        ),
+      ),
     );
     await act(async () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'addon:revision_conflict' });
@@ -87,7 +87,7 @@ describe('add-on mutation conflict recovery', () => {
         status: 400,
         code: 'addon:invalid_config',
         message: 'Invalid configuration.',
-      })
+      }),
     );
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
     let mutate: () => Promise<ProjectAddon> = () => Promise.reject(new Error('mutation hook was not ready'));
@@ -104,9 +104,9 @@ describe('add-on mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
-        )
-      )
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe)),
+        ),
+      ),
     );
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await act(async () => {

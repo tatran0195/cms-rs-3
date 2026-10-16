@@ -7,12 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
-import { canAdminister } from '@cms/shared/rbac';
-import { useForm } from '@tanstack/react-form';
-import { Check, Copy, Crown, Eye, Link2, Mail, Pencil, Shield, Trash2, Users } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
-import { useSession } from '@/features/auth';
 import {
   useCancelProjectInvitation,
   useInviteProjectMember,
@@ -21,6 +15,12 @@ import {
   useTransferProjectOwnership,
   useUpdateProjectMemberRole,
 } from '@cms/sdk/react';
+import { canAdminister } from '@cms/shared/rbac';
+import { useForm } from '@tanstack/react-form';
+import { Check, Copy, Crown, Eye, Link2, Mail, Pencil, Shield, Trash2, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { useSession } from '@/features/auth';
 import { copyToClipboard, inviteAcceptUrl, email as validateEmail } from '@/shared';
 import { GradientAvatar } from './section';
 import { SectionHeader } from './shared';
@@ -118,11 +118,14 @@ export function MembersSection({ projectId }: { projectId: string }) {
   } | null>(null);
 
   // Canonical ReBAC role options
-  const roleOptions = useMemo(() => [
-    { value: 'member', label: t('settings.members.role.member') },
-    { value: 'admin', label: t('settings.members.role.admin') },
-    { value: 'viewer', label: 'Viewer' },
-  ], [t]);
+  const roleOptions = useMemo(
+    () => [
+      { value: 'member', label: t('settings.members.role.member') },
+      { value: 'admin', label: t('settings.members.role.admin') },
+      { value: 'viewer', label: 'Viewer' },
+    ],
+    [t],
+  );
 
   const form = useForm({
     defaultValues: { email: '', role: 'member' as AssignableRole },
@@ -273,10 +276,7 @@ export function MembersSection({ projectId }: { projectId: string }) {
                       {t('settings.members.role.owner')}
                     </span>
                   ) : !canManageMembers ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 text-muted-foreground text-sm"
-                      title={ROLE_DESCRIPTIONS[member.role]}
-                    >
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm" title={ROLE_DESCRIPTIONS[member.role]}>
                       {member.role === 'admin' && <Shield className="size-3.5 text-blue-500" />}
                       {member.role === 'member' && <Pencil className="size-3.5 text-emerald-500" />}
                       {member.role === 'viewer' && <Eye className="size-3.5 text-muted-foreground" />}
@@ -307,8 +307,7 @@ export function MembersSection({ projectId }: { projectId: string }) {
                               { memberId: member.id },
                               {
                                 onSuccess: () => toast.success(t('settings.members.toast.ownershipTransferred')),
-                                onError: (error) =>
-                                  toast.error(error instanceof Error ? error.message : t('settings.members.toast.transferError')),
+                                onError: (error) => toast.error(error instanceof Error ? error.message : t('settings.members.toast.transferError')),
                               },
                             );
                           }}
@@ -363,9 +362,7 @@ export function MembersSection({ projectId }: { projectId: string }) {
                 </div>
               </div>
             ))}
-            {members.length === 0 ? (
-              <p className="border-border border-t py-3 text-muted-foreground text-sm">{t('settings.members.empty')}</p>
-            ) : null}
+            {members.length === 0 ? <p className="border-border border-t py-3 text-muted-foreground text-sm">{t('settings.members.empty')}</p> : null}
 
             {invitations.length > 0 ? (
               <>

@@ -1,11 +1,11 @@
 import { Switch } from '@cms/design-system/components/ui/switch';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@cms/sdk/react';
 import { Bell } from 'lucide-react';
 import { useId } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@cms/sdk/react';
 import { SettingsSection } from './section';
 
 interface NotifItem {

@@ -2,9 +2,9 @@ import { Alert, AlertDescription, AlertTitle } from '@cms/design-system/componen
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import { useWorkspaceAnalytics } from '@cms/sdk/react';
 import { useNavigate } from '@tanstack/react-router';
 import { Activity, AlertTriangle, BarChart3, Search, Sparkles, Users } from 'lucide-react';
-import { useWorkspaceAnalytics } from '@cms/sdk/react';
 import { useFormatters } from '@/shared';
 import { BarRow } from './components/BarRow';
 import { ListCard } from './components/ListCard';

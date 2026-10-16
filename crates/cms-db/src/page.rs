@@ -182,6 +182,29 @@ impl PageQueries {
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
+    /// Get all pages for export with full markdown content populated.
+    pub async fn get_export_pages(
+        pool: &PgPool,
+        project_id: &str,
+        branch_id: &str,
+    ) -> Result<Vec<PageListItem>, AppError> {
+        let rows = sqlx::query_as::<_, PageRow>(
+            r#"
+            SELECT * FROM "Page"
+            WHERE project_id = $1
+              AND branch_id = $2
+            ORDER BY position ASC, path ASC
+            "#,
+        )
+        .bind(project_id)
+        .bind(branch_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| AppError::Database(error.into()))?;
+
+        Ok(rows.into_iter().map(PageListItem::from).collect())
+    }
+
     /// Get a page by ID
     pub async fn get_by_id(pool: &PgPool, page_id: &str) -> Result<Option<Page>, AppError> {
         let row = sqlx::query_as::<_, PageRow>("SELECT * FROM \"Page\" WHERE id = $1")

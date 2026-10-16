@@ -1,12 +1,12 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig, useUploadAsset } from '@cms/sdk/react';
 import { useForm } from '@tanstack/react-form';
 import { Badge, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { Project } from '@cms/sdk';
-import { useUpdateProjectConfig, useUploadAsset } from '@cms/sdk/react';
 import { FIELD_INPUT, FIELD_MONO, Field, SaveBar, SectionHeader, saveConfigSection } from './shared';
 
 type BrandingField = 'logoLight' | 'logoDark' | 'favicon' | 'logoHref';

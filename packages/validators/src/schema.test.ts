@@ -315,9 +315,7 @@ describe('navTabItemSchema & navbar.tabs recursive validation', () => {
               {
                 label: 'Storage',
                 href: '/products/cloud/storage',
-                items: [
-                  { label: 'S3 Compatible', href: '/products/cloud/storage/s3' },
-                ],
+                items: [{ label: 'S3 Compatible', href: '/products/cloud/storage/s3' }],
               },
             ],
           },
@@ -331,9 +329,7 @@ describe('navTabItemSchema & navbar.tabs recursive validation', () => {
   it('allows parent tab items with empty or omitted href', () => {
     const parsed = projectConfigSchema.safeParse({
       navbar: {
-        tabs: [
-          { label: 'Docs', items: [{ label: 'Overview', href: '/overview' }] },
-        ],
+        tabs: [{ label: 'Docs', items: [{ label: 'Overview', href: '/overview' }] }],
       },
     });
     expect(parsed.success).toBe(true);

@@ -1,11 +1,11 @@
 import { AcceptInviteForm } from '@cms/auth/forms';
 import { Button } from '@cms/design-system/components/ui/button';
 import { useT } from '@cms/i18n/react';
+import { useGetInvitationInfo } from '@cms/sdk/react';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import { useGetInvitationInfo } from '@cms/sdk/react';
 import { clearPendingInvitation, setPendingInvitation } from '@/shared';
 import { cmsClient } from '@/shared/services/cms-client';
 import { AuthLayout } from './components/AuthLayout';

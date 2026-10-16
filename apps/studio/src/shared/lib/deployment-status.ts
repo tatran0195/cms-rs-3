@@ -18,8 +18,7 @@ const STATUS_KEY: Record<string, MessageKey> = {
 };
 
 /** The localized, human label for a deployment status enum ("READY" → "Live"). */
-export const deploymentStatusLabel = (status: DeploymentStatus, t: Translate): string =>
-  t(STATUS_KEY[status] ?? 'deployment.status.pending');
+export const deploymentStatusLabel = (status: DeploymentStatus, t: Translate): string => t(STATUS_KEY[status] ?? 'deployment.status.pending');
 
 /** The design-system Badge variant for a status: failures read as destructive,
  *  the live snapshot as primary, and in-flight states stay muted. */

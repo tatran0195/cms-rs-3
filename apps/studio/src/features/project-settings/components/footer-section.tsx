@@ -1,12 +1,12 @@
 import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
 import type { ProjectConfig } from '@cms/validators';
 import { useForm } from '@tanstack/react-form';
 import { PanelBottom } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, Project } from '@cms/sdk';
-import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
 import {
   DirtyStateReporter,
   FIELD_INPUT,

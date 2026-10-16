@@ -10,17 +10,11 @@ const browserTimezoneFn = () => {
 };
 
 export const analyticsQueryKeys = {
-  project: (projectId: string, range: string, timezone: string) =>
-    ['analytics', 'project', projectId, range, timezone] as const,
-  workspace: (range: string, timezone: string) =>
-    ['analytics', 'workspace', range, timezone] as const,
+  project: (projectId: string, range: string, timezone: string) => ['analytics', 'project', projectId, range, timezone] as const,
+  workspace: (range: string, timezone: string) => ['analytics', 'workspace', range, timezone] as const,
 };
 
-export const useProjectAnalytics = <T = any>(
-  projectId: string | undefined,
-  range: string,
-  options?: { enabled?: boolean; timezone?: string }
-) => {
+export const useProjectAnalytics = <T = any>(projectId: string | undefined, range: string, options?: { enabled?: boolean; timezone?: string }) => {
   const client = useCmsClient();
   const timezone = options?.timezone ?? browserTimezoneFn();
   return useQuery({
@@ -36,10 +30,7 @@ export const useProjectAnalytics = <T = any>(
   });
 };
 
-export const useWorkspaceAnalytics = <T = any>(
-  range: string,
-  options?: { enabled?: boolean; timezone?: string }
-) => {
+export const useWorkspaceAnalytics = <T = any>(range: string, options?: { enabled?: boolean; timezone?: string }) => {
   const client = useCmsClient();
   const timezone = options?.timezone ?? browserTimezoneFn();
   return useQuery({

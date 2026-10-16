@@ -1,7 +1,7 @@
-import { type SitePage, type SiteShell, pageHead, redirectIfConfigured, resolveLanguagePathRedirect, SitePageView } from '@cms/site';
+import { CmsApiError } from '@cms/sdk';
+import { pageHead, redirectIfConfigured, resolveLanguagePathRedirect, type SitePage, SitePageView, type SiteShell } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import { CmsApiError } from '@cms/sdk';
 import { cmsClient } from '@/shared';
 
 const OpenApiReferenceView = lazy(() => import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })));

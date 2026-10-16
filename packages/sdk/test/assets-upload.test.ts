@@ -14,8 +14,8 @@ describe('AssetsResource.upload', () => {
               assetId: 'asset-123',
               uploadUrl: 'https://storage.internal/upload/123',
             }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
-          )
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
         );
       }
       if (url === 'https://storage.internal/upload/123') {
@@ -24,10 +24,10 @@ describe('AssetsResource.upload', () => {
       }
       if (url.includes('/assets/confirm')) {
         return Promise.resolve(
-          new Response(
-            JSON.stringify({ id: 'asset-123', filename: 'test.png', sizeBytes: 1024 }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
-          )
+          new Response(JSON.stringify({ id: 'asset-123', filename: 'test.png', sizeBytes: 1024 }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled URL: ${url}`));

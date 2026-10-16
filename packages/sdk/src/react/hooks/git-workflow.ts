@@ -15,7 +15,7 @@ export const useGitWorkflow = <T = GitWorkflowStatus | null>(projectId: string) 
 
 const useGitWorkflowMutation = <TVariables = any, TResult = any>(
   projectId: string,
-  mutationFn: (client: ReturnType<typeof useCmsClient>, variables: TVariables) => Promise<TResult>
+  mutationFn: (client: ReturnType<typeof useCmsClient>, variables: TVariables) => Promise<TResult>,
 ) => {
   const client = useCmsClient();
   const queryClient = useQueryClient();
@@ -24,7 +24,6 @@ const useGitWorkflowMutation = <TVariables = any, TResult = any>(
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.gitWorkflow.detail(projectId) }),
   });
 };
-
 
 export const useResolveGitConflict = <T = any>(projectId: string, conflictId: string) =>
   useGitWorkflowMutation(projectId, (client, json: any) => client.git.resolveConflict<T>(projectId, conflictId, json));

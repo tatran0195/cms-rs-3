@@ -1,11 +1,11 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@cms/design-system/components/ui/sidebar';
 import { useT } from '@cms/i18n/react';
+import { useProject } from '@cms/sdk/react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { Eye } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { NotificationsPopover, ProjectSidebar } from '@/features/workspace';
-import { useProject } from '@cms/sdk/react';
 
 export { PublishControl } from '@/features/publishing';
 

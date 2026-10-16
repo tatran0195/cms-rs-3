@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::Id;
 
 /// Export status
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema, ts_rs::TS)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "\"ExportStatus\"", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ExportStatus {
@@ -22,10 +22,15 @@ pub enum ExportStatus {
 )]
 #[serde(rename_all = "lowercase")]
 pub enum ExportFormat {
+    #[serde(alias = "HTML", alias = "html", alias = "STATIC_HTML", alias = "static_html")]
     Html,
+    #[serde(alias = "PDF", alias = "pdf")]
     Pdf,
+    #[serde(alias = "MARKDOWN", alias = "markdown")]
     Markdown,
+    #[serde(alias = "EPUB", alias = "epub")]
     Epub,
+    #[serde(alias = "SQLITE", alias = "sqlite")]
     Sqlite,
 }
 
@@ -74,6 +79,19 @@ pub struct ExportSnapshot {
     pub project_id: Id,
     pub branch_id: Option<Id>,
     pub language_id: Option<Id>,
+    pub deployment_version: Option<i64>,
+    pub pages_count: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Export snapshot details for nested job response
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportSnapshotDetails {
+    pub id: Id,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deployment_version: Option<i64>,
+    pub pages_count: i32,
     pub created_at: DateTime<Utc>,
 }
 
@@ -84,6 +102,8 @@ pub struct ExportSnapshotResponse {
     pub project_id: Id,
     pub branch_id: Option<Id>,
     pub language_id: Option<Id>,
+    pub deployment_version: Option<i64>,
+    pub pages_count: i32,
     pub created_at: DateTime<Utc>,
 }
 
@@ -94,9 +114,24 @@ impl From<ExportSnapshot> for ExportSnapshotResponse {
             project_id: snapshot.project_id,
             branch_id: snapshot.branch_id,
             language_id: snapshot.language_id,
+            deployment_version: snapshot.deployment_version,
+            pages_count: snapshot.pages_count,
             created_at: snapshot.created_at,
         }
     }
+}
+
+/// Detailed stage-by-stage export execution metrics
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportMetrics {
+    pub fetch_ms: u64,
+    pub render_ms: u64,
+    pub storage_ms: u64,
+    pub total_ms: u64,
+    pub pages_count: usize,
+    pub words_count: usize,
+    pub throughput_pages_per_sec: f64,
 }
 
 /// Export job entity
@@ -104,12 +139,18 @@ impl From<ExportSnapshot> for ExportSnapshotResponse {
 pub struct ExportJob {
     pub id: Id,
     pub snapshot_id: Id,
+    pub project_id: Option<Id>,
     pub format: ExportFormat,
+    #[serde(default)]
+    pub formats: Vec<String>,
+    pub trigger: String,
     pub status: ExportStatus,
     pub output_path: Option<String>,
     pub error_message: Option<String>,
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<ExportMetrics>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -119,7 +160,12 @@ pub struct ExportJob {
 pub struct ExportJobResponse {
     pub id: Id,
     pub snapshot_id: Id,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "projectId")]
+    pub project_id: Option<Id>,
     pub format: ExportFormat,
+    #[serde(default)]
+    pub formats: Vec<String>,
+    pub trigger: String,
     pub status: ExportStatus,
     pub output_path: Option<String>,
     pub download_url: Option<String>,
@@ -128,6 +174,12 @@ pub struct ExportJobResponse {
     pub completed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<ExportSnapshotDetails>,
+    #[serde(default)]
+    pub artifacts: Vec<ExportArtifactResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<ExportMetrics>,
 }
 
 impl From<ExportJob> for ExportJobResponse {
@@ -135,7 +187,14 @@ impl From<ExportJob> for ExportJobResponse {
         Self {
             id: job.id,
             snapshot_id: job.snapshot_id,
+            project_id: job.project_id,
             format: job.format,
+            formats: if job.formats.is_empty() {
+                vec![format!("{:?}", job.format).to_uppercase()]
+            } else {
+                job.formats
+            },
+            trigger: job.trigger,
             status: job.status,
             output_path: job.output_path.clone(),
             download_url: job
@@ -147,15 +206,39 @@ impl From<ExportJob> for ExportJobResponse {
             completed_at: job.completed_at,
             created_at: job.created_at,
             updated_at: job.updated_at,
+            snapshot: None,
+            artifacts: Vec::new(),
+            metrics: job.metrics,
         }
     }
 }
 
 /// Create export job request
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, ts_rs::TS)]
+#[allow(non_snake_case)]
 pub struct CreateExportJobRequest {
-    pub snapshot_id: Id,
-    pub format: ExportFormat,
+    #[serde(default)]
+    pub snapshot_id: Option<Id>,
+    #[serde(default)]
+    pub snapshotId: Option<Id>,
+    #[serde(default)]
+    pub project_id: Option<Id>,
+    #[serde(default)]
+    pub projectId: Option<Id>,
+    #[serde(default)]
+    pub formats: Option<Vec<ExportFormat>>,
+    #[serde(default)]
+    pub format: Option<ExportFormat>,
+}
+
+impl CreateExportJobRequest {
+    pub fn resolved_project_id(&self) -> Option<&str> {
+        self.project_id.as_deref().or(self.projectId.as_deref())
+    }
+
+    pub fn resolved_snapshot_id(&self) -> Option<&str> {
+        self.snapshot_id.as_deref().or(self.snapshotId.as_deref())
+    }
 }
 
 /// Export artifact entity
@@ -163,6 +246,7 @@ pub struct CreateExportJobRequest {
 pub struct ExportArtifact {
     pub id: Id,
     pub job_id: Id,
+    pub format: Option<String>,
     pub file_name: String,
     pub file_size: i64,
     pub storage_path: String,
@@ -175,8 +259,11 @@ pub struct ExportArtifact {
 pub struct ExportArtifactResponse {
     pub id: Id,
     pub job_id: Id,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
     pub file_name: String,
     pub file_size: i64,
+    pub size: i64,
     pub download_url: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -186,8 +273,10 @@ impl From<ExportArtifact> for ExportArtifactResponse {
         Self {
             id: artifact.id,
             job_id: artifact.job_id,
+            format: artifact.format,
             file_name: artifact.file_name,
             file_size: artifact.file_size,
+            size: artifact.file_size,
             download_url: artifact.download_url,
             created_at: artifact.created_at,
         }
@@ -291,6 +380,8 @@ pub struct UpdateExportScheduleRequest {
 /// List export jobs query
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub struct ListExportJobsQuery {
+    #[serde(default)]
+    pub project_id: Option<Id>,
     #[serde(default)]
     pub snapshot_id: Option<Id>,
     #[serde(default)]

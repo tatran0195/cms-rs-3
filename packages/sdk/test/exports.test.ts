@@ -10,7 +10,7 @@ describe('ExportsResource & AiResource', () => {
           new Response(JSON.stringify([{ id: 'job-1', status: 'COMPLETED' }]), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-          })
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled URL: ${url}`));
@@ -37,7 +37,7 @@ describe('ExportsResource & AiResource', () => {
       new Response(JSON.stringify({ result: 'Generated summary' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      })
+      }),
     );
 
     const client = createCmsClient({ baseUrl: 'https://cms.test', fetch: mockFetch });

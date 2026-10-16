@@ -171,6 +171,7 @@ export interface PendingChange {
   lines: DeploymentDiffLine[];
   truncated: boolean;
 }
+
 import type { DnsRecord } from './generated/DnsRecord';
 
 export interface Domain {

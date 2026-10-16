@@ -14,11 +14,11 @@ import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { Deployment, PendingChange, Project } from '@cms/sdk';
+import { usePendingChanges, usePublish } from '@cms/sdk/react';
 import { ArrowLeft, FileText, Loader2, type LucideIcon, Minus, Pencil, Plus, Rocket, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { usePendingChanges, usePublish } from '@cms/sdk/react';
-import type { Deployment, PendingChange, Project } from '@cms/sdk';
 import { siteHref } from '@/shared';
 
 export interface PublishModalProps {
@@ -126,8 +126,14 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn('gap-0 p-0', reviewing ? 'sm:max-w-[940px]' : 'sm:max-w-[480px]')} showCloseButton={false}>
-        <DialogHeader className="gap-1 border-border border-b px-6 pt-5 pb-4">
+      <DialogContent
+        className={cn(
+          'flex flex-col gap-0 p-0 overflow-hidden sm:max-w-[480px]',
+          reviewing && 'sm:max-w-[940px]',
+        )}
+        showCloseButton={false}
+      >
+        <DialogHeader className="gap-1 border-border border-b px-6 pt-5 pb-4 shrink-0">
           {reviewing ? (
             <div className="flex items-center justify-between gap-3">
               <Button variant="ghost" size="sm" className="-ms-2 h-8" onClick={() => setReviewing(false)}>
@@ -147,7 +153,7 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
         </DialogHeader>
 
         {reviewing && selectedChange ? (
-          <div className="grid min-h-[520px] grid-cols-[260px_1fr]">
+          <div className="grid min-h-[520px] grid-cols-[260px_minmax(0,1fr)] min-w-0 flex-1 overflow-hidden">
             <aside className="border-border border-e">
               <div className="border-border border-b px-4 py-3">
                 <div className="font-semibold text-sm">{t('publish.reviewTitle')}</div>
@@ -231,10 +237,10 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
             </section>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 px-6 py-5">
-            <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
+          <div className="flex flex-col gap-4 px-6 py-5 min-w-0 max-w-full">
+            <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 min-w-0 max-w-full">
               <CmsMark className="size-9 shrink-0" />
-              <div className="min-w-0 leading-tight">
+              <div className="min-w-0 flex-1 leading-tight">
                 <div className="truncate font-semibold text-[13.5px]">{project.name}</div>
                 <div className="truncate font-mono text-[12.5px] text-muted-foreground">{siteHref(project.id)}</div>
               </div>
@@ -266,11 +272,11 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
             ) : null}
 
             {/* Changes diff — what this publish will push live. */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">{t('publish.changes')}</span>
+            <div className="flex flex-col gap-2 min-w-0 max-w-full">
+              <div className="flex items-center justify-between min-w-0">
+                <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide truncate">{t('publish.changes')}</span>
                 {!loadingChanges && count > 0 ? (
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground text-xs shrink-0">
                     {hasBaseline
                       ? pending?.lastVersion != null
                         ? t('publish.sinceVersion', {
@@ -292,26 +298,29 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
                   <p className="mt-0.5 text-muted-foreground text-xs">{t('publish.noneHint')}</p>
                 </div>
               ) : (
-                <ScrollArea className="max-h-52 rounded-xl border border-border">
-                  <ul className="divide-y border-border">
+                <ScrollArea className="max-h-52 w-full min-w-0 rounded-xl border border-border overflow-hidden">
+                  <ul className="divide-y border-border w-full min-w-0">
                     {sorted.map((change) => {
                       const meta = STATUS_META[change.status];
                       const Icon = meta.icon;
                       return (
-                        <li key={`${change.id}-${change.status}`} className="flex items-center gap-2.5 px-3 py-2">
+                        <li key={`${change.id}-${change.status}`} className="flex items-center gap-2.5 px-3 py-2 min-w-0 max-w-full">
                           <span className={cn('grid size-5 shrink-0 place-items-center rounded-full text-white', meta.dot)}>
                             <Icon className="size-3" strokeWidth={2.5} />
                           </span>
-                          <span className="min-w-0 flex-1">
+                          <span className="min-w-0 flex-1 overflow-hidden">
                             <span
                               className={cn(
                                 'block truncate font-medium text-[13px]',
                                 change.status === 'removed' && 'text-muted-foreground line-through',
                               )}
+                              title={change.title || change.path}
                             >
                               {change.title || change.path}
                             </span>
-                            <span className="block truncate font-mono text-[11px] text-muted-foreground">/{change.path}</span>
+                            <span className="block truncate font-mono text-[11px] text-muted-foreground" title={`/${change.path}`}>
+                              /{change.path}
+                            </span>
                           </span>
                           {multiLang && change.languageCode ? (
                             <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground uppercase">
@@ -326,18 +335,19 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
                 </ScrollArea>
               )}
               {!loadingChanges && count > 0 ? (
-                <Button type="button" variant="outline" className="h-9 justify-center" onClick={() => setReviewing(true)}>
-                  <FileText className="size-4" /> {t('publish.reviewDiff')}
+                <Button type="button" variant="outline" className="h-9 justify-center w-full min-w-0" onClick={() => setReviewing(true)}>
+                  <FileText className="size-4 shrink-0" /> <span className="truncate">{t('publish.reviewDiff')}</span>
                 </Button>
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="font-medium text-muted-foreground text-xs uppercase tracking-wide" htmlFor="publish-message">
+            <div className="flex flex-col gap-2 min-w-0 max-w-full">
+              <label className="font-medium text-muted-foreground text-xs uppercase tracking-wide truncate" htmlFor="publish-message">
                 {t('publish.whatChanged')}
               </label>
               <Input
                 id="publish-message"
+                className="w-full min-w-0"
                 placeholder={t('publish.messagePlaceholder')}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -350,11 +360,11 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
         )}
 
         {!reviewing ? (
-          <DialogFooter className="gap-2.5 px-6 pt-0 pb-5 sm:justify-stretch">
+          <DialogFooter className="gap-2.5 px-6 pt-0 pb-6 shrink-0 sm:justify-stretch">
             <DialogClose render={<Button variant="outline" className="h-[42px] flex-none px-4" />}>{t('common.cancel')}</DialogClose>
-            <Button className="h-[42px] flex-1" disabled={publish.isPending || publishBlocked} onClick={doPublish}>
-              {publish.isPending ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
-              {t('publish.now')}
+            <Button className="h-[42px] flex-1 min-w-0" disabled={publish.isPending || publishBlocked} onClick={doPublish}>
+              {publish.isPending ? <Loader2 className="size-4 animate-spin shrink-0" /> : <Rocket className="size-4 shrink-0" />}
+              <span className="truncate">{t('publish.now')}</span>
             </Button>
           </DialogFooter>
         ) : null}

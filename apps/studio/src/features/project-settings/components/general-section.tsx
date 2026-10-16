@@ -4,14 +4,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useUpdateLanguage, useUpdateProject } from '@cms/sdk/react';
 import { slugify } from '@cms/shared/utils';
 import { useForm } from '@tanstack/react-form';
 import { CirclePlus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { env } from '@/env';
-import type { Language, Project } from '@cms/sdk';
-import { useLanguages, useUpdateLanguage, useUpdateProject } from '@cms/sdk/react';
 import { required } from '@/shared';
 import {
   FIELD_INPUT,

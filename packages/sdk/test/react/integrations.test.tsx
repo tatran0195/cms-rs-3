@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { CmsApiError } from '../../src/errors';
-import { CmsClientProvider, queryKeys, useActivateProjectIntegration, useUpdateProjectIntegration } from '../../src/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CmsApiError } from '../../src/errors';
+import { CmsClientProvider, queryKeys, useActivateProjectIntegration, useUpdateProjectIntegration } from '../../src/react';
 
 const mocks = vi.hoisted(() => ({
   activate: vi.fn(),
@@ -67,9 +67,9 @@ describe('integration mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
-        )
-      )
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe)),
+        ),
+      ),
     );
     await act(async () => {
       await expect(mutate()).rejects.toMatchObject({ code: 'integration:revision_conflict' });
@@ -97,9 +97,9 @@ describe('integration mutation conflict recovery', () => {
         createElement(
           QueryClientProvider,
           { client: queryClient },
-          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe))
-        )
-      )
+          createElement(CmsClientProvider, { client: mockClient as any }, createElement(Probe)),
+        ),
+      ),
     );
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await act(async () => {

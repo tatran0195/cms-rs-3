@@ -1,10 +1,10 @@
 import { FieldError } from '@cms/design-system/components/ui/form-field';
 import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
-import { useForm } from '@tanstack/react-form';
-import { useState } from 'react';
 import type { Project } from '@cms/sdk';
 import { useUpdateProjectConfig } from '@cms/sdk/react';
+import { useForm } from '@tanstack/react-form';
+import { useState } from 'react';
 import { FIELD_MONO, Field, SaveBar, SectionHeader, saveConfigSection, ToggleRow } from './shared';
 
 // Match the shapes the live-site injector accepts, so an invalid id is caught in

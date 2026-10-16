@@ -3,14 +3,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
+import { useDeleteWorkspace, useMembers, useTransferWorkspaceOwnership, useWorkspaceSettings } from '@cms/sdk/react';
 import { useNavigate } from '@tanstack/react-router';
 import { AlertTriangle, ShieldAlert, UserCheck } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import { useDeleteWorkspace, useMembers, useTransferWorkspaceOwnership, useWorkspaceSettings } from '@cms/sdk/react';
 import { SettingsSection } from './section';
-
 
 interface MemberItem {
   id: string;

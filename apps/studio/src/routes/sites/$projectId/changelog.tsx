@@ -1,4 +1,4 @@
-import { type ChangelogEntry, type SiteShell, changelogFeedUrl, SiteChangelogView, sitePageUrl } from '@cms/site';
+import { type ChangelogEntry, changelogFeedUrl, SiteChangelogView, type SiteShell, sitePageUrl } from '@cms/site';
 import { createFileRoute, useSearch } from '@tanstack/react-router';
 import { cmsClient } from '@/shared';
 

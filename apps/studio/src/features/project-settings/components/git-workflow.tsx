@@ -5,6 +5,16 @@ import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { useLocale } from '@cms/i18n/react';
+import type { GitConflict as Conflict } from '@cms/sdk';
+import {
+  useAuthorizeGitWorkflow,
+  useConnectGitWorkflow,
+  useDisconnectGitWorkflow,
+  useGitWorkflow,
+  useQueueGitOperation,
+  useResolveGitConflict,
+  useRotateGitWorkflowWebhookSecret,
+} from '@cms/sdk/react';
 import type { GitOperationBody } from '@cms/validators';
 import {
   AlertTriangle,
@@ -22,16 +32,6 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { env } from '@/env';
-import type { GitConflict as Conflict } from '@cms/sdk';
-import {
-  useAuthorizeGitWorkflow,
-  useConnectGitWorkflow,
-  useDisconnectGitWorkflow,
-  useGitWorkflow,
-  useQueueGitOperation,
-  useResolveGitConflict,
-  useRotateGitWorkflowWebhookSecret,
-} from '@cms/sdk/react';
 import { cmsClient, localeTag } from '@/shared';
 
 type GitIdentity = { login: string; name: string | null };

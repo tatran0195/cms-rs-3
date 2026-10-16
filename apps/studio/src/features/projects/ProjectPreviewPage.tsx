@@ -3,6 +3,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { PageNode } from '@cms/sdk';
+import { useBranches, useLanguages, usePage, usePages, useProject } from '@cms/sdk/react';
 import {
   DocumentationProjectPreviewLayout,
   DocumentationThemeProvider,
@@ -14,8 +16,6 @@ import {
 } from '@cms/site';
 import { ChevronDown, Eye, FileText } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
-import { useBranches, useLanguages, usePage, usePages, useProject } from '@cms/sdk/react';
-import type { PageNode } from '@cms/sdk';
 
 export interface ProjectPreviewPageProps {
   projectId: string;

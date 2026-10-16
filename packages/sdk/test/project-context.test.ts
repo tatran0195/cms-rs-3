@@ -10,7 +10,7 @@ describe('ScopedProjectContext', () => {
           new Response(JSON.stringify([{ id: 'page-1', title: 'Home' }]), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-          })
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled URL: ${url}`));

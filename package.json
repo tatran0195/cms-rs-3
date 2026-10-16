@@ -21,6 +21,8 @@
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"!**/node_modules/**\"",
     "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!**/node_modules/**\"",
     "export:types": "cargo test -p cms-entity --test export_ts_bindings",
+    "seed:benchmark": "bun run scripts/seed-benchmark.ts",
+    "benchmark:export": "bun run scripts/run-export-benchmark.ts",
     "clean": "bun --filter '*' clean"
   },
   "dependencies": {

@@ -19,11 +19,11 @@ import {
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { useT } from '@cms/i18n/react';
+import type { Branch } from '@cms/sdk';
+import { useCreateBranch, useMergeBranch } from '@cms/sdk/react';
 import { Check, GitBranch, GitMerge, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Branch } from '@cms/sdk';
-import { useCreateBranch, useMergeBranch } from '@cms/sdk/react';
 
 /** Docs version switcher for the editor. Internally versions are backed by the
  *  existing Branch model, but authors see v1/v2-style docs versions. */

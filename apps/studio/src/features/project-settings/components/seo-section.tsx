@@ -2,12 +2,12 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { useT } from '@cms/i18n/react';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useUpdateLanguage, useUpdateProjectConfig, useUploadAsset } from '@cms/sdk/react';
 import { useForm } from '@tanstack/react-form';
 import { SearchCheck, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, Project } from '@cms/sdk';
-import { useLanguages, useUpdateLanguage, useUpdateProjectConfig, useUploadAsset } from '@cms/sdk/react';
 import {
   DirtyStateReporter,
   FIELD_INPUT,

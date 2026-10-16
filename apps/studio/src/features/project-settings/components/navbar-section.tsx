@@ -2,29 +2,13 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
-import type { LanguageConfig, NavTabItem } from '@cms/validators';
-import { useForm } from '@tanstack/react-form';
-import {
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  CornerDownRight,
-  ExternalLink,
-  PanelTop,
-  Plus,
-  X,
-} from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import type { Language, Project } from '@cms/sdk';
 import { useLanguages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
-import {
-  cleanTabItems,
-  insertTabChild,
-  moveTabNode,
-  removeTabNode,
-  updateTabNode,
-} from './tabs-tree-utils';
+import type { LanguageConfig, NavTabItem } from '@cms/validators';
+import { useForm } from '@tanstack/react-form';
+import { ChevronDown, ChevronRight, ChevronUp, CornerDownRight, ExternalLink, PanelTop, Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import {
   DirtyStateReporter,
   FIELD_COMPACT,
@@ -40,6 +24,7 @@ import {
   ToggleRow,
   useScopeDirtyGuard,
 } from './shared';
+import { cleanTabItems, insertTabChild, moveTabNode, removeTabNode, updateTabNode } from './tabs-tree-utils';
 
 interface NavRow {
   label: string;
@@ -282,16 +267,7 @@ interface TabTreeNodeProps {
   onChange: (next: NavTabItem[]) => void;
 }
 
-function TabTreeNodeItem({
-  item,
-  path,
-  depth,
-  isFirst,
-  isLast,
-  direction,
-  tree,
-  onChange,
-}: TabTreeNodeProps) {
+function TabTreeNodeItem({ item, path, depth, isFirst, isLast, direction, tree, onChange }: TabTreeNodeProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = Boolean(item.items && item.items.length > 0);
@@ -329,15 +305,11 @@ function TabTreeNodeItem({
             {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
           </Button>
         ) : (
-          <span className="grid size-6 shrink-0 place-items-center font-bold text-muted-foreground/40">
-            •
-          </span>
+          <span className="grid size-6 shrink-0 place-items-center font-bold text-muted-foreground/40">•</span>
         )}
 
         {/* Depth Badge */}
-        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-          L{depth + 1}
-        </span>
+        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">L{depth + 1}</span>
 
         {/* Label Input */}
         <Input
@@ -484,12 +456,7 @@ export function TabsTreeEditor({
           ))}
         </div>
       ) : null}
-      <Button
-        className="mb-1.5 border-dashed text-muted-foreground"
-        onClick={handleAddRoot}
-        type="button"
-        variant="outline"
-      >
+      <Button className="mb-1.5 border-dashed text-muted-foreground" onClick={handleAddRoot} type="button" variant="outline">
         <Plus className="size-3.5" /> {t('settings.navbar.tabs.add')}
       </Button>
     </div>
@@ -634,13 +601,7 @@ function NavbarScopeForm({
       <GroupLabel className="mt-6 mb-1">{t('settings.navbar.tabs.label')}</GroupLabel>
       <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">{t('settings.navbar.tabs.hint')}</p>
       <form.Field name="tabs">
-        {(field) => (
-          <TabsTreeEditor
-            direction={direction}
-            onChange={(next) => field.handleChange(next)}
-            value={field.state.value as NavTabItem[]}
-          />
-        )}
+        {(field) => <TabsTreeEditor direction={direction} onChange={(next) => field.handleChange(next)} value={field.state.value as NavTabItem[]} />}
       </form.Field>
 
       <GroupLabel className="mt-6 mb-1">{t('settings.navbar.anchors.label')}</GroupLabel>

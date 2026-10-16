@@ -4,10 +4,10 @@ import { Label } from '@cms/design-system/components/ui/label';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { useT } from '@cms/i18n/react';
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@cms/sdk/react';
 import { Check, Copy, FolderGit2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useUpdateWorkspaceSettings, useWorkspaceSettings } from '@cms/sdk/react';
 import { copyToClipboard } from '@/shared';
 import { SettingsSection } from './section';
 

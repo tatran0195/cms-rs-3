@@ -1,11 +1,11 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { validateRedirectGraph } from '@cms/shared/redirects';
 import { useForm } from '@tanstack/react-form';
 import { ArrowRight, Plus, Route, TriangleAlert, X } from 'lucide-react';
-import type { Project } from '@cms/sdk';
-import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { FIELD_COMPACT_MONO, SaveBar, SectionHeader, saveConfigSection } from './shared';
 
 export function RedirectsSection({ project }: { project: Project }) {

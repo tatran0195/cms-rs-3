@@ -1,11 +1,11 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@cms/design-system/components/ui/popover';
 import { useT } from '@cms/i18n/react';
+import type { NotificationItem } from '@cms/sdk';
+import { useMarkNotificationsRead, useNotifications, useUnreadNotificationCount } from '@cms/sdk/react';
 import { useNavigate } from '@tanstack/react-router';
 import { Bell } from 'lucide-react';
 import { useState } from 'react';
-import { useMarkNotificationsRead, useNotifications, useUnreadNotificationCount } from '@cms/sdk/react';
-import type { NotificationItem } from '@cms/sdk';
 import { useFormatters } from '@/shared';
 
 /** One inbox row: unread dot, title/body, relative time. Clicking marks it read

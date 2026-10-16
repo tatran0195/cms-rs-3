@@ -3,6 +3,20 @@ import { useConfirm } from '@cms/design-system/components/ui/confirm';
 import { SegmentedControl, SegmentedControlItem } from '@cms/design-system/components/ui/segmented-control';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { Language, PageNode } from '@cms/sdk';
+import {
+  useBranches,
+  useComments,
+  useCreatePage,
+  useDeletePage,
+  useLanguages,
+  usePage,
+  usePages,
+  useProject,
+  useReorderPages,
+  useUpdatePage,
+  useUploadAsset,
+} from '@cms/sdk/react';
 import { useDebouncedCallback } from '@tanstack/react-pacer';
 import { Link } from '@tanstack/react-router';
 import {
@@ -44,20 +58,6 @@ import { SortablePageTree } from '@/features/editor/components/sortable-page-tre
 import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
 import { PublishControl } from '@/features/publishing';
-import type { Language, PageNode } from '@cms/sdk';
-import {
-  useBranches,
-  useComments,
-  useCreatePage,
-  useDeletePage,
-  useLanguages,
-  usePage,
-  usePages,
-  useProject,
-  useReorderPages,
-  useUpdatePage,
-  useUploadAsset,
-} from '@cms/sdk/react';
 import { typographyVars } from '@/shared/lib/typography';
 import { type EditorSyncStatus, editorStore } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';

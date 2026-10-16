@@ -2,12 +2,12 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { useT } from '@cms/i18n/react';
+import type { Language, Project } from '@cms/sdk';
+import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@cms/sdk/react';
 import { useForm } from '@tanstack/react-form';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Language, Project } from '@cms/sdk';
-import { useLanguages, useProjectSearchConfiguration, useUpdateLanguage, useUpdateProjectSearchConfiguration } from '@cms/sdk/react';
 import { SearchIndexDiagnostics } from './search-index-diagnostics';
 import {
   DirtyStateReporter,

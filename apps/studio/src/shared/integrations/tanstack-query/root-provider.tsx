@@ -1,6 +1,6 @@
+import { CmsClientProvider } from '@cms/sdk/react';
 import { QueryClient, type QueryClientConfig, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
-import { CmsClientProvider } from '@cms/sdk/react';
 import { cmsClient } from '../../services/cms-client';
 
 const queryClientConfig: QueryClientConfig = {

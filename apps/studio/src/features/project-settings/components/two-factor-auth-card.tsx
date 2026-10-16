@@ -1,3 +1,4 @@
+import type { MfaSetupResponse } from '@cms/auth';
 import { Alert, AlertDescription, AlertTitle } from '@cms/design-system/components/ui/alert';
 import { Badge } from '@cms/design-system/components/ui/badge';
 import { Button } from '@cms/design-system/components/ui/button';
@@ -9,7 +10,6 @@ import { Label } from '@cms/design-system/components/ui/label';
 import { Check, Copy, Download, KeyRound, ShieldAlert, ShieldCheck, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { MfaSetupResponse } from '@cms/auth';
 import { useMfaDisable, useMfaSetup, useMfaVerify, useSession } from '@/features/auth';
 import { copyToClipboard } from '@/shared';
 
@@ -96,9 +96,14 @@ export function TwoFactorAuthCard() {
   };
 
   const handleDownloadCodes = () => {
-    const blob = new Blob([`CMS Emergency Recovery Codes\nGenerated: ${new Date().toISOString()}\n\n${recoveryCodes.join('\n')}\n\nKeep these codes safe and offline. Each code can only be used once.`], {
-      type: 'text/plain;charset=utf-8',
-    });
+    const blob = new Blob(
+      [
+        `CMS Emergency Recovery Codes\nGenerated: ${new Date().toISOString()}\n\n${recoveryCodes.join('\n')}\n\nKeep these codes safe and offline. Each code can only be used once.`,
+      ],
+      {
+        type: 'text/plain;charset=utf-8',
+      },
+    );
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -114,7 +119,9 @@ export function TwoFactorAuthCard() {
         <CardHeader>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2.5">
-              <div className={`grid size-9 place-items-center rounded-lg border ${isMfaEnabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' : 'border-muted bg-muted/50 text-muted-foreground'}`}>
+              <div
+                className={`grid size-9 place-items-center rounded-lg border ${isMfaEnabled ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' : 'border-muted bg-muted/50 text-muted-foreground'}`}
+              >
                 {isMfaEnabled ? <ShieldCheck className="size-5" /> : <ShieldAlert className="size-5" />}
               </div>
               <div>
@@ -194,9 +201,7 @@ export function TwoFactorAuthCard() {
                 <div className="mt-3 text-center">
                   <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Manual Secret Key</span>
                   <div className="mt-1 flex items-center justify-center gap-1.5">
-                    <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold select-all">
-                      {setupData.secret}
-                    </code>
+                    <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold select-all">{setupData.secret}</code>
                     <Button
                       onClick={async () => {
                         const ok = await copyToClipboard(setupData.secret);
@@ -244,11 +249,7 @@ export function TwoFactorAuthCard() {
                 <Button onClick={() => setSetupOpen(false)} type="button" variant="outline">
                   Cancel
                 </Button>
-                <Button
-                  disabled={mfaVerify.isPending || verifyCode.trim().length !== 6}
-                  onClick={handleVerifySetup}
-                  type="button"
-                >
+                <Button disabled={mfaVerify.isPending || verifyCode.trim().length !== 6} onClick={handleVerifySetup} type="button">
                   {mfaVerify.isPending ? 'Verifying...' : 'Activate 2FA'}
                 </Button>
               </DialogFooter>
@@ -321,12 +322,7 @@ export function TwoFactorAuthCard() {
             <Button onClick={() => setDisableOpen(false)} type="button" variant="outline">
               Cancel
             </Button>
-            <Button
-              disabled={mfaDisable.isPending || !disableCode.trim()}
-              onClick={handleDisableMfa}
-              type="button"
-              variant="destructive"
-            >
+            <Button disabled={mfaDisable.isPending || !disableCode.trim()} onClick={handleDisableMfa} type="button" variant="destructive">
               {mfaDisable.isPending ? 'Disabling...' : 'Confirm & Disable'}
             </Button>
           </DialogFooter>

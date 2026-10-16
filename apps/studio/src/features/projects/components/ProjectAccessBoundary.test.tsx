@@ -1,9 +1,9 @@
 /** @vitest-environment jsdom */
 
+import { CmsApiError } from '@cms/sdk';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CmsApiError } from '@cms/sdk';
 
 const mocks = vi.hoisted(() => ({
   useProject: vi.fn(),

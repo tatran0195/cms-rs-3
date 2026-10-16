@@ -4,11 +4,11 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { getLocale } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import { useCreateProjectSearchReindex, useProjectSearchIndexDiagnostics } from '@cms/sdk/react';
 import type { SearchIndexDiagnosticsResult } from '@cms/validators';
 import { ChevronLeft, ChevronRight, Database, LoaderCircle, RefreshCw, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
-import { useCreateProjectSearchReindex, useProjectSearchIndexDiagnostics } from '@cms/sdk/react';
 import { localeTag } from '@/shared';
 
 const healthVariant = (health: string) => {

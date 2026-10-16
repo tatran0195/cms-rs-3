@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CmsApiError } from '../../errors';
 import type {
   ApiKey,
   Domain,
@@ -11,7 +12,6 @@ import type {
 } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
-import { CmsApiError } from '../../errors';
 
 export const useDomains = <T = Domain>(projectId: string | undefined) => {
   const client = useCmsClient();
@@ -73,8 +73,7 @@ export const useWorkspaceSettings = <T = WorkspaceSettings>(projectId?: string) 
   const client = useCmsClient();
   return useQuery({
     queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings(),
-    queryFn: async () =>
-      (projectId ? await client.projects.getSettings(projectId) : await client.workspace.get()) as unknown as T,
+    queryFn: async () => (projectId ? await client.projects.getSettings(projectId) : await client.workspace.get()) as unknown as T,
   });
 };
 
@@ -117,8 +116,7 @@ export const useRotateApiKey = <T = any>(projectId: string) => {
   const client = useCmsClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, body }: { id: string; body: any }) =>
-      (await client.apiKeys.rotate(projectId, id, body)) as unknown as T,
+    mutationFn: async ({ id, body }: { id: string; body: any }) => (await client.apiKeys.rotate(projectId, id, body)) as unknown as T,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all(projectId) }),
   });
 };
@@ -212,8 +210,7 @@ export const useUpdateProjectAddon = <T = any>(projectId: string) => {
   const client = useCmsClient();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ addonId, body }: { addonId: string; body: any }) =>
-      (await client.addons.update(projectId, addonId, body)) as unknown as T,
+    mutationFn: async ({ addonId, body }: { addonId: string; body: any }) => (await client.addons.update(projectId, addonId, body)) as unknown as T,
     onSuccess: (addon: any) => {
       if (addon?.id) {
         qc.setQueryData(queryKeys.addons.detail(projectId, addon.id), addon);
@@ -267,8 +264,7 @@ export const useUpdateWorkspaceSettings = <T = any>(projectId?: string) => {
   return useMutation({
     mutationFn: async (body: any) =>
       (projectId ? await client.projects.updateSettings(projectId, body) : await client.workspace.update(body)) as unknown as T,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: projectId ? queryKeys.workspace.projectSettings(projectId) : queryKeys.workspace.settings() }),
   });
 };
 

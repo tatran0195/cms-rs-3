@@ -1,11 +1,11 @@
 import { Button } from '@cms/design-system/components/ui/button';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import { useDeployments } from '@cms/sdk/react';
 import { Rocket } from 'lucide-react';
 import { useState } from 'react';
 import { DeployPipeline } from '@/features/publishing/components/DeployPipeline';
 import { PublishModal } from '@/features/publishing/components/PublishModal';
-import { useDeployments } from '@cms/sdk/react';
-import type { Project } from '@cms/sdk';
 
 export interface PublishControlProps {
   project: Project;

@@ -109,8 +109,7 @@ export const useReorderPages = (projectId: string) => {
   const client = useCmsClient();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { items: Array<{ id: string; parentId: string | null; position: number }> }) =>
-      client.pages.reorder(projectId, body),
+    mutationFn: async (body: { items: Array<{ id: string; parentId: string | null; position: number }> }) => client.pages.reorder(projectId, body),
     onMutate: async (newOrder) => {
       await qc.cancelQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
       const previousPages = qc.getQueriesData<any[]>({
@@ -183,8 +182,7 @@ export const useUpdateLanguage = <T = any>(projectId: string) => {
   const client = useCmsClient();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, body }: { id: string; body: any }) =>
-      (await client.languages.update(projectId, id, body)) as unknown as T,
+    mutationFn: async ({ id, body }: { id: string; body: any }) => (await client.languages.update(projectId, id, body)) as unknown as T,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.languages.all(projectId) }),
   });
 };

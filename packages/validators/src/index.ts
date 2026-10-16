@@ -97,7 +97,7 @@ export const navTabItemSchema: z.ZodType<NavTabItem> = z.lazy(() =>
       external: z.boolean().optional(),
       items: z.array(navTabItemSchema).max(30).optional(),
     })
-    .strict()
+    .strict(),
 );
 
 const redirectsSchema = z

@@ -235,6 +235,7 @@ fn export_all_typescript_bindings() {
     cms_entity::export::ExportStatus::export_all(&cfg).unwrap();
     cms_entity::export::ExportFormat::export_all(&cfg).unwrap();
     cms_entity::export::ExportSnapshotResponse::export_all(&cfg).unwrap();
+    cms_entity::export::ExportSnapshotDetails::export_all(&cfg).unwrap();
     cms_entity::export::ExportJobResponse::export_all(&cfg).unwrap();
     cms_entity::export::CreateExportJobRequest::export_all(&cfg).unwrap();
     cms_entity::export::ExportArtifactResponse::export_all(&cfg).unwrap();

@@ -9,10 +9,10 @@ import {
 } from '@cms/design-system/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@cms/design-system/components/ui/sidebar';
 import { useT } from '@cms/i18n/react';
+import { useProjects } from '@cms/sdk/react';
 import { useNavigate } from '@tanstack/react-router';
 import { Check, ChevronsUpDown, LayoutGrid, Plus } from 'lucide-react';
 import { useSyncExternalStore } from 'react';
-import { useProjects } from '@cms/sdk/react';
 
 const subscribeToHydration = () => () => undefined;
 

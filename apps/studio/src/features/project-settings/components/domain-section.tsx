@@ -6,11 +6,11 @@ import { Label } from '@cms/design-system/components/ui/label';
 import { cn } from '@cms/design-system/lib/utils';
 import { getLocale } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import { useAddDomain, useDeleteDomain, useDomains, useSetPrimaryDomain, useVerifyDomain } from '@cms/sdk/react';
 import { Check, ChevronDown, Copy, ExternalLink, Globe2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Project } from '@cms/sdk';
-import { useAddDomain, useDeleteDomain, useDomains, useSetPrimaryDomain, useVerifyDomain } from '@cms/sdk/react';
 import { copyToClipboard, localeTag } from '@/shared';
 import { FIELD_MONO, SectionHeader } from './shared';
 

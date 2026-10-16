@@ -2,10 +2,10 @@
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-import React, { act } from 'react';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it } from 'vitest';
-import { createCmsClient, type CmsClient } from '../../src';
+import { type CmsClient, createCmsClient } from '../../src';
 import { CmsClientProvider, useCmsClient } from '../../src/react';
 
 describe('CmsClientProvider & useCmsClient', () => {
@@ -26,7 +26,7 @@ describe('CmsClientProvider & useCmsClient', () => {
       root.render(
         <CmsClientProvider client={client}>
           <TestConsumer />
-        </CmsClientProvider>
+        </CmsClientProvider>,
       );
     });
 

@@ -23,15 +23,14 @@ export interface SiteNavTabsProps {
 }
 
 const isNavActive = (href?: string, currentPath = ''): boolean => {
-  if (!href || !href.startsWith('/') || href.startsWith('//')) return false;
+  if (!href?.startsWith('/') || href.startsWith('//')) return false;
   const prefix = href.replace(/^\/+|\/+$/g, '');
   const normCurrent = currentPath.replace(/^\/+|\/+$/g, '');
   return prefix !== '' && (normCurrent === prefix || normCurrent.startsWith(`${prefix}/`));
 };
 
 const hasActiveDescendant = (item: SnapshotNavTabItem, currentPath = ''): boolean =>
-  (Boolean(item.href) && isNavActive(item.href, currentPath)) ||
-  (item.items?.some((child) => hasActiveDescendant(child, currentPath)) ?? false);
+  (Boolean(item.href) && isNavActive(item.href, currentPath)) || (item.items?.some((child) => hasActiveDescendant(child, currentPath)) ?? false);
 
 interface CascadingSubmenuItemProps {
   item: SnapshotNavTabItem;
@@ -40,12 +39,7 @@ interface CascadingSubmenuItemProps {
   depth?: number;
 }
 
-function CascadingSubmenuItem({
-  item,
-  resolveNavHref,
-  currentPath,
-  depth = 1,
-}: CascadingSubmenuItemProps) {
+function CascadingSubmenuItem({ item, resolveNavHref, currentPath, depth = 1 }: CascadingSubmenuItemProps) {
   const [open, setOpen] = useState(false);
   const hasChildren = Boolean(item.items && item.items.length > 0);
   const isActive = isNavActive(item.href, currentPath);
@@ -56,9 +50,7 @@ function CascadingSubmenuItem({
       <NavigationMenuLink
         className={cn(
           'flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs transition-colors',
-          isActive
-            ? 'bg-primary/10 font-medium text-primary'
-            : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+          isActive ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
         )}
         data-active={isActive ? 'true' : undefined}
         href={resolveNavHref(item.href)}
@@ -85,9 +77,7 @@ function CascadingSubmenuItem({
       <div
         className={cn(
           'flex cursor-pointer select-none items-center justify-between rounded-md px-2.5 py-1.5 text-xs transition-colors',
-          isActive || activeDescendant
-            ? 'bg-primary/10 font-medium text-primary'
-            : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+          isActive || activeDescendant ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground',
         )}
       >
         {item.href ? (
@@ -113,13 +103,7 @@ function CascadingSubmenuItem({
         >
           <div className="flex flex-col gap-0.5">
             {item.items?.map((child, idx) => (
-              <CascadingSubmenuItem
-                currentPath={currentPath}
-                depth={depth + 1}
-                item={child}
-                key={idx}
-                resolveNavHref={resolveNavHref}
-              />
+              <CascadingSubmenuItem currentPath={currentPath} depth={depth + 1} item={child} key={idx} resolveNavHref={resolveNavHref} />
             ))}
           </div>
         </div>
@@ -128,23 +112,13 @@ function CascadingSubmenuItem({
   );
 }
 
-export function SiteNavTabs({
-  tabs,
-  currentPath = '',
-  projectId,
-  lang,
-  version,
-  basePath,
-  className,
-}: SiteNavTabsProps) {
+export function SiteNavTabs({ tabs, currentPath = '', projectId, lang, version, basePath, className }: SiteNavTabsProps) {
   if (!tabs || tabs.length === 0) return null;
 
   const resolveNavHref = (href?: string): string => {
     if (!href) return '#';
     if (!projectId) return href;
-    return href.startsWith('/') && !href.startsWith('//')
-      ? siteHref(projectId, href, { lang, version, basePath })
-      : href;
+    return href.startsWith('/') && !href.startsWith('//') ? siteHref(projectId, href, { lang, version, basePath }) : href;
   };
 
   return (
@@ -162,9 +136,7 @@ export function SiteNavTabs({
                   <NavigationMenuLink
                     className={cn(
                       'rounded-md px-3 py-1.5 font-medium text-xs transition-colors',
-                      active
-                        ? 'bg-primary/10 font-semibold text-primary'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      active ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     )}
                     data-active={active ? 'true' : undefined}
                     href={resolveNavHref(tab.href)}
@@ -192,12 +164,7 @@ export function SiteNavTabs({
                 <NavigationMenuContent className="min-w-[200px] p-1">
                   <div className="flex flex-col gap-0.5">
                     {tab.items?.map((child, childIdx) => (
-                      <CascadingSubmenuItem
-                        currentPath={currentPath}
-                        item={child}
-                        key={childIdx}
-                        resolveNavHref={resolveNavHref}
-                      />
+                      <CascadingSubmenuItem currentPath={currentPath} item={child} key={childIdx} resolveNavHref={resolveNavHref} />
                     ))}
                   </div>
                 </NavigationMenuContent>

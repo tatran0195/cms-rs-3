@@ -1,9 +1,12 @@
 import type { CmsClient } from './client';
-import type { CreatePageRequest, UpdatePageRequest } from './types';
 import type { AssetUploadOptions } from './resources/assets';
+import type { CreatePageRequest, UpdatePageRequest } from './types';
 
 export class ScopedPagesResource {
-  constructor(private readonly client: CmsClient, private readonly projectId: string) {}
+  constructor(
+    private readonly client: CmsClient,
+    private readonly projectId: string,
+  ) {}
 
   list(params?: { languageId?: string; branchId?: string }) {
     return this.client.pages.list(this.projectId, params);
@@ -26,7 +29,10 @@ export class ScopedPagesResource {
 }
 
 export class ScopedDeploymentsResource {
-  constructor(private readonly client: CmsClient, private readonly projectId: string) {}
+  constructor(
+    private readonly client: CmsClient,
+    private readonly projectId: string,
+  ) {}
 
   list() {
     return this.client.deployments.list(this.projectId);
@@ -46,18 +52,21 @@ export class ScopedDeploymentsResource {
 }
 
 export class ScopedAssetsResource {
-  constructor(private readonly client: CmsClient, private readonly projectId: string) {}
+  constructor(
+    private readonly client: CmsClient,
+    private readonly projectId: string,
+  ) {}
 
-  upload(
-    file: File | Blob | { name?: string; size: number; arrayBuffer(): Promise<ArrayBuffer>; type?: string },
-    options?: AssetUploadOptions
-  ) {
+  upload(file: File | Blob | { name?: string; size: number; arrayBuffer(): Promise<ArrayBuffer>; type?: string }, options?: AssetUploadOptions) {
     return this.client.assets.upload(this.projectId, file, options);
   }
 }
 
 export class ScopedGitResource {
-  constructor(private readonly client: CmsClient, private readonly projectId: string) {}
+  constructor(
+    private readonly client: CmsClient,
+    private readonly projectId: string,
+  ) {}
 
   getStatus() {
     return this.client.git.getStatus(this.projectId);
@@ -73,7 +82,10 @@ export class ScopedProjectContext {
   readonly assets: ScopedAssetsResource;
   readonly git: ScopedGitResource;
 
-  constructor(readonly client: CmsClient, readonly id: string) {
+  constructor(
+    readonly client: CmsClient,
+    readonly id: string,
+  ) {
     this.pages = new ScopedPagesResource(client, id);
     this.deployments = new ScopedDeploymentsResource(client, id);
     this.assets = new ScopedAssetsResource(client, id);

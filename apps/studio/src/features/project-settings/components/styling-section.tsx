@@ -3,11 +3,11 @@ import { Input } from '@cms/design-system/components/ui/input';
 import { Slider } from '@cms/design-system/components/ui/slider';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { Paintbrush } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Project } from '@cms/sdk';
-import { useUpdateProjectConfig } from '@cms/sdk/react';
 import { FIELD_MONO, Field, GroupLabel, SaveBar, SectionHeader, Segmented } from './shared';
 
 const PRESETS = ['#5546e8', '#0ea5e9', '#16a34a', '#22c55e', '#eab308', '#ea580c', '#ef4444', '#db2777', '#a855f7', '#0f172a'];

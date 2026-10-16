@@ -193,11 +193,7 @@ export function SignInForm({
             </p>
           ) : null}
 
-          <Button
-            className="w-full"
-            disabled={isMfaSubmitting || (useRecoveryCode ? !mfaCode.trim() : mfaCode.trim().length !== 6)}
-            type="submit"
-          >
+          <Button className="w-full" disabled={isMfaSubmitting || (useRecoveryCode ? !mfaCode.trim() : mfaCode.trim().length !== 6)} type="submit">
             {isMfaSubmitting ? 'Verifying...' : useRecoveryCode ? 'Verify Recovery Code' : 'Verify & Continue'}
           </Button>
 

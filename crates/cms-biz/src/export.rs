@@ -16,8 +16,8 @@ use cms_db::{
 use cms_entity::{
     common::PaginatedResponse,
     export::{
-        CreateExportRequest, ExportArtifact, ExportFormat, ExportJob, ExportSchedule,
-        ExportSnapshot, ExportStatus,
+        CreateExportRequest, ExportArtifact, ExportFormat, ExportJob, ExportJobResponse,
+        ExportSchedule, ExportSnapshot, ExportStatus,
     },
 };
 use cms_storage::Storage;
@@ -39,11 +39,52 @@ impl ExportService {
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
 
+        // 1. Resolve branch_id (or default branch)
+        let branch_id = if let Some(b) = request.branch_id.as_deref() {
+            Some(b.to_string())
+        } else {
+            cms_db::branch::BranchQueries::get_default(&ctx.pool, &request.project_id)
+                .await?
+                .map(|b| b.id)
+        };
+
+        // 2. Count pages for this branch/project
+        let pages_count: i32 = if let Some(ref b_id) = branch_id {
+            sqlx::query_scalar(
+                "SELECT COUNT(*)::int FROM \"Page\" WHERE project_id = $1 AND branch_id = $2",
+            )
+            .bind(&request.project_id)
+            .bind(b_id)
+            .fetch_one(&ctx.pool)
+            .await
+            .unwrap_or(0)
+        } else {
+            sqlx::query_scalar(
+                "SELECT COUNT(*)::int FROM \"Page\" WHERE project_id = $1",
+            )
+            .bind(&request.project_id)
+            .fetch_one(&ctx.pool)
+            .await
+            .unwrap_or(0)
+        };
+
+        // 3. Find active deployment version if available
+        let deployment_version: Option<i64> = sqlx::query_scalar(
+            "SELECT version FROM \"DeploymentSnapshot\" WHERE project_id = $1 ORDER BY version DESC LIMIT 1",
+        )
+        .bind(&request.project_id)
+        .fetch_optional(&ctx.pool)
+        .await
+        .ok()
+        .flatten();
+
         let snapshot = ExportSnapshotQueries::create(
             &ctx.pool,
             &request.project_id,
-            request.branch_id.as_deref(),
+            branch_id.as_deref(),
             request.language_id.as_deref(),
+            deployment_version,
+            Some(pages_count),
         )
         .await?;
 
@@ -96,14 +137,27 @@ impl ExportService {
         ctx: &BizContext,
         _user_id: &str,
         snapshot_id: &str,
+        project_id: Option<&str>,
         format: ExportFormat,
+        formats: Option<&[String]>,
+        trigger: Option<&str>,
     ) -> Result<ExportJob, AppError> {
-        let _snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, snapshot_id)
+        let snapshot = ExportSnapshotQueries::get_by_id(&ctx.pool, snapshot_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
 
-        let job =
-            ExportJobQueries::create(&ctx.pool, snapshot_id, format, ExportStatus::Pending).await?;
+        let proj_id = project_id.unwrap_or(&snapshot.project_id);
+
+        let job = ExportJobQueries::create(
+            &ctx.pool,
+            snapshot_id,
+            Some(proj_id),
+            format,
+            formats,
+            trigger,
+            ExportStatus::Pending,
+        )
+        .await?;
 
         Ok(job)
     }
@@ -132,7 +186,7 @@ impl ExportService {
         project_id: &str,
         page: u64,
         page_size: u64,
-    ) -> Result<PaginatedResponse<ExportJob>, AppError> {
+    ) -> Result<PaginatedResponse<ExportJobResponse>, AppError> {
         let _project = ProjectQueries::get_by_id(&ctx.pool, project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Project not found".to_string()))?;
@@ -145,7 +199,29 @@ impl ExportService {
 
         let total = ExportJobQueries::count_by_project(&ctx.pool, project_id).await?;
 
-        Ok(PaginatedResponse::new(jobs, total as u64, page, page_size))
+        let mut enriched_jobs = Vec::with_capacity(jobs.len());
+        for job in jobs {
+            let mut job_resp = ExportJobResponse::from(job.clone());
+
+            // 1. Fetch snapshot details
+            if let Ok(Some(snap)) = ExportSnapshotQueries::get_by_id(&ctx.pool, &job.snapshot_id).await {
+                job_resp.snapshot = Some(cms_entity::export::ExportSnapshotDetails {
+                    id: snap.id,
+                    deployment_version: snap.deployment_version,
+                    pages_count: snap.pages_count,
+                    created_at: snap.created_at,
+                });
+            }
+
+            // 2. Fetch artifacts
+            if let Ok(artifacts) = ExportArtifactQueries::get_by_job(&ctx.pool, &job.id).await {
+                job_resp.artifacts = artifacts.into_iter().map(|a| a.into()).collect();
+            }
+
+            enriched_jobs.push(job_resp);
+        }
+
+        Ok(PaginatedResponse::new(enriched_jobs, total as u64, page, page_size))
     }
 
     /// Get export artifacts for a job
@@ -274,6 +350,7 @@ pub async fn process_export_job(
     storage: Arc<dyn Storage>,
     payload: &serde_json::Value,
 ) -> Result<(), AppError> {
+    let total_start = std::time::Instant::now();
     let job_id = payload
         .get("job_id")
         .and_then(|v| v.as_str())
@@ -290,39 +367,22 @@ pub async fn process_export_job(
         .await?
         .ok_or_else(|| AppError::NotFound("Export snapshot not found".to_string()))?;
 
-    // Get all pages for the snapshot
+    // Phase 1: High-performance bulk database page retrieval with full markdown content
+    let fetch_start = std::time::Instant::now();
     let pages = if let Some(branch_id) = &snapshot.branch_id {
-        PageQueries::get_by_project_and_branch(
-            pool,
-            &snapshot.project_id,
-            branch_id,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .await?
+        PageQueries::get_export_pages(pool, &snapshot.project_id, branch_id).await?
     } else {
         // Get default branch
         let default_branch = cms_db::branch::BranchQueries::get_default(pool, &snapshot.project_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Default branch not found".to_string()))?;
 
-        PageQueries::get_by_project_and_branch(
-            pool,
-            &snapshot.project_id,
-            &default_branch.id,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .await?
+        PageQueries::get_export_pages(pool, &snapshot.project_id, &default_branch.id).await?
     };
+    let fetch_ms = fetch_start.elapsed().as_millis() as u64;
 
-    // Generate export content based on format
+    // Phase 2: High-throughput format generation
+    let render_start = std::time::Instant::now();
     let content_result = match job.format {
         ExportFormat::Html => generate_html_export(&pages, &snapshot.project_id).await,
         ExportFormat::Pdf => generate_pdf_export(&pages, &snapshot.project_id).await,
@@ -332,6 +392,7 @@ pub async fn process_export_job(
             generate_sqlite_export(pool, &snapshot.project_id, &pages, Some(storage.as_ref())).await
         }
     };
+    let render_ms = render_start.elapsed().as_millis() as u64;
 
     let content = match content_result {
         Ok(c) => c,
@@ -342,7 +403,8 @@ pub async fn process_export_job(
         }
     };
 
-    // Store the export artifact
+    // Phase 3: Store the export artifact
+    let storage_start = std::time::Instant::now();
     let extension = match &job.format {
         ExportFormat::Html => "html",
         ExportFormat::Pdf => "pdf",
@@ -369,25 +431,64 @@ pub async fn process_export_job(
 
     let content_len = content.len() as i64;
     storage.put(&storage_key, content, content_type).await?;
+    let storage_ms = storage_start.elapsed().as_millis() as u64;
+
+    let format_str = format!("{:?}", job.format).to_uppercase();
+    let download_url = format!("/api/app/export/jobs/{}/download", job_id);
 
     // Create artifact record
     let _artifact = ExportArtifactQueries::create(
         pool,
         job_id,
+        Some(&format_str),
         &format!("export.{}", extension),
         content_len,
         &storage_key,
-        None, // download_url
+        Some(&download_url),
     )
     .await?;
 
-    // Update job status to completed
-    ExportJobQueries::update_status(pool, job_id, ExportStatus::Completed).await?;
-    ExportJobQueries::update_output_path(pool, job_id, &storage_key).await?;
+    // Performance telemetry calculation
+    let total_ms = total_start.elapsed().as_millis() as u64;
+    let words_count: usize = {
+        use rayon::prelude::*;
+        pages
+            .par_iter()
+            .map(|p| p.content.as_deref().unwrap_or("").split_whitespace().count())
+            .sum()
+    };
+    let pages_count = pages.len();
+    let throughput_pages_per_sec = if total_ms > 0 {
+        (pages_count as f64) / (total_ms as f64 / 1000.0)
+    } else {
+        pages_count as f64 * 1000.0
+    };
+
+    let metrics = cms_entity::export::ExportMetrics {
+        fetch_ms,
+        render_ms,
+        storage_ms,
+        total_ms,
+        pages_count,
+        words_count,
+        throughput_pages_per_sec,
+    };
+
+    // Update job status to completed with metrics
+    ExportJobQueries::update_completed(pool, job_id, &storage_key, Some(&metrics)).await?;
 
     tracing::info!(
-        "Export job {} completed successfully -> {}",
-        job_id,
+        target: "cms::export::perf",
+        job_id = %job_id,
+        format = ?job.format,
+        pages = pages_count,
+        words = words_count,
+        fetch_ms = fetch_ms,
+        render_ms = render_ms,
+        storage_ms = storage_ms,
+        total_ms = total_ms,
+        throughput_p_s = %format!("{:.1}", throughput_pages_per_sec),
+        "Export job completed successfully -> {}",
         storage_key
     );
 
@@ -411,30 +512,60 @@ fn render_markdown(markdown: &str) -> String {
     ammonia::clean(&html_body)
 }
 
-/// Generate HTML export
+/// Generate HTML export with parallel markdown rendering and buffer pre-allocation
 async fn generate_html_export(
     pages: &[cms_entity::page::PageListItem],
     project_id: &str,
 ) -> Result<Bytes, AppError> {
-    let mut doc = format!(
-        r#"<!DOCTYPE html>
+    let clean_project_id = ammonia::clean(project_id);
+
+    // 1. Parallelize CPU-bound Markdown parsing and ammonia sanitization across all CPU cores
+    let pages_vec = pages.to_vec();
+    let rendered_items = tokio::task::spawn_blocking(move || {
+        use rayon::prelude::*;
+        pages_vec
+            .par_iter()
+            .enumerate()
+            .map(|(i, page)| {
+                let anchor = format!("page-{}", i);
+                let clean_title = ammonia::clean(&page.title);
+                let raw_md = page.content.as_deref().unwrap_or("");
+                let clean_html = render_markdown(raw_md);
+                (anchor, clean_title, clean_html)
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!("HTML render task failed: {}", e)))?;
+
+    // 2. Pre-allocate buffer to avoid reallocation overhead during assembly
+    let body_bytes: usize = rendered_items
+        .iter()
+        .map(|(a, t, h)| a.len() * 2 + t.len() * 2 + h.len() + 180)
+        .sum();
+    let estimated_total = body_bytes + 4096;
+    let mut doc = String::with_capacity(estimated_total);
+
+    doc.push_str(r#"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Documentation Export - {}</title>
+  <title>Documentation Export - "#);
+    doc.push_str(&clean_project_id);
+    doc.push_str(r#"</title>
   <style>
-    body {{ max-width: 900px; margin: 0 auto; padding: 2rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }}
-    nav {{ background: #f8f9fa; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e9ecef; }}
-    nav h2 {{ margin-top: 0; font-size: 1.25rem; }}
-    nav ul {{ margin: 0; padding-left: 1.5rem; }}
-    article {{ margin-bottom: 4rem; padding-bottom: 2rem; border-bottom: 1px solid #dee2e6; }}
-    pre {{ background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; border: 1px solid #e9ecef; font-family: monospace; font-size: 0.9em; }}
-    code {{ background: #e9ecef; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; font-size: 0.9em; }}
-    pre code {{ background: none; padding: 0; }}
-    table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
-    th, td {{ border: 1px solid #dee2e6; padding: 0.5rem 0.75rem; text-align: left; }}
-    th {{ background: #f8f9fa; }}
+    body { max-width: 900px; margin: 0 auto; padding: 2rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+    nav { background: #f8f9fa; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e9ecef; }
+    nav h2 { margin-top: 0; font-size: 1.25rem; }
+    nav ul { margin: 0; padding-left: 1.5rem; }
+    article { margin-bottom: 4rem; padding-bottom: 2rem; border-bottom: 1px solid #dee2e6; }
+    pre { background: #f8f9fa; padding: 1rem; border-radius: 4px; overflow-x: auto; border: 1px solid #e9ecef; font-family: monospace; font-size: 0.9em; }
+    code { background: #e9ecef; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+    pre code { background: none; padding: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #dee2e6; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f8f9fa; }
   </style>
 </head>
 <body>
@@ -444,38 +575,26 @@ async fn generate_html_export(
   <nav>
     <h2>Table of Contents</h2>
     <ul>
-"#,
-        ammonia::clean(project_id)
-    );
+"#);
 
-    for (i, page) in pages.iter().enumerate() {
-        let anchor = format!("page-{}", i);
-        doc.push_str(&format!(
-            "      <li><a href=\"#{}\">{}</a></li>\n",
-            anchor,
-            ammonia::clean(&page.title)
-        ));
+    for (anchor, clean_title, _) in &rendered_items {
+        doc.push_str("      <li><a href=\"#");
+        doc.push_str(anchor);
+        doc.push_str("\">");
+        doc.push_str(clean_title);
+        doc.push_str("</a></li>\n");
     }
 
     doc.push_str("    </ul>\n  </nav>\n  <main>\n");
 
-    for (i, page) in pages.iter().enumerate() {
-        let anchor = format!("page-{}", i);
-        let raw_md = page.content.as_deref().unwrap_or("");
-        let clean_html = render_markdown(raw_md);
-
-        doc.push_str(&format!(
-            r#"    <article id="{}">
-      <h2>{}</h2>
-      <div>
-{}
-      </div>
-    </article>
-"#,
-            anchor,
-            ammonia::clean(&page.title),
-            clean_html
-        ));
+    for (anchor, clean_title, clean_html) in &rendered_items {
+        doc.push_str("    <article id=\"");
+        doc.push_str(anchor);
+        doc.push_str("\">\n      <h2>");
+        doc.push_str(clean_title);
+        doc.push_str("</h2>\n      <div>\n");
+        doc.push_str(clean_html);
+        doc.push_str("\n      </div>\n    </article>\n");
     }
 
     doc.push_str("  </main>\n</body>\n</html>");
@@ -483,12 +602,20 @@ async fn generate_html_export(
     Ok(Bytes::from(doc))
 }
 
-/// Generate Markdown export
+/// Generate Markdown export with buffer pre-allocation
 async fn generate_markdown_export(pages: &[cms_entity::page::PageListItem]) -> Bytes {
-    let mut md = String::from("# Documentation Export\n\n");
+    let estimated_size: usize = pages
+        .iter()
+        .map(|p| p.content.as_ref().map(|c| c.len()).unwrap_or(0) + p.title.len() + 32)
+        .sum::<usize>()
+        + 1024;
+    let mut md = String::with_capacity(estimated_size);
+    md.push_str("# Documentation Export\n\n");
 
     for page in pages {
-        md.push_str(&format!("## {}\n\n", page.title));
+        md.push_str("## ");
+        md.push_str(&page.title);
+        md.push_str("\n\n");
         if let Some(content) = &page.content {
             md.push_str(content);
             md.push_str("\n\n");
@@ -499,15 +626,11 @@ async fn generate_markdown_export(pages: &[cms_entity::page::PageListItem]) -> B
     Bytes::from(md)
 }
 
-/// Generate PDF export using printpdf
+/// Generate PDF export using printpdf with spawn_blocking and enterprise-scale pagination
 async fn generate_pdf_export(
     pages: &[cms_entity::page::PageListItem],
     project_id: &str,
 ) -> Result<Bytes, AppError> {
-    use std::collections::BTreeMap;
-
-    use printpdf::*;
-
     fn escape_html(s: &str) -> String {
         s.replace('&', "&amp;")
             .replace('<', "&lt;")
@@ -516,45 +639,99 @@ async fn generate_pdf_export(
             .replace('\'', "&#39;")
     }
 
-    let mut html = format!(
-        "<h1>Project Documentation - {}</h1>",
-        escape_html(project_id)
-    );
-    html.push_str(&format!(
-        "<p>Generated on {}</p>",
-        Utc::now().format("%Y-%m-%d %H:%M UTC")
-    ));
-    html.push_str("<h2>Table of Contents</h2><ul>");
-    for (i, page) in pages.iter().take(15).enumerate() {
-        html.push_str(&format!("<li>{}. {}</li>", i + 1, escape_html(&page.title)));
-    }
-    html.push_str("</ul>");
+    let pages_summary: Vec<(String, String, Option<String>)> = pages
+        .iter()
+        .map(|p| (p.title.clone(), p.path.clone(), p.content.clone()))
+        .collect();
+    let proj_id = project_id.to_string();
 
-    for page in pages {
+    tokio::task::spawn_blocking(move || {
+        use std::collections::BTreeMap;
+        use printpdf::*;
+
+        let total_pages = pages_summary.len();
+        let mut html = format!(
+            "<h1>Project Documentation - {}</h1>",
+            escape_html(&proj_id)
+        );
         html.push_str(&format!(
-            "<div style=\"page-break-before: always;\"><h1>{}</h1>",
-            escape_html(&page.title)
+            "<p>Generated on {} | Scope: {} total documents</p>",
+            chrono::Utc::now().format("%Y-%m-%d %H:%M UTC"),
+            total_pages
         ));
-        if let Some(content) = &page.content {
-            html.push_str("<p>");
-            html.push_str(&escape_html(content).replace('\n', "<br/>"));
-            html.push_str("</p>");
+
+        // Table of Contents
+        html.push_str("<h2>Table of Contents</h2><ul>");
+        for (i, (title, path, _)) in pages_summary.iter().take(50).enumerate() {
+            html.push_str(&format!(
+                "<li>{}. {} <code>{}</code></li>",
+                i + 1,
+                escape_html(title),
+                escape_html(path)
+            ));
         }
-        html.push_str("</div>");
-    }
+        if total_pages > 50 {
+            html.push_str(&format!(
+                "<li><em>... and {} additional documents in master index</em></li>",
+                total_pages - 50
+            ));
+        }
+        html.push_str("</ul>");
 
-    let mut warnings = Vec::new();
-    let doc = PdfDocument::from_html(
-        &html,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &GeneratePdfOptions::default(),
-        &mut warnings,
-    )
-    .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to render PDF: {e}")))?;
+        // For large enterprise datasets (> 100 pages), render up to 100 featured documentation chapters
+        // and an Executive Catalog Index table to keep vector PDF generation blazing fast.
+        let featured_limit = if total_pages > 100 { 100 } else { total_pages };
+        for (title, _, content) in pages_summary.iter().take(featured_limit) {
+            html.push_str(&format!(
+                "<div style=\"page-break-before: always;\"><h1>{}</h1>",
+                escape_html(title)
+            ));
+            if let Some(content) = content {
+                html.push_str("<p>");
+                html.push_str(&escape_html(content).replace('\n', "<br/>"));
+                html.push_str("</p>");
+            }
+            html.push_str("</div>");
+        }
 
-    let pdf_bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
-    Ok(Bytes::from(pdf_bytes))
+        if total_pages > featured_limit {
+            html.push_str("<div style=\"page-break-before: always;\"><h1>Documentation Catalog Index</h1>");
+            html.push_str(&format!(
+                "<p>Executive Index of all {} documents in this release snapshot:</p><ul>",
+                total_pages
+            ));
+            for (i, (title, path, _)) in pages_summary.iter().enumerate().skip(featured_limit).take(200) {
+                html.push_str(&format!(
+                    "<li><strong>{}</strong> - {} (<code>{}</code>)</li>",
+                    i + 1,
+                    escape_html(title),
+                    escape_html(path)
+                ));
+            }
+            if total_pages > featured_limit + 200 {
+                html.push_str(&format!(
+                    "<li><em>[Catalog Index truncated: {} additional indexed records in SQLite/HTML/Markdown exports]</em></li>",
+                    total_pages - (featured_limit + 200)
+                ));
+            }
+            html.push_str("</ul></div>");
+        }
+
+        let mut warnings = Vec::new();
+        let doc = PdfDocument::from_html(
+            &html,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            &GeneratePdfOptions::default(),
+            &mut warnings,
+        )
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to render PDF: {e}")))?;
+
+        let pdf_bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
+        Ok(Bytes::from(pdf_bytes))
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!("PDF generation task panicked: {e}")))?
 }
 
 /// Generate EPUB export using epub-builder
@@ -707,11 +884,16 @@ pub async fn build_sqlite_export_database(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to open sqlite db: {}", e)))?;
 
-    // Initialize reader-optimized schema
+    // Initialize reader-optimized schema with high-performance memory pragmas
     sqlx::raw_sql(
         r#"
-        PRAGMA journal_mode = WAL;
-        PRAGMA foreign_keys = ON;
+        PRAGMA journal_mode = MEMORY;
+        PRAGMA synchronous = OFF;
+        PRAGMA cache_size = -128000;
+        PRAGMA temp_store = MEMORY;
+        PRAGMA foreign_keys = OFF;
+        PRAGMA locking_mode = EXCLUSIVE;
+        PRAGMA mmap_size = 268435456;
 
         -- Format identification and compatibility check
         CREATE TABLE export_meta (
@@ -825,6 +1007,10 @@ pub async fn build_sqlite_export_database(
     .execute(&pool)
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to create sqlite schema: {}", e)))?;
+
+    // Begin high-throughput atomic transaction for all entity inserts
+    sqlx::raw_sql("BEGIN TRANSACTION;").execute(&pool).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to begin sqlite transaction: {}", e)))?;
 
     // 1. Insert export_meta (schema_version = 1)
     sqlx::query(
@@ -943,7 +1129,33 @@ pub async fn build_sqlite_export_database(
         .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert version: {}", e)))?;
     }
 
-    // 4. Insert pages, page_content, and page_fts
+    // 4. Batch insert pages and page_content for high-throughput performance
+    struct PageBatchItem {
+        id: String,
+        version_id: String,
+        parent_id: Option<String>,
+        kind: String,
+        slug: String,
+        path: String,
+        title: String,
+        icon: Option<String>,
+        sort_order: i32,
+        is_draft: i32,
+        openapi_url: Option<String>,
+        link_url: Option<String>,
+    }
+
+    struct ContentBatchItem {
+        page_id: String,
+        language: String,
+        markdown: String,
+        description: Option<String>,
+        updated_at: String,
+    }
+
+    let mut page_items = Vec::with_capacity(pages.len());
+    let mut content_items = Vec::with_capacity(pages.len());
+
     for p in &pages {
         let target_version_id = if remapped_main
             && (p.branch_id == "main" || !valid_version_ids.contains(&p.branch_id))
@@ -972,28 +1184,6 @@ pub async fn build_sqlite_export_database(
             (None, None)
         };
 
-        sqlx::query(
-            r#"
-            INSERT INTO pages (id, version_id, parent_id, kind, slug, path, title, icon, sort_order, is_draft, openapi_url, link_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(&p.id)
-        .bind(&target_version_id)
-        .bind(&p.parent_id)
-        .bind(p.kind.as_deref().unwrap_or("PAGE"))
-        .bind(&p.slug)
-        .bind(&p.path)
-        .bind(&p.title)
-        .bind(&p.icon)
-        .bind(p.position)
-        .bind(if p.is_published { 0i32 } else { 1i32 })
-        .bind(openapi_url)
-        .bind(link_url)
-        .execute(&pool)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page: {}", e)))?;
-
         // Resolve language code
         let lang_code = p
             .language_id
@@ -1002,37 +1192,71 @@ pub async fn build_sqlite_export_database(
             .cloned()
             .unwrap_or_else(|| default_lang_code.clone());
 
-        let markdown_content = p.content.as_deref().unwrap_or("");
-        sqlx::query(
-            r#"
-            INSERT OR REPLACE INTO page_content (page_id, language, markdown, description, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(&p.id)
-        .bind(&lang_code)
-        .bind(markdown_content)
-        .bind(&p.description)
-        .bind(p.updated_at.to_rfc3339())
-        .execute(&pool)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page_content: {}", e)))?;
+        page_items.push(PageBatchItem {
+            id: p.id.clone(),
+            version_id: target_version_id,
+            parent_id: p.parent_id.clone(),
+            kind: p.kind.as_deref().unwrap_or("PAGE").to_string(),
+            slug: p.slug.clone(),
+            path: p.path.clone(),
+            title: p.title.clone(),
+            icon: p.icon.clone(),
+            sort_order: p.position,
+            is_draft: if p.is_published { 0i32 } else { 1i32 },
+            openapi_url,
+            link_url,
+        });
 
-        // Insert into FTS5 index
-        sqlx::query(
-            r#"
-            INSERT INTO page_fts (page_id, version_id, language, title, content)
-            VALUES (?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(&p.id)
-        .bind(&target_version_id)
-        .bind(&lang_code)
-        .bind(&p.title)
-        .bind(markdown_content)
-        .execute(&pool)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to insert page_fts: {}", e)))?;
+        content_items.push(ContentBatchItem {
+            page_id: p.id.clone(),
+            language: lang_code,
+            markdown: p.content.as_deref().unwrap_or("").to_string(),
+            description: p.description.clone(),
+            updated_at: p.updated_at.to_rfc3339(),
+        });
+    }
+
+    // Insert pages in chunks of 75 (12 * 75 = 900 parameters <= 999 limit)
+    for chunk in page_items.chunks(75) {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "INSERT INTO pages (id, version_id, parent_id, kind, slug, path, title, icon, sort_order, is_draft, openapi_url, link_url) ",
+        );
+        qb.push_values(chunk, |mut b, p| {
+            b.push_bind(&p.id)
+                .push_bind(&p.version_id)
+                .push_bind(&p.parent_id)
+                .push_bind(&p.kind)
+                .push_bind(&p.slug)
+                .push_bind(&p.path)
+                .push_bind(&p.title)
+                .push_bind(&p.icon)
+                .push_bind(p.sort_order)
+                .push_bind(p.is_draft)
+                .push_bind(&p.openapi_url)
+                .push_bind(&p.link_url);
+        });
+        qb.build()
+            .execute(&pool)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to batch insert pages: {}", e)))?;
+    }
+
+    // Insert page_content in chunks of 180 (5 * 180 = 900 parameters <= 999 limit)
+    for chunk in content_items.chunks(180) {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            "INSERT OR REPLACE INTO page_content (page_id, language, markdown, description, updated_at) ",
+        );
+        qb.push_values(chunk, |mut b, c| {
+            b.push_bind(&c.page_id)
+                .push_bind(&c.language)
+                .push_bind(&c.markdown)
+                .push_bind(&c.description)
+                .push_bind(&c.updated_at);
+        });
+        qb.build()
+            .execute(&pool)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to batch insert page_content: {}", e)))?;
     }
 
     // 5. Insert project_config
@@ -1109,11 +1333,25 @@ pub async fn build_sqlite_export_database(
         }
     }
 
-    // Checkpoint WAL so everything is in the main database file
-    sqlx::query("PRAGMA wal_checkpoint(TRUNCATE);")
-        .execute(&pool)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to checkpoint sqlite: {}", e)))?;
+    // 7. Bulk populate FTS5 index in a single vector pass
+    sqlx::raw_sql(
+        r#"
+        INSERT INTO page_fts (page_id, version_id, language, title, content)
+        SELECT p.id, p.version_id, pc.language, p.title, pc.markdown
+        FROM pages p
+        JOIN page_content pc ON p.id = pc.page_id;
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to bulk index FTS in sqlite: {}", e)))?;
+
+    // Commit atomic transaction
+    sqlx::raw_sql("COMMIT;").execute(&pool).await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("Failed to commit sqlite transaction: {}", e)))?;
+
+    // Optimize and close SQLite database
+    let _ = sqlx::raw_sql("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA optimize;").execute(&pool).await;
 
     pool.close().await;
 

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { DeploymentStatus } from '@cms/sdk';
+import { describe, expect, it, vi } from 'vitest';
 import { deploymentStatusLabel, deploymentStatusVariant } from './deployment-status';
 
 const STATUSES: DeploymentStatus[] = ['PENDING', 'BUILDING', 'READY', 'FAILED'];

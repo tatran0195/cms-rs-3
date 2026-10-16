@@ -3,11 +3,11 @@ import { useConfirm } from '@cms/design-system/components/ui/confirm';
 import { Dialog, DialogContent, DialogTitle } from '@cms/design-system/components/ui/dialog';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { DeploymentStatus, Project } from '@cms/sdk';
+import { useDeployments, useRollback } from '@cms/sdk/react';
 import { Check, ExternalLink, Loader2, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { useDeployments, useRollback } from '@cms/sdk/react';
-import type { DeploymentStatus, Project } from '@cms/sdk';
 import { siteHref } from '@/shared';
 
 export interface DeployPipelineProps {

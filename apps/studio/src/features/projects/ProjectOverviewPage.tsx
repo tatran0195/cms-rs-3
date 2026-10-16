@@ -2,6 +2,8 @@ import { Badge } from '@cms/design-system/components/ui/badge';
 import { Button } from '@cms/design-system/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cms/design-system/components/ui/table';
 import { useT } from '@cms/i18n/react';
+import type { AnalyticsRange, Deployment } from '@cms/sdk';
+import { useDeployments, useDomains, usePages, useProject, useProjectAnalytics, useProjectMembers, usePublishAnyway } from '@cms/sdk/react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
   ArrowRight,
@@ -26,16 +28,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { env } from '@/env';
 import { SectionCard, ViewsAreaChart } from '@/features/analytics';
-import type { AnalyticsRange, Deployment } from '@cms/sdk';
-import {
-  useDeployments,
-  useDomains,
-  usePages,
-  useProject,
-  useProjectAnalytics,
-  useProjectMembers,
-  usePublishAnyway,
-} from '@cms/sdk/react';
 import { deploymentStatusLabel, deploymentStatusVariant } from '@/shared/lib/deployment-status';
 import { useFormatters, viewsTrend } from '@/shared/lib/format';
 

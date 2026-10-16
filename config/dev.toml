@@ -20,8 +20,8 @@ local_root = "./uploads"
 backend = "tantivy"
 
 [queue]
-backend = "memory"
-workers = 2
+backend = "postgres"
+workers = 4
 
 [analytics]
 backend = "postgres"

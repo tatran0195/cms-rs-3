@@ -14,7 +14,7 @@ use cms_biz::export::ExportService;
 use cms_entity::{
     common::{Id, PaginatedResponse},
     export::{
-        CreateExportJobRequest, CreateExportScheduleRequest, ExportJobResponse,
+        CreateExportJobRequest, CreateExportScheduleRequest, ExportFormat, ExportJobResponse,
         ExportScheduleResponse, ListExportJobsQuery, UpdateExportScheduleRequest,
     },
 };
@@ -54,13 +54,19 @@ pub async fn list_export_jobs_handler(
     auth: AuthExtractor,
     Query(query): Query<ListExportJobsQuery>,
 ) -> Result<Json<PaginatedResponse<ExportJobResponse>>, AppError> {
-    let snapshot_id = query.snapshot_id.as_deref().ok_or_else(|| {
-        AppError::BadRequest("snapshot_id query parameter is required".to_string())
-    })?;
-    let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, snapshot_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
-    let project_uuid = Uuid::parse_str(&snapshot.project_id)
+    let project_id = if let Some(proj_id) = query.project_id.as_deref() {
+        proj_id.to_string()
+    } else if let Some(snap_id) = query.snapshot_id.as_deref() {
+        let snapshot = cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, snap_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
+        snapshot.project_id
+    } else {
+        return Err(AppError::BadRequest(
+            "project_id or snapshot_id query parameter is required".to_string(),
+        ));
+    };
+    let project_uuid = Uuid::parse_str(&project_id)
         .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
     require_project_access(
         state.authz_backend(),
@@ -76,18 +82,13 @@ pub async fn list_export_jobs_handler(
     let result = ExportService::list_export_jobs(
         &state.biz_context(),
         &auth.user.id,
-        snapshot_id,
+        &project_id,
         page,
         page_size,
     )
     .await?;
 
-    Ok(Json(PaginatedResponse::new(
-        result.data.into_iter().map(|j| j.into()).collect(),
-        result.total,
-        result.page,
-        result.page_size,
-    )))
+    Ok(Json(result))
 }
 
 /// Create a new export job
@@ -115,11 +116,38 @@ pub async fn create_export_job_handler(
     auth: AuthExtractor,
     Json(request): Json<CreateExportJobRequest>,
 ) -> Result<Json<ExportJobResponse>, AppError> {
-    let snapshot =
-        cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, &request.snapshot_id)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
-    let project_uuid = Uuid::parse_str(&snapshot.project_id)
+    let effective_format = request
+        .format
+        .or_else(|| request.formats.as_ref().and_then(|f| f.first().copied()))
+        .unwrap_or(ExportFormat::Markdown);
+
+    let (project_id, snapshot_id) = if let Some(snap_id) = request.resolved_snapshot_id() {
+        let snapshot =
+            cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, snap_id)
+                .await?
+                .ok_or_else(|| AppError::NotFound("Snapshot not found".to_string()))?;
+        (snapshot.project_id, snap_id.to_string())
+    } else if let Some(proj_id) = request.resolved_project_id() {
+        let snap = ExportService::create_export_snapshot(
+            &state.biz_context(),
+            &auth.user.id,
+            cms_entity::export::CreateExportRequest {
+                project_id: proj_id.to_string(),
+                branch_id: None,
+                language_id: None,
+                format: effective_format,
+                snapshot_id: None,
+            },
+        )
+        .await?;
+        (proj_id.to_string(), snap.id)
+    } else {
+        return Err(AppError::BadRequest(
+            "snapshot_id or project_id is required".to_string(),
+        ));
+    };
+
+    let project_uuid = Uuid::parse_str(&project_id)
         .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
     require_project_access(
         state.authz_backend(),
@@ -129,25 +157,48 @@ pub async fn create_export_job_handler(
     )
     .await?;
 
+    let format_strings: Vec<String> = request
+        .formats
+        .as_ref()
+        .map(|fmts| {
+            fmts.iter()
+                .map(|f| format!("{:?}", f).to_uppercase())
+                .collect()
+        })
+        .unwrap_or_else(|| vec![format!("{:?}", effective_format).to_uppercase()]);
+
     let job = ExportService::create_export_job(
         &state.biz_context(),
         &auth.user.id,
-        &request.snapshot_id,
-        request.format,
+        &snapshot_id,
+        Some(&project_id),
+        effective_format,
+        Some(&format_strings),
+        Some("MANUAL"),
     )
     .await?;
+
+    let mut resp = ExportJobResponse::from(job.clone());
+    if let Ok(Some(snap)) = cms_db::export::ExportSnapshotQueries::get_by_id(&state.pool, &snapshot_id).await {
+        resp.snapshot = Some(cms_entity::export::ExportSnapshotDetails {
+            id: snap.id,
+            deployment_version: snap.deployment_version,
+            pages_count: snap.pages_count,
+            created_at: snap.created_at,
+        });
+    }
 
     let job_envelope = cms_queue::JobEnvelope::new(
         cms_queue::JobType::Export,
         serde_json::json!({
             "job_id": job.id,
-            "snapshot_id": request.snapshot_id,
-            "format": format!("{:?}", request.format).to_lowercase(),
+            "snapshot_id": snapshot_id,
+            "format": format!("{:?}", effective_format).to_lowercase(),
         }),
     );
     let _ = state.job_queue.enqueue(job_envelope).await;
 
-    Ok(Json(job.into()))
+    Ok(Json(resp))
 }
 
 /// Get a specific export job

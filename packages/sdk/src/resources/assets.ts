@@ -69,7 +69,7 @@ export class AssetsResource {
     file: File | Blob | { name?: string; size: number; arrayBuffer(): Promise<ArrayBuffer>; type?: string },
     options?: { mimeType?: string; onProgress?: (bytesUploaded: number, totalBytes: number) => void },
   ): Promise<T> {
-    const filename = ('name' in file && typeof file.name === 'string') ? file.name : 'upload.bin';
+    const filename = 'name' in file && typeof file.name === 'string' ? file.name : 'upload.bin';
     const sizeBytes = file.size;
     const mimeType = options?.mimeType || file.type || 'application/octet-stream';
 

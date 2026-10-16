@@ -18,6 +18,8 @@ struct ExportSnapshotRow {
     project_id: String,
     branch_id: Option<String>,
     language_id: Option<String>,
+    deployment_version: Option<i64>,
+    pages_count: Option<i32>,
     created_at: DateTime<Utc>,
 }
 
@@ -28,6 +30,8 @@ impl From<ExportSnapshotRow> for ExportSnapshot {
             project_id: row.project_id,
             branch_id: row.branch_id,
             language_id: row.language_id,
+            deployment_version: row.deployment_version,
+            pages_count: row.pages_count.unwrap_or(0),
             created_at: row.created_at,
         }
     }
@@ -99,14 +103,17 @@ impl ExportSnapshotQueries {
         project_id: &str,
         branch_id: Option<&str>,
         language_id: Option<&str>,
+        deployment_version: Option<i64>,
+        pages_count: Option<i32>,
     ) -> Result<ExportSnapshot, AppError> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
+        let pages = pages_count.unwrap_or(0);
 
         let row = sqlx::query_as::<_, ExportSnapshotRow>(
             r#"
-            INSERT INTO "ExportSnapshot" (id, project_id, branch_id, language_id, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO "ExportSnapshot" (id, project_id, branch_id, language_id, deployment_version, pages_count, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#,
         )
@@ -114,6 +121,8 @@ impl ExportSnapshotQueries {
         .bind(project_id)
         .bind(branch_id)
         .bind(language_id)
+        .bind(deployment_version)
+        .bind(pages)
         .bind(now)
         .fetch_one(pool)
         .await
@@ -141,27 +150,38 @@ impl ExportSnapshotQueries {
 struct ExportJobRow {
     id: String,
     snapshot_id: String,
+    project_id: Option<String>,
     format: ExportFormat,
+    formats: Option<Vec<String>>,
+    trigger: Option<String>,
     status: ExportStatus,
     output_path: Option<String>,
     error_message: Option<String>,
     started_at: Option<DateTime<Utc>>,
     completed_at: Option<DateTime<Utc>>,
+    metrics: Option<serde_json::Value>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
 
 impl From<ExportJobRow> for ExportJob {
     fn from(row: ExportJobRow) -> Self {
+        let metrics = row
+            .metrics
+            .and_then(|v| serde_json::from_value::<cms_entity::export::ExportMetrics>(v).ok());
         Self {
             id: row.id,
             snapshot_id: row.snapshot_id,
+            project_id: row.project_id,
             format: row.format,
+            formats: row.formats.unwrap_or_else(|| vec![format!("{:?}", row.format).to_uppercase()]),
+            trigger: row.trigger.unwrap_or_else(|| "MANUAL".to_string()),
             status: row.status,
             output_path: row.output_path,
             error_message: row.error_message,
             started_at: row.started_at,
             completed_at: row.completed_at,
+            metrics,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -231,9 +251,11 @@ impl ExportJobQueries {
         offset: Option<i64>,
     ) -> Result<Vec<ExportJob>, AppError> {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            "SELECT j.* FROM \"ExportJob\" j JOIN \"ExportSnapshot\" s ON j.snapshot_id = s.id \
-             WHERE s.project_id = ",
+            "SELECT j.* FROM \"ExportJob\" j LEFT JOIN \"ExportSnapshot\" s ON j.snapshot_id = s.id \
+             WHERE j.project_id = ",
         );
+        query_builder.push_bind(project_id);
+        query_builder.push(" OR s.project_id = ");
         query_builder.push_bind(project_id);
         query_builder.push(" ORDER BY j.created_at DESC");
 
@@ -258,8 +280,8 @@ impl ExportJobQueries {
 
     pub async fn count_by_project(pool: &PgPool, project_id: &str) -> Result<i64, AppError> {
         let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM \"ExportJob\" j JOIN \"ExportSnapshot\" s ON j.snapshot_id = \
-             s.id WHERE s.project_id = $1",
+            "SELECT COUNT(*) FROM \"ExportJob\" j LEFT JOIN \"ExportSnapshot\" s ON j.snapshot_id = \
+             s.id WHERE j.project_id = $1 OR s.project_id = $1",
         )
         .bind(project_id)
         .fetch_one(pool)
@@ -272,22 +294,32 @@ impl ExportJobQueries {
     pub async fn create(
         pool: &PgPool,
         snapshot_id: &str,
+        project_id: Option<&str>,
         format: ExportFormat,
+        formats: Option<&[String]>,
+        trigger: Option<&str>,
         status: ExportStatus,
     ) -> Result<ExportJob, AppError> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
+        let trig = trigger.unwrap_or("MANUAL");
+        let format_strs: Vec<String> = formats
+            .map(|f| f.to_vec())
+            .unwrap_or_else(|| vec![format!("{:?}", format).to_uppercase()]);
 
         let row = sqlx::query_as::<_, ExportJobRow>(
             r#"
-            INSERT INTO "ExportJob" (id, snapshot_id, format, status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO "ExportJob" (id, snapshot_id, project_id, format, formats, trigger, status, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
             "#,
         )
         .bind(&id)
         .bind(snapshot_id)
+        .bind(project_id)
         .bind(format)
+        .bind(&format_strs)
+        .bind(trig)
         .bind(status)
         .bind(now)
         .bind(now)
@@ -303,11 +335,24 @@ impl ExportJobQueries {
         job_id: &str,
         status: ExportStatus,
     ) -> Result<ExportJob, AppError> {
+        let now = Utc::now();
+        let is_processing = status == ExportStatus::Processing;
+        let is_terminal = status == ExportStatus::Completed || status == ExportStatus::Failed;
         let row = sqlx::query_as::<_, ExportJobRow>(
-            "UPDATE \"ExportJob\" SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *",
+            r#"
+            UPDATE "ExportJob"
+            SET status = $1,
+                started_at = CASE WHEN $2 THEN COALESCE(started_at, $3) ELSE started_at END,
+                completed_at = CASE WHEN $4 THEN COALESCE(completed_at, $3) ELSE completed_at END,
+                updated_at = $3
+            WHERE id = $5
+            RETURNING *
+            "#,
         )
         .bind(status)
-        .bind(Utc::now())
+        .bind(is_processing)
+        .bind(now)
+        .bind(is_terminal)
         .bind(job_id)
         .fetch_one(pool)
         .await
@@ -326,6 +371,38 @@ impl ExportJobQueries {
         )
         .bind(output_path)
         .bind(Utc::now())
+        .bind(job_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(row.into())
+    }
+
+    pub async fn update_completed(
+        pool: &PgPool,
+        job_id: &str,
+        output_path: &str,
+        metrics: Option<&cms_entity::export::ExportMetrics>,
+    ) -> Result<ExportJob, AppError> {
+        let metrics_val = metrics.and_then(|m| serde_json::to_value(m).ok());
+        let now = Utc::now();
+        let row = sqlx::query_as::<_, ExportJobRow>(
+            r#"
+            UPDATE "ExportJob"
+            SET status = $1,
+                output_path = $2,
+                metrics = $3,
+                completed_at = $4,
+                updated_at = $4
+            WHERE id = $5
+            RETURNING *
+            "#,
+        )
+        .bind(ExportStatus::Completed)
+        .bind(output_path)
+        .bind(metrics_val)
+        .bind(now)
         .bind(job_id)
         .fetch_one(pool)
         .await
@@ -373,8 +450,10 @@ impl ExportJobQueries {
 struct ExportArtifactRow {
     id: String,
     job_id: String,
+    format: Option<String>,
     file_name: String,
     file_size: i64,
+    size: Option<i64>,
     storage_path: String,
     download_url: Option<String>,
     created_at: DateTime<Utc>,
@@ -382,11 +461,13 @@ struct ExportArtifactRow {
 
 impl From<ExportArtifactRow> for ExportArtifact {
     fn from(row: ExportArtifactRow) -> Self {
+        let sz = row.size.unwrap_or(row.file_size);
         Self {
             id: row.id,
             job_id: row.job_id,
+            format: row.format,
             file_name: row.file_name,
-            file_size: row.file_size,
+            file_size: sz,
             storage_path: row.storage_path,
             download_url: row.download_url,
             created_at: row.created_at,
@@ -428,6 +509,7 @@ impl ExportArtifactQueries {
     pub async fn create(
         pool: &PgPool,
         job_id: &str,
+        format: Option<&str>,
         file_name: &str,
         file_size: i64,
         storage_path: &str,
@@ -438,14 +520,16 @@ impl ExportArtifactQueries {
 
         let row = sqlx::query_as::<_, ExportArtifactRow>(
             r#"
-            INSERT INTO "ExportArtifact" (id, job_id, file_name, file_size, storage_path, download_url, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO "ExportArtifact" (id, job_id, format, file_name, file_size, size, storage_path, download_url, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
             "#
         )
         .bind(&id)
         .bind(job_id)
+        .bind(format)
         .bind(file_name)
+        .bind(file_size)
         .bind(file_size)
         .bind(storage_path)
         .bind(download_url)

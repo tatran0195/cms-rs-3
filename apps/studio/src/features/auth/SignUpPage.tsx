@@ -1,9 +1,8 @@
 import { SignUpForm } from '@cms/auth/forms';
 import { useT } from '@cms/i18n/react';
-import { Link, useNavigate } from '@tanstack/react-router';
 import { useGetPublicMeta } from '@cms/sdk/react';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { readPendingInvitation } from '@/shared';
-
 import { cmsClient } from '@/shared/services/cms-client';
 import { AuthLayout } from './components/AuthLayout';
 

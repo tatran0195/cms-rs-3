@@ -34,7 +34,7 @@ function MobileTabTreeItem({
 }) {
   const hasChildren = Boolean(item.items && item.items.length > 0);
   const isNavActive = (href?: string): boolean => {
-    if (!href || !href.startsWith('/') || href.startsWith('//')) return false;
+    if (!href?.startsWith('/') || href.startsWith('//')) return false;
     const prefix = href.replace(/^\/+|\/+$/g, '');
     const norm = currentPath.replace(/^\/+|\/+$/g, '');
     return prefix !== '' && (norm === prefix || norm.startsWith(`${prefix}/`));
@@ -44,9 +44,7 @@ function MobileTabTreeItem({
 
   const resolveHref = (href?: string): string => {
     if (!href) return '#';
-    return href.startsWith('/') && !href.startsWith('//')
-      ? siteHref(projectId, href, { lang, version, basePath })
-      : href;
+    return href.startsWith('/') && !href.startsWith('//') ? siteHref(projectId, href, { lang, version, basePath }) : href;
   };
 
   return (
@@ -54,9 +52,7 @@ function MobileTabTreeItem({
       <div
         className={cn(
           'flex items-center justify-between rounded-lg px-2 py-1.5 font-medium text-sm transition-colors',
-          active
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         )}
       >
         {item.href ? (
@@ -70,10 +66,7 @@ function MobileTabTreeItem({
             {item.label}
           </a>
         ) : (
-          <span
-            className="flex-1 cursor-pointer truncate"
-            onClick={() => hasChildren && setOpen(!open)}
-          >
+          <span className="flex-1 cursor-pointer truncate" onClick={() => hasChildren && setOpen(!open)}>
             {item.label}
           </span>
         )}
@@ -204,4 +197,3 @@ export function MobileNav({
     </Sheet>
   );
 }
-

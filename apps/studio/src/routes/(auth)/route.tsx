@@ -1,6 +1,6 @@
+import { useSetupStatus } from '@cms/sdk/react';
 import { createFileRoute, isRedirect, Navigate, Outlet, redirect, useLocation } from '@tanstack/react-router';
 import { AuthProviders, getSession, useSession } from '@/features/auth';
-import { useSetupStatus } from '@cms/sdk/react';
 import { QueryProvider } from '@/shared';
 import { cmsClient } from '@/shared/services/cms-client';
 

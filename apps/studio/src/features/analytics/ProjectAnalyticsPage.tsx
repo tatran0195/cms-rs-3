@@ -2,8 +2,8 @@ import { Alert, AlertDescription, AlertTitle } from '@cms/design-system/componen
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
-import { AlertTriangle, BarChart3, Search, SearchX, Users } from 'lucide-react';
 import { useProjectAnalytics } from '@cms/sdk/react';
+import { AlertTriangle, BarChart3, Search, SearchX, Users } from 'lucide-react';
 import { ListCard } from './components/ListCard';
 import { RangeTabs } from './components/RangeTabs';
 import { StatCard } from './components/StatCard';

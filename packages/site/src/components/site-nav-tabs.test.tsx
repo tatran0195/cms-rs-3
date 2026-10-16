@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
+import type { SnapshotNavTabItem } from '@cms/shared';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SiteNavTabs } from './site-nav-tabs';
-import type { SnapshotNavTabItem } from '@cms/shared';
 
 describe('SiteNavTabs', () => {
   let container: HTMLDivElement;
@@ -30,9 +30,7 @@ describe('SiteNavTabs', () => {
         { label: 'Cloud DB', href: '/products/db' },
         {
           label: 'Storage',
-          items: [
-            { label: 'Block Storage', href: '/products/storage/block' },
-          ],
+          items: [{ label: 'Block Storage', href: '/products/storage/block' }],
         },
       ],
     },

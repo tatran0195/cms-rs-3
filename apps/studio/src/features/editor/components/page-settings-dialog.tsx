@@ -16,12 +16,12 @@ import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { PageConfig, PageNode } from '@cms/sdk';
+import { useUpdatePage } from '@cms/sdk/react';
 import { slugify } from '@cms/shared/utils';
 import { CirclePlus, type LucideIcon, PanelsTopLeft, SearchCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { PageConfig, PageNode } from '@cms/sdk';
-import { useUpdatePage } from '@cms/sdk/react';
 
 type PageMode = 'default' | 'wide' | 'center';
 type PageSettingsSection = 'general' | 'seo' | 'behaviour';

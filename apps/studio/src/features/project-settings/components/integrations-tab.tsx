@@ -8,6 +8,16 @@ import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import {
+  useActivateProjectIntegration,
+  useCreateProjectIntegration,
+  useDeactivateProjectIntegration,
+  useDeleteProjectIntegration,
+  useProjectIntegrations,
+  useUpdateProjectIntegration,
+  useVerifyProjectIntegration,
+} from '@cms/sdk/react';
 import type { IntegrationCatalogEntry, IntegrationCategory, IntegrationProviderId, IntegrationPublicConfig } from '@cms/shared/integrations';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -33,16 +43,6 @@ import {
 } from 'lucide-react';
 import { type ComponentType, type FormEvent, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import type { Project } from '@cms/sdk';
-import {
-  useActivateProjectIntegration,
-  useCreateProjectIntegration,
-  useDeactivateProjectIntegration,
-  useDeleteProjectIntegration,
-  useProjectIntegrations,
-  useUpdateProjectIntegration,
-  useVerifyProjectIntegration,
-} from '@cms/sdk/react';
 import { GithubIcon, SlackIcon } from '@/shared';
 import { AnalyticsSection } from './analytics-section';
 import { SEARCH_RUNTIME_MESSAGE_KEYS } from './integration-config-values';

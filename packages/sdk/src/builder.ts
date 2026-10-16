@@ -1,7 +1,7 @@
 import { CmsClient, type CmsClientOptions } from './client';
 
 export class CmsClientBuilder {
-  private options: CmsClientOptions = {};
+  private readonly options: CmsClientOptions = {};
 
   static create(): CmsClientBuilder {
     return new CmsClientBuilder();
@@ -12,9 +12,7 @@ export class CmsClientBuilder {
     return this;
   }
 
-  withHeaders(
-    headers: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>)
-  ): this {
+  withHeaders(headers: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>)): this {
     this.options.headers = headers;
     return this;
   }
@@ -22,10 +20,7 @@ export class CmsClientBuilder {
   withLocale(getLocaleFn: () => string | undefined): this {
     const existingHeaders = this.options.headers;
     this.options.headers = async () => {
-      const base =
-        typeof existingHeaders === 'function'
-          ? await existingHeaders()
-          : existingHeaders || {};
+      const base = typeof existingHeaders === 'function' ? await existingHeaders() : existingHeaders || {};
       const locale = getLocaleFn();
       if (locale) {
         return { ...base, 'x-cms-locale': locale };

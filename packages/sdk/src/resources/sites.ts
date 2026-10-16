@@ -29,11 +29,7 @@ export class SitesResource {
     return JSON.stringify(res);
   }
 
-  async search<T = SiteSearchHit>(
-    projectId: string,
-    query: string,
-    options?: { language?: string; version?: string; limit?: number }
-  ): Promise<T[]> {
+  async search<T = SiteSearchHit>(projectId: string, query: string, options?: { language?: string; version?: string; limit?: number }): Promise<T[]> {
     const params: Record<string, string> = { q: query };
     if (options?.limit) params.limit = String(options.limit);
     if (options?.language) params.lang = options.language;
@@ -43,11 +39,7 @@ export class SitesResource {
     return res.hits || [];
   }
 
-  async answer<T = SearchAnswer>(
-    projectId: string,
-    query: string,
-    options?: { language?: string; version?: string }
-  ): Promise<T> {
+  async answer<T = SearchAnswer>(projectId: string, query: string, options?: { language?: string; version?: string }): Promise<T> {
     const body: Record<string, unknown> = {
       question: query,
       q: query,

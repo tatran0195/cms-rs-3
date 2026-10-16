@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CmsClientBuilder, CmsClient } from '../src';
+import { CmsClient, CmsClientBuilder } from '../src';
 
 describe('CmsClientBuilder', () => {
   it('builds a CmsClient with fluent options', () => {
@@ -7,7 +7,7 @@ describe('CmsClientBuilder', () => {
       .withBaseUrl('https://api.cms.internal')
       .withLocale(() => 'en')
       .withCredentials('include')
-      .withTimeout(15000)
+      .withTimeout(15_000)
       .withRetry({ limit: 2 })
       .build();
 

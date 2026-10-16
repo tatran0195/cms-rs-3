@@ -9,8 +9,7 @@ export const queryKeys = {
     audit: (projectId: string) => ['addons', projectId, 'audit'] as const,
   },
   pages: {
-    all: (projectId: string, languageId?: string, branchId?: string) =>
-      ['pages', projectId, languageId ?? null, branchId ?? null] as const,
+    all: (projectId: string, languageId?: string, branchId?: string) => ['pages', projectId, languageId ?? null, branchId ?? null] as const,
     /** Broad prefix matching every language/branch scope — use for invalidation. */
     allForProject: (projectId: string) => ['pages', projectId] as const,
     detail: (projectId: string, pageId: string) => ['pages', projectId, pageId] as const,
@@ -46,8 +45,7 @@ export const queryKeys = {
   },
   projectSearch: {
     configuration: (projectId: string) => ['projects', projectId, 'search', 'configuration'] as const,
-    index: (projectId: string, cursor?: string, limit?: number) =>
-      ['projects', projectId, 'search', 'index', cursor ?? null, limit ?? null] as const,
+    index: (projectId: string, cursor?: string, limit?: number) => ['projects', projectId, 'search', 'index', cursor ?? null, limit ?? null] as const,
     allIndex: (projectId: string) => ['projects', projectId, 'search', 'index'] as const,
   },
   comments: {
@@ -77,8 +75,7 @@ export const queryKeys = {
   },
   site: {
     shell: (id: string, lang?: string, version?: string) => ['site', id, lang ?? null, version ?? null] as const,
-    page: (id: string, path: string, lang?: string, version?: string) =>
-      ['site', id, 'page', path, lang ?? null, version ?? null] as const,
+    page: (id: string, path: string, lang?: string, version?: string) => ['site', id, 'page', path, lang ?? null, version ?? null] as const,
     search: (id: string, q: string, lang?: string, version?: string, limit?: number) =>
       ['site', id, 'search', q, lang ?? null, version ?? null, limit ?? null] as const,
     changelog: (id: string) => ['site', id, 'changelog'] as const,

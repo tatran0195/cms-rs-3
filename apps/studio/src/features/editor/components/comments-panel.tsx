@@ -3,12 +3,12 @@ import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { Comment } from '@cms/sdk';
+import { useComments, useCreateComment, useDeleteComment, useResolveComment } from '@cms/sdk/react';
 import { Check, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useSession } from '@/features/auth';
-import type { Comment } from '@cms/sdk';
-import { useComments, useCreateComment, useDeleteComment, useResolveComment } from '@cms/sdk/react';
 import { useFormatters } from '@/shared';
 
 interface CommentsPanelProps {

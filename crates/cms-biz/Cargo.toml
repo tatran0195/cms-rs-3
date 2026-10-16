@@ -17,8 +17,9 @@ cms-authz = { path = "../cms-authz" }
 cms-mailer = { workspace = true }
 bytes = { workspace = true }
 
-# Async
+# Async & Parallelism
 tokio = { workspace = true }
+rayon = "1.10"
 
 # Serialization
 serde = { workspace = true }

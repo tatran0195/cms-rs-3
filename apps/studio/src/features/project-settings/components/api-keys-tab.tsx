@@ -3,13 +3,13 @@ import { Button } from '@cms/design-system/components/ui/button';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { useLocale } from '@cms/i18n/react';
+import type { ApiKey } from '@cms/sdk';
+import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@cms/sdk/react';
 import { MCP_SCOPES } from '@cms/shared/mcp';
 import { Check, Copy, KeyRound, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { useApiKeys, useCreateApiKey, useRevokeApiKey, useRotateApiKey } from '@cms/sdk/react';
-import type { ApiKey } from '@cms/sdk';
 import { cmsClient, localeTag, useFormatters } from '@/shared';
 import {
   AlertDialog,

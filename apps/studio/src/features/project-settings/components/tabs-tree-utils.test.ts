@@ -1,12 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import type { NavTabItem } from '@cms/validators';
-import {
-  cleanTabItems,
-  insertTabChild,
-  moveTabNode,
-  removeTabNode,
-  updateTabNode,
-} from './tabs-tree-utils';
+import { describe, expect, it } from 'vitest';
+import { cleanTabItems, insertTabChild, moveTabNode, removeTabNode, updateTabNode } from './tabs-tree-utils';
 
 describe('tabs-tree-utils', () => {
   const sampleTree: NavTabItem[] = [
@@ -53,8 +47,6 @@ describe('tabs-tree-utils', () => {
       { label: '', href: '' },
     ];
     const cleaned = cleanTabItems(dirtyTree);
-    expect(cleaned).toEqual([
-      { label: 'Valid', href: '/valid' },
-    ]);
+    expect(cleaned).toEqual([{ label: 'Valid', href: '/valid' }]);
   });
 });

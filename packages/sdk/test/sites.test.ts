@@ -10,7 +10,7 @@ describe('SitesResource', () => {
           new Response(JSON.stringify({ hits: [{ id: 'hit-1', title: 'Match' }] }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-          })
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled URL: ${url}`));
@@ -35,7 +35,7 @@ describe('SitesResource', () => {
           new Response(JSON.stringify({ id: 'p1', path: 'intro', content: '# Hello' }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
-          })
+          }),
         );
       }
       return Promise.reject(new Error(`Unhandled URL: ${url}`));

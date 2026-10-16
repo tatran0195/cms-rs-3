@@ -5,6 +5,8 @@ import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { translateFn, useT } from '@cms/i18n/react';
+import type { Project, ProjectThemeImportResult } from '@cms/sdk';
+import { useExportProjectTheme, useImportProjectTheme, useUpdateProjectConfig } from '@cms/sdk/react';
 import {
   type cmsThemeConfig,
   MAX_THEME_TEMPLATE_BYTES,
@@ -25,8 +27,6 @@ import type { ProjectConfig } from '@cms/validators';
 import { Download, FileJson, LayoutTemplate, RotateCcw, Undo2, Upload } from 'lucide-react';
 import { type ChangeEvent, type CSSProperties, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { Project, ProjectThemeImportResult } from '@cms/sdk';
-import { useExportProjectTheme, useImportProjectTheme, useUpdateProjectConfig } from '@cms/sdk/react';
 import { Field, SaveBar, SectionHeader, Segmented } from './shared';
 
 type Appearance = 'light' | 'dark' | 'system';

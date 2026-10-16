@@ -4,7 +4,10 @@ import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { Project } from '@cms/sdk';
+import { useProject } from '@cms/sdk/react';
 import {
+  Archive,
   Bell,
   Blocks,
   Braces,
@@ -23,13 +26,12 @@ import {
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { Project } from '@cms/sdk';
-import { useProject } from '@cms/sdk/react';
 import { AddonsSection } from './components/addons-section';
 import { ApiKeysTab } from './components/api-keys-tab';
 import { AuthenticationSection } from './components/authentication-section';
 import { DangerSection } from './components/danger-section';
 import { DomainSection } from './components/domain-section';
+import { ExportsSection } from './components/exports-section';
 import { GeneralSection } from './components/general-section';
 import { GitTab } from './components/git-tab';
 import { ImportTab } from './components/import-tab';
@@ -58,6 +60,7 @@ export type SectionId =
   | 'usage'
   | 'integrations'
   | 'notifications'
+  | 'exports'
   | 'danger';
 
 export const GROUPS = [
@@ -85,6 +88,7 @@ export const SECTIONS = [
   { id: 'usage', group: 'workspace', icon: ChartNoAxesCombined },
   { id: 'integrations', group: 'workspace', icon: Plug },
   { id: 'notifications', group: 'workspace', icon: Bell },
+  { id: 'exports', group: 'advanced', icon: Archive },
   { id: 'danger', group: 'advanced', icon: TriangleAlert },
 ] as const satisfies ReadonlyArray<{
   id: SectionId;
@@ -189,9 +193,10 @@ function ActiveSection({ project, section, projectId }: { project: Project; sect
     usage: <UsageTab key={`usage-${project.id}`} project={project} />,
     integrations: <IntegrationsTab key={`integrations-${projectId}`} projectId={projectId} project={project} />,
     notifications: <NotificationsTab key={`notifications-${projectId}`} projectId={projectId} />,
+    exports: <ExportsSection key={`exports-${projectId}`} projectId={projectId} />,
     danger: <DangerSection project={project} />,
   };
-  const wideSection = section === 'general' || section === 'usage' || section === 'integrations';
+  const wideSection = section === 'general' || section === 'usage' || section === 'integrations' || section === 'exports';
   return <div className={cn('w-full', wideSection ? 'max-w-6xl' : 'max-w-4xl')}>{sections[section]}</div>;
 }
 

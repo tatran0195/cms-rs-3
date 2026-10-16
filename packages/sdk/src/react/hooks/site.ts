@@ -1,19 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  ChangelogEntry,
-  ReaderAccessData,
-  SearchAnswer,
-  SitePage,
-  SiteSearchHit,
-  SiteShell,
-} from '../../types';
+import type { ChangelogEntry, ReaderAccessData, SearchAnswer, SitePage, SiteSearchHit, SiteShell } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
 
-export const useSite = <T = SiteShell>(
-  siteId: string | undefined,
-  options?: { language?: string; version?: string; enabled?: boolean }
-) => {
+export const useSite = <T = SiteShell>(siteId: string | undefined, options?: { language?: string; version?: string; enabled?: boolean }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.site.shell(siteId ?? '', options?.language, options?.version),
@@ -31,7 +21,7 @@ export const useSite = <T = SiteShell>(
 export const useSitePage = <T = SitePage>(
   siteId: string | undefined,
   path: string,
-  options?: { language?: string; version?: string; enabled?: boolean }
+  options?: { language?: string; version?: string; enabled?: boolean },
 ) => {
   const client = useCmsClient();
   return useQuery({
@@ -63,7 +53,7 @@ export const useSiteSearch = <T = SiteSearchHit>(
   siteId: string | undefined,
   query: string,
   options?: { language?: string; version?: string; limit?: number },
-  enabled = true
+  enabled = true,
 ) => {
   const client = useCmsClient();
   return useQuery({
@@ -112,7 +102,7 @@ export const useReaderAccess = <T = ReaderAccessData>(projectId: string | undefi
 
 const useReaderAccessMutation = <TVariables, TResult>(
   projectId: string,
-  mutationFn: (client: ReturnType<typeof useCmsClient>, variables: TVariables) => Promise<TResult>
+  mutationFn: (client: ReturnType<typeof useCmsClient>, variables: TVariables) => Promise<TResult>,
 ) => {
   const client = useCmsClient();
   const queryClient = useQueryClient();

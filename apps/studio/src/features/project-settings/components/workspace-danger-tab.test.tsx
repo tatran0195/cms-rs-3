@@ -37,7 +37,6 @@ vi.mock('@cms/sdk/react', () => ({
   useDeleteWorkspace: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
 }));

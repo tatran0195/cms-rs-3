@@ -6,10 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@cms/design-system/components/ui/switch';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
-import { useForm } from '@tanstack/react-form';
-import { ArrowUpRight, Check, CircleAlert, Copy, DownloadCloud, Eye, EyeOff, GitBranch, Globe, Hammer, Loader2, RefreshCw } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import type { Deployment } from '@cms/sdk';
 import {
   useBranches,
@@ -20,6 +16,10 @@ import {
   useUpdateWorkspaceSettings,
   useWorkspaceSettings,
 } from '@cms/sdk/react';
+import { useForm } from '@tanstack/react-form';
+import { ArrowUpRight, Check, CircleAlert, Copy, DownloadCloud, Eye, EyeOff, GitBranch, Globe, Hammer, Loader2, RefreshCw } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { cmsClient, copyToClipboard, GithubIcon, useFormatters } from '@/shared';
 import { GitWorkflow } from './git-workflow';
 import { SettingsSection } from './section';

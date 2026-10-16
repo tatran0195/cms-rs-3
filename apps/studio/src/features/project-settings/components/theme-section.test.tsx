@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
+import type { Project } from '@cms/sdk';
 import { resolveTheme, THEME_PRESETS } from '@cms/shared/themes';
 import { act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project } from '@cms/sdk';
 import { ThemeSection } from './theme-section';
 
 /** Option labels are deliberately distinct from the raw option ids so a trigger

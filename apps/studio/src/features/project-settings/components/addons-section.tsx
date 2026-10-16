@@ -8,13 +8,13 @@ import { Switch } from '@cms/design-system/components/ui/switch';
 import { cn } from '@cms/design-system/lib/utils';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
+import type { ProjectAddon } from '@cms/sdk';
+import { useActivateProjectAddon, useDeactivateProjectAddon, useProjectAddons, useUpdateProjectAddon } from '@cms/sdk/react';
 import type { AddonGroup, AddonId } from '@cms/shared/addons';
 import { Blocks, CheckCircle2, MessageSquareText, TriangleAlert } from 'lucide-react';
 import { type ComponentType, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import type { ProjectAddon } from '@cms/sdk';
-import { useActivateProjectAddon, useDeactivateProjectAddon, useProjectAddons, useUpdateProjectAddon } from '@cms/sdk/react';
 import { SectionHeader } from './shared';
 
 const GROUPS = [{ id: 'engagement', icon: MessageSquareText }] as const satisfies ReadonlyArray<{

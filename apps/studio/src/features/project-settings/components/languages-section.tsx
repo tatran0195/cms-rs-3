@@ -3,12 +3,12 @@ import { useConfirm } from '@cms/design-system/components/ui/confirm';
 import { Switch } from '@cms/design-system/components/ui/switch';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
+import type { Language, Project } from '@cms/sdk';
+import { useDeleteLanguage, useLanguages, useUpdateLanguage } from '@cms/sdk/react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AddLanguageDialog } from '@/features/editor';
-import type { Language, Project } from '@cms/sdk';
-import { useDeleteLanguage, useLanguages, useUpdateLanguage } from '@cms/sdk/react';
 import { SectionHeader, sortLanguagesDefaultFirst } from './shared';
 
 /** A small uppercase chip (direction / default / hidden badges). */

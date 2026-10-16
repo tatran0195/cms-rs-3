@@ -20,6 +20,8 @@ export interface ProjectUsageData {
   meters: UsageMetric[];
 }
 
+import type { Project } from '@cms/sdk';
+import { useProjectUsage } from '@cms/sdk/react';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -35,8 +37,6 @@ import {
   Search,
   Users,
 } from 'lucide-react';
-import type { Project } from '@cms/sdk';
-import { useProjectUsage } from '@cms/sdk/react';
 import { formatByteQuantity, useFormatters } from '@/shared';
 import { SettingsSection } from './section';
 

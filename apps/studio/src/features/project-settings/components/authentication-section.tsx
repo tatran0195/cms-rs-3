@@ -7,9 +7,6 @@ import { Switch } from '@cms/design-system/components/ui/switch';
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import type { MessageKey } from '@cms/i18n';
 import { useLocale } from '@cms/i18n/react';
-import { jwtAccessConfigBody } from '@cms/validators';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import type { Project } from '@cms/sdk';
 import {
   useCreateReaderAudience,
@@ -23,6 +20,9 @@ import {
   useUpdateReaderAccessMode,
   useUpdateReaderJwt,
 } from '@cms/sdk/react';
+import { jwtAccessConfigBody } from '@cms/validators';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { localeTag } from '@/shared';
 import { Field, SectionHeader, Segmented } from './shared';
 
