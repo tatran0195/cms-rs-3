@@ -410,7 +410,7 @@ pub async fn process_export_job(
         ExportFormat::Pdf => "pdf",
         ExportFormat::Markdown => "md",
         ExportFormat::Epub => "epub",
-        ExportFormat::Sqlite => "sqlite",
+        ExportFormat::Sqlite => "tar.gz",
     };
 
     let storage_key = format!(
@@ -426,7 +426,7 @@ pub async fn process_export_job(
         ExportFormat::Pdf => "application/pdf",
         ExportFormat::Markdown => "text/markdown; charset=utf-8",
         ExportFormat::Epub => "application/epub+zip",
-        ExportFormat::Sqlite => "application/vnd.sqlite3",
+        ExportFormat::Sqlite => "application/gzip",
     };
 
     let content_len = content.len() as i64;
@@ -858,7 +858,7 @@ pub async fn generate_sqlite_export(
         });
     }
 
-    build_sqlite_export_database(project, branches, pages.to_vec(), languages, assets).await
+    generate_sqlite_bundle_export(project, branches, pages.to_vec(), languages, assets).await
 }
 
 use std::path::Path;
@@ -1496,6 +1496,67 @@ pub async fn build_sqlite_export_database(
     Ok(Bytes::from(data))
 }
 
+use flate2::write::GzEncoder;
+use flate2::Compression;
+
+/// Helper function to build an isolated site bundle (.tar.gz) containing docs.sqlite and search_index/
+pub async fn generate_sqlite_bundle_export(
+    project: cms_entity::project::Project,
+    branches: Vec<cms_entity::branch::Branch>,
+    pages: Vec<cms_entity::page::PageListItem>,
+    languages: Vec<cms_entity::language::Language>,
+    assets: Vec<ExportAssetItem>,
+) -> Result<Bytes, AppError> {
+    // 1. Build SQLite database bytes
+    let sqlite_bytes = build_sqlite_export_database(
+        project,
+        branches.clone(),
+        pages.clone(),
+        languages,
+        assets,
+    )
+    .await?;
+
+    // 2. Build isolated Tantivy index in a temp directory
+    let tantivy_temp = tempfile::tempdir().map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Failed to create tantivy tempdir: {}", e))
+    })?;
+    build_tantivy_export_index(&pages, &branches, tantivy_temp.path())?;
+
+    // 3. Assemble streaming .tar.gz bundle
+    let mut gz = GzEncoder::new(Vec::new(), Compression::fast());
+    {
+        let mut tar = tar::Builder::new(&mut gz);
+
+        // Add docs.sqlite
+        let mut header = tar::Header::new_gnu();
+        header.set_path("docs.sqlite").map_err(|e| {
+            AppError::Internal(anyhow::anyhow!("Failed to set header path: {}", e))
+        })?;
+        header.set_size(sqlite_bytes.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        tar.append(&header, &sqlite_bytes[..]).map_err(|e| {
+            AppError::Internal(anyhow::anyhow!("Failed to append docs.sqlite to tar: {}", e))
+        })?;
+
+        // Add search_index directory recursively
+        tar.append_dir_all("search_index", tantivy_temp.path()).map_err(|e| {
+            AppError::Internal(anyhow::anyhow!("Failed to append search_index to tar: {}", e))
+        })?;
+
+        tar.finish().map_err(|e| {
+            AppError::Internal(anyhow::anyhow!("Failed to finalize tar builder: {}", e))
+        })?;
+    }
+
+    let compressed = gz.finish().map_err(|e| {
+        AppError::Internal(anyhow::anyhow!("Failed to finish gzip compression: {}", e))
+    })?;
+
+    Ok(Bytes::from(compressed))
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
@@ -1742,5 +1803,67 @@ mod tests {
         let reader = index.reader().expect("reader");
         let searcher = reader.searcher();
         assert_eq!(searcher.num_docs(), 2, "must index both pages");
+    }
+
+    #[tokio::test]
+    async fn test_generate_sqlite_bundle_export() {
+        let project = cms_entity::project::Project {
+            id: "proj-1".to_string(),
+            name: "Test Project".to_string(),
+            slug: "test-project".to_string(),
+            description: Some("Test".to_string()),
+            icon: None,
+            is_public: true,
+            config: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let branches = vec![cms_entity::branch::Branch {
+            id: "branch-v1".to_string(),
+            project_id: "proj-1".to_string(),
+            name: "v1.0".to_string(),
+            slug: "v1.0".to_string(),
+            description: None,
+            is_default: true,
+            is_protected: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }];
+        let pages = mock_pages();
+        let languages = vec![];
+        let assets = vec![];
+
+        let bundle_bytes = generate_sqlite_bundle_export(
+            project,
+            branches,
+            pages,
+            languages,
+            assets,
+        )
+        .await
+        .expect("generate bundle export");
+
+        use flate2::read::GzDecoder;
+        use tar::Archive;
+
+        let decoder = GzDecoder::new(&bundle_bytes[..]);
+        let mut archive = Archive::new(decoder);
+        let entries = archive.entries().expect("entries");
+        let mut found_sqlite = false;
+        let mut found_meta = false;
+
+        for entry in entries {
+            let entry = entry.expect("entry");
+            let path = entry.path().expect("path").to_string_lossy().to_string();
+            if path == "docs.sqlite" {
+                found_sqlite = true;
+            }
+            if path.starts_with("search_index") && path.ends_with("meta.json") {
+                found_meta = true;
+            }
+        }
+
+        assert!(found_sqlite, "docs.sqlite must be in tar.gz");
+        assert!(found_meta, "search_index/meta.json must be in tar.gz");
     }
 }
