@@ -3,4 +3,4 @@
 /**
  * Export snapshot response
  */
-export type ExportSnapshotResponse = { id: string, project_id: string, branch_id: string | null, language_id: string | null, created_at: string, };
+export type ExportSnapshotResponse = { id: string, project_id: string, branch_id: string | null, language_id: string | null, deployment_version: bigint | null, pages_count: number, created_at: string, };

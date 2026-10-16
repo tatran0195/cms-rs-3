@@ -869,6 +869,7 @@ use tantivy::schema::*;
 #[derive(Clone, Copy)]
 pub struct TantivyExportFields {
     pub id: Field,
+    pub custom_id: Field,
     pub page_id: Field,
     pub version_id: Field,
     pub language: Field,
@@ -884,6 +885,7 @@ impl TantivyExportFields {
     pub fn build_schema() -> (Schema, Self) {
         let mut builder = Schema::builder();
         let id = builder.add_text_field("id", STRING | STORED);
+        let custom_id = builder.add_text_field("custom_id", STRING | STORED | FAST);
         let page_id = builder.add_text_field("page_id", STRING | STORED | FAST);
         let version_id = builder.add_text_field("version_id", STRING | STORED | FAST);
         let language = builder.add_text_field("language", STRING | STORED | FAST);
@@ -913,6 +915,7 @@ impl TantivyExportFields {
         let schema = builder.build();
         let fields = Self {
             id,
+            custom_id,
             page_id,
             version_id,
             language,
@@ -970,6 +973,7 @@ pub fn build_tantivy_export_index(
         let mut doc = tantivy::TantivyDocument::default();
         let doc_id = format!("{}_0", page.id);
         doc.add_text(fields.id, &doc_id);
+        doc.add_text(fields.custom_id, page.custom_id.as_deref().unwrap_or(""));
         doc.add_text(fields.page_id, &page.id);
         doc.add_text(fields.version_id, &version_slug);
         doc.add_text(fields.language, "en");
@@ -1047,6 +1051,7 @@ pub async fn build_sqlite_export_database(
         -- Page navigation tree (version-scoped)
         CREATE TABLE pages (
             id          TEXT    PRIMARY KEY,
+            custom_id   TEXT,
             version_id  TEXT    NOT NULL,
             parent_id   TEXT,
             kind        TEXT    NOT NULL DEFAULT 'PAGE',
@@ -1122,6 +1127,7 @@ pub async fn build_sqlite_export_database(
         -- Indexes for fast lookup
         CREATE INDEX idx_pages_version ON pages(version_id);
         CREATE INDEX idx_pages_path ON pages(path);
+        CREATE INDEX idx_pages_custom_id ON pages(custom_id);
         CREATE INDEX idx_content_lang ON page_content(language);
         CREATE INDEX idx_changelog_ver ON changelog(version_id, published_at DESC);
 
@@ -1263,6 +1269,7 @@ pub async fn build_sqlite_export_database(
     // 4. Batch insert pages and page_content for high-throughput performance
     struct PageBatchItem {
         id: String,
+        custom_id: Option<String>,
         version_id: String,
         parent_id: Option<String>,
         kind: String,
@@ -1325,6 +1332,7 @@ pub async fn build_sqlite_export_database(
 
         page_items.push(PageBatchItem {
             id: p.id.clone(),
+            custom_id: p.custom_id.clone(),
             version_id: target_version_id,
             parent_id: p.parent_id.clone(),
             kind: p.kind.as_deref().unwrap_or("PAGE").to_string(),
@@ -1347,13 +1355,14 @@ pub async fn build_sqlite_export_database(
         });
     }
 
-    // Insert pages in chunks of 75 (12 * 75 = 900 parameters <= 999 limit)
-    for chunk in page_items.chunks(75) {
+    // Insert pages in chunks of 65 (13 * 65 = 845 parameters <= 999 limit)
+    for chunk in page_items.chunks(65) {
         let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
-            "INSERT INTO pages (id, version_id, parent_id, kind, slug, path, title, icon, sort_order, is_draft, openapi_url, link_url) ",
+            "INSERT INTO pages (id, custom_id, version_id, parent_id, kind, slug, path, title, icon, sort_order, is_draft, openapi_url, link_url) ",
         );
         qb.push_values(chunk, |mut b, p| {
             b.push_bind(&p.id)
+                .push_bind(&p.custom_id)
                 .push_bind(&p.version_id)
                 .push_bind(&p.parent_id)
                 .push_bind(&p.kind)
@@ -1584,6 +1593,7 @@ mod tests {
                 icon: None,
                 config: None,
                 translation_key: None,
+                custom_id: None,
                 position: 0,
                 is_published: true,
                 created_at: Utc::now(),
@@ -1604,6 +1614,7 @@ mod tests {
                 icon: None,
                 config: None,
                 translation_key: None,
+                custom_id: None,
                 position: 1,
                 is_published: true,
                 created_at: Utc::now(),

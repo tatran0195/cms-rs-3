@@ -589,6 +589,7 @@ mod tests {
         ) -> PageListItem {
             PageListItem {
                 id: format!("{language_id}:{path}"),
+                custom_id: None,
                 project_id: "project".to_string(),
                 branch_id: "default".to_string(),
                 parent_id: None,

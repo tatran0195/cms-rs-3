@@ -3,4 +3,4 @@
 /**
  * Export artifact response
  */
-export type ExportArtifactResponse = { id: string, job_id: string, file_name: string, file_size: bigint, download_url: string | null, created_at: string, };
+export type ExportArtifactResponse = { id: string, job_id: string, format: string | null, file_name: string, file_size: bigint, size: bigint, download_url: string | null, created_at: string, };

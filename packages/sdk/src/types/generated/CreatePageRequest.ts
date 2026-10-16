@@ -4,4 +4,4 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * Page create request
  */
-export type CreatePageRequest = { project_id: string, branch_id: string, parent_id: string | null, slug: string, title: string, description: string | null, content: string | null, language_id: string | null, kind: string | null, is_published: boolean, position: number | null, translation_key: string | null, icon: string | null, config: JsonValue | null, };
+export type CreatePageRequest = { project_id: string, branch_id: string, parent_id: string | null, slug: string, title: string, description: string | null, content: string | null, language_id: string | null, kind: string | null, is_published: boolean, position: number | null, translation_key: string | null, custom_id?: string | null, icon: string | null, config: JsonValue | null, };

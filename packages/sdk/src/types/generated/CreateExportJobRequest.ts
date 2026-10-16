@@ -4,4 +4,4 @@ import type { ExportFormat } from "./ExportFormat";
 /**
  * Create export job request
  */
-export type CreateExportJobRequest = { snapshot_id: string, format: ExportFormat, };
+export type CreateExportJobRequest = { snapshot_id: string | null, snapshotId: string | null, project_id: string | null, projectId: string | null, formats: Array<ExportFormat> | null, format: ExportFormat | null, };
