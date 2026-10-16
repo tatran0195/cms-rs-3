@@ -2,14 +2,27 @@ import { cn } from '@cms/design-system/lib/utils';
 import { AlignLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-type TocHeading = { id: string; text: string; depth: number };
+export type TocHeading = { id: string; text: string; depth?: number; level?: number };
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-');
 
 /**
  * "On this page" table of contents with scroll-spy: the heading currently in
  * view is highlighted as the reader scrolls (Mintlify parity).
  */
 export function TableOfContents({ headings, label }: { headings: TocHeading[]; label: string }) {
-  const items = headings.filter((heading) => heading.depth <= 3);
+  const items = headings
+    .map((h) => {
+      const depth = h.depth ?? h.level ?? 1;
+      const id = h.id && !/^h\d+-\d+$/.test(h.id) ? h.id : slugify(h.text) || h.id;
+      return { ...h, depth, id };
+    })
+    .filter((heading) => heading.depth <= 3);
+
   const key = items.map((heading) => heading.id).join('|');
   const [activeId, setActiveId] = useState('');
 
@@ -18,7 +31,9 @@ export function TableOfContents({ headings, label }: { headings: TocHeading[]; l
     if (typeof window === 'undefined' || items.length === 0) {
       return;
     }
-    const elements = items.map((heading) => document.getElementById(heading.id)).filter((el): el is HTMLElement => Boolean(el));
+    const elements = items
+      .map((heading) => document.getElementById(heading.id) || document.getElementById(slugify(heading.text)))
+      .filter((el): el is HTMLElement => Boolean(el));
     if (elements.length === 0) {
       return;
     }

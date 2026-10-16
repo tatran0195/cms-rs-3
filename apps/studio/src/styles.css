@@ -2,6 +2,7 @@
 /* Document typography for rendered Markdown (published sites, preview, editor
  * parity). See the header of typeset.css for provenance and the variable API. */
 @import "./typeset.css";
+@source "../../../packages/site/src/**/*.{ts,tsx}";
 
 /* Published documentation theme contract. Components use semantic variables;
  * preset/layout choices are expressed with data attributes so search and future

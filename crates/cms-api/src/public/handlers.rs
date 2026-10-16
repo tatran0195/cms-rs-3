@@ -310,20 +310,42 @@ fn build_nav(pages: &[cms_entity::page::Page]) -> Vec<serde_json::Value> {
 /// Extract a table-of-contents from a Markdown page: heading text + an anchor id.
 fn headings_from_markdown(content: &str) -> Vec<serde_json::Value> {
     let mut out = Vec::new();
+    let mut slug_counts = std::collections::HashMap::<String, usize>::new();
     for (idx, line) in content.lines().enumerate() {
         let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix('#') {
+        if trimmed.starts_with('#') {
             // Only stack up to h6.
             let level = trimmed.bytes().take_while(|b| *b == b'#').count();
             if !(1..=6).contains(&level) {
                 continue;
             }
-            let text = rest.trim();
+            let text = trimmed[level..].trim();
             if text.is_empty() {
                 continue;
             }
-            let id = format!("h{}-{}", level, idx);
+            let base_slug: String = text
+                .to_lowercase()
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else if c.is_whitespace() { '-' } else { '\0' })
+                .filter(|c| *c != '\0')
+                .collect();
+            let base_slug = base_slug.trim_matches('-');
+            let slug = if base_slug.is_empty() {
+                format!("h{}-{}", level, idx)
+            } else {
+                base_slug.to_string()
+            };
+
+            let count = slug_counts.entry(slug.clone()).or_insert(0);
+            let id = if *count == 0 {
+                slug
+            } else {
+                format!("{}-{}", slug, count)
+            };
+            *count += 1;
+
             out.push(serde_json::json!({
+                "depth": level,
                 "level": level,
                 "text": text,
                 "id": id,

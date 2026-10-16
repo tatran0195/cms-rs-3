@@ -13,6 +13,7 @@
    in the design-system package) covers every component/hook/lib/theme file. Relative to this file
    (packages/design-system/src/styles/), so `../` is the package `src`. */
 @source "../**/*.{ts,tsx}";
+@source "../../../site/src/**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 

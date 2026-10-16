@@ -291,6 +291,7 @@ export interface SiteShell {
 
 export interface Heading {
   depth: number;
+  level?: number;
   text: string;
   id: string;
 }

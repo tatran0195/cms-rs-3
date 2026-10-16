@@ -79,6 +79,8 @@ pub async fn record_trusted_tls_observation(
 pub struct PublishedSiteSnapshot {
     pub project: cms_entity::project::Project,
     pub deployment_id: String,
+    pub branch_id: String,
+    pub branch_slug: String,
     pub language_id: String,
     pub language_code: String,
     pub language_is_rtl: bool,
@@ -114,7 +116,8 @@ pub async fn load_published_site_snapshot(
         let default_release = releases
             .iter()
             .find(|release| release.is_default)
-            .ok_or_else(|| AppError::NotFound("No default-branch release found".to_string()))?;
+            .or_else(|| releases.first())
+            .ok_or_else(|| AppError::NotFound("No published release found".to_string()))?;
         DeploymentQueries::get_snapshot_by_deployment(&state.pool, &default_release.deployment_id)
             .await?
             .filter(|snapshot| snapshot.project_id == project_id)
@@ -153,6 +156,8 @@ pub async fn load_published_site_snapshot(
     Ok(PublishedSiteSnapshot {
         project: content.project,
         deployment_id,
+        branch_id: content.branch.id,
+        branch_slug: content.branch.slug,
         language_id: selected_language.id.clone(),
         language_code: selected_language.code.clone(),
         language_is_rtl: selected_language.is_rtl,
@@ -220,9 +225,7 @@ pub async fn root_handler(
     }
 
     match resolution {
-        Some(result) => serve_project_index(&state, &result, requested_lang)
-            .await
-            .map(|html| html.into_response()),
+        Some(result) => serve_project_index(&state, &result, None, requested_lang).await,
         None => Ok(serve_spa_file("index.html").await),
     }
 }
@@ -245,12 +248,12 @@ pub async fn wildcard_handler(
     {
         let clean = sites_path.trim_matches('/');
         if clean.is_empty() {
-            return serve_not_found().map(|html| html.into_response());
+            return Ok(serve_not_found());
         }
 
         let mut parts = clean.splitn(2, '/');
         let project_ref = parts.next().unwrap_or("");
-        let doc_path = parts.next().unwrap_or("");
+        let raw_doc_path = parts.next().unwrap_or("");
 
         let project = match ProjectQueries::get_by_id(&state.pool, project_ref).await? {
             Some(p) => Some(p),
@@ -258,8 +261,16 @@ pub async fn wildcard_handler(
         };
 
         let Some(project) = project else {
-            return serve_not_found().map(|html| html.into_response());
+            return Ok(serve_not_found());
         };
+
+        if !project.is_public
+            || cms_db::project::ProjectQueries::is_taken_down(&state.pool, &project.id)
+                .await?
+                .unwrap_or(false)
+        {
+            return Ok(serve_not_found());
+        }
 
         let resolution = HostResolutionResult {
             project_id: project.id.clone(),
@@ -269,14 +280,86 @@ pub async fn wildcard_handler(
             hostname: format!("sites/{}", project.id),
         };
 
-        if doc_path.is_empty() {
-            return serve_project_index(&state, &resolution, requested_lang)
-                .await
-                .map(|html| html.into_response());
+        let releases =
+            DeploymentQueries::get_latest_branch_releases(&state.pool, &project.id).await?;
+        if releases.is_empty() {
+            return Ok(serve_not_found());
+        }
+
+        let first_seg = raw_doc_path.split('/').next().unwrap_or("");
+        let (preferred_deployment, doc_path) = if let Some(matched_rel) = releases
+            .iter()
+            .find(|r| r.branch_slug.as_str() == first_seg)
+        {
+            let remaining = raw_doc_path
+                .strip_prefix(first_seg)
+                .unwrap_or("")
+                .trim_matches('/');
+            (Some(matched_rel.deployment_id.as_str()), remaining)
         } else {
-            return serve_page(&state, &resolution, doc_path, requested_lang)
-                .await
-                .map(|html| html.into_response());
+            (None, raw_doc_path.trim_matches('/'))
+        };
+
+        if doc_path == "robots.txt" {
+            let base_url = format!("/sites/{}", project.id);
+            let robots = format!(
+                "User-agent: *\nAllow: /\nSitemap: {}/sitemap.xml\n\nDisallow: /api/\nDisallow: /admin/\nDisallow: /private/\n",
+                base_url
+            );
+            return Ok((
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+                robots,
+            )
+                .into_response());
+        }
+
+        if doc_path == "sitemap.xml" {
+            let site = match load_published_site_snapshot(
+                &state,
+                &project.id,
+                preferred_deployment,
+                requested_lang,
+            )
+            .await
+            {
+                Ok(s) => s,
+                Err(_) => return Ok(serve_not_found()),
+            };
+            let pages = match load_published_site_page_listing(&state, &site).await {
+                Ok(p) => p,
+                Err(_) => return Ok(serve_not_found()),
+            };
+            let base_url = format!("/sites/{}", project.id);
+            let sitemap_gen = SitemapGenerator::new(base_url);
+            let meta_pages: Vec<SitemapPageMetadata> = pages
+                .iter()
+                .map(|p| SitemapPageMetadata {
+                    path: p.path.clone(),
+                    updated_at: p.updated_at,
+                })
+                .collect();
+            let xml = sitemap_gen.generate_project_sitemap_from_metadata(&site.project, &meta_pages);
+            return Ok((
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "application/xml; charset=utf-8")],
+                xml,
+            )
+                .into_response());
+        }
+
+        if doc_path.is_empty() {
+            return serve_project_index(&state, &resolution, preferred_deployment, requested_lang)
+                .await;
+        } else {
+            return serve_page(
+                &state,
+                &resolution,
+                doc_path,
+                preferred_deployment,
+                requested_lang,
+            )
+            .await;
         }
     }
 
@@ -287,9 +370,38 @@ pub async fn wildcard_handler(
     }
 
     match resolution {
-        Some(result) => serve_page(&state, &result, &path, requested_lang)
-            .await
-            .map(|html| html.into_response()),
+        Some(result) => {
+            let clean_path = path.trim_matches('/');
+            let releases =
+                DeploymentQueries::get_latest_branch_releases(&state.pool, &result.project_id)
+                    .await?;
+            let first_seg = clean_path.split('/').next().unwrap_or("");
+            let (preferred_deployment, doc_path) = if let Some(matched_rel) = releases
+                .iter()
+                .find(|r| r.branch_slug.as_str() == first_seg)
+            {
+                let remaining = clean_path
+                    .strip_prefix(first_seg)
+                    .unwrap_or("")
+                    .trim_matches('/');
+                (Some(matched_rel.deployment_id.as_str()), remaining)
+            } else {
+                (result.deployment_id.as_deref(), clean_path)
+            };
+
+            if doc_path.is_empty() {
+                serve_project_index(&state, &result, preferred_deployment, requested_lang).await
+            } else {
+                serve_page(
+                    &state,
+                    &result,
+                    doc_path,
+                    preferred_deployment,
+                    requested_lang,
+                )
+                .await
+            }
+        }
         None => Ok(serve_spa_file(&path).await),
     }
 }
@@ -298,43 +410,71 @@ pub async fn wildcard_handler(
 pub async fn serve_project_index(
     state: &Arc<SitesAppState>,
     resolution: &HostResolutionResult,
+    preferred_deployment_id: Option<&str>,
     requested_lang: Option<&str>,
-) -> Result<Html<String>, AppError> {
-    let site = load_published_site_snapshot(
+) -> Result<Response, AppError> {
+    let site = match load_published_site_snapshot(
         state,
         &resolution.project_id,
-        resolution.deployment_id.as_deref(),
+        preferred_deployment_id.or(resolution.deployment_id.as_deref()),
         requested_lang,
     )
-    .await?;
+    .await
+    {
+        Ok(site) => site,
+        Err(AppError::NotFound(_)) => return Ok(serve_not_found()),
+        Err(err) => return Err(err),
+    };
 
-    let pages = load_published_site_page_listing(state, &site).await?;
+    let pages = match load_published_site_page_listing(state, &site).await {
+        Ok(pages) => pages,
+        Err(AppError::NotFound(_)) => return Ok(serve_not_found()),
+        Err(err) => return Err(err),
+    };
 
     // Find the root page (index or home) from metadata, then fetch only that
     // one body. Listing views never pull page-content JSON from PostgreSQL.
     let root_page_id = pages
         .iter()
-        .find(|page| page.path == "/")
+        .find(|page| page.path == "/" || page.path == "/index" || page.path == "index")
         .or_else(|| {
             pages.iter().find(|page| {
                 page.parent_id.is_none()
                     && (page.slug == "index" || page.slug == "home" || page.slug == "readme")
             })
         })
-        .or_else(|| pages.iter().find(|page| page.parent_id.is_none()))
+        .or_else(|| {
+            pages
+                .iter()
+                .find(|page| page.parent_id.is_none())
+        })
         .or_else(|| pages.first())
         .map(|page| page.page_id.clone());
 
     let base_url = site_base_url(state, resolution, &site.project);
+    let link_prefix = if resolution.hostname.starts_with("sites/") {
+        format!("/sites/{}", site.project.id)
+    } else {
+        String::new()
+    };
+
     match root_page_id {
         Some(page_id) => {
             let page =
                 DeploymentQueries::get_snapshot_page(&state.pool, &site.deployment_id, &page_id)
                     .await?
-                    .filter(|page| page.is_published && page.kind.eq_ignore_ascii_case("PAGE"))
-                    .ok_or_else(|| {
-                        AppError::NotFound("Published root page not found".to_string())
-                    })?;
+                    .filter(|page| page.is_published && page.kind.eq_ignore_ascii_case("PAGE"));
+            let Some(page) = page else {
+                let html = render_project_listing(
+                    &site.project,
+                    &pages,
+                    &base_url,
+                    &link_prefix,
+                    &site.language_code,
+                    site.language_is_rtl,
+                )?;
+                return Ok(Html(html).into_response());
+            };
             let html = render_page(
                 state,
                 &page,
@@ -344,20 +484,19 @@ pub async fn serve_project_index(
                 site.language_is_rtl,
             )
             .await?;
-            Ok(Html(html))
+            Ok(Html(html).into_response())
         }
         None => {
-            // No root page found, show only metadata from the same immutable release.
+            // No root page found, show listing
             let html = render_project_listing(
-                state,
                 &site.project,
                 &pages,
                 &base_url,
+                &link_prefix,
                 &site.language_code,
                 site.language_is_rtl,
-            )
-            .await?;
-            Ok(Html(html))
+            )?;
+            Ok(Html(html).into_response())
         }
     }
 }
@@ -367,18 +506,30 @@ pub async fn serve_page(
     state: &Arc<SitesAppState>,
     resolution: &HostResolutionResult,
     path: &str,
+    preferred_deployment_id: Option<&str>,
     requested_lang: Option<&str>,
-) -> Result<Html<String>, AppError> {
-    let site = load_published_site_snapshot(
+) -> Result<Response, AppError> {
+    let site = match load_published_site_snapshot(
         state,
         &resolution.project_id,
-        resolution.deployment_id.as_deref(),
+        preferred_deployment_id.or(resolution.deployment_id.as_deref()),
         requested_lang,
     )
-    .await?;
+    .await
+    {
+        Ok(site) => site,
+        Err(AppError::NotFound(_)) => return Ok(serve_not_found()),
+        Err(err) => return Err(err),
+    };
 
     let clean_path = path.trim_matches('/');
-    let page = DeploymentQueries::get_snapshot_page_by_path(
+    if clean_path.is_empty() {
+        return serve_project_index(state, resolution, preferred_deployment_id, requested_lang)
+            .await;
+    }
+
+    // 1. Try finding page directly by clean_path
+    let mut page = DeploymentQueries::get_snapshot_page_by_path(
         &state.pool,
         &site.deployment_id,
         &site.language_id,
@@ -386,6 +537,52 @@ pub async fn serve_page(
     )
     .await?
     .filter(|page| page.is_published);
+
+    // 2. If not found, try stripping branch slug prefix (e.g. "main/doc" -> "doc")
+    if page.is_none() && !site.branch_slug.is_empty() {
+        if let Some(stripped) = clean_path.strip_prefix(&format!("{}/", site.branch_slug)) {
+            let stripped_clean = stripped.trim_matches('/');
+            if stripped_clean.is_empty() {
+                return serve_project_index(
+                    state,
+                    resolution,
+                    preferred_deployment_id,
+                    requested_lang,
+                )
+                .await;
+            }
+            page = DeploymentQueries::get_snapshot_page_by_path(
+                &state.pool,
+                &site.deployment_id,
+                &site.language_id,
+                stripped_clean,
+            )
+            .await?
+            .filter(|page| page.is_published);
+        }
+    }
+
+    // 3. If still not found, check if clean_path represents a group/section in the page listing
+    if page.is_none() {
+        if let Ok(pages) = load_published_site_page_listing(state, &site).await {
+            let group_prefix = format!("{}/", clean_path);
+            let child_page = pages
+                .iter()
+                .filter(|p| {
+                    p.path.trim_matches('/').starts_with(&group_prefix)
+                        || p.parent_id.as_deref() == Some(clean_path)
+                })
+                .min_by(|a, b| a.path.cmp(&b.path));
+            if let Some(child) = child_page {
+                page = DeploymentQueries::get_snapshot_page(
+                    &state.pool,
+                    &site.deployment_id,
+                    &child.page_id,
+                )
+                .await?;
+            }
+        }
+    }
 
     match page {
         Some(page) => {
@@ -399,9 +596,9 @@ pub async fn serve_page(
                 site.language_is_rtl,
             )
             .await?;
-            Ok(Html(html))
+            Ok(Html(html).into_response())
         }
-        None => serve_not_found(),
+        None => Ok(serve_not_found()),
     }
 }
 
@@ -510,7 +707,7 @@ pub async fn render_page(
         </main>
         <footer>
             <hr>
-            <p>Powered by <a href="https://cms.com">CMS</a></p>
+            <p>Powered by CMS</p>
         </footer>
     </article>
 </body>
@@ -532,11 +729,11 @@ pub async fn render_page(
 }
 
 /// Render project listing page
-pub async fn render_project_listing(
-    _state: &Arc<SitesAppState>,
+pub fn render_project_listing(
     project: &cms_entity::project::Project,
     pages: &[cms_db::deployment::DeploymentSnapshotPageListing],
     base_url: &str,
+    link_prefix: &str,
     language_code: &str,
     language_is_rtl: bool,
 ) -> Result<String, AppError> {
@@ -550,10 +747,11 @@ pub async fn render_project_listing(
     // Generate page list using the nested path saved in the release.
     let mut page_list = String::new();
     for page in pages {
-        let href = if page.path.starts_with('/') {
-            page.path.clone()
+        let clean = page.path.trim_matches('/');
+        let href = if link_prefix.is_empty() {
+            format!("/{}", clean)
         } else {
-            format!("/{}", page.path)
+            format!("{}/{}", link_prefix.trim_end_matches('/'), clean)
         };
         page_list.push_str(&format!(
             "<li><a href=\"{}\">{}</a></li>\n",
@@ -583,6 +781,13 @@ pub async fn render_project_listing(
             padding: 20px;
             color: #333;
         }}
+        a {{
+            color: #0066cc;
+            text-decoration: none;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
     </style>
 {}
 {}
@@ -602,7 +807,7 @@ pub async fn render_project_listing(
         </main>
         <footer>
             <hr>
-            <p>Powered by <a href="https://cms.com">CMS</a></p>
+            <p>Powered by CMS</p>
         </footer>
     </article>
 </body>
@@ -641,7 +846,7 @@ pub fn get_security_headers() -> String {
 }
 
 /// Return 404 Not Found response
-pub fn serve_not_found() -> Result<Html<String>, AppError> {
+pub fn serve_not_found() -> Response {
     let html = r#"<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -662,15 +867,23 @@ pub fn serve_not_found() -> Result<Html<String>, AppError> {
             font-size: 20px;
             color: #666;
         }
+        a {
+            color: #0066cc;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
     <h1>404</h1>
     <p>Page not found</p>
 </body>
-</html>"#
-        .to_string();
-    Err(cms_error::AppError::NotFound(html))
+</html>"#;
+    (
+        StatusCode::NOT_FOUND,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        html,
+    )
+        .into_response()
 }
 
 /// Robots.txt handler - generates custom robots.txt per project
@@ -994,3 +1207,77 @@ pub async fn manifest_handler(
     );
     Ok(response)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_serve_not_found_returns_html_404() {
+        let response = serve_not_found();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let content_type = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(content_type.contains("text/html"));
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(body.contains("404"));
+        assert!(body.contains("Page not found"));
+        assert!(!body.contains(r#"{"error":"#));
+    }
+
+    #[test]
+    fn test_render_project_listing_respects_link_prefix() {
+        let project = cms_entity::project::Project {
+            id: "proj-123".to_string(),
+            name: "Test Docs".to_string(),
+            slug: "test-docs".to_string(),
+            description: Some("Description".to_string()),
+            icon: None,
+            is_public: true,
+            config: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        let pages = vec![cms_db::deployment::DeploymentSnapshotPageListing {
+            page_id: "page-1".to_string(),
+            path: "/architecture-overview".to_string(),
+            title: "Architecture Overview".to_string(),
+            slug: "architecture-overview".to_string(),
+            parent_id: None,
+            updated_at: chrono::Utc::now(),
+        }];
+
+        // With link_prefix (e.g. /sites/proj-123)
+        let html_prefixed = render_project_listing(
+            &project,
+            &pages,
+            "https://test-docs.localhost",
+            "/sites/proj-123",
+            "en",
+            false,
+        )
+        .unwrap();
+        assert!(html_prefixed.contains(r#"href="/sites/proj-123/architecture-overview""#));
+        assert!(!html_prefixed.contains("https://cms.com"));
+        assert!(html_prefixed.contains("Powered by CMS"));
+
+        // Without link_prefix (custom domain)
+        let html_bare = render_project_listing(
+            &project,
+            &pages,
+            "https://test-docs.localhost",
+            "",
+            "en",
+            false,
+        )
+        .unwrap();
+        assert!(html_bare.contains(r#"href="/architecture-overview""#));
+    }
+}
+
