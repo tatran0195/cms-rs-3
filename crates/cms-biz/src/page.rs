@@ -233,7 +233,7 @@ impl PageService {
         // PageQueries rechecks parent scope while holding the row lock; this
         // closes the race where a parent is moved between the reads above and
         // this insert.
-        let page = PageQueries::create(
+        let page = PageQueries::create_with_custom_id(
             &ctx.pool,
             project_id,
             branch_id,
@@ -247,6 +247,7 @@ impl PageService {
             request.icon.as_deref(),
             request.config.as_ref(),
             request.translation_key.as_deref(),
+            request.custom_id.as_deref(),
             position,
             request.is_published,
         )
@@ -592,7 +593,8 @@ impl PageService {
             .hidden
             .map(|hidden| !hidden)
             .or(request.is_published);
-        let updated = PageQueries::update(
+        let custom_id_patch = request.custom_id.as_ref().map(|opt| opt.as_deref());
+        let updated = PageQueries::update_with_custom_id(
             &ctx.pool,
             page_id,
             parent_update,
@@ -605,6 +607,7 @@ impl PageService {
             request.icon.as_deref(),
             config_patch,
             request.translation_key.as_deref(),
+            custom_id_patch,
             request.position,
             is_published,
         )

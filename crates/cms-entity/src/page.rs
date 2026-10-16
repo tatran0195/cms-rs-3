@@ -9,6 +9,39 @@ use crate::{
     id::PageId,
 };
 
+pub const RESERVED_CUSTOM_IDS: &[&str] = &[
+    "api", "assets", "healthz", "mcp", "p", "sites", "app", "auth", "docs", "settings",
+];
+
+pub fn validate_custom_id(id: &str) -> Result<(), validator::ValidationError> {
+    if id.is_empty() || id.len() > 64 {
+        return Err(validator::ValidationError::new("custom_id_length"));
+    }
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(validator::ValidationError::new("custom_id_characters"));
+    }
+    if RESERVED_CUSTOM_IDS.iter().any(|&r| r.eq_ignore_ascii_case(id)) {
+        return Err(validator::ValidationError::new("custom_id_reserved"));
+    }
+    Ok(())
+}
+
+fn validate_optional_custom_id(id: &str) -> Result<(), validator::ValidationError> {
+    validate_custom_id(id)
+}
+
+fn deserialize_nullable_string_patch<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(Some)
+}
+
 /// Page entity (simplified from Prisma Page model)
 ///
 /// The page tree structure is maintained through parent/child relationships
@@ -36,6 +69,8 @@ pub struct Page {
     pub config: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub translation_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_id: Option<String>,
     pub position: i32, // Position in the tree for ordering
     #[serde(default)]
     pub is_published: bool,
@@ -84,6 +119,9 @@ pub struct CreatePageRequest {
     pub position: Option<i32>,
     #[serde(alias = "translationKey", default)]
     pub translation_key: Option<String>,
+    #[serde(alias = "customId", default, skip_serializing_if = "Option::is_none")]
+    #[validate(custom(function = "validate_optional_custom_id"))]
+    pub custom_id: Option<String>,
     #[serde(default)]
     pub icon: Option<String>,
     #[serde(default)]
@@ -141,6 +179,13 @@ pub struct UpdatePageRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub translation_key: Option<String>,
+    #[serde(
+        alias = "customId",
+        default,
+        deserialize_with = "deserialize_nullable_string_patch",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub custom_id: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     #[serde(
@@ -184,6 +229,7 @@ pub struct PageResponse {
     pub icon: Option<String>,
     pub config: Option<serde_json::Value>,
     pub translation_key: Option<String>,
+    pub custom_id: Option<String>,
     pub position: i32,
     pub is_published: bool,
     pub is_indexed: bool,
@@ -217,6 +263,8 @@ impl serde::Serialize for PageResponse {
         map.serialize_entry("config", &self.config)?;
         map.serialize_entry("translationKey", &self.translation_key)?;
         map.serialize_entry("translation_key", &self.translation_key)?;
+        map.serialize_entry("customId", &self.custom_id)?;
+        map.serialize_entry("custom_id", &self.custom_id)?;
         map.serialize_entry("position", &self.position)?;
         map.serialize_entry("hidden", &(!self.is_published))?;
         map.serialize_entry("is_published", &self.is_published)?;
@@ -246,6 +294,7 @@ impl From<Page> for PageResponse {
             icon: page.icon,
             config: page.config,
             translation_key: page.translation_key,
+            custom_id: page.custom_id,
             position: page.position,
             is_published: page.is_published,
             is_indexed: page.is_indexed,
@@ -291,6 +340,7 @@ pub struct PageListItem {
     pub icon: Option<String>,
     pub config: Option<serde_json::Value>,
     pub translation_key: Option<String>,
+    pub custom_id: Option<String>,
     pub position: i32,
     pub is_published: bool,
     pub created_at: DateTime<Utc>,
@@ -325,6 +375,8 @@ impl serde::Serialize for PageListItem {
         map.serialize_entry("config", &self.config)?;
         map.serialize_entry("translationKey", &self.translation_key)?;
         map.serialize_entry("translation_key", &self.translation_key)?;
+        map.serialize_entry("customId", &self.custom_id)?;
+        map.serialize_entry("custom_id", &self.custom_id)?;
         map.serialize_entry("position", &self.position)?;
         map.serialize_entry("hidden", &(!self.is_published))?;
         map.serialize_entry("is_published", &self.is_published)?;
@@ -442,6 +494,7 @@ mod tests {
             icon: Some("book".to_string()),
             config: None,
             translation_key: Some("getting-started-key".to_string()),
+            custom_id: None,
             position: 0,
             is_published: true,
             is_indexed: true,
@@ -510,6 +563,7 @@ mod tests {
             icon: None,
             config: None,
             translation_key: None,
+            custom_id: None,
             position: 1,
             is_published: true,
             is_indexed: true,
@@ -543,6 +597,7 @@ mod tests {
             icon: None,
             config: None,
             translation_key: None,
+            custom_id: None,
             position: 0,
             is_published: true,
             created_at: Utc::now(),
@@ -587,5 +642,39 @@ mod tests {
 
         let empty = ReorderPageTreeRequest { items: vec![] };
         assert!(empty.validate().is_err());
+    }
+
+    #[test]
+    fn test_custom_id_validation() {
+        let valid_req = CreatePageRequest {
+            project_id: "proj-1".into(),
+            branch_id: "main".into(),
+            parent_id: None,
+            slug: "intro".into(),
+            title: "Introduction".into(),
+            description: None,
+            content: None,
+            language_id: None,
+            kind: None,
+            is_published: true,
+            position: None,
+            translation_key: None,
+            icon: None,
+            config: None,
+            custom_id: Some("quick-start_v1".into()),
+        };
+        assert!(valid_req.validate().is_ok());
+
+        let invalid_chars = CreatePageRequest {
+            custom_id: Some("quick start/invalid".into()),
+            ..valid_req.clone()
+        };
+        assert!(invalid_chars.validate().is_err());
+
+        let reserved = CreatePageRequest {
+            custom_id: Some("api".into()),
+            ..valid_req.clone()
+        };
+        assert!(reserved.validate().is_err());
     }
 }

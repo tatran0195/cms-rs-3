@@ -26,6 +26,7 @@ struct PageRow {
     icon: Option<String>,
     config: Option<serde_json::Value>,
     translation_key: Option<String>,
+    custom_id: Option<String>,
     position: i32,
     is_published: bool,
     is_indexed: bool,
@@ -72,6 +73,7 @@ impl From<PageRow> for Page {
             icon: row.icon,
             config: row.config,
             translation_key: row.translation_key,
+            custom_id: row.custom_id,
             position: row.position,
             is_published: row.is_published,
             is_indexed: row.is_indexed,
@@ -98,6 +100,7 @@ impl From<PageRow> for PageListItem {
             icon: row.icon,
             config: row.config,
             translation_key: row.translation_key,
+            custom_id: row.custom_id,
             position: row.position,
             is_published: row.is_published,
             created_at: row.created_at,
@@ -122,6 +125,7 @@ struct PageListItemRow {
     icon: Option<String>,
     config: Option<serde_json::Value>,
     translation_key: Option<String>,
+    custom_id: Option<String>,
     position: i32,
     is_published: bool,
     created_at: DateTime<Utc>,
@@ -145,6 +149,7 @@ impl From<PageListItemRow> for PageListItem {
             icon: row.icon,
             config: row.config,
             translation_key: row.translation_key,
+            custom_id: row.custom_id,
             position: row.position,
             is_published: row.is_published,
             created_at: row.created_at,
@@ -212,6 +217,24 @@ impl PageQueries {
             .fetch_optional(pool)
             .await
             .map_err(|e| AppError::Database(e.into()))?;
+
+        Ok(row.map(|r| r.into()))
+    }
+
+    /// Get a page by project ID and custom_id
+    pub async fn find_by_custom_id(
+        pool: &PgPool,
+        project_id: &str,
+        custom_id: &str,
+    ) -> Result<Option<Page>, AppError> {
+        let row = sqlx::query_as::<_, PageRow>(
+            r#"SELECT * FROM "Page" WHERE project_id = $1 AND custom_id = $2 LIMIT 1"#,
+        )
+        .bind(project_id)
+        .bind(custom_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
 
         Ok(row.map(|r| r.into()))
     }
@@ -647,6 +670,46 @@ impl PageQueries {
         position: i32,
         is_published: bool,
     ) -> Result<Page, AppError> {
+        Self::create_with_custom_id(
+            pool,
+            project_id,
+            branch_id,
+            language_id,
+            parent_id,
+            kind,
+            slug,
+            title,
+            description,
+            content,
+            icon,
+            config,
+            translation_key,
+            None,
+            position,
+            is_published,
+        )
+        .await
+    }
+
+    /// Create a new page with custom_id.
+    pub async fn create_with_custom_id(
+        pool: &PgPool,
+        project_id: &str,
+        branch_id: &str,
+        language_id: Option<&str>,
+        parent_id: Option<&str>,
+        kind: Option<&str>,
+        slug: &str,
+        title: &str,
+        description: Option<&str>,
+        content: Option<&str>,
+        icon: Option<&str>,
+        config: Option<&serde_json::Value>,
+        translation_key: Option<&str>,
+        custom_id: Option<&str>,
+        position: i32,
+        is_published: bool,
+    ) -> Result<Page, AppError> {
         let mut tx = pool.begin().await?;
         let branch_project = sqlx::query_scalar::<_, String>(
             "SELECT project_id FROM \"Branch\" WHERE id = $1 FOR KEY SHARE",
@@ -705,9 +768,9 @@ impl PageQueries {
             INSERT INTO "Page" (
                 id, project_id, branch_id, language_id, parent_id, kind,
                 path, slug, title, description, content, icon, config,
-                translation_key, position, is_published, is_indexed, created_at, updated_at
+                translation_key, custom_id, position, is_published, is_indexed, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
             RETURNING *
             "#,
         )
@@ -725,6 +788,7 @@ impl PageQueries {
         .bind(icon)
         .bind(config)
         .bind(translation_key)
+        .bind(custom_id)
         .bind(position)
         .bind(is_published)
         .bind(is_published)
@@ -754,6 +818,44 @@ impl PageQueries {
         icon: Option<&str>,
         config: Option<Option<&serde_json::Value>>,
         translation_key: Option<&str>,
+        position: Option<i32>,
+        is_published: Option<bool>,
+    ) -> Result<Page, AppError> {
+        Self::update_with_custom_id(
+            pool,
+            page_id,
+            parent_id,
+            language_id,
+            kind,
+            slug,
+            title,
+            description,
+            content,
+            icon,
+            config,
+            translation_key,
+            None,
+            position,
+            is_published,
+        )
+        .await
+    }
+
+    /// Update a page including custom_id.
+    pub async fn update_with_custom_id(
+        pool: &PgPool,
+        page_id: &str,
+        parent_id: Option<&str>,
+        language_id: Option<&str>,
+        kind: Option<&str>,
+        slug: Option<&str>,
+        title: Option<&str>,
+        description: Option<&str>,
+        content: Option<&str>,
+        icon: Option<&str>,
+        config: Option<Option<&serde_json::Value>>,
+        translation_key: Option<&str>,
+        custom_id: Option<Option<&str>>,
         position: Option<i32>,
         is_published: Option<bool>,
     ) -> Result<Page, AppError> {
@@ -1007,6 +1109,15 @@ impl PageQueries {
             push_page_update_separator(&mut query, &mut has_updates);
             query.push("translation_key = ");
             query.push_bind(translation_key);
+        }
+        if let Some(custom_id) = custom_id {
+            push_page_update_separator(&mut query, &mut has_updates);
+            if let Some(val) = custom_id {
+                query.push("custom_id = ");
+                query.push_bind(val);
+            } else {
+                query.push("custom_id = NULL");
+            }
         }
         if let Some(position) = position {
             push_page_update_separator(&mut query, &mut has_updates);
@@ -1820,6 +1931,11 @@ fn push_page_update_separator(query: &mut QueryBuilder<Postgres>, has_updates: &
 fn map_page_write_error(error: sqlx::Error) -> AppError {
     match &error {
         sqlx::Error::Database(db_error) if db_error.code().as_deref() == Some("23505") => {
+            if let Some(constraint) = db_error.constraint() {
+                if constraint.contains("custom_id") {
+                    return AppError::Conflict("Custom ID already exists in this project".to_string());
+                }
+            }
             AppError::Conflict("Page path already exists in this branch and language".to_string())
         }
         _ => AppError::Database(error),
