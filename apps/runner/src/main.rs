@@ -1,5 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
+pub mod windows;
+
 use axum::{
     extract::{Query, State},
     http::{header, StatusCode},

@@ -26,6 +26,11 @@ tar = { workspace = true }
 flate2 = { workspace = true }
 tantivy = { workspace = true }
 cms-search = { path = "../../crates/cms-search", default-features = false }
+rmcp = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows-sys = { version = "0.59", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
