@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 pub mod windows;
+pub mod mcp;
 
 use axum::{
     extract::{Query, State},
@@ -9,7 +10,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
@@ -32,45 +33,115 @@ use tantivy::{
 #[folder = "../../dist/reader/"]
 struct EmbeddedSite;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(
     name = "cms-site",
     author,
     version,
-    about = "Portable single-binary documentation site runner"
+    about = "Portable single-binary documentation site runner with embedded MCP server"
 )]
-struct Args {
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+
+    #[command(flatten)]
+    pub serve: ServeArgs,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum Commands {
+    /// Start the HTTP documentation server (default command)
+    Serve(ServeArgs),
+
+    /// Run the embedded Model Context Protocol (MCP) server over stdio for AI agents
+    Mcp(McpCliArgs),
+
+    /// Open a documentation page or custom ID directly in your default browser
+    Open(OpenArgs),
+
+    /// Install cms-site to user PATH and register cms-doc:// protocol in Windows registry
+    Install,
+
+    /// Remove cms-site from user PATH and unregister cms-doc:// protocol in Windows registry
+    Uninstall,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct ServeArgs {
     /// Path to the exported SQLite database
     #[arg(short, long, default_value = "docs.sqlite")]
-    db: PathBuf,
+    pub db: PathBuf,
 
     /// Path to a site export directory containing docs.sqlite and search_index/
     #[arg(long)]
-    dir: Option<PathBuf>,
+    pub dir: Option<PathBuf>,
 
     /// Explicit path to Tantivy search index directory
     #[arg(long, visible_alias = "search-index")]
-    index_dir: Option<PathBuf>,
+    pub index_dir: Option<PathBuf>,
 
     /// Path to a .tar.gz site bundle archive to unpack and run
     #[arg(long)]
-    bundle: Option<PathBuf>,
+    pub bundle: Option<PathBuf>,
 
     /// HTTP port to bind to
     #[arg(short, long, default_value_t = 8080)]
-    port: u16,
+    pub port: u16,
 
     /// Host or IP address to bind to (defaults to 127.0.0.1 for local isolation)
     #[arg(long, visible_alias = "host", default_value = "127.0.0.1")]
-    bind: String,
+    pub bind: String,
 
     /// Expose the server to the local network (binds to 0.0.0.0 unless --bind is explicitly set)
     #[arg(long)]
-    network: bool,
+    pub network: bool,
 
     /// Allowed CORS origin when exposing over network (e.g. "https://docs.example.com")
     #[arg(long, visible_alias = "allowed-origin")]
-    cors_origin: Option<String>,
+    pub cors_origin: Option<String>,
+}
+
+pub type Args = ServeArgs;
+
+#[derive(Parser, Debug, Clone)]
+pub struct McpCliArgs {
+    /// Path to the exported SQLite database
+    #[arg(short, long, default_value = "docs.sqlite")]
+    pub db: PathBuf,
+
+    /// Path to a site export directory containing docs.sqlite and search_index/
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+
+    /// Explicit path to Tantivy search index directory
+    #[arg(long, visible_alias = "search-index")]
+    pub index_dir: Option<PathBuf>,
+
+    /// Path to a .tar.gz site bundle archive to unpack and run
+    #[arg(long)]
+    pub bundle: Option<PathBuf>,
+
+    /// Base URL of the running documentation server for opening links
+    #[arg(long, default_value = "http://localhost:8080")]
+    pub server_url: String,
+
+    /// Log level for stderr logging (error, warn, info, debug, trace)
+    #[arg(long, default_value = "info")]
+    pub log_level: String,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct OpenArgs {
+    /// Document UUID, custom ID (e.g., 'auth-guide'), or 'cms-doc://<id>' URL
+    pub id: String,
+
+    /// Port of the running documentation server (default: 8080)
+    #[arg(short, long, default_value_t = 8080)]
+    pub port: u16,
+
+    /// Base URL of the running documentation server
+    #[arg(long, default_value = "http://localhost:8080")]
+    pub server_url: String,
 }
 
 #[derive(Clone, Copy)]
@@ -380,119 +451,119 @@ pub struct AppState {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct NavNode {
-    id: String,
-    kind: String,
-    title: String,
-    path: String,
-    icon: Option<String>,
-    tag: Option<String>,
-    children: Vec<NavNode>,
+pub struct NavNode {
+    pub id: String,
+    pub kind: String,
+    pub title: String,
+    pub path: String,
+    pub icon: Option<String>,
+    pub tag: Option<String>,
+    pub children: Vec<NavNode>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct LanguageItem {
-    code: String,
-    label: String,
-    direction: String,
-    is_default: bool,
-    enabled: bool,
+pub struct LanguageItem {
+    pub code: String,
+    pub label: String,
+    pub direction: String,
+    pub is_default: bool,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct VersionItem {
-    id: String,
-    name: String,
-    slug: String,
-    is_default: bool,
+pub struct VersionItem {
+    pub id: String,
+    pub name: String,
+    pub slug: String,
+    pub is_default: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct ProjectMetadata {
-    id: String,
-    name: String,
-    slug: String,
-    description: Option<String>,
-    config: Option<serde_json::Value>,
-    primary_domain: Option<String>,
+pub struct ProjectMetadata {
+    pub id: String,
+    pub name: String,
+    pub slug: String,
+    pub description: Option<String>,
+    pub config: Option<serde_json::Value>,
+    pub primary_domain: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct SiteShell {
-    project: ProjectMetadata,
-    nav: Vec<NavNode>,
-    languages: Vec<LanguageItem>,
-    versions: Vec<VersionItem>,
-    active_language: String,
-    active_version: String,
-    language_config: Option<serde_json::Value>,
-    version: i64,
-    generated_at: String,
+pub struct SiteShell {
+    pub project: ProjectMetadata,
+    pub nav: Vec<NavNode>,
+    pub languages: Vec<LanguageItem>,
+    pub versions: Vec<VersionItem>,
+    pub active_language: String,
+    pub active_version: String,
+    pub language_config: Option<serde_json::Value>,
+    pub version: i64,
+    pub generated_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct HeadingItem {
-    depth: u32,
-    text: String,
-    id: String,
+pub struct HeadingItem {
+    pub depth: u32,
+    pub text: String,
+    pub id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct PageDetails {
-    id: String,
-    created_at: String,
-    updated_at: String,
-    title: String,
-    description: Option<String>,
-    excerpt: String,
-    icon: Option<String>,
-    path: String,
-    content: String,
-    headings: Vec<HeadingItem>,
-    config: Option<serde_json::Value>,
+pub struct PageDetails {
+    pub id: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub excerpt: String,
+    pub icon: Option<String>,
+    pub path: String,
+    pub content: String,
+    pub headings: Vec<HeadingItem>,
+    pub config: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct PageLanguageItem {
-    code: String,
-    is_default: bool,
-    path: Option<String>,
+pub struct PageLanguageItem {
+    pub code: String,
+    pub is_default: bool,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct BreadcrumbItem {
-    title: String,
-    path: String,
+pub struct BreadcrumbItem {
+    pub title: String,
+    pub path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct AdjacentPage {
-    title: String,
-    path: String,
+pub struct AdjacentPage {
+    pub title: String,
+    pub path: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct SitePageResponse {
-    project: ProjectMetadata,
-    page: PageDetails,
-    active_language: String,
-    active_version: String,
-    versions: Vec<VersionItem>,
-    language_config: Option<serde_json::Value>,
-    languages: Vec<PageLanguageItem>,
-    breadcrumbs: Vec<BreadcrumbItem>,
-    prev: Option<AdjacentPage>,
-    next: Option<AdjacentPage>,
+pub struct SitePageResponse {
+    pub project: ProjectMetadata,
+    pub page: PageDetails,
+    pub active_language: String,
+    pub active_version: String,
+    pub versions: Vec<VersionItem>,
+    pub language_config: Option<serde_json::Value>,
+    pub languages: Vec<PageLanguageItem>,
+    pub breadcrumbs: Vec<BreadcrumbItem>,
+    pub prev: Option<AdjacentPage>,
+    pub next: Option<AdjacentPage>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -540,7 +611,7 @@ struct SearchQuery {
 
 // ── Database Queries ─────────────────────────────────────────────────────────
 
-async fn query_bootstrap(
+pub(crate) async fn query_bootstrap(
     pool: &SqlitePool,
     target_lang: Option<&str>,
     target_version: Option<&str>,
@@ -768,7 +839,7 @@ fn extract_headings(markdown: &str) -> Vec<HeadingItem> {
     headings
 }
 
-async fn query_page(
+pub(crate) async fn query_page(
     pool: &SqlitePool,
     target_path: &str,
     target_lang: Option<&str>,
@@ -1002,7 +1073,7 @@ async fn query_changelog(pool: &SqlitePool) -> Vec<ChangelogEntry> {
     entries
 }
 
-async fn execute_search(
+pub(crate) async fn execute_search(
     pool: &SqlitePool,
     clean_q: &str,
     limit: usize,
@@ -1479,16 +1550,174 @@ pub(crate) fn inject_bootstrap_and_meta(raw_html: &str, shell: Option<&SiteShell
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,cms_site=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let cli = Cli::parse();
 
-    let args = Args::parse();
+    match cli.command {
+        None => {
+            init_tracing(false, "info");
+            run_server(cli.serve).await?;
+        }
+        Some(Commands::Serve(serve_args)) => {
+            init_tracing(false, "info");
+            run_server(serve_args).await?;
+        }
+        Some(Commands::Mcp(mcp_args)) => {
+            init_tracing(true, &mcp_args.log_level);
+            run_mcp(mcp_args).await?;
+        }
+        Some(Commands::Open(open_args)) => {
+            run_open(open_args).await?;
+        }
+        Some(Commands::Install) => {
+            run_install().await?;
+        }
+        Some(Commands::Uninstall) => {
+            run_uninstall().await?;
+        }
+    }
 
+    Ok(())
+}
+
+fn init_tracing(stderr_only: bool, default_level: &str) {
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| format!("{},cms_site=debug", default_level).into());
+
+    if stderr_only {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
+}
+
+async fn run_open(args: OpenArgs) -> anyhow::Result<()> {
+    let clean_id = args
+        .id
+        .trim_start_matches("cms-doc://")
+        .trim_start_matches("cms-doc:")
+        .trim_matches('/')
+        .trim_start_matches("p/")
+        .trim_matches('/');
+
+    if clean_id.is_empty() {
+        eprintln!("Error: No document ID, custom ID, or path specified.");
+        std::process::exit(1);
+    }
+
+    let base_url = if args.server_url != "http://localhost:8080" {
+        args.server_url.trim_end_matches('/').to_string()
+    } else {
+        format!("http://localhost:{}", args.port)
+    };
+
+    let target_url = format!("{}/p/{}", base_url, clean_id);
+    println!("Opening documentation in default browser: {}", target_url);
+    windows::open_url_in_browser(&target_url)?;
+    Ok(())
+}
+
+async fn run_install() -> anyhow::Result<()> {
+    let current_exe = std::env::current_exe()?;
+    let bin_dir = current_exe
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Failed to locate binary directory"))?;
+
+    println!("Installing cms-site...");
+    match windows::install_user_path(bin_dir) {
+        Ok(true) => println!("✓ Added '{}' to user PATH (HKCU\\Environment).", bin_dir.display()),
+        Ok(false) => println!("- '{}' is already in user PATH.", bin_dir.display()),
+        Err(e) => eprintln!("! Warning: Could not update user PATH: {}", e),
+    }
+
+    match windows::register_protocol_handler(&current_exe) {
+        Ok(()) => println!("✓ Registered 'cms-doc://' URL protocol scheme (HKCU\\Software\\Classes\\cms-doc)."),
+        Err(e) => eprintln!("! Warning: Could not register protocol handler: {}", e),
+    }
+
+    println!("\nInstallation complete! You can now run 'cms-site' from anywhere or click 'cms-doc://' links.");
+    Ok(())
+}
+
+async fn run_uninstall() -> anyhow::Result<()> {
+    let current_exe = std::env::current_exe()?;
+    let bin_dir = current_exe
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Failed to locate binary directory"))?;
+
+    println!("Uninstalling cms-site...");
+    match windows::uninstall_user_path(bin_dir) {
+        Ok(true) => println!("✓ Removed '{}' from user PATH.", bin_dir.display()),
+        Ok(false) => println!("- '{}' was not present in user PATH.", bin_dir.display()),
+        Err(e) => eprintln!("! Warning: Could not remove from user PATH: {}", e),
+    }
+
+    match windows::unregister_protocol_handler() {
+        Ok(()) => println!("✓ Unregistered 'cms-doc://' URL protocol scheme."),
+        Err(e) => eprintln!("! Warning: Could not unregister protocol handler: {}", e),
+    }
+
+    println!("\nUninstallation complete.");
+    Ok(())
+}
+
+async fn run_mcp(args: McpCliArgs) -> anyhow::Result<()> {
+    let dummy_serve = ServeArgs {
+        db: args.db,
+        dir: args.dir,
+        index_dir: args.index_dir,
+        bundle: args.bundle,
+        port: 8080,
+        bind: "127.0.0.1".into(),
+        network: false,
+        cors_origin: None,
+    };
+    let (db_path, idx_dir_opt) = resolve_runner_paths(&dummy_serve)?;
+
+    if !db_path.exists() {
+        eprintln!(
+            "Error: Database file not found: {}\nPlease provide a valid CMS SQLite export using \
+             --db <path>, --dir <path>, or --bundle <path.tar.gz>",
+            db_path.display()
+        );
+        std::process::exit(1);
+    }
+
+    let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(&db_path)
+        .read_only(true);
+
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(10)
+        .connect_with(opts)
+        .await?;
+
+    let search = if let Some(ref idx_dir) = idx_dir_opt {
+        match TantivySiteSearch::open(idx_dir) {
+            Ok(s) => Some(Arc::new(s)),
+            Err(e) => {
+                tracing::warn!("Failed to open Tantivy index: {}. Using SQLite FTS5.", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    tracing::info!("Starting cms-site MCP stdio server...");
+    mcp::run_stdio(pool, search, args.server_url)
+        .await
+        .map_err(|e| anyhow::anyhow!("MCP server error: {}", e))?;
+
+    Ok(())
+}
+
+async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
     let (db_path, idx_dir_opt) = resolve_runner_paths(&args)?;
 
     if !db_path.exists() {
@@ -1675,6 +1904,12 @@ pub(crate) fn build_cors_layer(
 }
 
 pub(crate) fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer>) -> Router {
+    let mcp_service = mcp::create_mcp_http_service(
+        state.db.clone(),
+        state.search.clone(),
+        "http://localhost:8080".to_string(),
+    );
+
     let mut app = Router::new()
         .route("/healthz", get(healthz))
         .route("/p/{*id_or_path}", get(fast_path_redirect))
@@ -1683,6 +1918,7 @@ pub(crate) fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer
         .route("/api/v1/changelog", get(api_changelog))
         .route("/api/v1/search", get(api_search))
         .route("/assets/{*path}", get(serve_asset))
+        .nest_service("/mcp", mcp_service)
         .fallback(get(serve_spa))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
@@ -2527,5 +2763,71 @@ mod tests {
             .unwrap();
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_runner_mcp_handler_tools() {
+        use rmcp::handler::server::wrapper::Parameters;
+
+        let pool = setup_test_db().await;
+        sqlx::query("ALTER TABLE pages ADD COLUMN custom_id TEXT")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        sqlx::query("UPDATE pages SET custom_id = 'guide-intro' WHERE id = 'page1'")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO pages (id, custom_id, version_id, parent_id, kind, slug, title, path, sort_order) VALUES ('group1', 'api-ref', 'v1', NULL, 'GROUP', 'api', 'API Reference', '/api', 10)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO pages (id, custom_id, version_id, parent_id, kind, slug, title, path, sort_order) VALUES ('child1', 'api-overview', 'v1', 'group1', 'PAGE', 'overview', 'Overview', '/api/overview', 1)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let handler = mcp::RunnerMcpHandler::new(pool, None, "http://localhost:8080".into());
+
+        // 1. Test get_project_info
+        let proj_res = handler
+            .get_project_info(Parameters(mcp::GetProjectInfoParams::default()))
+            .await
+            .unwrap();
+        assert!(!proj_res.content.is_empty());
+
+        // 2. Test list_pages
+        let list_res = handler
+            .list_pages(Parameters(mcp::ListPagesParams { version: None }))
+            .await
+            .unwrap();
+        assert!(!list_res.content.is_empty());
+
+        // 3. Test get_page by custom_id
+        let page_res = handler
+            .get_page(Parameters(mcp::GetPageParams {
+                id_or_path: "guide-intro".into(),
+                language: None,
+                version: None,
+                max_chars: None,
+            }))
+            .await
+            .unwrap();
+        assert!(!page_res.content.is_empty());
+
+        // 4. Test search_docs
+        let search_res = handler
+            .search_docs(Parameters(mcp::SearchDocsParams {
+                query: "getting started".into(),
+                language: None,
+                version: None,
+                limit: Some(5),
+            }))
+            .await
+            .unwrap();
+        assert!(!search_res.content.is_empty());
     }
 }
