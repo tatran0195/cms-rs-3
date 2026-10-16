@@ -264,11 +264,18 @@ impl RunnerMcpHandler {
             Err(e) => return Err(mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string())),
         };
 
+        let resolved_version_id = shell
+            .versions
+            .iter()
+            .find(|v| v.slug == shell.active_version || v.id == shell.active_version)
+            .map(|v| v.id.clone())
+            .unwrap_or(shell.active_version);
+
         // Query pages table directly to get custom_ids
         let rows = sqlx::query(
-            "SELECT id, custom_id, parent_id, kind, slug, path, title, sort_order FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC, id ASC",
+            "SELECT id, custom_id, parent_id, kind, slug, path, title, sort_order FROM pages WHERE version_id = ?1 OR version_id = (SELECT id FROM versions WHERE slug = ?1 LIMIT 1) ORDER BY sort_order ASC, id ASC",
         )
-        .bind(&shell.active_version)
+        .bind(&resolved_version_id)
         .fetch_all(&self.db)
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
