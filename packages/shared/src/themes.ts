@@ -25,14 +25,19 @@ export const THEME_PRESET_IDS = ['harbor', 'manuscript', 'signal'] as const sati
 export type DocsLayoutId = 'docs' | 'notebook' | 'glass' | 'flux' | 'spacious';
 export const DOCS_LAYOUT_IDS = ['docs', 'notebook', 'glass', 'flux', 'spacious'] as const satisfies readonly DocsLayoutId[];
 
-export const resolveDocsLayout = (layout?: Partial<ThemeLayout>): DocsLayoutId => {
-  if (layout?.docsLayout && DOCS_LAYOUT_IDS.includes(layout.docsLayout)) {
-    return layout.docsLayout;
+export const resolveDocsLayout = (layout?: Partial<ThemeLayout> | DocsLayoutId): DocsLayoutId => {
+  if (typeof layout === 'string' && DOCS_LAYOUT_IDS.includes(layout as DocsLayoutId)) {
+    return layout as DocsLayoutId;
   }
-  if (layout?.shell === 'editorial' || layout?.shell === 'notebook') return 'notebook';
-  if (layout?.shell === 'console' || layout?.shell === 'flux') return 'flux';
-  if (layout?.shell === 'glass') return 'glass';
-  if (layout?.shell === 'spacious') return 'spacious';
+  if (layout && typeof layout === 'object') {
+    if (layout.docsLayout && DOCS_LAYOUT_IDS.includes(layout.docsLayout)) {
+      return layout.docsLayout;
+    }
+    if (layout.shell === 'editorial' || layout.shell === 'notebook') return 'notebook';
+    if (layout.shell === 'console' || layout.shell === 'flux') return 'flux';
+    if (layout.shell === 'glass') return 'glass';
+    if (layout.shell === 'spacious') return 'spacious';
+  }
   return 'docs';
 };
 

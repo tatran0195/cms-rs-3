@@ -69,10 +69,10 @@ vi.mock('@cms/site', async (importOriginal) => {
       direction,
     }: {
       children: ReactNode;
-      theme: { id: string; layout: { shell: string } };
+      theme: { id: string; layout: { shell: string; docsLayout?: string } };
       direction: string;
     }) => (
-      <div data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
+      <div data-docs-layout={theme.layout.docsLayout} data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
         {children}
       </div>
     ),
@@ -187,6 +187,17 @@ describe('ThemeSection controls', () => {
     await act(async () => toggle.click());
     expect(preview()?.getAttribute('dir')).toBe('rtl');
     expect(toggle.getAttribute('dir')).toBe('ltr');
+  });
+
+  it('switches the docs layout when a layout card is picked', async () => {
+    const glassCard = container.querySelector<HTMLButtonElement>('button[data-docs-layout="glass"]');
+    if (!glassCard) throw new Error('missing glass layout card');
+    expect(glassCard.getAttribute('aria-pressed')).toBe('false');
+
+    await act(async () => glassCard.click());
+
+    expect(glassCard.getAttribute('aria-pressed')).toBe('true');
+    expect(preview()?.dataset.docsLayout).toBe('glass');
   });
 
   it('keeps code-like values left-to-right inside the RTL form', () => {

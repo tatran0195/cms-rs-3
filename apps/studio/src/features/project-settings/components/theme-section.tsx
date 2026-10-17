@@ -28,6 +28,7 @@ import { Download, FileJson, LayoutTemplate, RotateCcw, Undo2, Upload } from 'lu
 import { type ChangeEvent, type CSSProperties, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Field, SaveBar, SectionHeader, Segmented } from './shared';
+import { DocsLayoutPicker } from './docs-layout-picker';
 
 type Appearance = 'light' | 'dark' | 'system';
 type PreviewMode = 'light' | 'dark';
@@ -477,6 +478,24 @@ export function ThemeSection({ project }: { project: Project }) {
             );
           })}
         </div>
+      </Field>
+
+      <Field hint={t('settings.theme.docsLayoutHint')} label={t('settings.theme.docsLayout')}>
+        <DocsLayoutPicker
+          onChange={(docsLayout) =>
+            change((current) => ({
+              ...current,
+              theme: {
+                ...current.theme,
+                layout: {
+                  ...(current.theme.layout ?? {}),
+                  docsLayout,
+                },
+              },
+            }))
+          }
+          value={resolved.layout.docsLayout}
+        />
       </Field>
 
       <Field hint={t('settings.theme.appearanceHint')} label={t('settings.theme.appearance')}>
