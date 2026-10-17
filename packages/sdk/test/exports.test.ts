@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCmsClient } from '../src';
 
-describe('ExportsResource & AiResource', () => {
+describe('ExportsResource', () => {
   it('calls export jobs and schedules endpoints', async () => {
     const mockFetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
@@ -32,18 +32,20 @@ describe('ExportsResource & AiResource', () => {
     expect(artifactUrl).toBe('https://cms.test/api/app/projects/export/artifacts/art-456/download');
   });
 
-  it('calls AI prompt endpoint', async () => {
-    const mockFetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ result: 'Generated summary' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+  it('triggers on-demand schedule run', async () => {
+    const mockFetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 'job-99', status: 'PENDING' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
 
     const client = createCmsClient({ baseUrl: 'https://cms.test', fetch: mockFetch });
-    const res = await client.ai.prompt('proj-1', { prompt: 'Summarize page' });
-    expect(res.result).toBe('Generated summary');
+    const job = await client.exports.runSchedule('p1', 'sched-1');
+    expect(job.id).toBe('job-99');
     const [req] = mockFetch.mock.calls[0] as [Request, unknown];
-    expect(req.url).toContain('/api/app/projects/proj-1/ai');
+    expect(req.url).toContain('/api/app/export/schedules/sched-1/run');
   });
 });

@@ -35,15 +35,17 @@ vi.mock('@/shared', async (importOriginal) => {
 });
 
 let mockExportJobs: any[] = [];
+let mockExportSchedules: any[] = [];
+const mockRunScheduleMutate = vi.fn();
 
 vi.mock('@cms/sdk/react', () => ({
   useListExportJobs: () => ({ data: mockExportJobs, isLoading: false, isError: false }),
-  useListExportSchedules: () => ({ data: [], isLoading: false, isError: false }),
+  useListExportSchedules: () => ({ data: mockExportSchedules, isLoading: false, isError: false }),
   useCreateExportJob: () => ({ isPending: false, mutate: vi.fn() }),
   useCreateExportSchedule: () => ({ isPending: false, mutate: vi.fn() }),
   useUpdateExportSchedule: () => ({ isPending: false, mutate: vi.fn() }),
   useDeleteExportSchedule: () => ({ isPending: false, mutate: vi.fn() }),
-  useRunExportSchedule: () => ({ isPending: false, mutate: vi.fn() }),
+  useRunExportSchedule: () => ({ isPending: false, mutate: mockRunScheduleMutate }),
   useGetExportDownload: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }));
 
@@ -139,6 +141,45 @@ describe('ExportsSection and Section Registration', () => {
     // Download buttons for both artifacts rendered
     expect(container.textContent).toContain('settings.exports.workflow.format.markdown');
     expect(container.textContent).toContain('settings.exports.workflow.format.sqlite');
+  });
+
+  it('renders schedule row and triggers run on demand when Run Now is clicked', async () => {
+    mockExportSchedules = [
+      {
+        id: 'sched-456',
+        name: 'Nightly Backup',
+        enabled: true,
+        cadence: 'DAILY',
+        hour: 2,
+        minute: 0,
+        timezone: 'UTC',
+        format: 'SQLITE',
+        _count: { jobs: 5 },
+      },
+    ];
+
+    await act(async () => root.render(<ExportsSection projectId="proj-123" />));
+
+    // Switch to schedules tab
+    const schedulesNavBtn = container.querySelectorAll<HTMLButtonElement>('nav[aria-label] button')[1];
+    await act(async () => {
+      schedulesNavBtn?.click();
+    });
+
+    expect(container.textContent).toContain('Nightly Backup');
+    expect(container.textContent).toContain('settings.exports.workflow.runNow');
+
+    // Find and click the Run Now button
+    const runNowBtn = [...container.querySelectorAll<HTMLButtonElement>('button')].find((btn) =>
+      btn.textContent?.includes('settings.exports.workflow.runNow'),
+    );
+    expect(runNowBtn).toBeDefined();
+
+    await act(async () => {
+      runNowBtn?.click();
+    });
+
+    expect(mockRunScheduleMutate).toHaveBeenCalledWith('sched-456', expect.any(Object));
   });
 });
 

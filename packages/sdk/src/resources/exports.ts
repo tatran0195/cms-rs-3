@@ -130,6 +130,6 @@ export class ExportsResource {
   }
 
   async runSchedule(projectId: string, scheduleId: string): Promise<ExportJob> {
-    return this.http.post<ExportJob>(`/api/app/projects/${projectId}/exports/schedules/${scheduleId}/run`);
+    return this.http.post<ExportJob>(`/api/app/export/schedules/${scheduleId}/run`);
   }
 }

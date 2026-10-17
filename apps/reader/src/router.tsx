@@ -27,13 +27,15 @@ function parseVersionAndLang(rawPath: string) {
   let lang: string | undefined;
   let startIndex = 0;
 
-  if (parts.length > 0 && /^v\d+(\.\d+)*$/i.test(parts[0])) {
-    version = parts[0];
+  const firstPart = parts[0];
+  if (firstPart && /^v\d+(\.\d+)*$/i.test(firstPart)) {
+    version = firstPart;
     startIndex = 1;
   }
 
-  if (parts.length > startIndex && /^[a-z]{2}(-[A-Z]{2})?$/i.test(parts[startIndex])) {
-    lang = parts[startIndex].toLowerCase();
+  const langPart = parts[startIndex];
+  if (langPart && /^[a-z]{2}(-[A-Z]{2})?$/i.test(langPart)) {
+    lang = langPart.toLowerCase();
   }
 
   return { cleanPath: clean, version, lang };

@@ -25,10 +25,6 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/setup/complete",
             post(crate::setup::handlers::complete_setup_handler),
         )
-        .route(
-            "/marketing-events",
-            post(post_public_marketing_events_handler),
-        )
         .route("/invitations/{id}", get(get_public_invitation_handler))
         .route("/sites/{id}", get(get_public_site_handler))
         .route("/sites/{id}/page", get(get_public_site_page_handler))

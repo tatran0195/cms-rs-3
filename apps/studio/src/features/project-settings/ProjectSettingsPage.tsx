@@ -15,7 +15,6 @@ import {
   CirclePlus,
   GitBranch,
   Globe2,
-  Import,
   KeyRound,
   Languages,
   LockKeyhole,
@@ -34,7 +33,6 @@ import { DomainSection } from './components/domain-section';
 import { ExportsSection } from './components/exports-section';
 import { GeneralSection } from './components/general-section';
 import { GitTab } from './components/git-tab';
-import { ImportTab } from './components/import-tab';
 import { IntegrationsTab } from './components/integrations-tab';
 import { LanguagesSection } from './components/languages-section';
 import { MembersSection } from './components/members-section';
@@ -54,7 +52,6 @@ export type SectionId =
   | 'addons'
   | 'git'
   | 'openapi'
-  | 'contentImport'
   | 'members'
   | 'apiKeys'
   | 'usage'
@@ -82,7 +79,6 @@ export const SECTIONS = [
   { id: 'addons', group: 'site', icon: Blocks },
   { id: 'git', group: 'deployment', icon: GitBranch },
   { id: 'openapi', group: 'deployment', icon: Braces },
-  { id: 'contentImport', group: 'deployment', icon: Import },
   { id: 'members', group: 'workspace', icon: Users },
   { id: 'apiKeys', group: 'workspace', icon: KeyRound },
   { id: 'usage', group: 'workspace', icon: ChartNoAxesCombined },
@@ -187,7 +183,6 @@ function ActiveSection({ project, section, projectId }: { project: Project; sect
     addons: <AddonsSection key={`addons-${project.id}`} projectId={project.id} />,
     git: <GitTab key={`git-${projectId}`} projectId={projectId} />,
     openapi: <OpenApiSection key={`openapi-${projectId}`} projectId={projectId} />,
-    contentImport: <ImportTab key={`import-${projectId}`} projectId={projectId} />,
     members: <MembersSection key={`members-${projectId}`} projectId={projectId} />,
     apiKeys: <ApiKeysTab key={`api-keys-${projectId}`} projectId={projectId} />,
     usage: <UsageTab key={`usage-${project.id}`} project={project} />,

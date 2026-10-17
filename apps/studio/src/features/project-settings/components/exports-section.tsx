@@ -527,8 +527,8 @@ function ScheduleForm({ projectId, onCreated }: { projectId: string; onCreated: 
 function ScheduleRow({ projectId, schedule }: { projectId: string; schedule: ExportSchedule }) {
   const { locale, t } = useLocale();
   const update = useUpdateExportSchedule(projectId);
-  const run = useRunExportSchedule(projectId);
   const del = useDeleteExportSchedule(projectId);
+  const run = useRunExportSchedule(projectId);
 
   const isEnabled = schedule.enabled ?? schedule.is_active ?? schedule.isActive ?? true;
   const cadence = (schedule.cadence ?? schedule.frequency ?? 'DAILY').toUpperCase();

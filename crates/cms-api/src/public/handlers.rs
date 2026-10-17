@@ -1217,42 +1217,6 @@ pub async fn answer_public_site_handler(
     })))
 }
 
-/// Track public marketing events
-pub async fn post_public_marketing_events_handler(
-    State(state): State<Arc<AppState>>,
-    Json(body): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let event_type = body
-        .get("event")
-        .or_else(|| body.get("event_type"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("marketing_event");
-
-    let properties = body
-        .get("properties")
-        .or_else(|| body.get("metadata"))
-        .cloned()
-        .unwrap_or_else(|| serde_json::json!({}));
-
-    let project_id = body
-        .get("project_id")
-        .or_else(|| body.get("projectId"))
-        .and_then(|v| v.as_str());
-
-    let _ = cms_biz::analytics::AnalyticsService::record_event(
-        &state.biz_context(),
-        project_id,
-        None,
-        event_type,
-        properties,
-        None,
-        None,
-    )
-    .await;
-
-    Ok(Json(serde_json::json!({ "data": { "success": true } })))
-}
-
 /// Get public invitation
 ///
 /// Resolves a pending member invitation by id/token and returns it (with the

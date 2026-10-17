@@ -125,14 +125,6 @@ pub fn router(state: Arc<AppState>) -> Router {
             "/{project_id}/settings/git/webhook-secret",
             post(action_project_git_handler),
         )
-        .route(
-            "/{project_id}/settings/import/mintlify",
-            post(import_mintlify_handler),
-        )
-        .route(
-            "/{project_id}/settings/import/ghost",
-            post(import_ghost_handler),
-        )
         // Branch merge
         .route(
             "/{project_id}/branches/{branch_id}/merge",
@@ -146,6 +138,10 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route(
             "/{project_id}/deployments",
             post(create_project_deployment_handler),
+        )
+        .route(
+            "/{project_id}/deployments/force-publish",
+            post(force_publish_project_deployment_handler),
         )
         .route(
             "/{project_id}/deployments/latest",

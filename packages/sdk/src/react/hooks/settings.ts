@@ -289,31 +289,6 @@ export const useRotateGitWebhookSecret = (projectId: string) => {
   });
 };
 
-export const useImportFromMintlify = <T = any>(projectId: string) => {
-  const client = useCmsClient();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (body: any): Promise<T> => client.projects.importFromMintlify<T>(projectId, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
-      qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
-      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
-    },
-  });
-};
-
-export const useImportFromGhost = <T = any>(projectId: string) => {
-  const client = useCmsClient();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (body: any): Promise<T> => client.projects.importFromGhost<T>(projectId, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.pages.allForProject(projectId) });
-      qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
-      qc.invalidateQueries({ queryKey: queryKeys.projects.all() });
-    },
-  });
-};
 
 export const useTransferWorkspaceOwnership = () => {
   const client = useCmsClient();

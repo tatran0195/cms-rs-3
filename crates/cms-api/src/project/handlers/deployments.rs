@@ -409,6 +409,67 @@ pub async fn create_project_deployment_handler(
     Ok((StatusCode::ACCEPTED, Json(ApiResponse::new(res))))
 }
 
+/// Force publish a project deployment (bypassing pre-flight validation warnings)
+pub async fn force_publish_project_deployment_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Path(project_id): Path<String>,
+    Json(body): Json<TriggerPublishRequest>,
+) -> Result<(StatusCode, Json<ApiResponse<DeploymentListItem>>), AppError> {
+    let project_uuid = uuid::Uuid::parse_str(&project_id)
+        .map_err(|_| AppError::NotFound("Project not found".to_string()))?;
+    cms_authz_gate::require_project_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        project_uuid,
+        cms_authz::Relation::Admin,
+    )
+    .await?;
+
+    let default_branch = cms_db::branch::BranchQueries::get_default(&state.pool, &project_id)
+        .await?
+        .ok_or_else(|| AppError::Conflict("Project has no default branch".to_string()))?;
+    if default_branch.project_id != project_id {
+        return Err(AppError::Conflict(
+            "Default branch does not belong to this project".to_string(),
+        ));
+    }
+    let branch_id = default_branch.id;
+
+    let display_message = body
+        .message
+        .map(|m| m.trim().to_string())
+        .filter(|m| !m.is_empty())
+        .unwrap_or_else(|| "Force publish site (bypassing pre-flight warnings)".to_string());
+
+    let deployment = create_publish_deployment(
+        &state,
+        &project_id,
+        &branch_id,
+        &auth.user.id,
+        &display_message,
+        serde_json::json!({
+            "force": true,
+            "bypass_warnings": true,
+        }),
+    )
+    .await?;
+
+    let res = DeploymentListItem {
+        id: deployment.id,
+        version: None,
+        status: "PENDING".to_string(),
+        pages_count: 0,
+        commit_message: display_message,
+        error: None,
+        error_details: None,
+        created_at: deployment.created_at.to_rfc3339(),
+        completed_at: None,
+    };
+
+    Ok((StatusCode::ACCEPTED, Json(ApiResponse::new(res))))
+}
+
 /// Rollback deployment
 pub async fn rollback_deployment_handler(
     State(state): State<Arc<AppState>>,

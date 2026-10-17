@@ -32,5 +32,6 @@ pub fn router(state: Arc<AppState>) -> Router {
         )
         .route("/schedules/{id}", put(update_export_schedule_handler))
         .route("/schedules/{id}", delete(delete_export_schedule_handler))
+        .route("/schedules/{id}/run", post(run_export_schedule_handler))
         .with_state(state)
 }

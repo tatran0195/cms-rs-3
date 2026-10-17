@@ -480,3 +480,90 @@ pub async fn delete_export_schedule_handler(
         serde_json::json!({"success": true, "id": schedule_id}),
     ))
 }
+
+/// Run an export schedule on demand
+#[utoipa::path(
+    post,
+    path = "/export/schedules/{schedule_id}/run",
+    tag = "export",
+    security(
+        ("bearerAuth" = []),
+        ("apiKeyAuth" = []),
+        ("cookieAuth" = []),
+    ),
+    params(
+        ("schedule_id", Path, description = "The ID of the export schedule to run"),
+    ),
+    responses(
+        (status = 200, description = "Export job started", body = ExportJobResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - user may not have permission"),
+        (status = 404, description = "Export schedule not found"),
+    )
+)]
+pub async fn run_export_schedule_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Path(schedule_id): Path<Id>,
+) -> Result<Json<ExportJobResponse>, AppError> {
+    let sched_uuid = Uuid::parse_str(&schedule_id)
+        .map_err(|_| AppError::NotFound("Export schedule not found".to_string()))?;
+    require_parent_access(
+        state.authz_backend(),
+        &auth.authz_context(),
+        &state.pool,
+        ParentLink::ExportSchedule(sched_uuid),
+        Relation::Editor,
+    )
+    .await?;
+
+    let schedule = ExportService::get_export_schedule(&state.biz_context(), &auth.user.id, &schedule_id).await?;
+    let project_id = schedule.project_id.clone();
+    let effective_format = schedule.format;
+
+    let snap = ExportService::create_export_snapshot(
+        &state.biz_context(),
+        &auth.user.id,
+        cms_entity::export::CreateExportRequest {
+            project_id: project_id.clone(),
+            branch_id: None,
+            language_id: None,
+            format: effective_format,
+            snapshot_id: None,
+        },
+    )
+    .await?;
+
+    let format_strings = vec![format!("{:?}", effective_format).to_uppercase()];
+
+    let job = ExportService::create_export_job(
+        &state.biz_context(),
+        &auth.user.id,
+        &snap.id,
+        Some(&project_id),
+        effective_format,
+        Some(&format_strings),
+        Some("SCHEDULED_MANUAL"),
+    )
+    .await?;
+
+    let mut resp = ExportJobResponse::from(job.clone());
+    resp.snapshot = Some(cms_entity::export::ExportSnapshotDetails {
+        id: snap.id.clone(),
+        deployment_version: snap.deployment_version,
+        pages_count: snap.pages_count,
+        created_at: snap.created_at,
+    });
+
+    let job_envelope = cms_queue::JobEnvelope::new(
+        cms_queue::JobType::Export,
+        serde_json::json!({
+            "job_id": job.id,
+            "snapshot_id": snap.id,
+            "format": format!("{:?}", effective_format).to_lowercase(),
+        }),
+    );
+    let _ = state.job_queue.enqueue(job_envelope).await;
+
+    Ok(Json(resp))
+}

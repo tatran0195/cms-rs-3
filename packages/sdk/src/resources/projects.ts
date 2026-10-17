@@ -224,18 +224,4 @@ export class ProjectsResource {
   async rotateGitWebhookSecret<T = unknown>(id: ProjectId): Promise<T> {
     return this.http.post<T>(`/api/app/projects/${id}/settings/git/webhook-secret`);
   }
-
-  /**
-   * Import project content from Mintlify
-   */
-  async importFromMintlify<T = unknown>(id: ProjectId, payload: unknown): Promise<T> {
-    return this.http.post<T>(`/api/app/projects/${id}/settings/import/mintlify`, payload);
-  }
-
-  /**
-   * Import project content from Ghost
-   */
-  async importFromGhost<T = unknown>(id: ProjectId, payload: unknown): Promise<T> {
-    return this.http.post<T>(`/api/app/projects/${id}/settings/import/ghost`, payload);
-  }
 }

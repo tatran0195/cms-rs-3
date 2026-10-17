@@ -38,7 +38,7 @@ export class DeploymentsResource {
   }
 
   /**
-   * Force publish a new deployment bypassing warnings
+   * Force publish a new deployment bypassing pre-flight validation warnings
    */
   async forcePublish(projectId: ProjectId, payload?: { message?: string }): Promise<DeploymentResponse> {
     return this.http.post<DeploymentResponse>(`/api/app/projects/${projectId}/deployments/force-publish`, payload);

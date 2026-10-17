@@ -645,8 +645,8 @@ impl DeploymentQueries {
             SELECT DISTINCT ON (snapshot.branch_id)
                    snapshot.deployment_id,
                    snapshot.branch_id,
-                   snapshot.snapshot #>> '{branch,name}' AS branch_name,
-                   snapshot.snapshot #>> '{branch,slug}' AS branch_slug,
+                   COALESCE(snapshot.snapshot #>> '{branch,name}', '') AS branch_name,
+                   COALESCE(snapshot.snapshot #>> '{branch,slug}', '') AS branch_slug,
                    COALESCE((snapshot.snapshot #>> '{branch,is_default}')::BOOLEAN, FALSE) AS is_default,
                    snapshot.version
             FROM "DeploymentSnapshot" AS snapshot
@@ -671,8 +671,8 @@ impl DeploymentQueries {
         Ok(sqlx::query_as::<_, DeploymentRelease>(
             r#"
             SELECT snapshot.deployment_id,
-                   snapshot.snapshot #>> '{branch,name}' AS branch_name,
-                   snapshot.snapshot #>> '{branch,slug}' AS branch_slug,
+                   COALESCE(snapshot.snapshot #>> '{branch,name}', '') AS branch_name,
+                   COALESCE(snapshot.snapshot #>> '{branch,slug}', '') AS branch_slug,
                    snapshot.version,
                    deployment.build_logs,
                    snapshot.created_at

@@ -3,7 +3,6 @@ import { HttpClient, type HttpClientOptions } from './http';
 import { ScopedProjectContext } from './project-context';
 import {
   AddonsResource,
-  AiResource,
   ApiKeysResource,
   AssetsResource,
   AuthResource,
@@ -55,7 +54,6 @@ export class CmsClient {
   readonly setup: SetupResource;
   readonly mcp: McpResource;
   readonly exports: ExportsResource;
-  readonly ai: AiResource;
   readonly sites: SitesResource;
 
   constructor(options: CmsClientOptions = {}, existingHttp?: HttpClient) {
@@ -83,7 +81,6 @@ export class CmsClient {
     this.setup = new SetupResource(this.http);
     this.mcp = new McpResource(this.http);
     this.exports = new ExportsResource(this.http);
-    this.ai = new AiResource(this.http);
     this.sites = new SitesResource(this.http);
   }
 

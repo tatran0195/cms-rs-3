@@ -12,7 +12,6 @@ export { FooterSection } from './components/footer-section';
 export { GeneralSection } from './components/general-section';
 export { GitTab } from './components/git-tab';
 export { GitWorkflow } from './components/git-workflow';
-export { ImportTab } from './components/import-tab';
 export { IntegrationsTab } from './components/integrations-tab';
 export { LanguagesSection } from './components/languages-section';
 export { MembersSection } from './components/members-section';
