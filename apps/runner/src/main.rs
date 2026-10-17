@@ -1,7 +1,7 @@
 use clap::Parser;
 use cms_runner::{
-    init_tracing, run_doctor_cmd, run_install, run_mcp, run_open, run_server, run_uninstall, Cli,
-    Commands,
+    init_tracing, run_doctor_cmd, run_install, run_mcp, run_open, run_server, run_sync,
+    run_uninstall, Cli, Commands,
 };
 
 #[tokio::main]
@@ -23,6 +23,10 @@ async fn main() -> anyhow::Result<()> {
             if !ok {
                 std::process::exit(1);
             }
+        }
+        Some(Commands::Sync(sync_args)) => {
+            init_tracing(false, "info");
+            run_sync(sync_args).await?;
         }
         Some(Commands::Mcp(mcp_args)) => {
             init_tracing(true, &mcp_args.log_level);

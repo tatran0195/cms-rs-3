@@ -86,97 +86,102 @@ pub async fn check_sqlite_integrity(db_path: &Path) -> DiagnosticItem {
         }
     };
 
-    // 1. PRAGMA integrity_check
-    let integrity_row = match sqlx::query("PRAGMA integrity_check").fetch_one(&pool).await {
-        Ok(r) => r,
-        Err(e) => {
+    let item = async {
+        // 1. PRAGMA integrity_check
+        let integrity_row = match sqlx::query("PRAGMA integrity_check").fetch_one(&pool).await {
+            Ok(r) => r,
+            Err(e) => {
+                return DiagnosticItem::fail(
+                    "Database",
+                    "PRAGMA Integrity Check",
+                    format!("Failed to run PRAGMA integrity_check: {}", e),
+                );
+            }
+        };
+
+        let check_result: String = integrity_row.try_get(0).unwrap_or_default();
+        if check_result != "ok" {
             return DiagnosticItem::fail(
                 "Database",
                 "PRAGMA Integrity Check",
-                format!("Failed to run PRAGMA integrity_check: {}", e),
+                format!("Integrity check failed: {}", check_result),
             );
         }
-    };
 
-    let check_result: String = integrity_row.try_get(0).unwrap_or_default();
-    if check_result != "ok" {
-        return DiagnosticItem::fail(
-            "Database",
-            "PRAGMA Integrity Check",
-            format!("Integrity check failed: {}", check_result),
-        );
-    }
+        // 2. Validate export_meta and schema_version
+        let meta_row = match sqlx::query(
+            "SELECT schema_version, project_id, project_name, exported_at FROM export_meta LIMIT 1",
+        )
+        .fetch_one(&pool)
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                return DiagnosticItem::fail(
+                    "Database",
+                    "Schema Validation",
+                    format!("Missing export_meta table or corrupted metadata: {}", e),
+                );
+            }
+        };
 
-    // 2. Validate export_meta and schema_version
-    let meta_row = match sqlx::query(
-        "SELECT schema_version, project_id, project_name, exported_at FROM export_meta LIMIT 1",
-    )
-    .fetch_one(&pool)
-    .await
-    {
-        Ok(r) => r,
-        Err(e) => {
+        let schema_ver: i32 = meta_row.try_get(0).unwrap_or(0);
+        let proj_name: String = meta_row.try_get(2).unwrap_or_else(|_| "Unknown".into());
+
+        if schema_ver != 1 {
             return DiagnosticItem::fail(
                 "Database",
-                "Schema Validation",
-                format!("Missing export_meta table or corrupted metadata: {}", e),
+                "Schema Version",
+                format!(
+                    "Unsupported schema_version {} (expected 1) for project '{}'",
+                    schema_ver, proj_name
+                ),
             );
         }
-    };
 
-    let schema_ver: i32 = meta_row.try_get(0).unwrap_or(0);
-    let proj_name: String = meta_row.try_get(2).unwrap_or_else(|_| "Unknown".into());
+        // 3. Count pages and content records
+        let page_count: i64 = sqlx::query("SELECT COUNT(*) FROM pages")
+            .fetch_one(&pool)
+            .await
+            .and_then(|r| r.try_get(0))
+            .unwrap_or(0);
 
-    if schema_ver != 1 {
-        return DiagnosticItem::fail(
+        let content_count: i64 = sqlx::query("SELECT COUNT(*) FROM page_content")
+            .fetch_one(&pool)
+            .await
+            .and_then(|r| r.try_get(0))
+            .unwrap_or(0);
+
+        let ver_count: i64 = sqlx::query("SELECT COUNT(*) FROM versions")
+            .fetch_one(&pool)
+            .await
+            .and_then(|r| r.try_get(0))
+            .unwrap_or(0);
+
+        let lang_count: i64 = sqlx::query("SELECT COUNT(*) FROM languages")
+            .fetch_one(&pool)
+            .await
+            .and_then(|r| r.try_get(0))
+            .unwrap_or(0);
+
+        DiagnosticItem::ok(
             "Database",
-            "Schema Version",
+            "SQLite Integrity & Schema",
             format!(
-                "Unsupported schema_version {} (expected 1) for project '{}'",
-                schema_ver, proj_name
+                "'{}' (schema v{}) - {} pages, {} content rows, {} versions, {} languages ({:.2} MB, PRAGMA ok)",
+                proj_name,
+                schema_ver,
+                page_count,
+                content_count,
+                ver_count,
+                lang_count,
+                (file_size as f64) / (1024.0 * 1024.0)
             ),
-        );
-    }
+        )
+    }.await;
 
-    // 3. Count pages and content records
-    let page_count: i64 = sqlx::query("SELECT COUNT(*) FROM pages")
-        .fetch_one(&pool)
-        .await
-        .and_then(|r| r.try_get(0))
-        .unwrap_or(0);
-
-    let content_count: i64 = sqlx::query("SELECT COUNT(*) FROM page_content")
-        .fetch_one(&pool)
-        .await
-        .and_then(|r| r.try_get(0))
-        .unwrap_or(0);
-
-    let ver_count: i64 = sqlx::query("SELECT COUNT(*) FROM versions")
-        .fetch_one(&pool)
-        .await
-        .and_then(|r| r.try_get(0))
-        .unwrap_or(0);
-
-    let lang_count: i64 = sqlx::query("SELECT COUNT(*) FROM languages")
-        .fetch_one(&pool)
-        .await
-        .and_then(|r| r.try_get(0))
-        .unwrap_or(0);
-
-    DiagnosticItem::ok(
-        "Database",
-        "SQLite Integrity & Schema",
-        format!(
-            "'{}' (schema v{}) - {} pages, {} content rows, {} versions, {} languages ({:.2} MB, PRAGMA ok)",
-            proj_name,
-            schema_ver,
-            page_count,
-            content_count,
-            ver_count,
-            lang_count,
-            (file_size as f64) / (1024.0 * 1024.0)
-        ),
-    )
+    pool.close().await;
+    item
 }
 
 /// Checks the Tantivy search index and SQLite FTS5 fallback.
@@ -218,23 +223,25 @@ pub async fn check_search_engine(db_path: &Path, idx_dir: Option<&Path>) -> Diag
             .read_only(true);
 
         if let Ok(pool) = SqlitePool::connect_with(opts).await {
-            match sqlx::query("SELECT count(*) FROM page_fts").fetch_one(&pool).await {
+            let item = match sqlx::query("SELECT count(*) FROM page_fts").fetch_one(&pool).await {
                 Ok(r) => {
                     let fts_rows: i64 = r.try_get(0).unwrap_or(0);
-                    return DiagnosticItem::ok(
+                    DiagnosticItem::ok(
                         "Search Engine",
                         "SQLite FTS5",
                         format!("SQLite FTS5 table operational (page_fts: {} entries)", fts_rows),
-                    );
+                    )
                 }
                 Err(e) => {
-                    return DiagnosticItem::warn(
+                    DiagnosticItem::warn(
                         "Search Engine",
                         "SQLite FTS5",
                         format!("page_fts table missing or unreadable: {}", e),
-                    );
+                    )
                 }
-            }
+            };
+            pool.close().await;
+            return item;
         }
     }
 

@@ -3,6 +3,9 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 pub mod windows;
 pub mod mcp;
 pub mod diagnostics;
+pub mod sync;
+
+pub use sync::{run_sync, SyncArgs};
 
 use axum::{
     extract::{Query, State},
@@ -56,6 +59,9 @@ pub enum Commands {
 
     /// Run diagnostic checks on SQLite database, Tantivy search index, Windows registry, and port availability
     Doctor(DoctorArgs),
+
+    /// Automatically download and sync the latest documentation export from hosted API server
+    Sync(SyncArgs),
 
     /// Run the embedded Model Context Protocol (MCP) server over stdio for AI agents
     Mcp(McpCliArgs),
