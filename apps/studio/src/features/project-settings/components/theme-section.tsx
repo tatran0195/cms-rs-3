@@ -57,11 +57,20 @@ const fullPresetTheme = (preset: ThemePresetId): cmsThemeConfig => {
 const initialDraft = (project: Project): ThemeDraft => {
   const resolved = resolveTheme(project.config as ThemeOwnedProjectConfig | null);
   return {
-    theme: project.config?.theme ?? {
-      version: THEME_SCHEMA_VERSION,
-      preset: resolved.id,
-      metadata: resolved.metadata,
-    },
+    theme: project.config?.theme
+      ? {
+          ...project.config.theme,
+          layout: {
+            ...resolved.layout,
+            ...(project.config.theme.layout ?? {}),
+          },
+        }
+      : {
+          version: THEME_SCHEMA_VERSION,
+          preset: resolved.id,
+          metadata: resolved.metadata,
+          layout: resolved.layout,
+        },
     appearance: project.config?.styling?.theme ?? 'light',
   };
 };
@@ -425,6 +434,7 @@ export function ThemeSection({ project }: { project: Project }) {
     updateConfig.mutate(
       {
         config: {
+          ...(project.config ?? {}),
           theme: draft.theme,
           styling: {
             ...(project.config?.styling ?? {}),
@@ -463,10 +473,17 @@ export function ThemeSection({ project }: { project: Project }) {
                 )}
                 key={presetId}
                 onClick={() =>
-                  change({
-                    theme: fullPresetTheme(presetId),
+                  change((current) => ({
+                    ...current,
+                    theme: {
+                      ...fullPresetTheme(presetId),
+                      layout: {
+                        ...fullPresetTheme(presetId).layout,
+                        ...(current.theme.layout?.docsLayout ? { docsLayout: current.theme.layout.docsLayout } : {}),
+                      },
+                    },
                     appearance: draft.appearance,
-                  })
+                  }))
                 }
                 type="button"
               >
@@ -658,6 +675,12 @@ export function ThemeSection({ project }: { project: Project }) {
 
       <div className="mb-8 flex flex-wrap items-center gap-2 border-border border-y py-4">
         <Button
+          disabled={!hasChanges || updateConfig.isPending || contrastIssues.length > 0}
+          type="submit"
+        >
+          {updateConfig.isPending ? t('common.saving') : t('common.save')}
+        </Button>
+        <Button
           disabled={history.length === 0}
           onClick={() => {
             const previous = history.at(-1);
@@ -789,7 +812,7 @@ export function ThemeSection({ project }: { project: Project }) {
         ) : null}
       </Field>
 
-      <SaveBar disabled={JSON.stringify(draft) === JSON.stringify(saved)} isSubmitting={updateConfig.isPending} />
+      <SaveBar disabled={!hasChanges || contrastIssues.length > 0} isSubmitting={updateConfig.isPending} />
     </form>
   );
 }

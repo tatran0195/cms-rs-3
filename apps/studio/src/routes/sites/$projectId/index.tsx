@@ -1,5 +1,5 @@
 import { CmsApiError } from '@cms/sdk';
-import { pageHead, redirectIfConfigured, type SitePage, SitePageView, type SiteShell } from '@cms/site';
+import { firstLeafPath, pageHead, redirectIfConfigured, type SitePage, SitePageView, type SiteShell } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { cmsClient } from '@/shared';
 
@@ -22,6 +22,13 @@ export const Route = createFileRoute('/sites/$projectId/')({
         const prefix = `/sites/${params.projectId}`;
         const query = deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : '';
         throw redirect({ href: `${prefix}/${site.openapi.path}${query}`, statusCode: 302 });
+      }
+      const firstLeaf = site?.nav ? firstLeafPath(site.nav) : undefined;
+      if (firstLeaf) {
+        const prefix = `/sites/${params.projectId}`;
+        const query = deps.lang ? `?lang=${encodeURIComponent(deps.lang)}` : '';
+        const cleanLeaf = firstLeaf.replace(/^\/+/, '');
+        throw redirect({ href: `${prefix}/${cleanLeaf}${query}`, statusCode: 302 });
       }
       // Honor a configured redirect for the site root before the not-found
       // state. Mark the SSR response 404 so this soft-404 returns the right

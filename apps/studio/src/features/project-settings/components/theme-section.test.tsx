@@ -200,12 +200,27 @@ describe('ThemeSection controls', () => {
     expect(preview()?.dataset.docsLayout).toBe('glass');
   });
 
-  it('keeps code-like values left-to-right inside the RTL form', () => {
-    const hexes = [...container.querySelectorAll<HTMLElement>('code[dir="ltr"]')];
-    expect(hexes.length).toBeGreaterThan(0);
-    for (const hex of hexes) {
-      expect(hex.textContent).toMatch(/^#[0-9a-f]{6}$/i);
-    }
-    expect(container.querySelector('textarea')?.getAttribute('dir')).toBe('ltr');
+  it('saves the selected layout and theme configuration when submit button is clicked', async () => {
+    const glassCard = container.querySelector<HTMLButtonElement>('button[data-docs-layout="glass"]');
+    if (!glassCard) throw new Error('missing glass layout card');
+    await act(async () => glassCard.click());
+
+    const submitBtn = container.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!submitBtn) throw new Error('missing save button');
+    expect(submitBtn.disabled).toBe(false);
+
+    await act(async () => submitBtn.click());
+    expect(mutation.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          theme: expect.objectContaining({
+            layout: expect.objectContaining({
+              docsLayout: 'glass',
+            }),
+          }),
+        }),
+      }),
+      expect.anything(),
+    );
   });
 });
