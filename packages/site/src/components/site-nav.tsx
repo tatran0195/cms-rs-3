@@ -27,7 +27,7 @@ const containsPath = (node: NavNode, path: string): boolean =>
  *  link must stay stable while browsing a non-default docs version. */
 export const isVersionIndependentNavNode = (node: Pick<NavNode, 'id'>): boolean => node.id.startsWith('openapi:');
 
-function NavLink({ node, projectId, currentPath, lang, version, depth, rail }: NavItemProps & { node: NavNode; rail?: boolean }) {
+function NavLink({ node, projectId, currentPath, lang, version, depth, rail, basePath }: NavItemProps & { node: NavNode; rail?: boolean }) {
   const active = currentPath === node.path;
   return (
     <li>
@@ -35,6 +35,7 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, rail }: N
         href={siteHref(projectId, node.path, {
           lang,
           version: isVersionIndependentNavNode(node) ? undefined : version,
+          basePath,
         })}
         aria-current={active ? 'page' : undefined}
         className={cn(
@@ -53,7 +54,7 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, rail }: N
         ) : null}
       </a>
       {node.children.length > 0 ? (
-        <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} version={version} rail />
+        <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} version={version} basePath={basePath} rail />
       ) : null}
     </li>
   );
@@ -128,6 +129,7 @@ interface NavItemProps {
   lang?: string;
   /** Non-default version path prefix, e.g. "next". Default/latest is undefined. */
   version?: string;
+  basePath?: string;
 }
 
 function NavItems({ nodes, rail, ...rest }: NavItemProps & { nodes: NavNode[]; rail?: boolean }) {
@@ -149,16 +151,18 @@ export function SiteNav({
   currentPath,
   lang,
   version,
+  basePath,
 }: {
   nodes: NavNode[];
   projectId: string;
   currentPath: string;
   lang?: string;
   version?: string;
+  basePath?: string;
 }) {
   return (
     <nav>
-      <NavItems nodes={nodes} projectId={projectId} currentPath={currentPath} depth={0} lang={lang} version={version} />
+      <NavItems nodes={nodes} projectId={projectId} currentPath={currentPath} depth={0} lang={lang} version={version} basePath={basePath} />
     </nav>
   );
 }

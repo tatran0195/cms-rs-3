@@ -21,11 +21,34 @@ export function VersionSwitcher({
   lang?: string;
 }) {
   const t = siteT(lang);
-  if (versions.length < 2) {
+  const effectiveVersions =
+    versions && versions.length > 0
+      ? versions
+      : activeSlug
+        ? [{ id: activeSlug, name: activeSlug, slug: activeSlug, isDefault: true }]
+        : [];
+
+  if (effectiveVersions.length === 0) {
     return null;
   }
 
-  const active = versions.find((version) => version.slug === activeSlug) ?? versions.find((version) => version.isDefault) ?? versions[0];
+  const active =
+    effectiveVersions.find((version) => version.slug === activeSlug) ??
+    effectiveVersions.find((version) => version.isDefault) ??
+    effectiveVersions[0];
+
+  if (effectiveVersions.length === 1) {
+    return (
+      <div
+        className="flex h-8 items-center gap-1.5 rounded-full border border-border/70 px-3 font-medium text-muted-foreground text-xs"
+        aria-label={active?.name ?? activeSlug}
+        data-testid="version-indicator"
+      >
+        <GitBranch className="size-3.5" />
+        <span className="max-w-[7rem] truncate">{active?.name ?? activeSlug}</span>
+      </div>
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -43,7 +66,7 @@ export function VersionSwitcher({
         }
       />
       <DropdownMenuContent align="end" className="w-44">
-        {versions.map((version) => (
+        {effectiveVersions.map((version) => (
           <DropdownMenuItem key={version.id} onClick={() => onChange(version.slug)}>
             <span className="flex-1 truncate">{version.name}</span>
             {version.isDefault ? <span className="text-[10px] text-muted-foreground">{t('defaultVersion')}</span> : null}

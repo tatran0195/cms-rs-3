@@ -1036,7 +1036,26 @@ pub async fn query_page(
     let active_version_slug = &active_version_item.slug;
 
     // Normalize path
-    let normalized = target_path.trim().trim_matches('/');
+    let mut normalized = target_path.trim().trim_matches('/');
+
+    // Strip sites/<project_id>/ if present
+    if let Some(stripped) = normalized.strip_prefix("sites/") {
+        if let Some((_, rest)) = stripped.split_once('/') {
+            normalized = rest.trim_matches('/');
+        }
+    }
+
+    // Strip active_version_slug if path is prefixed with it
+    if !active_version_item.is_default
+        && (normalized == active_version_slug
+            || normalized.starts_with(&format!("{}/", active_version_slug)))
+    {
+        normalized = normalized
+            .strip_prefix(active_version_slug.as_str())
+            .unwrap_or_default()
+            .trim_matches('/');
+    }
+
     let path_candidates = if normalized.is_empty() {
         vec!["/".to_string(), "".to_string()]
     } else {
@@ -1051,12 +1070,13 @@ pub async fn query_page(
         path: String,
         title: String,
         icon: Option<String>,
+        kind: String,
     }
 
     let mut found_page: Option<PageRow> = None;
     for cand in &path_candidates {
         let row_opt = sqlx::query(
-            "SELECT id, version_id, parent_id, path, title, icon FROM pages WHERE version_id = \
+            "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
              ?1 AND path = ?2 LIMIT 1",
         )
         .bind(active_version_id)
@@ -1072,8 +1092,83 @@ pub async fn query_page(
                 path: r.try_get(3)?,
                 title: r.try_get(4)?,
                 icon: r.try_get(5)?,
+                kind: r.try_get(6)?,
             });
             break;
+        }
+    }
+
+    // If empty path had no exact "/" entry, resolve to first page of the version
+    if found_page.is_none() && normalized.is_empty() {
+        let first_row = sqlx::query(
+            "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
+             ?1 AND LOWER(kind) = 'page' ORDER BY sort_order ASC, path ASC LIMIT 1",
+        )
+        .bind(active_version_id)
+        .fetch_optional(pool)
+        .await?;
+
+        if let Some(r) = first_row {
+            found_page = Some(PageRow {
+                id: r.try_get(0)?,
+                version_id: r.try_get(1)?,
+                parent_id: r.try_get(2)?,
+                path: r.try_get(3)?,
+                title: r.try_get(4)?,
+                icon: r.try_get(5)?,
+                kind: r.try_get(6)?,
+            });
+        }
+    }
+
+
+    // If the matched entry is a group, resolve to its first child page
+    if let Some(ref p) = found_page {
+        if p.kind.eq_ignore_ascii_case("group") {
+            let child_opt = sqlx::query(
+                "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
+                 ?1 AND parent_id = ?2 AND LOWER(kind) != 'group' ORDER BY sort_order ASC, path ASC LIMIT 1",
+            )
+            .bind(active_version_id)
+            .bind(&p.id)
+            .fetch_optional(pool)
+            .await?;
+
+            if let Some(r) = child_opt {
+                found_page = Some(PageRow {
+                    id: r.try_get(0)?,
+                    version_id: r.try_get(1)?,
+                    parent_id: r.try_get(2)?,
+                    path: r.try_get(3)?,
+                    title: r.try_get(4)?,
+                    icon: r.try_get(5)?,
+                    kind: r.try_get(6)?,
+                });
+            } else {
+                let prefix = format!("{}/%", p.path.trim_matches('/'));
+                let prefix_cand = format!("/{}%", p.path.trim_matches('/'));
+                let child_by_prefix = sqlx::query(
+                    "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
+                     ?1 AND (path LIKE ?2 OR path LIKE ?3) AND LOWER(kind) != 'group' ORDER BY sort_order ASC, path ASC LIMIT 1",
+                )
+                .bind(active_version_id)
+                .bind(&prefix)
+                .bind(&prefix_cand)
+                .fetch_optional(pool)
+                .await?;
+
+                if let Some(r) = child_by_prefix {
+                    found_page = Some(PageRow {
+                        id: r.try_get(0)?,
+                        version_id: r.try_get(1)?,
+                        parent_id: r.try_get(2)?,
+                        path: r.try_get(3)?,
+                        title: r.try_get(4)?,
+                        icon: r.try_get(5)?,
+                        kind: r.try_get(6)?,
+                    });
+                }
+            }
         }
     }
 

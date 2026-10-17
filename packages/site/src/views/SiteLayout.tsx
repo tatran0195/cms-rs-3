@@ -73,8 +73,9 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Resolve current path relative to base
-  const basePrefix = basePath ? basePath.replace(/\/+$/, '') : projectId ? `/sites/${projectId}` : '';
-  const currentPath = decodeURIComponent(basePrefix ? pathname.replace(new RegExp(`^${basePrefix}/?`), '') : pathname).replace(/\/+$/, '');
+  const basePrefix = basePath !== undefined ? basePath.replace(/\/+$/, '') : projectId && projectId !== 'standalone' ? `/sites/${projectId}` : '';
+  const rawPath = decodeURIComponent(basePrefix ? pathname.replace(new RegExp(`^${basePrefix}/?`), '') : pathname).replace(/\/+$/, '');
+  const currentPath = rawPath.replace(/^sites\/[^/]+\/?/, '').replace(/^\/+/, '');
   const isChangelog = currentPath === 'changelog';
   const currentVersion = site?.versions.find((item) => item.slug === site.activeVersion) ?? site?.versions.find((item) => item.isDefault);
   const activeVersionPrefix = currentVersion && !currentVersion.isDefault ? currentVersion.slug : undefined;
@@ -464,6 +465,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
                 currentPath={effectiveCurrentPath}
                 lang={navigationLanguage}
                 version={activeVersionPrefix}
+                basePath={basePrefix}
               />
             </>
           }
