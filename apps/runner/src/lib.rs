@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 pub mod windows;
 pub mod mcp;
+pub mod diagnostics;
 
 use axum::{
     extract::{Query, State},
@@ -52,6 +53,9 @@ pub struct Cli {
 pub enum Commands {
     /// Start the HTTP documentation server (default command)
     Serve(ServeArgs),
+
+    /// Run diagnostic checks on SQLite database, Tantivy search index, Windows registry, and port availability
+    Doctor(DoctorArgs),
 
     /// Run the embedded Model Context Protocol (MCP) server over stdio for AI agents
     Mcp(McpCliArgs),
@@ -150,6 +154,29 @@ pub struct OpenArgs {
     /// Base URL of the running documentation server
     #[arg(long, default_value = "http://localhost:8080")]
     pub server_url: String,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct DoctorArgs {
+    /// Path to the exported SQLite database
+    #[arg(short, long, default_value = "docs.sqlite")]
+    pub db: PathBuf,
+
+    /// Path to a site export directory containing docs.sqlite and search_index/
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+
+    /// Explicit path to Tantivy search index directory
+    #[arg(long, visible_alias = "search-index")]
+    pub index_dir: Option<PathBuf>,
+
+    /// Path to a .tar.gz site bundle archive to inspect
+    #[arg(long)]
+    pub bundle: Option<PathBuf>,
+
+    /// Target HTTP port to check for conflicts (default: 8080)
+    #[arg(short, long, default_value_t = 8080)]
+    pub port: u16,
 }
 
 #[derive(Clone, Copy)]
@@ -1686,6 +1713,21 @@ pub async fn run_uninstall() -> anyhow::Result<()> {
 
     println!("\nUninstallation complete.");
     Ok(())
+}
+
+pub async fn run_doctor_cmd(args: DoctorArgs) -> anyhow::Result<bool> {
+    let dummy_serve = ServeArgs {
+        db: args.db,
+        dir: args.dir,
+        index_dir: args.index_dir,
+        bundle: args.bundle,
+        port: args.port,
+        bind: "127.0.0.1".into(),
+        network: false,
+        cors_origin: None,
+    };
+    let (db_path, idx_dir_opt) = resolve_runner_paths(&dummy_serve)?;
+    diagnostics::run_doctor(&db_path, idx_dir_opt.as_deref(), args.port).await
 }
 
 pub async fn run_mcp(args: McpCliArgs) -> anyhow::Result<()> {
