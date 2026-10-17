@@ -1,8 +1,10 @@
-import type { DocsLayoutId } from '@cms/shared/themes';
-import type { DocsLayoutTemplate } from './types';
+import { DocsStandardLayoutTemplate } from './docs-layout';
+import { NotebookLayoutTemplate } from './notebook-layout';
 
 export * from './types';
 export * from './shared';
+export { DocsStandardLayoutTemplate } from './docs-layout';
+export { NotebookLayoutTemplate } from './notebook-layout';
 
 const stubTemplate = (id: DocsLayoutId): DocsLayoutTemplate => ({
   id,
@@ -13,8 +15,8 @@ const stubTemplate = (id: DocsLayoutId): DocsLayoutTemplate => ({
 });
 
 const registry: Record<DocsLayoutId, DocsLayoutTemplate> = {
-  docs: stubTemplate('docs'),
-  notebook: stubTemplate('notebook'),
+  docs: DocsStandardLayoutTemplate,
+  notebook: NotebookLayoutTemplate,
   glass: stubTemplate('glass'),
   flux: stubTemplate('flux'),
   spacious: stubTemplate('spacious'),
