@@ -493,6 +493,7 @@ export const MESSAGE_IDS = {
   'settings.branding.logoHref.label': 'settings_branding_logohref_label',
   'settings.branding.logoHref.hint': 'settings_branding_logohref_hint',
   'settings.themes': 'settings_themes',
+  'settings.theme': 'settings_themes',
   'settings.theme.title': 'settings_theme_title',
   'settings.theme.draftTitle': 'settings_theme_drafttitle',
   'settings.theme.draftHint': 'settings_theme_drafthint',

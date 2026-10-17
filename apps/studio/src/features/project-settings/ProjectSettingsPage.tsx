@@ -19,6 +19,7 @@ import {
   Languages,
   LockKeyhole,
   type LucideIcon,
+  Palette,
   Plug,
   Search,
   TriangleAlert,
@@ -39,12 +40,14 @@ import { MembersSection } from './components/members-section';
 import { NotificationsTab } from './components/notifications-tab';
 import { OpenApiSection } from './components/openapi-section';
 import { SearchSection } from './components/search-section';
+import { ThemeSection } from './components/theme-section';
 import { UsageTab } from './components/usage-tab';
 
 export type SettingsGroupId = 'site' | 'deployment' | 'workspace' | 'advanced';
 
 export type SectionId =
   | 'general'
+  | 'theme'
   | 'languages'
   | 'domain'
   | 'authentication'
@@ -72,6 +75,7 @@ export const GROUPS = [
 
 export const SECTIONS = [
   { id: 'general', group: 'site', icon: CirclePlus },
+  { id: 'theme', group: 'site', icon: Palette },
   { id: 'languages', group: 'site', icon: Languages },
   { id: 'domain', group: 'site', icon: Globe2 },
   { id: 'authentication', group: 'site', icon: LockKeyhole },
@@ -176,6 +180,7 @@ function ActiveSection({ project, section, projectId }: { project: Project; sect
   // `key` forces a fresh form instance (with the right defaults) per project/section.
   const sections: Record<SectionId, ReactNode> = {
     general: <GeneralSection key={`general-${project.id}`} project={project} />,
+    theme: <ThemeSection key={`theme-${projectId}`} project={project} />,
     languages: <LanguagesSection key={`languages-${project.id}`} project={project} />,
     domain: <DomainSection key={`domain-${projectId}`} project={project} />,
     authentication: <AuthenticationSection key={`authentication-${project.id}`} project={project} />,
@@ -191,7 +196,7 @@ function ActiveSection({ project, section, projectId }: { project: Project; sect
     exports: <ExportsSection key={`exports-${projectId}`} projectId={projectId} />,
     danger: <DangerSection project={project} />,
   };
-  const wideSection = section === 'general' || section === 'usage' || section === 'integrations' || section === 'exports';
+  const wideSection = section === 'general' || section === 'theme' || section === 'usage' || section === 'integrations' || section === 'exports';
   return <div className={cn('w-full', wideSection ? 'max-w-6xl' : 'max-w-4xl')}>{sections[section]}</div>;
 }
 
