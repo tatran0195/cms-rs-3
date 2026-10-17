@@ -87,6 +87,7 @@ pub struct RunnerMcpHandler {
     pub db: SqlitePool,
     pub search: Option<Arc<TantivySiteSearch>>,
     pub server_url: String,
+    pub state: Option<crate::AppState>,
 }
 
 impl RunnerMcpHandler {
@@ -99,6 +100,37 @@ impl RunnerMcpHandler {
             db,
             search,
             server_url,
+            state: None,
+        }
+    }
+
+    pub fn with_state(
+        db: SqlitePool,
+        search: Option<Arc<TantivySiteSearch>>,
+        server_url: String,
+        state: crate::AppState,
+    ) -> Self {
+        Self {
+            db,
+            search,
+            server_url,
+            state: Some(state),
+        }
+    }
+
+    pub async fn current_db(&self) -> SqlitePool {
+        if let Some(ref s) = self.state {
+            s.get_db().await
+        } else {
+            self.db.clone()
+        }
+    }
+
+    pub async fn current_search(&self) -> Option<Arc<TantivySiteSearch>> {
+        if let Some(ref s) = self.state {
+            s.get_search().await
+        } else {
+            self.search.clone()
         }
     }
 
@@ -109,12 +141,14 @@ impl RunnerMcpHandler {
             return Ok(None);
         }
 
+        let db = self.current_db().await;
+
         let row_opt = sqlx::query(
             "SELECT id, kind, path FROM pages WHERE id = ?1 OR custom_id = ?1 OR path = ?1 OR path = ?2 OR slug = ?1 LIMIT 1",
         )
         .bind(clean_id)
         .bind(format!("/{}", clean_id))
-        .fetch_optional(&self.db)
+        .fetch_optional(&db)
         .await?;
 
         let (page_id, kind, mut target_path) = match row_opt {
@@ -132,7 +166,7 @@ impl RunnerMcpHandler {
                 "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
             )
             .bind(&page_id)
-            .fetch_optional(&self.db)
+            .fetch_optional(&db)
             .await?;
 
             if let Some(child_row) = child_opt {
@@ -143,7 +177,7 @@ impl RunnerMcpHandler {
                 "SELECT id, kind, path FROM pages WHERE parent_id = ?1 ORDER BY sort_order ASC, id ASC LIMIT 1",
             )
             .bind(&page_id)
-            .fetch_optional(&self.db)
+            .fetch_optional(&db)
             .await {
                 let child_id: String = any_child.try_get(0).unwrap_or_default();
                 let child_kind: String = any_child.try_get(1).unwrap_or_default();
@@ -153,7 +187,7 @@ impl RunnerMcpHandler {
                         "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
                     )
                     .bind(&child_id)
-                    .fetch_optional(&self.db)
+                    .fetch_optional(&db)
                     .await {
                         target_path = leaf.try_get(0).unwrap_or(child_p);
                     } else {
@@ -185,18 +219,21 @@ impl RunnerMcpHandler {
         let lang = args.language.as_deref();
         let version = args.version.as_deref();
 
-        let hits = if let Some(ref search_engine) = self.search {
+        let db = self.current_db().await;
+        let search = self.current_search().await;
+
+        let hits = if let Some(ref search_engine) = search {
             match search_engine.search(clean_q, lang, version, limit) {
                 Ok(results) => results,
                 Err(e) => {
                     tracing::warn!("Tantivy search error ({}); falling back to SQLite FTS5", e);
-                    execute_search(&self.db, clean_q, limit, lang, version)
+                    execute_search(&db, clean_q, limit, lang, version)
                         .await
                         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?
                 }
             }
         } else {
-            execute_search(&self.db, clean_q, limit, lang, version)
+            execute_search(&db, clean_q, limit, lang, version)
                 .await
                 .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?
         };
@@ -223,8 +260,10 @@ impl RunnerMcpHandler {
             Err(e) => return Err(mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string())),
         };
 
+        let db = self.current_db().await;
+
         let page_resp = match query_page(
-            &self.db,
+            &db,
             &resolved_path,
             args.language.as_deref(),
             args.version.as_deref(),
@@ -275,7 +314,9 @@ impl RunnerMcpHandler {
         &self,
         Parameters(args): Parameters<ListPagesParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        let shell = match query_bootstrap(&self.db, None, args.version.as_deref()).await {
+        let db = self.current_db().await;
+
+        let shell = match query_bootstrap(&db, None, args.version.as_deref()).await {
             Ok(s) => s,
             Err(e) => return Err(mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string())),
         };
@@ -292,7 +333,7 @@ impl RunnerMcpHandler {
             "SELECT id, custom_id, parent_id, kind, slug, path, title, sort_order FROM pages WHERE version_id = ?1 OR version_id = (SELECT id FROM versions WHERE slug = ?1 LIMIT 1) ORDER BY sort_order ASC, id ASC",
         )
         .bind(&resolved_version_id)
-        .fetch_all(&self.db)
+        .fetch_all(&db)
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
@@ -350,7 +391,9 @@ impl RunnerMcpHandler {
         &self,
         Parameters(_args): Parameters<GetProjectInfoParams>,
     ) -> Result<CallToolResult, ErrorData> {
-        let shell = match query_bootstrap(&self.db, None, None).await {
+        let db = self.current_db().await;
+
+        let shell = match query_bootstrap(&db, None, None).await {
             Ok(s) => s,
             Err(e) => return Err(mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string())),
         };
@@ -373,6 +416,8 @@ impl RunnerMcpHandler {
         &self,
         Parameters(_args): Parameters<ListVersionsParams>,
     ) -> Result<CallToolResult, ErrorData> {
+        let db = self.current_db().await;
+
         let rows = sqlx::query(
             "SELECT v.id, v.slug, v.label, v.is_default, v.sort_order, COUNT(p.id) \
              FROM versions v \
@@ -380,7 +425,7 @@ impl RunnerMcpHandler {
              GROUP BY v.id \
              ORDER BY v.sort_order ASC",
         )
-        .fetch_all(&self.db)
+        .fetch_all(&db)
         .await
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
@@ -422,8 +467,14 @@ pub fn create_mcp_http_service(
     pool: SqlitePool,
     search: Option<Arc<TantivySiteSearch>>,
     server_url: String,
+    state: Option<crate::AppState>,
 ) -> StreamableHttpService<RunnerMcpHandler, LocalSessionManager> {
-    let handler = RunnerMcpHandler::new(pool, search, server_url);
+    let handler = RunnerMcpHandler {
+        db: pool,
+        search,
+        server_url,
+        state,
+    };
     StreamableHttpService::new(
         move || Ok(handler.clone()),
         Arc::new(LocalSessionManager::default()),

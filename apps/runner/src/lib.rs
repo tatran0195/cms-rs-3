@@ -480,8 +480,123 @@ pub fn resolve_runner_paths(args: &Args) -> anyhow::Result<(PathBuf, Option<Path
 
 #[derive(Clone)]
 pub struct AppState {
+    inner: Arc<tokio::sync::RwLock<InnerState>>,
+    pub db_path: Option<PathBuf>,
+    pub idx_dir: Option<PathBuf>,
+}
+
+#[derive(Clone)]
+pub struct InnerState {
     pub db: SqlitePool,
     pub search: Option<Arc<TantivySiteSearch>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReloadStats {
+    pub project_name: String,
+    pub page_count: i64,
+    pub schema_version: i32,
+}
+
+impl AppState {
+    pub fn new(db: SqlitePool, search: Option<Arc<TantivySiteSearch>>) -> Self {
+        Self {
+            inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, search })),
+            db_path: None,
+            idx_dir: None,
+        }
+    }
+
+    pub fn with_paths(
+        db: SqlitePool,
+        search: Option<Arc<TantivySiteSearch>>,
+        db_path: PathBuf,
+        idx_dir: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, search })),
+            db_path: Some(db_path),
+            idx_dir,
+        }
+    }
+
+    pub async fn get_db(&self) -> SqlitePool {
+        self.inner.read().await.db.clone()
+    }
+
+    pub async fn get_search(&self) -> Option<Arc<TantivySiteSearch>> {
+        self.inner.read().await.search.clone()
+    }
+
+    pub async fn reload(&self) -> anyhow::Result<ReloadStats> {
+        let db_path = self.db_path.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Cannot reload: no database path was configured for this server instance")
+        })?;
+
+        if !db_path.exists() {
+            anyhow::bail!("Cannot reload: database file not found at {}", db_path.display());
+        }
+
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename(db_path)
+            .read_only(true);
+
+        let new_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(10)
+            .connect_with(opts)
+            .await?;
+
+        let meta_row = sqlx::query("SELECT schema_version, project_name FROM export_meta LIMIT 1")
+            .fetch_one(&new_pool)
+            .await?;
+        let schema_ver: i32 = meta_row.try_get(0)?;
+        if schema_ver != 1 {
+            anyhow::bail!("Unsupported schema_version {} (expected 1)", schema_ver);
+        }
+        let project_name: String = meta_row.try_get(1).unwrap_or_else(|_| "Documentation".into());
+
+        let page_count: i64 = sqlx::query("SELECT COUNT(*) FROM pages")
+            .fetch_one(&new_pool)
+            .await
+            .and_then(|r| r.try_get(0))
+            .unwrap_or(0);
+
+        let new_search = if let Some(ref idx_path) = self.idx_dir {
+            match TantivySiteSearch::open(idx_path) {
+                Ok(s) => Some(Arc::new(s)),
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to reload Tantivy index at {}: {}. Using SQLite FTS5.",
+                        idx_path.display(),
+                        e
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        {
+            let mut write = self.inner.write().await;
+            write.db = new_pool;
+            write.search = new_search;
+        }
+
+        tracing::info!(
+            "Hot reload complete: reloaded '{}' ({} pages) from {}",
+            project_name,
+            page_count,
+            db_path.display()
+        );
+
+        Ok(ReloadStats {
+            project_name,
+            page_count,
+            schema_version: schema_ver,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1221,10 +1336,11 @@ async fn api_bootstrap(
     State(state): State<AppState>,
     Query(query): Query<BootstrapQuery>,
 ) -> Response {
+    let db = state.get_db().await;
     let lang = query.lang;
     let version = query.version;
 
-    match query_bootstrap(&state.db, lang.as_deref(), version.as_deref()).await {
+    match query_bootstrap(&db, lang.as_deref(), version.as_deref()).await {
         Ok(shell) => Json(shell).into_response(),
         Err(e) => {
             tracing::warn!("Failed to query bootstrap: {}", e);
@@ -1238,11 +1354,12 @@ async fn api_bootstrap(
 }
 
 async fn api_page(State(state): State<AppState>, Query(query): Query<PageQuery>) -> Response {
+    let db = state.get_db().await;
     let path = query.path.unwrap_or_else(|| "/".to_string());
     let lang = query.lang;
     let version = query.version;
 
-    match query_page(&state.db, &path, lang.as_deref(), version.as_deref()).await {
+    match query_page(&db, &path, lang.as_deref(), version.as_deref()).await {
         Ok(Some(page)) => Json(page).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Page not found").into_response(),
         Err(e) => {
@@ -1253,7 +1370,8 @@ async fn api_page(State(state): State<AppState>, Query(query): Query<PageQuery>)
 }
 
 async fn api_changelog(State(state): State<AppState>) -> Response {
-    let entries = query_changelog(&state.db).await;
+    let db = state.get_db().await;
+    let entries = query_changelog(&db).await;
     Json(entries).into_response()
 }
 
@@ -1267,7 +1385,10 @@ async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQue
     let lang = query.lang;
     let version = query.version;
 
-    if let Some(ref search_engine) = state.search {
+    let db = state.get_db().await;
+    let search = state.get_search().await;
+
+    if let Some(ref search_engine) = search {
         match search_engine.search(&clean_q, lang.as_deref(), version.as_deref(), limit) {
             Ok(hits) => return Json(serde_json::json!({ "hits": hits })).into_response(),
             Err(e) => {
@@ -1276,13 +1397,57 @@ async fn api_search(State(state): State<AppState>, Query(query): Query<SearchQue
         }
     }
 
-    match execute_search(&state.db, &clean_q, limit, lang.as_deref(), version.as_deref()).await {
+    match execute_search(&db, &clean_q, limit, lang.as_deref(), version.as_deref()).await {
         Ok(hits) => Json(serde_json::json!({ "hits": hits })).into_response(),
         Err(e) => {
             tracing::error!("Search query execution failed: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "error": "Search failed", "detail": e.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn api_reload(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let host_header = headers
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
+    let host_name = host_header.split(':').next().unwrap_or("");
+
+    if !is_loopback_host(host_name) {
+        tracing::warn!("Blocked non-loopback reload request from host '{}'", host_header);
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Forbidden: Hot reload is strictly restricted to loopback callers"
+            })),
+        )
+            .into_response();
+    }
+
+    match state.reload().await {
+        Ok(stats) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "reloaded": true,
+                "stats": stats
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            tracing::error!("Failed to reload site state: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Reload failed",
+                    "detail": e.to_string()
+                })),
             )
                 .into_response()
         }
@@ -1299,13 +1464,15 @@ async fn fast_path_redirect(
         return (StatusCode::BAD_REQUEST, "Missing identifier or path").into_response();
     }
 
+    let db = state.get_db().await;
+
     // Try lookup: 1. by id, 2. by custom_id, 3. by path or slug
     let row_opt = sqlx::query(
         "SELECT id, kind, path FROM pages WHERE id = ?1 OR custom_id = ?1 OR path = ?1 OR path = ?2 OR slug = ?1 LIMIT 1",
     )
     .bind(clean_id)
     .bind(format!("/{}", clean_id))
-    .fetch_optional(&state.db)
+    .fetch_optional(&db)
     .await;
 
     let (page_id, kind, mut target_path) = match row_opt {
@@ -1330,7 +1497,7 @@ async fn fast_path_redirect(
             "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
         )
         .bind(&page_id)
-        .fetch_optional(&state.db)
+        .fetch_optional(&db)
         .await;
 
         match child_opt {
@@ -1345,7 +1512,7 @@ async fn fast_path_redirect(
                     "SELECT id, kind, path FROM pages WHERE parent_id = ?1 ORDER BY sort_order ASC, id ASC LIMIT 1",
                 )
                 .bind(&page_id)
-                .fetch_optional(&state.db)
+                .fetch_optional(&db)
                 .await {
                     let child_id: String = any_child.try_get(0).unwrap_or_default();
                     let child_kind: String = any_child.try_get(1).unwrap_or_default();
@@ -1355,7 +1522,7 @@ async fn fast_path_redirect(
                             "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
                         )
                         .bind(&child_id)
-                        .fetch_optional(&state.db)
+                        .fetch_optional(&db)
                         .await {
                             target_path = leaf.try_get(0).unwrap_or(child_p);
                         } else {
@@ -1407,7 +1574,8 @@ async fn serve_asset(
     }
 
     // 2. Query SQLite assets table for uploaded images/attachments
-    match query_asset_from_db(&state.db, clean_path).await {
+    let db = state.get_db().await;
+    match query_asset_from_db(&db, clean_path).await {
         Some((mime, data)) => (
             [
                 (header::CONTENT_TYPE, mime),
@@ -1454,7 +1622,8 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
     };
 
     // Fast Bootstrap Injection into index.html
-    let shell = query_bootstrap(&state.db, None, None).await.ok();
+    let db = state.get_db().await;
+    let shell = query_bootstrap(&db, None, None).await.ok();
 
     let injected_html = inject_bootstrap_and_meta(raw_html, shell.as_ref());
     Html(injected_html).into_response()
@@ -1862,10 +2031,7 @@ pub async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
         None
     };
 
-    let state = AppState {
-        db: pool,
-        search,
-    };
+    let state = AppState::with_paths(pool, search, db_path, idx_dir_opt);
 
     let bind_host = resolve_bind_host(&args.bind, args.network);
     let maybe_cors = build_cors_layer(&bind_host, args.cors_origin.as_deref())?;
@@ -1968,10 +2134,14 @@ pub fn build_cors_layer(
 }
 
 pub fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer>) -> Router {
+    let dummy_db = sqlx::sqlite::SqlitePoolOptions::new()
+        .connect_lazy("sqlite::memory:")
+        .expect("dummy pool");
     let mcp_service = mcp::create_mcp_http_service(
-        state.db.clone(),
-        state.search.clone(),
+        dummy_db,
+        None,
         "http://localhost:8080".to_string(),
+        Some(state.clone()),
     );
 
     let mut app = Router::new()
@@ -1981,6 +2151,7 @@ pub fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer>) -> R
         .route("/api/v1/page", get(api_page))
         .route("/api/v1/changelog", get(api_changelog))
         .route("/api/v1/search", get(api_search))
+        .route("/api/v1/reload", axum::routing::post(api_reload))
         .route("/assets/{*path}", get(serve_asset))
         .nest_service("/mcp", mcp_service)
         .fallback(get(serve_spa))
@@ -2330,10 +2501,7 @@ mod tests {
     async fn test_same_origin_policy_on_loopback() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
 
         // Loopback binding with no cors
         let cors = build_cors_layer("127.0.0.1", None).unwrap();
@@ -2361,10 +2529,7 @@ mod tests {
     async fn test_cors_allowed_origin_on_network_binding() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
 
         // Network binding with explicit origin
         let cors = build_cors_layer("0.0.0.0", Some("https://docs.company.com")).unwrap();
@@ -2390,10 +2555,7 @@ mod tests {
     async fn test_spawn_blocking_handlers_work_with_db() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
 
         let app = create_runner_router(state, None);
 
@@ -2465,10 +2627,7 @@ mod tests {
     async fn test_version_scoping_duplicate_path() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
         let app = create_runner_router(state, None);
 
         // 1. Querying version latest / v1 returns Getting Started v1
@@ -2540,10 +2699,7 @@ mod tests {
     async fn test_language_scoping_no_cross_language_fallback() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
         let app = create_runner_router(state, None);
 
         // 1. Language 'fr' exists in languages table, but page1 has no content for 'fr'
@@ -2572,10 +2728,7 @@ mod tests {
     async fn test_root_path_no_cross_version_fallback() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
         let app = create_runner_router(state, None);
 
         // When no page has path="/" or "", root request must return 404, not pick first page across all versions
@@ -2595,10 +2748,7 @@ mod tests {
     async fn test_search_version_and_language_scoping_and_ranking() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
         let app = create_runner_router(state, None);
 
         // 1. Scoped to v1
@@ -2778,10 +2928,7 @@ mod tests {
             .await
             .unwrap();
 
-        let state = AppState {
-            db: pool,
-            search: None,
-        };
+        let state = AppState::new(pool, None);
         let app = create_runner_router(state, None);
 
         // 1. Direct redirect by custom_id
@@ -2946,5 +3093,135 @@ mod tests {
         assert_eq!(v.as_deref(), Some("v2.0"));
         assert_eq!(l.as_deref(), Some("ja"));
     }
+
+    #[tokio::test]
+    async fn test_hot_reload_endpoint_and_atomic_swap() {
+        use tower::ServiceExt;
+
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("docs.sqlite");
+
+        // 1. Initialize SQLite database with initial project
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(&db_path)
+                    .create_if_missing(true),
+            )
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "CREATE TABLE export_meta (project_id TEXT PRIMARY KEY, project_name TEXT NOT NULL, project_slug TEXT NOT NULL, exported_at TEXT NOT NULL, schema_version INTEGER NOT NULL DEFAULT 1); \
+             INSERT INTO export_meta VALUES ('p1', 'Initial Project', 'init', '2026-10-17T00:00:00Z', 1); \
+             CREATE TABLE project_config (key TEXT PRIMARY KEY, value TEXT NOT NULL); \
+             CREATE TABLE languages (code TEXT PRIMARY KEY, label TEXT NOT NULL, is_default INTEGER NOT NULL, is_rtl INTEGER NOT NULL); \
+             INSERT INTO languages VALUES ('en', 'English', 1, 0); \
+             CREATE TABLE versions (id TEXT PRIMARY KEY, slug TEXT NOT NULL, label TEXT NOT NULL, is_default INTEGER NOT NULL, sort_order INTEGER NOT NULL); \
+             INSERT INTO versions VALUES ('v1', 'v1.0', 'v1.0', 1, 0); \
+             CREATE TABLE pages (id TEXT PRIMARY KEY, custom_id TEXT, version_id TEXT NOT NULL, parent_id TEXT, kind TEXT NOT NULL, slug TEXT NOT NULL, title TEXT NOT NULL, path TEXT NOT NULL, icon TEXT, sort_order INTEGER NOT NULL); \
+             INSERT INTO pages VALUES ('p_init', 'init-doc', 'v1', NULL, 'PAGE', 'init', 'Initial Page', '/init', NULL, 0); \
+             CREATE TABLE page_content (page_id TEXT NOT NULL, language TEXT NOT NULL, markdown TEXT NOT NULL, description TEXT, updated_at TEXT NOT NULL, PRIMARY KEY(page_id, language)); \
+             INSERT INTO page_content VALUES ('p_init', 'en', '# Initial Page Content', 'Initial description', '2026-10-17T00:00:00Z');"
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        pool.close().await;
+
+        // Open read-only pool for AppState
+        let ro_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(&db_path)
+                    .read_only(true),
+            )
+            .await
+            .unwrap();
+
+        let state = AppState::with_paths(ro_pool, None, db_path.clone(), None);
+        let app = create_runner_router(state, None);
+
+        // 2. Query initial page
+        let req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/init")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // 3. Mutate SQLite database on disk
+        let rw_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(&db_path),
+            )
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "UPDATE export_meta SET project_name = 'Updated Raft Platform'; \
+             INSERT INTO pages VALUES ('p_new', 'hot-reload-page', 'v1', NULL, 'PAGE', 'hot-reload', 'Hot Reload Page', '/hot-reload', NULL, 1); \
+             INSERT INTO page_content VALUES ('p_new', 'en', '# Hot Reload Success', 'New page added live', '2026-10-17T01:00:00Z');"
+        )
+        .execute(&rw_pool)
+        .await
+        .unwrap();
+
+        rw_pool.close().await;
+
+        // 4. Trigger POST /api/v1/reload
+        let reload_req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/api/v1/reload")
+            .header(axum::http::header::HOST, "127.0.0.1:8080")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let reload_res = app.clone().oneshot(reload_req).await.unwrap();
+        assert_eq!(reload_res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(reload_res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(val["reloaded"], true);
+        assert_eq!(val["stats"]["projectName"], "Updated Raft Platform");
+        assert_eq!(val["stats"]["pageCount"], 2);
+
+        // 5. Query newly added page without server restart
+        let new_page_req = axum::http::Request::builder()
+            .uri("/api/v1/page?path=/hot-reload")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let new_page_res = app.oneshot(new_page_req).await.unwrap();
+        assert_eq!(new_page_res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(new_page_res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let page_resp: SitePageResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(page_resp.page.title, "Hot Reload Page");
+        assert!(page_resp.page.content.contains("Hot Reload Success"));
+    }
+
+    #[tokio::test]
+    async fn test_hot_reload_loopback_restriction() {
+        use tower::ServiceExt;
+
+        let pool = setup_test_db().await;
+        let state = AppState::new(pool, None);
+        let app = create_runner_router(state, None);
+
+        // Call from external non-loopback host must receive 403 Forbidden
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/api/v1/reload")
+            .header(axum::http::header::HOST, "malicious.internal.company.com")
+            .body(axum::body::Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    }
 }
+
 
