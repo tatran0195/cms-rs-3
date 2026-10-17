@@ -134,4 +134,38 @@ describe("SiteLayout structure", () => {
     const main = container.querySelector("main.min-w-0");
     expect(main).not.toBeNull();
   });
+
+  it("renders the selected fumadocs layout according to config.theme.layout.docsLayout", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const layouts = ["docs", "notebook", "glass", "flux", "spacious"] as const;
+    for (const layoutId of layouts) {
+      const siteWithLayout: SiteShell = {
+        ...mockSite,
+        project: {
+          ...mockSite.project,
+          config: {
+            theme: {
+              layout: {
+                docsLayout: layoutId,
+              },
+            },
+          },
+        },
+      };
+
+      await act(async () => {
+        root.render(
+          <QueryClientProvider client={queryClient}>
+            <SiteLayout site={siteWithLayout} projectId="proj1" />
+          </QueryClientProvider>,
+        );
+      });
+
+      const layoutRoot = container.querySelector(`[data-documentation-layout="fumadocs-${layoutId}"]`);
+      expect(layoutRoot).not.toBeNull();
+    }
+  });
 });

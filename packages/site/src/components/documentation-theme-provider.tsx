@@ -1,43 +1,28 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
-import { type ResolvedTheme, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
+import { type DocsLayoutId, type ResolvedTheme, resolveDocsLayout, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
 import { type CSSProperties, createContext, type ReactNode, useContext } from 'react';
+import {
+  type DocsLayoutSlots,
+  type DocsLayoutTemplate,
+  type DocsPageSlots,
+  getDocsLayoutTemplate,
+  type ProjectPreviewSlots,
+  type StudioPreviewSlots,
+} from '../layouts';
 
 export type DocumentationThemeContextName = 'reader' | 'project-preview' | 'studio-preview';
 
-interface ReaderSlots {
-  banner?: ReactNode;
-  header: ReactNode;
-  navigation: ReactNode;
-  content: ReactNode;
-  footer?: ReactNode;
-  overlays?: ReactNode;
-}
-
-interface ProjectPreviewSlots {
-  mobileNavigation: ReactNode;
-  navigation: ReactNode;
-  content: ReactNode;
-}
-
-interface StudioPreviewSlots {
-  header: ReactNode;
-  navigation: ReactNode;
-  content: ReactNode;
-}
-
-interface PageSlots {
-  article: ReactNode;
-  tableOfContents: ReactNode;
-}
+export type ReaderSlots = DocsLayoutSlots;
+export type PageSlots = DocsPageSlots;
 
 export interface DocumentationThemeTemplate {
-  id: 'harbor' | 'manuscript' | 'signal';
-  shell: ThemeLayout['shell'];
-  ReaderLayout: (slots: ReaderSlots) => ReactNode;
+  id: string;
+  shell?: ThemeLayout['shell'];
+  ReaderLayout: (slots: DocsLayoutSlots) => ReactNode;
   ProjectPreviewLayout: (slots: ProjectPreviewSlots) => ReactNode;
   StudioPreviewLayout: (slots: StudioPreviewSlots) => ReactNode;
-  PageLayout: (slots: PageSlots) => ReactNode;
+  PageLayout: (slots: DocsPageSlots) => ReactNode;
 }
 
 const readerFrame = (slots: ReaderSlots, body: ReactNode) => (
@@ -282,7 +267,7 @@ export const DOCUMENTATION_THEME_TEMPLATES = {
   console: SignalTemplate,
 } as const satisfies Record<ThemeLayout['shell'], DocumentationThemeTemplate>;
 
-const DocumentationTemplateContext = createContext<ThemeLayout['shell']>('reference');
+const DocumentationTemplateContext = createContext<DocumentationThemeTemplate>(HarborTemplate);
 
 export function DocumentationThemeProvider({
   theme,
@@ -303,11 +288,16 @@ export function DocumentationThemeProvider({
   css?: string;
   children: ReactNode;
 }) {
-  const template = DOCUMENTATION_THEME_TEMPLATES[theme.layout.shell];
+  const isCustomDocsLayout = Boolean(theme.layout.docsLayout);
+  const template = isCustomDocsLayout
+    ? getDocsLayoutTemplate(theme.layout.docsLayout!)
+    : DOCUMENTATION_THEME_TEMPLATES[theme.layout.shell] ?? HarborTemplate;
+
   return (
-    <DocumentationTemplateContext.Provider value={theme.layout.shell}>
+    <DocumentationTemplateContext.Provider value={template}>
       <div
         className={cn('cms-site-chrome', className, appearance === 'dark' && 'dark')}
+        data-documentation-layout={isCustomDocsLayout ? `fumadocs-${theme.layout.docsLayout}` : undefined}
         data-documentation-template={template.id}
         data-theme-callouts={theme.components.callouts}
         data-theme-context={context}
@@ -337,9 +327,9 @@ export function DocumentationThemeProvider({
   );
 }
 
-const useDocumentationThemeTemplate = (): DocumentationThemeTemplate => DOCUMENTATION_THEME_TEMPLATES[useContext(DocumentationTemplateContext)];
+const useDocumentationThemeTemplate = (): DocumentationThemeTemplate => useContext(DocumentationTemplateContext);
 
-export function DocumentationReaderLayout(slots: ReaderSlots) {
+export function DocumentationReaderLayout(slots: DocsLayoutSlots) {
   return useDocumentationThemeTemplate().ReaderLayout(slots);
 }
 
@@ -351,6 +341,6 @@ export function DocumentationStudioPreviewLayout(slots: StudioPreviewSlots) {
   return useDocumentationThemeTemplate().StudioPreviewLayout(slots);
 }
 
-export function DocumentationPageLayout(slots: PageSlots) {
+export function DocumentationPageLayout(slots: DocsPageSlots) {
   return useDocumentationThemeTemplate().PageLayout(slots);
 }

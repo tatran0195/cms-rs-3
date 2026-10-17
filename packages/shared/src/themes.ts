@@ -438,7 +438,7 @@ export const resolveTheme = (config?: ThemeOwnedProjectConfig | null): ResolvedT
     layout: {
       ...preset.layout,
       ...config?.theme?.layout,
-      docsLayout: resolveDocsLayout(config?.theme?.layout ?? preset.layout),
+      ...(config?.theme?.layout?.docsLayout ? { docsLayout: config.theme.layout.docsLayout } : {}),
       ...(config?.styling?.radius ? { radius: config.styling.radius } : {}),
     },
     components: { ...preset.components, ...config?.theme?.components },
