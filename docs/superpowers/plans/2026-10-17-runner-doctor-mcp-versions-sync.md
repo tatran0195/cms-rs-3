@@ -30,7 +30,7 @@
   - Library `cms_runner` exposing: `windows`, `mcp`, `AppState`, `create_runner_router`, `resolve_runner_paths`, `Args`, `ServeArgs`, `Cli`, `Commands`.
   - Binary `cms-site` consuming `cms_runner`.
 
-- [ ] **Step 1: Update apps/runner/Cargo.toml to define [lib] and [dependencies]**
+- [x] **Step 1: Update apps/runner/Cargo.toml to define [lib] and [dependencies]**
 
 Add `[lib]` entry and `reqwest` for sync:
 ```toml
@@ -46,7 +46,7 @@ path = "src/main.rs"
 reqwest = { workspace = true, features = ["json", "rustls"], default-features = false }
 ```
 
-- [ ] **Step 2: Create apps/runner/src/lib.rs with module exports**
+- [x] **Step 2: Create apps/runner/src/lib.rs with module exports**
 
 Export core modules:
 ```rust
@@ -56,16 +56,16 @@ pub mod mcp;
 // Re-export router, app state, and utility functions
 ```
 
-- [ ] **Step 3: Update apps/runner/src/main.rs to use cms_runner**
+- [x] **Step 3: Update apps/runner/src/main.rs to use cms_runner**
 
 Refactor `main.rs` to import from `cms_runner::*`.
 
-- [ ] **Step 4: Run tests to verify compilation and library resolution**
+- [x] **Step 4: Run tests to verify compilation and library resolution**
 
 Run: `cargo test -p cms-runner`
 Expected: PASS (all 20 unit tests continue to pass).
 
-- [ ] **Step 5: Commit changes**
+- [x] **Step 5: Commit changes**
 
 ```bash
 git add apps/runner/Cargo.toml apps/runner/src/lib.rs apps/runner/src/main.rs
@@ -86,7 +86,7 @@ git commit -m "refactor(runner): define cms_runner library and modularize crate 
   - RMCP tool `list_versions`: returns `Vec<VersionSummary>` with joined `page_count`.
   - CLI `cms-site open <id>`: supports `--version <slug>`, `--lang <code>`, and parses `cms-doc://<id>?version=...&lang=...`.
 
-- [ ] **Step 1: Write failing test for list_versions tool and open parameter parsing**
+- [x] **Step 1: Write failing test for list_versions tool and open parameter parsing**
 
 ```rust
 #[tokio::test]
@@ -100,12 +100,12 @@ async fn test_list_versions_tool() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p cms-runner test_list_versions_tool`
 Expected: FAIL (`list_versions` not implemented).
 
-- [ ] **Step 3: Implement list_versions in apps/runner/src/mcp.rs**
+- [x] **Step 3: Implement list_versions in apps/runner/src/mcp.rs**
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, Default)]
@@ -156,7 +156,7 @@ pub async fn list_versions(
 }
 ```
 
-- [ ] **Step 4: Update OpenArgs and run_open in apps/runner/src/main.rs**
+- [x] **Step 4: Update OpenArgs and run_open in apps/runner/src/main.rs**
 
 Add `--version` and `--lang` to `OpenArgs`. Parse query params from URI or flags:
 ```rust
@@ -174,12 +174,12 @@ pub struct OpenArgs {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cargo test -p cms-runner test_list_versions_tool`
 Expected: PASS.
 
-- [ ] **Step 6: Commit changes**
+- [x] **Step 6: Commit changes**
 
 ```bash
 git add apps/runner/src/mcp.rs apps/runner/src/main.rs
@@ -201,7 +201,7 @@ git commit -m "feat(runner): add list_versions MCP tool and --version/--lang fla
   - `pub async fn run_doctor(db_path: &Path, idx_dir: Option<&Path>, port: u16) -> anyhow::Result<bool>`
   - CLI subcommand `cms-site doctor`.
 
-- [ ] **Step 1: Write failing test for diagnostic checks**
+- [x] **Step 1: Write failing test for diagnostic checks**
 
 ```rust
 #[tokio::test]
@@ -214,12 +214,12 @@ async fn test_doctor_sqlite_integrity_check() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p cms-runner test_doctor_sqlite_integrity_check`
 Expected: FAIL (`check_sqlite_integrity` not found).
 
-- [ ] **Step 3: Implement diagnostic checks in apps/runner/src/diagnostics.rs**
+- [x] **Step 3: Implement diagnostic checks in apps/runner/src/diagnostics.rs**
 
 Implement:
 1. `check_windows_registry`:
@@ -238,16 +238,16 @@ Implement:
    - If port busy, probes `http://127.0.0.1:port/healthz` to determine if another `cms-site` is running.
 5. `run_doctor`: Formats terminal table with `[✓]`, `[!]`, `[✗]`.
 
-- [ ] **Step 4: Wire doctor subcommand in apps/runner/src/main.rs**
+- [x] **Step 4: Wire doctor subcommand in apps/runner/src/main.rs**
 
 Add `Commands::Doctor(DoctorArgs)`.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cargo test -p cms-runner diagnostics`
 Expected: PASS.
 
-- [ ] **Step 6: Commit changes**
+- [x] **Step 6: Commit changes**
 
 ```bash
 git add apps/runner/src/diagnostics.rs apps/runner/src/lib.rs apps/runner/src/main.rs
@@ -267,7 +267,7 @@ git commit -m "feat(runner): implement cms-site doctor diagnostic health suite"
   - Route: `POST /api/v1/reload`
   - Reopens SQLite read-only connection pool and Tantivy reader, atomically swapping references.
 
-- [ ] **Step 1: Write failing test for /api/v1/reload endpoint**
+- [x] **Step 1: Write failing test for /api/v1/reload endpoint**
 
 ```rust
 #[tokio::test]
@@ -287,12 +287,12 @@ async fn test_hot_reload_endpoint() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p cms-runner test_hot_reload_endpoint`
 Expected: FAIL (route `/api/v1/reload` not found, returns 404).
 
-- [ ] **Step 3: Implement AppState atomic reload and reload handler**
+- [x] **Step 3: Implement AppState atomic reload and reload handler**
 
 Wrap internal state in `Arc<tokio::sync::RwLock<InnerState>>` or `arc_swap`:
 ```rust
@@ -307,12 +307,12 @@ async fn api_reload(
 ```
 Mount `.route("/api/v1/reload", post(api_reload))` in router.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cargo test -p cms-runner test_hot_reload_endpoint`
 Expected: PASS.
 
-- [ ] **Step 5: Commit changes**
+- [x] **Step 5: Commit changes**
 
 ```bash
 git add apps/runner/src/lib.rs apps/runner/src/main.rs
@@ -334,7 +334,7 @@ git commit -m "feat(runner): add zero-downtime hot-reload via POST /api/v1/reloa
   - `pub async fn run_sync(args: SyncArgs) -> anyhow::Result<()>`
   - CLI subcommand `cms-site sync`.
 
-- [ ] **Step 1: Write failing test for sync atomic unpacking and integrity verification**
+- [x] **Step 1: Write failing test for sync atomic unpacking and integrity verification**
 
 ```rust
 #[tokio::test]
@@ -348,12 +348,12 @@ async fn test_sync_atomic_replace_verifies_integrity() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cargo test -p cms-runner test_sync_atomic_replace_verifies_integrity`
 Expected: FAIL (`verify_and_swap_sqlite` not found).
 
-- [ ] **Step 3: Implement sync client in apps/runner/src/sync.rs**
+- [x] **Step 3: Implement sync client in apps/runner/src/sync.rs**
 
 Implement:
 1. `fetch_latest_export`: Calls hosted CMS `/api/v1/export/jobs?limit=1&format=sqlite` with `Bearer <token>`.
@@ -362,16 +362,16 @@ Implement:
 4. `notify_reload`: Sends `POST http://localhost:{port}/api/v1/reload`.
 5. `run_sync`: Dispatches one-shot sync or `--watch` interval loop.
 
-- [ ] **Step 4: Wire sync subcommand in apps/runner/src/main.rs**
+- [x] **Step 4: Wire sync subcommand in apps/runner/src/main.rs**
 
 Add `Commands::Sync(SyncArgs)` and dispatch to `sync::run_sync`.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cargo test -p cms-runner sync`
 Expected: PASS.
 
-- [ ] **Step 6: Commit changes**
+- [x] **Step 6: Commit changes**
 
 ```bash
 git add apps/runner/src/sync.rs apps/runner/src/lib.rs apps/runner/src/main.rs
@@ -386,17 +386,17 @@ git commit -m "feat(runner): implement cms-site sync auto-updater and hot-reload
 - Modify: `README.md` / `apps/runner/README.md`
 - Test: Full workspace test suite
 
-- [ ] **Step 1: Run complete workspace test suite**
+- [x] **Step 1: Run complete workspace test suite**
 
 Run: `cargo test -p cms-entity -p cms-db -p cms-biz -p cms-runner`
 Expected: PASS with 0 failures across all crates.
 
-- [ ] **Step 2: Verify CLI help and commands**
+- [x] **Step 2: Verify CLI help and commands**
 
 Run: `cargo run --bin cms-site -- --help`
 Verify `doctor`, `sync`, `serve`, `mcp`, `open`, `install`, `uninstall` are documented.
 
-- [ ] **Step 3: Commit documentation and plan updates**
+- [x] **Step 3: Commit documentation and plan updates**
 
 ```bash
 git add README.md apps/runner/README.md docs/superpowers/plans/2026-10-17-runner-doctor-mcp-versions-sync.md
