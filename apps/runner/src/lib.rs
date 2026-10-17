@@ -132,8 +132,16 @@ pub struct McpCliArgs {
 
 #[derive(Parser, Debug, Clone)]
 pub struct OpenArgs {
-    /// Document UUID, custom ID (e.g., 'auth-guide'), or 'cms-doc://<id>' URL
+    /// Document UUID, custom ID (e.g., 'auth-guide'), path, or 'cms-doc://<id>' URL
     pub id: String,
+
+    /// Optional documentation version slug or ID
+    #[arg(short, long)]
+    pub version: Option<String>,
+
+    /// Optional language code (e.g., 'ja', 'en')
+    #[arg(short, long)]
+    pub lang: Option<String>,
 
     /// Port of the running documentation server (default: 8080)
     #[arg(short, long, default_value_t = 8080)]
@@ -1565,14 +1573,46 @@ pub fn init_tracing(stderr_only: bool, default_level: &str) {
     }
 }
 
+pub fn parse_open_target(args: &OpenArgs) -> (String, Option<String>, Option<String>) {
+    let mut raw = args.id.trim();
+    if let Some(stripped) = raw.strip_prefix("cms-doc://") {
+        raw = stripped;
+    } else if let Some(stripped) = raw.strip_prefix("cms-doc:") {
+        raw = stripped;
+    }
+    raw = raw.trim_matches('/');
+    if let Some(stripped) = raw.strip_prefix("p/") {
+        raw = stripped.trim_matches('/');
+    }
+
+    // Check if raw contains query parameters, e.g. "auth-guide?version=v2.0&lang=ja"
+    let (id_part, url_query) = if let Some(q_pos) = raw.find('?') {
+        (&raw[..q_pos], Some(&raw[q_pos + 1..]))
+    } else {
+        (raw, None)
+    };
+
+    let mut version = args.version.clone();
+    let mut lang = args.lang.clone();
+
+    if let Some(query_str) = url_query {
+        for pair in query_str.split('&') {
+            let mut parts = pair.splitn(2, '=');
+            let key = parts.next().unwrap_or("").trim();
+            let val = parts.next().unwrap_or("").trim();
+            if key.eq_ignore_ascii_case("version") && version.is_none() && !val.is_empty() {
+                version = Some(val.to_string());
+            } else if key.eq_ignore_ascii_case("lang") && lang.is_none() && !val.is_empty() {
+                lang = Some(val.to_string());
+            }
+        }
+    }
+
+    (id_part.to_string(), version, lang)
+}
+
 pub async fn run_open(args: OpenArgs) -> anyhow::Result<()> {
-    let clean_id = args
-        .id
-        .trim_start_matches("cms-doc://")
-        .trim_start_matches("cms-doc:")
-        .trim_matches('/')
-        .trim_start_matches("p/")
-        .trim_matches('/');
+    let (clean_id, version_opt, lang_opt) = parse_open_target(&args);
 
     if clean_id.is_empty() {
         eprintln!("Error: No document ID, custom ID, or path specified.");
@@ -1585,7 +1625,20 @@ pub async fn run_open(args: OpenArgs) -> anyhow::Result<()> {
         format!("http://localhost:{}", args.port)
     };
 
-    let target_url = format!("{}/p/{}", base_url, clean_id);
+    let mut query_params = Vec::new();
+    if let Some(ref v) = version_opt {
+        query_params.push(format!("version={}", v));
+    }
+    if let Some(ref l) = lang_opt {
+        query_params.push(format!("lang={}", l));
+    }
+
+    let target_url = if query_params.is_empty() {
+        format!("{}/p/{}", base_url, clean_id)
+    } else {
+        format!("{}/p/{}?{}", base_url, clean_id, query_params.join("&"))
+    };
+
     println!("Opening documentation in default browser: {}", target_url);
     windows::open_url_in_browser(&target_url)?;
     Ok(())
@@ -2798,5 +2851,58 @@ mod tests {
             .await
             .unwrap();
         assert!(!search_res.content.is_empty());
+
+        // 5. Test list_versions
+        let ver_res = handler
+            .list_versions(Parameters(mcp::ListVersionsParams::default()))
+            .await
+            .unwrap();
+        assert!(!ver_res.content.is_empty());
+        let text = ver_res.content[0].as_text().unwrap();
+        assert!(text.text.contains("v1.0"));
+        assert!(text.text.contains("pageCount"));
+    }
+
+    #[test]
+    fn test_parse_open_target_with_flags_and_urls() {
+        // Case 1: Simple custom ID
+        let args1 = OpenArgs {
+            id: "auth-guide".into(),
+            version: None,
+            lang: None,
+            port: 8080,
+            server_url: "http://localhost:8080".into(),
+        };
+        let (id, v, l) = parse_open_target(&args1);
+        assert_eq!(id, "auth-guide");
+        assert_eq!(v, None);
+        assert_eq!(l, None);
+
+        // Case 2: cms-doc:// URI with query parameters
+        let args2 = OpenArgs {
+            id: "cms-doc://auth-guide?version=v2.0&lang=ja".into(),
+            version: None,
+            lang: None,
+            port: 8080,
+            server_url: "http://localhost:8080".into(),
+        };
+        let (id, v, l) = parse_open_target(&args2);
+        assert_eq!(id, "auth-guide");
+        assert_eq!(v.as_deref(), Some("v2.0"));
+        assert_eq!(l.as_deref(), Some("ja"));
+
+        // Case 3: Explicit CLI flags take precedence over URI params
+        let args3 = OpenArgs {
+            id: "cms-doc:///p/api/v1?version=v1.0&lang=en".into(),
+            version: Some("v2.0".into()),
+            lang: Some("ja".into()),
+            port: 8080,
+            server_url: "http://localhost:8080".into(),
+        };
+        let (id, v, l) = parse_open_target(&args3);
+        assert_eq!(id, "api/v1");
+        assert_eq!(v.as_deref(), Some("v2.0"));
+        assert_eq!(l.as_deref(), Some("ja"));
     }
 }
+

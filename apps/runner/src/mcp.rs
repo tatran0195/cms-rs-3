@@ -61,6 +61,22 @@ pub struct OpenPageParams {
     pub id_or_path: String,
 }
 
+/// Parameters for listing available documentation versions.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct ListVersionsParams {}
+
+/// Summary of a documentation version with page counts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionSummary {
+    pub id: String,
+    pub slug: String,
+    pub label: String,
+    pub is_default: bool,
+    pub sort_order: i64,
+    pub page_count: i64,
+}
+
 /// Parameters for getting project information.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 pub struct GetProjectInfoParams {}
@@ -349,6 +365,39 @@ impl RunnerMcpHandler {
         }))
         .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
 
+        Ok(CallToolResult::success(vec![ContentBlock::text(json_text)]))
+    }
+
+    #[tool(description = "List all available documentation versions and branches with page counts")]
+    pub async fn list_versions(
+        &self,
+        Parameters(_args): Parameters<ListVersionsParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let rows = sqlx::query(
+            "SELECT v.id, v.slug, v.label, v.is_default, v.sort_order, COUNT(p.id) \
+             FROM versions v \
+             LEFT JOIN pages p ON p.version_id = v.id \
+             GROUP BY v.id \
+             ORDER BY v.sort_order ASC",
+        )
+        .fetch_all(&self.db)
+        .await
+        .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
+
+        let mut versions = Vec::new();
+        for r in rows {
+            versions.push(VersionSummary {
+                id: r.try_get(0).unwrap_or_default(),
+                slug: r.try_get(1).unwrap_or_default(),
+                label: r.try_get(2).unwrap_or_default(),
+                is_default: r.try_get::<i32, _>(3).unwrap_or(0) == 1,
+                sort_order: r.try_get(4).unwrap_or(0),
+                page_count: r.try_get(5).unwrap_or(0),
+            });
+        }
+
+        let json_text = serde_json::to_string_pretty(&versions)
+            .map_err(|e| mcp_err(ErrorCode::INTERNAL_ERROR, e.to_string()))?;
         Ok(CallToolResult::success(vec![ContentBlock::text(json_text)]))
     }
 }
