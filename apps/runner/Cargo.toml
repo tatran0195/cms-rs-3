@@ -3,11 +3,16 @@ name = "cms-runner"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "cms_runner"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cms-site"
 path = "src/main.rs"
 
 [dependencies]
+reqwest = { workspace = true }
 axum = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
