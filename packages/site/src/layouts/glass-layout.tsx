@@ -125,12 +125,12 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
 
   PageLayout: ({ article, tableOfContents }) => (
     <div
-      className="grid min-w-0 grid-cols-1 gap-8 py-6 lg:py-10 xl:grid-cols-[minmax(0,1fr)_14rem]"
+      className="grid min-w-0 grid-cols-1 gap-8 py-6 lg:py-10 lg:grid-cols-[minmax(0,1fr)_14rem]"
       data-documentation-layout="fumadocs-glass-page"
       data-theme-region="page-shell"
     >
       <div className="min-w-0 max-w-4xl">{article}</div>
-      <aside className="hidden xl:block" data-theme-region="toc">
+      <aside className="hidden lg:block" data-theme-region="toc">
         <div className="sticky top-(--content-scroll-mt) max-h-[calc(100dvh-var(--content-scroll-mt)-2rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/50 p-4 backdrop-blur-sm shadow-xs">
           {tableOfContents}
         </div>

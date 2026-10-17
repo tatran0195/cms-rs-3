@@ -92,12 +92,12 @@ export const NotebookLayoutTemplate: DocsLayoutTemplate = {
 
   PageLayout: ({ article, tableOfContents }) => (
     <div
-      className="grid min-w-0 grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_13rem]"
+      className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_14rem]"
       data-documentation-layout="fumadocs-notebook-page"
       data-theme-region="page-shell"
     >
       <div className="min-w-0 max-w-4xl">{article}</div>
-      <aside className="hidden xl:block" data-theme-region="toc">
+      <aside className="hidden lg:block" data-theme-region="toc">
         <div className="sticky top-(--content-scroll-mt) max-h-[calc(100dvh-var(--content-scroll-mt)-2rem)] overflow-y-auto">
           {tableOfContents}
         </div>
