@@ -61,4 +61,14 @@ describe('theme template schema', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('validates theme layout with docsLayout', () => {
+    const result = themeConfigSchema.safeParse({
+      preset: 'harbor',
+      layout: {
+        docsLayout: 'glass',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
 });

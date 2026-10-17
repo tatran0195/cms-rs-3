@@ -4,6 +4,7 @@ import {
   canonicalThemeTemplateJson,
   inspectThemeTemplateInput,
   previewThemeConfigChanges,
+  resolveDocsLayout,
   resolveTheme,
   safeThemeFontFamily,
   safeThemeHex,
@@ -75,5 +76,18 @@ describe('documentation themes', () => {
     });
     expect(safeThemeFontFamily(' نسق عربي ')).toBe('نسق عربي');
     expect(safeThemeFontFamily("Inter';}body{display:none}/*")).toBeUndefined();
+  });
+
+  it('resolves explicit docsLayout or falls back according to shell', () => {
+    expect(resolveDocsLayout({ docsLayout: 'glass' })).toBe('glass');
+    expect(resolveDocsLayout({ docsLayout: 'notebook' })).toBe('notebook');
+    expect(resolveDocsLayout({ docsLayout: 'flux' })).toBe('flux');
+    expect(resolveDocsLayout({ docsLayout: 'spacious' })).toBe('spacious');
+    expect(resolveDocsLayout({ docsLayout: 'docs' })).toBe('docs');
+    expect(resolveDocsLayout({ shell: 'editorial' })).toBe('notebook');
+    expect(resolveDocsLayout({ shell: 'console' })).toBe('flux');
+    expect(resolveDocsLayout({ shell: 'reference' })).toBe('docs');
+    expect(resolveDocsLayout({ shell: 'glass' })).toBe('glass');
+    expect(resolveDocsLayout(undefined)).toBe('docs');
   });
 });

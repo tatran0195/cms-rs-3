@@ -1,4 +1,5 @@
 import {
+  DOCS_LAYOUT_IDS,
   inspectThemeTemplateInput,
   resolveTheme,
   THEME_COLOR_KEYS,
@@ -31,7 +32,8 @@ export const themeConfigSchema = z
     colors: z.object({ light: themeModeColorsSchema.optional(), dark: themeModeColorsSchema.optional() }).strict().optional(),
     layout: z
       .object({
-        shell: z.enum(['reference', 'editorial', 'console']).optional(),
+        shell: z.enum(['reference', 'editorial', 'console', ...DOCS_LAYOUT_IDS]).optional(),
+        docsLayout: z.enum(DOCS_LAYOUT_IDS).optional(),
         density: z.enum(['compact', 'comfortable', 'relaxed']).optional(),
         radius: z.enum(['sharp', 'rounded', 'pill']).optional(),
         contentWidth: z.enum(['focused', 'balanced', 'wide']).optional(),

@@ -22,6 +22,20 @@ export const safeThemeFontFamily = (value?: string): string | undefined => {
 export type ThemePresetId = 'harbor' | 'manuscript' | 'signal';
 export const THEME_PRESET_IDS = ['harbor', 'manuscript', 'signal'] as const satisfies readonly ThemePresetId[];
 
+export type DocsLayoutId = 'docs' | 'notebook' | 'glass' | 'flux' | 'spacious';
+export const DOCS_LAYOUT_IDS = ['docs', 'notebook', 'glass', 'flux', 'spacious'] as const satisfies readonly DocsLayoutId[];
+
+export const resolveDocsLayout = (layout?: Partial<ThemeLayout>): DocsLayoutId => {
+  if (layout?.docsLayout && DOCS_LAYOUT_IDS.includes(layout.docsLayout)) {
+    return layout.docsLayout;
+  }
+  if (layout?.shell === 'editorial' || layout?.shell === 'notebook') return 'notebook';
+  if (layout?.shell === 'console' || layout?.shell === 'flux') return 'flux';
+  if (layout?.shell === 'glass') return 'glass';
+  if (layout?.shell === 'spacious') return 'spacious';
+  return 'docs';
+};
+
 export type ThemeColorKey =
   | 'canvas'
   | 'foreground'
@@ -74,7 +88,8 @@ export interface ThemeMetadata {
 export interface ThemeLayout {
   /** Controls the placement of navigation, article, and page outline. This is
    * deliberately separate from visual styling so presets are true layouts. */
-  shell: 'reference' | 'editorial' | 'console';
+  shell: 'reference' | 'editorial' | 'console' | DocsLayoutId;
+  docsLayout?: DocsLayoutId;
   density: 'compact' | 'comfortable' | 'relaxed';
   radius: 'sharp' | 'rounded' | 'pill';
   contentWidth: 'focused' | 'balanced' | 'wide';
@@ -420,7 +435,12 @@ export const resolveTheme = (config?: ThemeOwnedProjectConfig | null): ResolvedT
     id,
     metadata: { ...preset.metadata, ...config?.theme?.metadata },
     colors: { light, dark },
-    layout: { ...preset.layout, ...config?.theme?.layout, ...(config?.styling?.radius ? { radius: config.styling.radius } : {}) },
+    layout: {
+      ...preset.layout,
+      ...config?.theme?.layout,
+      docsLayout: resolveDocsLayout(config?.theme?.layout ?? preset.layout),
+      ...(config?.styling?.radius ? { radius: config.styling.radius } : {}),
+    },
     components: { ...preset.components, ...config?.theme?.components },
   };
 };
