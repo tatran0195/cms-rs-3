@@ -296,6 +296,191 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     })),
   ];
 
+  const brandNode = (
+    <div className="flex min-w-0 shrink-0 items-center gap-2.5">
+      {logoHref ? (
+        <a
+          href={logoHref}
+          className="flex items-center gap-2.5 font-semibold text-foreground text-sm tracking-tight hover:opacity-85"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {brandInner}
+        </a>
+      ) : (
+        <a href={sitePath()} className="flex items-center gap-2.5 font-semibold text-foreground text-sm tracking-tight hover:opacity-85">
+          {brandInner}
+        </a>
+      )}
+    </div>
+  );
+
+  const searchFullNode = showSearch ? (
+    <button
+      type="button"
+      onClick={() => setSearchOpen(true)}
+      className="hidden h-9 w-full max-w-md cursor-pointer items-center gap-2.5 rounded-full border border-border/80 bg-muted/50 px-4 text-muted-foreground text-sm transition-colors hover:border-foreground/25 hover:bg-muted sm:flex"
+    >
+      <Search className="size-3.5 shrink-0" />
+      <span className="truncate">{config?.search?.placeholder ?? t('search')}</span>
+      <kbd
+        className="ms-auto hidden shrink-0 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] md:inline-flex"
+        dir="ltr"
+      >
+        {searchHotkey === 'slash' ? '/' : searchShortcut}
+      </kbd>
+    </button>
+  ) : null;
+
+  const searchButtonNode = showSearch ? (
+    <button
+      type="button"
+      onClick={() => setSearchOpen(true)}
+      className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      aria-label={t('search')}
+    >
+      <Search className="size-4" />
+    </button>
+  ) : null;
+
+  const toolsNode = (
+    <div className="ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex-nowrap">
+      <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
+      <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
+      <button
+        type="button"
+        onClick={toggleSiteTheme}
+        className="grid size-9 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        aria-label={t('toggleTheme')}
+      >
+        {siteTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      </button>
+      {ctaLabel && ctaUrl && (
+        <a
+          href={ctaUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ms-1 hidden h-9 cursor-pointer items-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm shadow-sm transition-opacity hover:opacity-90 sm:inline-flex"
+        >
+          {ctaLabel}
+        </a>
+      )}
+    </div>
+  );
+
+  const navLinksNode = (
+    <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
+      {headerLinks.map((link) => (
+        <a
+          key={`${link.label}-${link.href}`}
+          href={link.href}
+          target={link.external ? '_blank' : undefined}
+          rel={link.external ? 'noopener noreferrer' : undefined}
+          aria-current={link.active ? 'page' : undefined}
+          className={cn(
+            'inline-flex items-center gap-1 transition-colors',
+            link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {link.label}
+          {link.external && <ExternalLink className="size-3" />}
+        </a>
+      ))}
+    </nav>
+  );
+
+  const navTabsNode = navTabs.length > 0 ? (
+    <SiteNavTabs
+      tabs={navTabs}
+      currentPath={effectiveCurrentPath}
+      projectId={projectId}
+      lang={navigationLanguage}
+      version={activeVersionPrefix}
+      basePath={basePrefix}
+    />
+  ) : null;
+
+  const navAnchorsNode = navAnchors.length > 0 ? (
+    <ul className="mb-4 space-y-1 border-border/60 border-b pb-5">
+      {navAnchors.map((anchor) => (
+        <li key={`${anchor.label}-${anchor.href}`}>
+          <a
+            href={resolveNavHref(anchor.href)}
+            target={anchor.external ? '_blank' : undefined}
+            rel={anchor.external ? 'noopener noreferrer' : undefined}
+            className="group flex items-center gap-3 rounded-lg px-2 py-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+          >
+            <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs transition-colors group-hover:border-primary/40 group-hover:text-primary">
+              {hasIcon(anchor.icon) ? <PageIcon name={anchor.icon} className="size-3.5" /> : <Link2 className="size-3.5" />}
+            </span>
+            <span className="truncate">{anchor.label}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
+  const sidebarTreeNode = (
+    <SiteNav
+      nodes={site?.nav ?? []}
+      projectId={projectId}
+      currentPath={effectiveCurrentPath}
+      lang={navigationLanguage}
+      version={activeVersionPrefix}
+      basePath={basePrefix}
+    />
+  );
+
+  const mobileNavNode = (
+    <MobileNav
+      nodes={site?.nav ?? []}
+      projectId={projectId}
+      currentPath={effectiveCurrentPath}
+      lang={navigationLanguage}
+      version={activeVersionPrefix}
+      label={t('docs')}
+      isRtl={isRtl}
+      links={headerLinks}
+      tabs={navTabs}
+      basePath={basePrefix}
+    />
+  );
+
+  const headerNode = (
+    <div
+      ref={observeHeader}
+      className="sticky top-0 z-30 border-border/70 border-b bg-background/80 backdrop-blur-md"
+      data-theme-region="header-shell"
+    >
+      <header
+        className="mx-auto flex min-h-16 max-w-[90rem] flex-wrap items-center gap-2 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0"
+        data-theme-region="header"
+      >
+        {mobileNavNode}
+        {brandNode}
+
+        {/* Centered search (Mintlify-style); collapses to an icon on phones. */}
+        <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">
+          {searchFullNode}
+        </div>
+
+        <div className="sm:hidden">
+          {searchButtonNode}
+        </div>
+
+        {navLinksNode}
+        {toolsNode}
+      </header>
+      {navTabsNode && (
+        <div className="border-border/60 border-t py-1">
+          <div className="mx-auto flex max-w-[90rem] items-center px-4 sm:px-6">
+            {navTabsNode}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <SiteAnalyticsProvider projectId={projectId} path={effectiveCurrentPath} language={activeLanguage?.code} config={config}>
       <DocumentationThemeProvider
@@ -309,164 +494,11 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       >
         <DocumentationReaderLayout
           banner={<SiteBanner projectId={projectId} banner={config?.banner} lang={activeLanguage?.code} />}
-          header={
-            <div
-              ref={observeHeader}
-              className="sticky top-0 z-30 border-border/70 border-b bg-background/80 backdrop-blur-md"
-              data-theme-region="header-shell"
-            >
-              <header
-                className="mx-auto flex min-h-16 max-w-[90rem] flex-wrap items-center gap-2 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0"
-                data-theme-region="header"
-              >
-                <MobileNav
-                  nodes={site?.nav ?? []}
-                  projectId={projectId}
-                  currentPath={effectiveCurrentPath}
-                  lang={navigationLanguage}
-                  version={activeVersionPrefix}
-                  label={t('docs')}
-                  isRtl={isRtl}
-                  links={headerLinks}
-                  tabs={navTabs}
-                  basePath={basePrefix}
-                />
-
-                <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-                  {logoHref ? (
-                    <a
-                      href={logoHref}
-                      className="flex items-center gap-2.5 font-semibold text-foreground text-sm tracking-tight hover:opacity-85"
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      {brandInner}
-                    </a>
-                  ) : (
-                    <a href={sitePath()} className="flex items-center gap-2.5 font-semibold text-foreground text-sm tracking-tight hover:opacity-85">
-                      {brandInner}
-                    </a>
-                  )}
-                </div>
-
-                {/* Centered search (Mintlify-style); collapses to an icon on phones. */}
-                <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">
-                  {showSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchOpen(true)}
-                      className="hidden h-9 w-full max-w-md cursor-pointer items-center gap-2.5 rounded-full border border-border/80 bg-muted/50 px-4 text-muted-foreground text-sm transition-colors hover:border-foreground/25 hover:bg-muted sm:flex"
-                    >
-                      <Search className="size-3.5 shrink-0" />
-                      <span className="truncate">{config?.search?.placeholder ?? t('search')}</span>
-                      <kbd
-                        className="ms-auto hidden shrink-0 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] md:inline-flex"
-                        dir="ltr"
-                      >
-                        {searchHotkey === 'slash' ? '/' : searchShortcut}
-                      </kbd>
-                    </button>
-                  )}
-                </div>
-
-                {showSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen(true)}
-                    className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
-                    aria-label={t('search')}
-                  >
-                    <Search className="size-4" />
-                  </button>
-                )}
-
-                <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
-                  {headerLinks.map((link) => (
-                    <a
-                      key={`${link.label}-${link.href}`}
-                      href={link.href}
-                      target={link.external ? '_blank' : undefined}
-                      rel={link.external ? 'noopener noreferrer' : undefined}
-                      aria-current={link.active ? 'page' : undefined}
-                      className={cn(
-                        'inline-flex items-center gap-1 transition-colors',
-                        link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {link.label}
-                      {link.external && <ExternalLink className="size-3" />}
-                    </a>
-                  ))}
-                </nav>
-
-                <div className="ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex-nowrap">
-                  <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
-                  <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
-                  <button
-                    type="button"
-                    onClick={toggleSiteTheme}
-                    className="grid size-9 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label={t('toggleTheme')}
-                  >
-                    {siteTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                  </button>
-                  {ctaLabel && ctaUrl && (
-                    <a
-                      href={ctaUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ms-1 hidden h-9 cursor-pointer items-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm shadow-sm transition-opacity hover:opacity-90 sm:inline-flex"
-                    >
-                      {ctaLabel}
-                    </a>
-                  )}
-                </div>
-              </header>
-              {navTabs.length > 0 && (
-                <div className="border-border/60 border-t py-1">
-                  <div className="mx-auto flex max-w-[90rem] items-center px-4 sm:px-6">
-                    <SiteNavTabs
-                      tabs={navTabs}
-                      currentPath={effectiveCurrentPath}
-                      projectId={projectId}
-                      lang={navigationLanguage}
-                      version={activeVersionPrefix}
-                      basePath={basePrefix}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          }
+          header={headerNode}
           navigation={
             <>
-              {navAnchors.length > 0 && (
-                <ul className="mb-4 space-y-1 border-border/60 border-b pb-5">
-                  {navAnchors.map((anchor) => (
-                    <li key={`${anchor.label}-${anchor.href}`}>
-                      <a
-                        href={resolveNavHref(anchor.href)}
-                        target={anchor.external ? '_blank' : undefined}
-                        rel={anchor.external ? 'noopener noreferrer' : undefined}
-                        className="group flex items-center gap-3 rounded-lg px-2 py-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-                      >
-                        <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs transition-colors group-hover:border-primary/40 group-hover:text-primary">
-                          {hasIcon(anchor.icon) ? <PageIcon name={anchor.icon} className="size-3.5" /> : <Link2 className="size-3.5" />}
-                        </span>
-                        <span className="truncate">{anchor.label}</span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <SiteNav
-                nodes={site?.nav ?? []}
-                projectId={projectId}
-                currentPath={effectiveCurrentPath}
-                lang={navigationLanguage}
-                version={activeVersionPrefix}
-                basePath={basePrefix}
-              />
+              {navAnchorsNode}
+              {sidebarTreeNode}
             </>
           }
           content={
@@ -474,6 +506,15 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
               <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
             </main>
           }
+          brand={brandNode}
+          searchFull={searchFullNode}
+          searchButton={searchButtonNode}
+          tools={toolsNode}
+          navLinks={navLinksNode}
+          navTabs={navTabsNode}
+          navAnchors={navAnchorsNode}
+          sidebarTree={sidebarTreeNode}
+          mobileNav={mobileNavNode}
           footer={
             hasFooterContent || showBadge ? (
               <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
@@ -519,3 +560,4 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     </SiteAnalyticsProvider>
   );
 }
+

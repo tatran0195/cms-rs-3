@@ -8,18 +8,34 @@ export interface DocsLayoutSlots {
   content: ReactNode;
   footer?: ReactNode;
   overlays?: ReactNode;
+
+  // Granular slots for authentic Fumadocs layouts:
+  brand?: ReactNode;
+  searchFull?: ReactNode;
+  searchButton?: ReactNode;
+  tools?: ReactNode;
+  navLinks?: ReactNode;
+  navTabs?: ReactNode;
+  navAnchors?: ReactNode;
+  sidebarTree?: ReactNode;
+  mobileNav?: ReactNode;
 }
 
 export interface ProjectPreviewSlots {
   mobileNavigation: ReactNode;
   navigation: ReactNode;
   content: ReactNode;
+  header?: ReactNode;
+  brand?: ReactNode;
+  tools?: ReactNode;
 }
 
 export interface StudioPreviewSlots {
   header: ReactNode;
   navigation: ReactNode;
   content: ReactNode;
+  brand?: ReactNode;
+  tools?: ReactNode;
 }
 
 export interface DocsPageSlots {
@@ -34,3 +50,4 @@ export interface DocsLayoutTemplate {
   StudioPreviewLayout: (slots: StudioPreviewSlots) => ReactNode;
   PageLayout: (slots: DocsPageSlots) => ReactNode;
 }
+
