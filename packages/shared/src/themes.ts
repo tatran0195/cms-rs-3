@@ -33,10 +33,8 @@ export const resolveDocsLayout = (layout?: Partial<ThemeLayout> | DocsLayoutId):
     if (layout.docsLayout && DOCS_LAYOUT_IDS.includes(layout.docsLayout)) {
       return layout.docsLayout;
     }
-    if (layout.shell === 'editorial' || layout.shell === 'notebook') return 'notebook';
-    if (layout.shell === 'console' || layout.shell === 'flux') return 'flux';
-    if (layout.shell === 'glass') return 'glass';
-    if (layout.shell === 'spacious') return 'spacious';
+    if (layout.shell === 'editorial') return 'notebook';
+    if (layout.shell === 'console') return 'flux';
   }
   return 'docs';
 };
@@ -93,7 +91,7 @@ export interface ThemeMetadata {
 export interface ThemeLayout {
   /** Controls the placement of navigation, article, and page outline. This is
    * deliberately separate from visual styling so presets are true layouts. */
-  shell: 'reference' | 'editorial' | 'console' | DocsLayoutId;
+  shell: 'reference' | 'editorial' | 'console';
   docsLayout?: DocsLayoutId;
   density: 'compact' | 'comfortable' | 'relaxed';
   radius: 'sharp' | 'rounded' | 'pill';

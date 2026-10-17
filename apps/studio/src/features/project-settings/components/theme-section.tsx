@@ -188,7 +188,7 @@ const THEME_OPTION_MESSAGE_KEYS = {
   cards: 'settings.theme.option.cards',
 } as const satisfies Record<ThemeOption, MessageKey>;
 
-type ThemeOption = ThemeLayout[keyof ThemeLayout] | ThemeComponents[keyof ThemeComponents];
+type ThemeOption = ThemeLayout[Exclude<keyof ThemeLayout, 'docsLayout'>] | ThemeComponents[keyof ThemeComponents];
 
 /** One layout/component option picker. `items` is built from the same option
  *  array as the menu so the trigger label can never drift from the options. */

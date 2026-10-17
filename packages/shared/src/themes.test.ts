@@ -87,7 +87,8 @@ describe('documentation themes', () => {
     expect(resolveDocsLayout({ shell: 'editorial' })).toBe('notebook');
     expect(resolveDocsLayout({ shell: 'console' })).toBe('flux');
     expect(resolveDocsLayout({ shell: 'reference' })).toBe('docs');
-    expect(resolveDocsLayout({ shell: 'glass' })).toBe('glass');
+    expect(resolveDocsLayout('glass')).toBe('glass');
+    expect(resolveDocsLayout('spacious')).toBe('spacious');
     expect(resolveDocsLayout(undefined)).toBe('docs');
   });
 });
