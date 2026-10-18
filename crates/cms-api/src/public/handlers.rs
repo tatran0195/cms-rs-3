@@ -1628,6 +1628,7 @@ mod tests {
             icon: None,
             config: None,
             translation_key: None,
+            custom_id: None,
             position,
             is_published: true,
             is_indexed: true,

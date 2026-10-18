@@ -436,6 +436,7 @@ mod tests {
             icon: None,
             config: None,
             translation_key: None,
+            custom_id: None,
             position: 0,
             is_published: true,
             is_indexed: true,

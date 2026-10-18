@@ -63,13 +63,13 @@ pub async fn bootstrap_platform(
     )
     .fetch_optional(pool)
     .await
-    .map_err(|e| AppError::Database(e.into()))?
+    .map_err(AppError::Database)?
     .unwrap_or(false);
 
     let user_count: i64 = sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM "User""#)
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Database(e.into()))?;
+        .map_err(AppError::Database)?;
 
     if (is_initialized || user_count > 0) && !options.force {
         if options.skip_if_initialized {
@@ -91,7 +91,7 @@ pub async fn bootstrap_platform(
     // 2. Hash password with Argon2 via cms-auth
     let password_hash = cms_auth::password::hash_password(&options.admin_password)?;
 
-    let mut tx = pool.begin().await.map_err(|e| AppError::Database(e.into()))?;
+    let mut tx = pool.begin().await.map_err(AppError::Database)?;
     let now = Utc::now();
     let generated_user_id = Uuid::new_v4().to_string();
 
@@ -111,7 +111,7 @@ pub async fn bootstrap_platform(
     .bind(now)
     .fetch_one(&mut *tx)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
     // 4. Create Account credentials
     let account_id = Uuid::new_v4().to_string();
@@ -131,7 +131,7 @@ pub async fn bootstrap_platform(
     .bind(now)
     .execute(&mut *tx)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
     // 5. Update WorkspaceSettings
     sqlx::query(
@@ -147,7 +147,7 @@ pub async fn bootstrap_platform(
     .bind(now)
     .execute(&mut *tx)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
     // 6. Update SystemSettings
     sqlx::query(
@@ -174,9 +174,9 @@ pub async fn bootstrap_platform(
     .bind(now)
     .execute(&mut *tx)
     .await
-    .map_err(|e| AppError::Database(e.into()))?;
+    .map_err(AppError::Database)?;
 
-    tx.commit().await.map_err(|e| AppError::Database(e.into()))?;
+    tx.commit().await.map_err(AppError::Database)?;
 
     // 7. Create Starter Documentation Project if requested
     let mut starter_project_id = None;

@@ -1763,15 +1763,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-seed"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "cms-auth",
+ "cms-biz",
+ "cms-config",
+ "cms-db",
+ "cms-entity",
+ "cms-error",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "cms-server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "clap",
  "cms-api",
  "cms-config",
+ "cms-db",
  "cms-error",
  "cms-middleware",
  "cms-queue",
+ "cms-seed",
  "cms-sites",
  "cms-worker",
  "config",
