@@ -62,13 +62,25 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool, AppError> {
     Ok(pool)
 }
 
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("../../migrations");
+
+pub fn migrator() -> &'static sqlx::migrate::Migrator {
+    &MIGRATOR
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MigrationStatusItem {
+    pub version: i64,
+    pub description: String,
+    pub applied: bool,
+    pub checksum: Option<Vec<u8>>,
+}
+
 /// Run database migrations
 ///
-/// This uses SQLx's migration runner. During the transition from Prisma,
-/// we can use the existing Prisma migrations (which are plain SQL files)
-/// or create new SQLx migrations.
+/// This uses SQLx's migration runner with embedded migrations.
 pub async fn run_migrations(pool: &PgPool) -> Result<(), AppError> {
-    sqlx::migrate!("../../migrations")
+    MIGRATOR
         .run(pool)
         .await
         .map_err(|e| {
@@ -77,6 +89,60 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), AppError> {
         })?;
 
     Ok(())
+}
+
+/// Revert database migrations down to a specified target version, or the last applied migration
+pub async fn revert_migration(pool: &PgPool, target_version: Option<i64>) -> Result<(), AppError> {
+    let target = match target_version {
+        Some(v) => v,
+        None => {
+            let status = get_migration_status(pool).await?;
+            let applied: Vec<_> = status.into_iter().filter(|m| m.applied).collect();
+            if applied.len() <= 1 {
+                0
+            } else {
+                applied[applied.len() - 2].version
+            }
+        }
+    };
+
+    MIGRATOR
+        .undo(pool, target)
+        .await
+        .map_err(|e| {
+            tracing::error!("Migration revert failed: {}", e);
+            AppError::Database(e.into())
+        })?;
+
+    Ok(())
+}
+
+/// Get the status of all embedded migrations compared against the database
+pub async fn get_migration_status(pool: &PgPool) -> Result<Vec<MigrationStatusItem>, AppError> {
+    let applied_versions: std::collections::HashSet<i64> = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT version FROM _sqlx_migrations
+        ORDER BY version ASC
+        "#,
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+    .into_iter()
+    .collect();
+
+    let mut items = Vec::new();
+    for migration in MIGRATOR.iter() {
+        let is_applied = applied_versions.contains(&migration.version);
+        items.push(MigrationStatusItem {
+            version: migration.version,
+            description: migration.description.to_string(),
+            applied: is_applied,
+            checksum: Some(migration.checksum.to_vec()),
+        });
+    }
+
+    Ok(items)
 }
 
 /// Test database connection
@@ -92,6 +158,25 @@ pub async fn test_connection(pool: &PgPool) -> Result<(), AppError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_migrator_instance_and_status() {
+        let m = migrator();
+        assert!(m.iter().count() > 0, "Migrator should embed migration files");
+
+        let Ok(url) = std::env::var("CMS_DATABASE__URL").or_else(|_| std::env::var("DATABASE_URL")) else {
+            return;
+        };
+        if let Ok(pool) = create_pool(&url).await {
+            if test_connection(&pool).await.is_err() {
+                return;
+            }
+            let status = get_migration_status(&pool).await;
+            assert!(status.is_ok(), "Getting migration status should succeed: {:?}", status.err());
+            let list = status.unwrap();
+            assert!(!list.is_empty(), "Should return list of migrations");
+        }
+    }
 
     #[tokio::test]
     async fn test_run_migrations() {
