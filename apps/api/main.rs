@@ -102,10 +102,10 @@ pub struct BootstrapCliArgs {
     #[arg(long, env = "CMS_SEED_WORKSPACE_SLUG", default_value = "company-docs")]
     pub workspace_slug: String,
 
-    #[arg(long, default_value = "true", action = clap::ArgAction::Set)]
+    #[arg(long, num_args = 0..=1, default_value = "true", default_missing_value = "true")]
     pub starter_project: bool,
 
-    #[arg(long, default_value = "true", action = clap::ArgAction::Set)]
+    #[arg(long, num_args = 0..=1, default_value = "true", default_missing_value = "true")]
     pub skip_if_initialized: bool,
 
     #[arg(long)]
