@@ -1,0 +1,26 @@
+[package]
+name = "cms-seed"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cms-db = { workspace = true }
+cms-biz = { workspace = true }
+cms-entity = { workspace = true }
+cms-error = { workspace = true }
+cms-auth = { workspace = true }
+cms-config = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

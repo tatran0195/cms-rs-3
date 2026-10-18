@@ -40,6 +40,7 @@ members = [
   "crates/cms-middleware",
   "crates/cms-mailer",
   "crates/cms-i18n",
+  "crates/cms-seed",
   "apps/api",
   "apps/runner",
 ]
@@ -69,6 +70,7 @@ cms-api = { path = "crates/cms-api" }
 cms-worker = { path = "crates/cms-worker" }
 cms-middleware = { path = "crates/cms-middleware" }
 cms-mailer = { path = "crates/cms-mailer" }
+cms-seed = { path = "crates/cms-seed" }
 
 # External dependencies (versioned)
 # HTTP & Web
