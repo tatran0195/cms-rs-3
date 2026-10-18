@@ -16,6 +16,9 @@ cms-config = { workspace = true }
 cms-error = { workspace = true }
 cms-queue = { workspace = true }
 cms-worker = { workspace = true }
+cms-db = { workspace = true }
+cms-seed = { workspace = true }
+clap = { workspace = true }
 
 # HTTP
 axum = { workspace = true }
