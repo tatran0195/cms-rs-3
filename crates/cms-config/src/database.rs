@@ -18,6 +18,10 @@ pub struct DatabaseConfig {
     /// Whether to enable SSL
     #[serde(default)]
     pub ssl: bool,
+
+    /// Whether to automatically run database migrations on server startup
+    #[serde(default = "default_true")]
+    pub auto_migrate: bool,
 }
 
 fn default_database_url() -> String {
@@ -29,6 +33,9 @@ fn default_max_pool_size() -> u32 {
 fn default_conn_timeout() -> u64 {
     30
 }
+fn default_true() -> bool {
+    true
+}
 
 impl Default for DatabaseConfig {
     fn default() -> Self {
@@ -37,6 +44,19 @@ impl Default for DatabaseConfig {
             max_pool_size: default_max_pool_size(),
             connection_timeout: default_conn_timeout(),
             ssl: false,
+            auto_migrate: true,
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_database_config_default_auto_migrate() {
+        let db_config = DatabaseConfig::default();
+        assert!(db_config.auto_migrate, "auto_migrate should default to true");
+    }
+}
+

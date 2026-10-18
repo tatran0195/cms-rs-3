@@ -66,7 +66,12 @@ impl AppState {
     pub async fn from_config(config: &Config) -> Result<Self, AppError> {
         Self::validate_config(config)?;
         let pool = cms_db::create_pool(&config.database.url).await?;
-        cms_db::run_migrations(&pool).await?;
+        if config.database.auto_migrate {
+            tracing::info!("Auto-running database migrations on startup...");
+            cms_db::run_migrations(&pool).await?;
+        } else {
+            tracing::info!("Database auto-migration skipped by configuration.");
+        }
         let storage_box = cms_storage::create_storage(&config.storage).await?;
         let storage: Arc<dyn Storage> = Arc::from(storage_box);
         let job_queue = cms_queue::create_job_queue_with_pool(&config.queue, pool.clone()).await?;
