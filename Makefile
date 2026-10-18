@@ -134,7 +134,7 @@ fmt-check:
 # Database (SQLx)
 # ==============================================================================
 
-.PHONY: db-create db-drop db-migrate db-revert db-reset db-status
+.PHONY: db-create db-drop db-migrate db-revert db-reset db-status db-seed
 db-create:
 	$(SQLX) database create --database-url $(DATABASE_URL)
 
@@ -142,15 +142,18 @@ db-drop:
 	$(SQLX) database drop -y --database-url $(DATABASE_URL)
 
 db-migrate:
-	$(SQLX) migrate run --database-url $(DATABASE_URL)
+	$(CARGO) run -p cms-server -- migrate run
 
 db-revert:
-	$(SQLX) migrate revert --database-url $(DATABASE_URL)
+	$(CARGO) run -p cms-server -- migrate revert
 
 db-reset: db-drop db-create db-migrate
 
 db-status:
-	$(SQLX) migrate info --database-url $(DATABASE_URL)
+	$(CARGO) run -p cms-server -- migrate status
+
+db-seed:
+	$(CARGO) run -p cms-server -- seed init
 
 # ==============================================================================
 # Cleanup

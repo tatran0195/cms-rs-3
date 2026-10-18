@@ -116,12 +116,16 @@ This guide covers deploying CMS to a single AWS Windows machine as specified in 
    GRANT ALL PRIVILEGES ON DATABASE cms TO cms_user;
    ```
 
-2. **Run Migrations**
+2. **Run Migrations & Platform Bootstrap**
 
    ```powershell
-   # Migrations will run automatically on first startup
-   # Or manually:
-   sqlx migrate run --database-url postgres://cms_user:secure-password@localhost:5432/cms
+   # Migrations will run automatically on first startup by default.
+   # Or inspect and apply migrations manually using the single cms-server binary:
+   .\cms-server.exe migrate status
+   .\cms-server.exe migrate run
+
+   # (Optional) Bootstrap the initial Superadmin, Workspace, and Starter Docs:
+   .\cms-server.exe seed init --admin-email admin@company.local --admin-password "SecurePass123!"
    ```
 
 ---

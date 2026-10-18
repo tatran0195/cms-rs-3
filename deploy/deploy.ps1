@@ -15,7 +15,13 @@ param (
     [string]$Environment = "production",
     
     [Parameter(Mandatory=$false)]
-    [string]$ServiceName = "CMSServer"
+    [string]$ServiceName = "CMSServer",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$RunMigrations,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$SeedInit
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,6 +66,21 @@ if (Test-Path $SourceBinary) {
     Copy-Item -Path $SourceBinary -Destination $TargetBinary -Force
 } else {
     Write-Error "Source binary not found at $SourceBinary. Build failed?"
+}
+
+# Optional pre-flight database migrations
+if ($RunMigrations) {
+    Write-Host "Running database migrations via cms-server..."
+    & $TargetBinary migrate run
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Database migrations failed with exit code $LASTEXITCODE"
+    }
+}
+
+# Optional platform bootstrap initialization
+if ($SeedInit) {
+    Write-Host "Checking platform bootstrap via cms-server..."
+    & $TargetBinary seed init --skip-if-initialized
 }
 
 if ($ServiceExists) {
