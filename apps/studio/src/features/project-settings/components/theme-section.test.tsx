@@ -134,12 +134,20 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
   });
 
   it('switches docs layout via story header layout selector', async () => {
-    const select = container.querySelector<HTMLSelectElement>('select[aria-label="Select Docs Layout"]');
-    if (!select) throw new Error('missing layout select');
+    const trigger = container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"][aria-label="Select Docs Layout"]');
+    if (!trigger) throw new Error('missing layout select trigger');
 
     await act(async () => {
-      select.value = 'glass';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+      trigger.click();
+    });
+
+    const item =
+      document.querySelector<HTMLElement>('[data-slot="select-item"][data-value="glass"]') ??
+      [...document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')].find((el) => el.textContent?.toLowerCase().includes('glass'));
+    if (!item) throw new Error('missing glass select item');
+
+    await act(async () => {
+      item.click();
     });
 
     expect(preview()?.dataset.docsLayout).toBe('glass');
@@ -173,12 +181,20 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
   });
 
   it('saves the updated theme draft when save is clicked', async () => {
-    const select = container.querySelector<HTMLSelectElement>('select[aria-label="Select Docs Layout"]');
-    if (!select) throw new Error('missing layout select');
+    const trigger = container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"][aria-label="Select Docs Layout"]');
+    if (!trigger) throw new Error('missing layout select trigger');
 
     await act(async () => {
-      select.value = 'notebook';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+      trigger.click();
+    });
+
+    const item =
+      document.querySelector<HTMLElement>('[data-slot="select-item"][data-value="notebook"]') ??
+      [...document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')].find((el) => el.textContent?.toLowerCase().includes('notebook'));
+    if (!item) throw new Error('missing notebook select item');
+
+    await act(async () => {
+      item.click();
     });
 
     const submitBtn = container.querySelector<HTMLButtonElement>('button[type="submit"]');

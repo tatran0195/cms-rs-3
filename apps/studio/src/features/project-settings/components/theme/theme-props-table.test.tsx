@@ -115,4 +115,30 @@ describe('ThemePropsTable', () => {
 
     expect(handleNavigate).toHaveBeenCalledWith([]);
   });
+
+  it('renders design system Select and Input without any native select tags', async () => {
+    await act(async () => {
+      root.render(
+        <ThemePropsTable
+          path={['layout']}
+          onNavigate={vi.fn()}
+          layoutOptions={DEFAULT_FUMADOCS_LAYOUT_OPTIONS}
+          onLayoutOptionsChange={vi.fn()}
+          themeConfig={{}}
+          onThemeConfigChange={vi.fn()}
+          resolvedColors={harbor.colors}
+          resolvedLayout={harbor.layout}
+          resolvedComponents={harbor.components}
+          onReset={vi.fn()}
+        />,
+      );
+    });
+
+    // Zero native select tags in the entire table
+    expect(container.querySelectorAll('select').length).toBe(0);
+
+    // Design system select triggers are present
+    const selectTriggers = container.querySelectorAll('[data-slot="select-trigger"]');
+    expect(selectTriggers.length).toBeGreaterThan(0);
+  });
 });

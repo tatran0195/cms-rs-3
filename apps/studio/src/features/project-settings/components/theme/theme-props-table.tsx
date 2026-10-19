@@ -1,3 +1,5 @@
+import { Input } from '@cms/design-system/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { cn } from '@cms/design-system/lib/utils';
 import type { cmsThemeConfig, DocsLayoutId, ThemeColorKey, ThemeColorTokens, ThemeComponents, ThemeLayout } from '@cms/shared/themes';
 import { ArrowLeft, ChevronRight, RotateCcw } from 'lucide-react';
@@ -397,15 +399,16 @@ function StringRow({ name, value, onChange, placeholder }: { name: string; value
         </label>
       </div>
       <div className="flex min-h-9 items-center justify-between px-3 @sm:border-s @sm:border-border/60">
-        <input
+        <Input
           id={id}
           type="text"
+          density="compact"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           spellCheck={false}
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
+          className="min-w-0 flex-1 border-0 bg-transparent font-mono text-xs text-foreground shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-1"
         />
         <span className="font-mono text-xs text-muted-foreground/70">string</span>
       </div>
@@ -433,18 +436,27 @@ function EnumRow<T extends string>({
         </label>
       </div>
       <div className="flex min-h-9 items-center justify-between px-3 @sm:border-s @sm:border-border/60">
-        <select
-          id={id}
+        <Select
           value={value}
-          onChange={(e) => onChange(e.target.value as T)}
-          className="min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none cursor-pointer"
+          onValueChange={(val) => {
+            if (val) onChange(val as T);
+          }}
         >
-          {options.map((opt) => (
-            <option key={opt} value={opt} className="bg-popover text-popover-foreground">
-              {opt}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id={id}
+            size="sm"
+            className="h-7 w-auto min-w-28 border-0 bg-transparent px-1 font-mono text-xs hover:bg-muted/50 focus-visible:ring-1"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {options.map((opt) => (
+              <SelectItem key={opt} value={opt} className="font-mono text-xs">
+                {opt}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="font-mono text-xs text-muted-foreground/70">enum</span>
       </div>
     </div>

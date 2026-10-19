@@ -1,3 +1,4 @@
+import { Input } from '@cms/design-system/components/ui/input';
 import { cn } from '@cms/design-system/lib/utils';
 import { THEME_COLOR_KEYS, type ThemeColorKey, type ThemeColorTokens, themeContrastIssues } from '@cms/shared/themes';
 import { AlertCircle, Moon, Sun } from 'lucide-react';
@@ -107,13 +108,14 @@ export function ThemePaletteEditor({ colors, mode: controlledMode, onModeChange,
                   </label>
 
                   {/* Hex Text Input */}
-                  <input
+                  <Input
                     type="text"
+                    density="compact"
                     spellCheck={false}
                     autoComplete="off"
                     value={value}
                     onChange={(e) => onColorChange(activeMode, key, e.target.value)}
-                    className="flex-1 min-w-0 font-mono text-xs text-foreground bg-transparent outline-none placeholder:text-muted-foreground/60"
+                    className="h-7 min-h-7 flex-1 min-w-0 border-0 bg-transparent px-1 font-mono text-xs text-foreground shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-1"
                     placeholder="#hex"
                     aria-label={`${key} color hex`}
                   />

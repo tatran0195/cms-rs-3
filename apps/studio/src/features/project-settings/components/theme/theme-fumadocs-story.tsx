@@ -1,3 +1,4 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import {
@@ -95,28 +96,36 @@ export function ThemeFumadocsStory({
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-1.5 ms-auto">
-          {/* Layout Quick Selector */}
-          <select
+          {/* Layout Quick Selector with unified system design */}
+          <Select
             value={activeLayout}
-            aria-label="Select Docs Layout"
-            onChange={(e) => {
-              const next = e.target.value as DocsLayoutId;
-              onThemeConfigChange((prev) => ({
-                ...prev,
-                layout: {
-                  ...(prev.layout ?? {}),
-                  docsLayout: next,
-                },
-              }));
+            onValueChange={(val) => {
+              if (val) {
+                onThemeConfigChange((prev) => ({
+                  ...prev,
+                  layout: {
+                    ...(prev.layout ?? {}),
+                    docsLayout: val as DocsLayoutId,
+                  },
+                }));
+              }
             }}
-            className="h-7 rounded-md border border-border/70 bg-transparent px-2 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors cursor-pointer outline-none"
           >
-            {DOCS_LAYOUT_IDS.map((id) => (
-              <option key={id} value={id} className="bg-popover text-popover-foreground">
-                {t(`settings.theme.layout.${id}.name`)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              aria-label="Select Docs Layout"
+              size="sm"
+              className="h-7 w-auto min-w-32 border-border/70 bg-transparent text-xs font-medium"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {DOCS_LAYOUT_IDS.map((id) => (
+                <SelectItem key={id} value={id} className="text-xs">
+                  {t(`settings.theme.layout.${id}.name`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Theme Mode Toggle in Header */}
           <button
