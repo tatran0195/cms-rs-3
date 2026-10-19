@@ -534,6 +534,8 @@ export function ThemeSection({ project }: { project: Project }) {
           />
         ) : (
           <DocsLayoutSandbox
+            appearance={draft.appearance}
+            config={config}
             currentLayout={resolved.layout.docsLayout}
             onSelectLayout={(docsLayout) =>
               change((current) => ({
@@ -547,6 +549,7 @@ export function ThemeSection({ project }: { project: Project }) {
                 },
               }))
             }
+            theme={draft.theme}
           />
         )}
       </Field>
