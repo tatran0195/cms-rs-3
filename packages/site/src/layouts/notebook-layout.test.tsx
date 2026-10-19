@@ -32,13 +32,14 @@ describe('NotebookLayoutTemplate', () => {
       );
     });
 
-    const shell = container.querySelector('[data-documentation-layout="fumadocs-notebook"]');
+    const shell = container.querySelector('#nd-notebook-layout');
     expect(shell).not.toBeNull();
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-notebook');
     const paper = container.querySelector('.fumadocs-notebook-paper');
     expect(paper).not.toBeNull();
   });
 
-  it('renders PageLayout with chapter deck layout', () => {
+  it('renders PageLayout with #nd-page and chapter deck layout', () => {
     act(() => {
       root.render(
         NotebookLayoutTemplate.PageLayout({
@@ -50,5 +51,9 @@ describe('NotebookLayoutTemplate', () => {
 
     const pageShell = container.querySelector('[data-documentation-layout="fumadocs-notebook-page"]');
     expect(pageShell).not.toBeNull();
+    const article = container.querySelector('#nd-page');
+    expect(article).not.toBeNull();
+    expect(container.querySelector('[data-testid="art"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="toc"]')).not.toBeNull();
   });
 });

@@ -32,13 +32,14 @@ describe('GlassLayoutTemplate', () => {
       );
     });
 
-    const shell = container.querySelector('[data-documentation-layout="fumadocs-glass"]');
+    const shell = container.querySelector('#fd-glass-layout');
     expect(shell).not.toBeNull();
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-glass');
     const sidebar = container.querySelector('.fumadocs-glass-sidebar');
     expect(sidebar).not.toBeNull();
   });
 
-  it('renders PageLayout with glassmorphic accents', () => {
+  it('renders PageLayout with #nd-page and glassmorphic accents', () => {
     act(() => {
       root.render(
         GlassLayoutTemplate.PageLayout({
@@ -50,5 +51,9 @@ describe('GlassLayoutTemplate', () => {
 
     const pageShell = container.querySelector('[data-documentation-layout="fumadocs-glass-page"]');
     expect(pageShell).not.toBeNull();
+    const article = container.querySelector('#nd-page');
+    expect(article).not.toBeNull();
+    expect(container.querySelector('[data-testid="art"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="toc"]')).not.toBeNull();
   });
 });

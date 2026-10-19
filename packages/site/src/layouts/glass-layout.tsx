@@ -4,11 +4,11 @@ import type { DocsLayoutTemplate } from './types';
 
 /**
  * Glass Layout (`glass`)
- * Modeled on Fumadocs Glass layout:
- * - Modern translucent floating card sidebar (`backdrop-blur-md`) with soft borders
- * - Top-right floating pill controls header
- * - Glassmorphic accents on panels and TOC
- * - Elevated floating feel over background canvas
+ * Modeled after upstream Fumadocs Glass layout:
+ * - Multi-track grid (`#fd-glass-layout`) with floating translucent header and frosted glass sidebar
+ * - Floating rounded-full pill controls bar with backdrop-blur-md
+ * - Elevated floating frosted sidebar (`#nd-sidebar` / `fumadocs-glass-sidebar`)
+ * - Article reading measure in `#nd-page` with frosted glass accents
  */
 export const GlassLayoutTemplate: DocsLayoutTemplate = {
   id: 'glass',
@@ -16,7 +16,11 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
     const hasGranular = Boolean(slots.brand);
 
     return (
-      <div className="flex min-h-screen flex-col bg-background">
+      <div
+        id="fd-glass-layout"
+        data-documentation-layout="fumadocs-glass"
+        className="flex min-h-screen flex-col bg-background relative"
+      >
         {slots.banner}
 
         {/* Mobile Header (md:hidden) */}
@@ -42,11 +46,11 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
 
         <div
           className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 pt-2 pb-12 sm:px-6 lg:gap-8"
-          data-documentation-layout="fumadocs-glass"
           data-theme-region="content-shell"
         >
           {/* Translucent Floating Card Sidebar */}
           <aside
+            id="nd-sidebar"
             className="fumadocs-glass-sidebar sticky top-4 hidden h-[calc(100dvh-2rem)] w-68 shrink-0 flex-col rounded-2xl border border-border/70 bg-card/65 p-3.5 shadow-sm backdrop-blur-md md:flex"
             data-theme-region="sidebar"
           >
@@ -64,7 +68,9 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
                 </ScrollArea>
                 {slots.tools && (
                   <div className="mt-auto border-t border-border/50 pt-2 px-1">
-                    {slots.tools}
+                    <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                      {slots.tools}
+                    </div>
                   </div>
                 )}
               </>
@@ -90,19 +96,21 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
     <>
       {mobileNavigation}
       <div
+        id="fd-glass-layout"
         className="flex min-h-0 flex-1 gap-3 bg-muted/20 p-4"
         data-documentation-layout="fumadocs-glass-preview"
         data-theme-region="preview-shell"
       >
         <aside
-          className="hidden w-56 flex-col rounded-xl border border-border/70 bg-card/70 p-3 shadow-xs backdrop-blur-sm md:flex"
+          id="nd-sidebar"
+          className="fumadocs-glass-sidebar hidden w-56 flex-col rounded-xl border border-border/70 bg-card/70 p-3 shadow-xs backdrop-blur-sm md:flex"
           data-theme-region="sidebar"
         >
-          {brand && <div className="border-b border-border/50 pb-2">{brand}</div>}
-          <div className="flex-1 overflow-y-auto py-2">{navigation}</div>
-          {tools && <div className="border-t border-border/50 pt-2">{tools}</div>}
+          {brand && <div className="border-b border-border/50 p-2">{brand}</div>}
+          <div className="flex-1 overflow-y-auto p-2">{navigation}</div>
+          {tools && <div className="border-t border-border/50 p-2">{tools}</div>}
         </aside>
-        <div className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-border/70 bg-background/80 p-4 backdrop-blur-sm">
+        <div className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-border/70 bg-background/80 p-6 shadow-xs backdrop-blur-xs">
           {content}
         </div>
       </div>
@@ -110,31 +118,41 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
   ),
 
   StudioPreviewLayout: ({ header, navigation, content }) => (
-    <div className="bg-muted/30 p-3" data-documentation-layout="fumadocs-glass-studio" data-theme-region="preview-shell">
-      <div className="rounded-xl border border-border/70 bg-card/75 shadow-sm backdrop-blur-md">
+    <div id="fd-glass-layout" className="bg-muted/20 p-3" data-documentation-layout="fumadocs-glass-studio" data-theme-region="preview-shell">
+      <div className="mx-auto max-w-[46rem] overflow-hidden rounded-xl border border-border/70 bg-background/80 shadow-xs backdrop-blur-sm">
         {header}
-        <div className="grid min-h-[20rem] grid-cols-[7.5rem_minmax(0,1fr)]">
-          <div className="border-border/60 border-e p-2 text-xs" data-theme-region="sidebar">
+        <div className="grid min-h-[20rem] grid-cols-[7rem_minmax(0,1fr)] border-border/60 border-t">
+          <div id="nd-sidebar" className="border-border/60 border-e p-2 text-xs" data-theme-region="sidebar">
             {navigation}
           </div>
-          <div className="min-w-0 p-3">{content}</div>
+          <div className="min-w-0 p-4">{content}</div>
         </div>
       </div>
     </div>
   ),
 
-  PageLayout: ({ article, tableOfContents }) => (
+  PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
     <div
-      className="grid min-w-0 grid-cols-1 gap-8 py-6 lg:py-10 lg:grid-cols-[minmax(0,1fr)_14rem]"
+      className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
       data-documentation-layout="fumadocs-glass-page"
       data-theme-region="page-shell"
     >
-      <div className="min-w-0 max-w-4xl">{article}</div>
-      <aside className="hidden lg:block" data-theme-region="toc">
-        <div className="sticky top-(--content-scroll-mt) max-h-[calc(100dvh-var(--content-scroll-mt)-2rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/50 p-4 backdrop-blur-sm shadow-xs">
+      <article
+        id="nd-page"
+        className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12"
+      >
+        {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
+        {article}
+        {footer}
+      </article>
+      {tableOfContents && (
+        <aside
+          className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start"
+          data-theme-region="toc"
+        >
           {tableOfContents}
-        </div>
-      </aside>
+        </aside>
+      )}
     </div>
   ),
 };
