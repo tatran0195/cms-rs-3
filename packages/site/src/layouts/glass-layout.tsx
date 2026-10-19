@@ -16,49 +16,32 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
     const hasGranular = Boolean(slots.brand);
 
     return (
-      <div
-        id="fd-glass-layout"
-        data-documentation-layout="fumadocs-glass"
-        className="flex min-h-screen flex-col bg-background relative"
-      >
+      <div id="fd-glass-layout" data-documentation-layout="glass" className="flex min-h-screen flex-col bg-background relative">
         {slots.banner}
 
         {/* Mobile Header (md:hidden) */}
-        <div className={cn(hasGranular && 'md:hidden')}>
-          {slots.header}
-        </div>
+        <div className={cn(hasGranular && 'md:hidden')}>{slots.header}</div>
 
         {/* Floating Pill Controls Header on Desktop */}
         {hasGranular && (
           <header className="sticky top-0 z-20 hidden h-14 items-center justify-end gap-2 bg-gradient-to-b from-background px-6 pt-3 pointer-events-none *:pointer-events-auto md:flex">
             {slots.searchFull && (
-              <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">
-                {slots.searchFull}
-              </div>
+              <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.searchFull}</div>
             )}
-            {slots.tools && (
-              <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">
-                {slots.tools}
-              </div>
-            )}
+            {slots.tools && <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.tools}</div>}
           </header>
         )}
 
-        <div
-          className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 pt-2 pb-12 sm:px-6 lg:gap-8"
-          data-theme-region="content-shell"
-        >
+        <div className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 pt-2 pb-12 sm:px-6 lg:gap-8" data-theme-region="content-shell">
           {/* Translucent Floating Card Sidebar */}
           <aside
             id="nd-sidebar"
-            className="fumadocs-glass-sidebar sticky top-4 hidden h-[calc(100dvh-2rem)] w-68 shrink-0 flex-col rounded-2xl border border-border/70 bg-card/65 p-3.5 shadow-sm backdrop-blur-md md:flex"
+            className="glass-sidebar sticky top-4 hidden h-[calc(100dvh-2rem)] w-68 shrink-0 flex-col rounded-2xl border border-border/70 bg-card/65 p-3.5 shadow-sm backdrop-blur-md md:flex"
             data-theme-region="sidebar"
           >
             {hasGranular ? (
               <>
-                <div className="flex items-center justify-between px-2 pt-1 pb-3 border-b border-border/50">
-                  {slots.brand}
-                </div>
+                <div className="flex items-center justify-between px-2 pt-1 pb-3 border-b border-border/50">{slots.brand}</div>
                 {slots.navTabs && <div className="px-1 py-2 border-b border-border/40">{slots.navTabs}</div>}
                 <ScrollArea className="flex-1 py-2">
                   <div className="pe-2" data-theme-region="sidebar-content">
@@ -98,12 +81,12 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
       <div
         id="fd-glass-layout"
         className="flex min-h-0 flex-1 gap-3 bg-muted/20 p-4"
-        data-documentation-layout="fumadocs-glass-preview"
+        data-documentation-layout="glass-preview"
         data-theme-region="preview-shell"
       >
         <aside
           id="nd-sidebar"
-          className="fumadocs-glass-sidebar hidden w-56 flex-col rounded-xl border border-border/70 bg-card/70 p-3 shadow-xs backdrop-blur-sm md:flex"
+          className="glass-sidebar hidden w-56 flex-col rounded-xl border border-border/70 bg-card/70 p-3 shadow-xs backdrop-blur-sm md:flex"
           data-theme-region="sidebar"
         >
           {brand && <div className="border-b border-border/50 p-2">{brand}</div>}
@@ -118,7 +101,7 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
   ),
 
   StudioPreviewLayout: ({ header, navigation, content }) => (
-    <div id="fd-glass-layout" className="bg-muted/20 p-3" data-documentation-layout="fumadocs-glass-studio" data-theme-region="preview-shell">
+    <div id="fd-glass-layout" className="bg-muted/20 p-3" data-documentation-layout="glass-studio" data-theme-region="preview-shell">
       <div className="mx-auto max-w-[46rem] overflow-hidden rounded-xl border border-border/70 bg-background/80 shadow-xs backdrop-blur-sm">
         {header}
         <div className="grid min-h-[20rem] grid-cols-[7rem_minmax(0,1fr)] border-border/60 border-t">
@@ -134,22 +117,16 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
   PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
     <div
       className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
-      data-documentation-layout="fumadocs-glass-page"
+      data-documentation-layout="glass-page"
       data-theme-region="page-shell"
     >
-      <article
-        id="nd-page"
-        className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12"
-      >
+      <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12">
         {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
         {article}
         {footer}
       </article>
       {tableOfContents && (
-        <aside
-          className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start"
-          data-theme-region="toc"
-        >
+        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
           {tableOfContents}
         </aside>
       )}

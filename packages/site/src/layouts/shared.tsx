@@ -32,4 +32,3 @@ export function SidebarDock({ tools }: { tools?: ReactNode }) {
     </div>
   );
 }
-

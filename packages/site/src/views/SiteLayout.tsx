@@ -16,6 +16,7 @@ import { SiteNavTabs } from '../components/site-nav-tabs';
 import { SiteSearch } from '../components/site-search';
 import { VersionSwitcher } from '../components/version-switcher';
 import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
+import { useIsScrollTop } from '../hooks/use-is-scroll-top';
 import { useSearchShortcutLabel } from '../lib/shortcut';
 import { publishedSiteLogo } from '../lib/site-branding';
 import { siteHref, siteLanguageParam } from '../lib/site-paths';
@@ -185,6 +186,9 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   }
 
   const resolvedTheme = resolveProjectTheme(config);
+  const headerTransparentMode = resolvedTheme.layout.headerTransparentMode ?? 'none';
+  const isTop = useIsScrollTop({ enabled: headerTransparentMode === 'top' }) ?? true;
+  const isHeaderTransparent = headerTransparentMode === 'top' ? isTop : headerTransparentMode === 'always';
   const showSearch = config?.navbar?.showSearch !== false;
   const searchHotkey = config?.search?.hotkey;
   const navLinks = config?.navbar?.links ?? [];
@@ -389,36 +393,38 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     </nav>
   );
 
-  const navTabsNode = navTabs.length > 0 ? (
-    <SiteNavTabs
-      tabs={navTabs}
-      currentPath={effectiveCurrentPath}
-      projectId={projectId}
-      lang={navigationLanguage}
-      version={activeVersionPrefix}
-      basePath={basePrefix}
-    />
-  ) : null;
+  const navTabsNode =
+    navTabs.length > 0 ? (
+      <SiteNavTabs
+        tabs={navTabs}
+        currentPath={effectiveCurrentPath}
+        projectId={projectId}
+        lang={navigationLanguage}
+        version={activeVersionPrefix}
+        basePath={basePrefix}
+      />
+    ) : null;
 
-  const navAnchorsNode = navAnchors.length > 0 ? (
-    <ul className="mb-4 space-y-1 border-border/60 border-b pb-5">
-      {navAnchors.map((anchor) => (
-        <li key={`${anchor.label}-${anchor.href}`}>
-          <a
-            href={resolveNavHref(anchor.href)}
-            target={anchor.external ? '_blank' : undefined}
-            rel={anchor.external ? 'noopener noreferrer' : undefined}
-            className="group flex items-center gap-3 rounded-lg px-2 py-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
-          >
-            <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs transition-colors group-hover:border-primary/40 group-hover:text-primary">
-              {hasIcon(anchor.icon) ? <PageIcon name={anchor.icon} className="size-3.5" /> : <Link2 className="size-3.5" />}
-            </span>
-            <span className="truncate">{anchor.label}</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  ) : null;
+  const navAnchorsNode =
+    navAnchors.length > 0 ? (
+      <ul className="mb-4 space-y-1 border-border/60 border-b pb-5">
+        {navAnchors.map((anchor) => (
+          <li key={`${anchor.label}-${anchor.href}`}>
+            <a
+              href={resolveNavHref(anchor.href)}
+              target={anchor.external ? '_blank' : undefined}
+              rel={anchor.external ? 'noopener noreferrer' : undefined}
+              className="group flex items-center gap-3 rounded-lg px-2 py-1.5 font-medium text-muted-foreground text-sm transition-colors hover:text-foreground"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs transition-colors group-hover:border-primary/40 group-hover:text-primary">
+                {hasIcon(anchor.icon) ? <PageIcon name={anchor.icon} className="size-3.5" /> : <Link2 className="size-3.5" />}
+              </span>
+              <span className="truncate">{anchor.label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : null;
 
   const sidebarTreeNode = (
     <SiteNav
@@ -449,8 +455,14 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const headerNode = (
     <div
       ref={observeHeader}
-      className="sticky top-0 z-30 border-border/70 border-b bg-background/80 backdrop-blur-md"
+      className={cn(
+        'sticky top-0 z-30 transition-colors duration-200',
+        isHeaderTransparent
+          ? 'bg-transparent border-b border-transparent'
+          : 'border-border/70 border-b bg-background/80 backdrop-blur-md',
+      )}
       data-theme-region="header-shell"
+      data-header-transparent={isHeaderTransparent ? 'true' : 'false'}
     >
       <header
         className="mx-auto flex min-h-16 max-w-[90rem] flex-wrap items-center gap-2 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0"
@@ -460,22 +472,16 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
         {brandNode}
 
         {/* Centered search (Mintlify-style); collapses to an icon on phones. */}
-        <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">
-          {searchFullNode}
-        </div>
+        <div className="hidden min-w-0 flex-1 justify-center px-2 sm:flex">{searchFullNode}</div>
 
-        <div className="sm:hidden">
-          {searchButtonNode}
-        </div>
+        <div className="sm:hidden">{searchButtonNode}</div>
 
         {navLinksNode}
         {toolsNode}
       </header>
       {navTabsNode && (
         <div className="border-border/60 border-t py-1">
-          <div className="mx-auto flex max-w-[90rem] items-center px-4 sm:px-6">
-            {navTabsNode}
-          </div>
+          <div className="mx-auto flex max-w-[90rem] items-center px-4 sm:px-6">{navTabsNode}</div>
         </div>
       )}
     </div>
@@ -560,4 +566,3 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     </SiteAnalyticsProvider>
   );
 }
-

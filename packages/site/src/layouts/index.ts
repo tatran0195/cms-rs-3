@@ -6,13 +6,13 @@ import { NotebookLayoutTemplate } from './notebook-layout';
 import { SpaciousLayoutTemplate } from './spacious-layout';
 import type { DocsLayoutTemplate } from './types';
 
-export * from './types';
-export * from './shared';
 export { DocsStandardLayoutTemplate } from './docs-layout';
-export { NotebookLayoutTemplate } from './notebook-layout';
-export { GlassLayoutTemplate } from './glass-layout';
 export { FluxLayoutTemplate } from './flux-layout';
+export { GlassLayoutTemplate } from './glass-layout';
+export { NotebookLayoutTemplate } from './notebook-layout';
+export * from './shared';
 export { SpaciousLayoutTemplate } from './spacious-layout';
+export * from './types';
 
 const registry: Record<DocsLayoutId, DocsLayoutTemplate> = {
   docs: DocsStandardLayoutTemplate,
@@ -26,6 +26,4 @@ export const registerDocsLayoutTemplate = (id: DocsLayoutId, template: DocsLayou
   registry[id] = template;
 };
 
-export const getDocsLayoutTemplate = (id: DocsLayoutId): DocsLayoutTemplate => {
-  return registry[id] ?? registry.docs;
-};
+export const getDocsLayoutTemplate = (id: DocsLayoutId): DocsLayoutTemplate => registry[id] ?? registry.docs;

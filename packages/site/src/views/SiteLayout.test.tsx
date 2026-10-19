@@ -1,35 +1,39 @@
 // @vitest-environment jsdom
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteShell } from "../types";
-import { SiteLayout } from "./SiteLayout";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SiteShell } from '../types';
+import { SiteLayout } from './SiteLayout';
 
-vi.mock("@tanstack/react-router", () => ({
+vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
-  useRouterState: () => "/sites/proj1",
+  useRouterState: () => '/sites/proj1',
   Outlet: () => <div data-testid="outlet">Content</div>,
 }));
 
-vi.mock("../context/site-analytics-provider", () => ({
-  SiteAnalyticsProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
+vi.mock('../context/site-analytics-provider', () => ({
+  SiteAnalyticsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useSiteAnalytics: () => ({ track: vi.fn() }),
 }));
 
-describe("SiteLayout structure", () => {
+describe('SiteLayout structure', () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     global.ResizeObserver = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
+      observe() {
+        /* noop */
+      }
+      unobserve() {
+        /* noop */
+      }
+      disconnect() {
+        /* noop */
+      }
     };
     window.matchMedia = vi.fn().mockImplementation((query) => ({
       matches: false,
@@ -42,7 +46,7 @@ describe("SiteLayout structure", () => {
       dispatchEvent: vi.fn(),
     }));
     Element.prototype.getAnimations = () => [];
-    container = document.createElement("div");
+    container = document.createElement('div');
     document.body.append(container);
     root = createRoot(container);
   });
@@ -54,24 +58,24 @@ describe("SiteLayout structure", () => {
 
   const mockSite: SiteShell = {
     project: {
-      id: "proj1",
-      name: "Acme Docs",
-      slug: "acme-docs",
-      description: "Acme documentation",
+      id: 'proj1',
+      name: 'Acme Docs',
+      slug: 'acme-docs',
+      description: 'Acme documentation',
       config: {
         navbar: {
           showSearch: true,
-          anchors: [{ label: "API Reference", href: "/api", icon: "book" }],
+          anchors: [{ label: 'API Reference', href: '/api', icon: 'book' }],
         },
       },
       primaryDomain: null,
     },
     nav: [
       {
-        id: "p1",
-        title: "Getting Started",
-        kind: "PAGE",
-        path: "getting-started",
+        id: 'p1',
+        title: 'Getting Started',
+        kind: 'PAGE',
+        path: 'getting-started',
         icon: null,
         tag: null,
         children: [],
@@ -79,33 +83,33 @@ describe("SiteLayout structure", () => {
     ],
     languages: [
       {
-        code: "en",
-        label: "English",
-        direction: "LTR",
+        code: 'en',
+        label: 'English',
+        direction: 'LTR',
         isDefault: true,
         enabled: true,
       },
       {
-        code: "fr",
-        label: "Français",
-        direction: "LTR",
+        code: 'fr',
+        label: 'Français',
+        direction: 'LTR',
         isDefault: false,
         enabled: true,
       },
     ],
     versions: [
-      { id: "v1", name: "v1.0", slug: "v1.0", isDefault: true },
-      { id: "v2", name: "v2.0", slug: "v2.0", isDefault: false },
+      { id: 'v1', name: 'v1.0', slug: 'v1.0', isDefault: true },
+      { id: 'v2', name: 'v2.0', slug: 'v2.0', isDefault: false },
     ],
-    activeLanguage: "en",
-    activeVersion: "v1.0",
+    activeLanguage: 'en',
+    activeVersion: 'v1.0',
     languageConfig: null,
     version: 1,
     generatedAt: new Date().toISOString(),
     openapi: null,
   };
 
-  it("renders centered search container and places nav anchors without nested aside", async () => {
+  it('renders centered search container and places nav anchors without nested aside', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -118,29 +122,29 @@ describe("SiteLayout structure", () => {
     });
 
     // Check that centered search container exists
-    const searchContainer = container.querySelector(".justify-center");
+    const searchContainer = container.querySelector('.justify-center');
     expect(searchContainer).not.toBeNull();
 
     // Check that nav anchors render
-    expect(container.textContent).toContain("API Reference");
+    expect(container.textContent).toContain('API Reference');
 
     // Check that no aside is nested inside another aside
-    const asides = container.querySelectorAll("aside");
+    const asides = container.querySelectorAll('aside');
     asides.forEach((aside) => {
-      expect(aside.querySelector("aside")).toBeNull();
+      expect(aside.querySelector('aside')).toBeNull();
     });
 
     // Check that main element with min-w-0 exists
-    const main = container.querySelector("main.min-w-0");
+    const main = container.querySelector('main.min-w-0');
     expect(main).not.toBeNull();
   });
 
-  it("renders the selected fumadocs layout according to config.theme.layout.docsLayout", async () => {
+  it('renders the selected layout according to config.theme.layout.docsLayout', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
 
-    const layouts = ["docs", "notebook", "glass", "flux", "spacious"] as const;
+    const layouts = ['docs', 'notebook', 'glass', 'flux', 'spacious'] as const;
     for (const layoutId of layouts) {
       const siteWithLayout: SiteShell = {
         ...mockSite,
@@ -164,8 +168,82 @@ describe("SiteLayout structure", () => {
         );
       });
 
-      const layoutRoot = container.querySelector(`[data-documentation-layout="fumadocs-${layoutId}"]`);
+      const layoutRoot = container.querySelector(`[data-documentation-layout="${layoutId}"]`);
       expect(layoutRoot).not.toBeNull();
     }
+  });
+
+  it('controls header transparency mode correctly (none, always, top)', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    // 1. None (default)
+    const siteNone: SiteShell = {
+      ...mockSite,
+      project: {
+        ...mockSite.project,
+        config: {
+          theme: { layout: { headerTransparentMode: 'none' } },
+        },
+      },
+    };
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <SiteLayout site={siteNone} projectId="proj1" />
+        </QueryClientProvider>,
+      );
+    });
+    const headerShellNone = container.querySelector('[data-theme-region="header-shell"]');
+    expect(headerShellNone?.getAttribute('data-header-transparent')).toBe('false');
+
+    // 2. Always
+    const siteAlways: SiteShell = {
+      ...mockSite,
+      project: {
+        ...mockSite.project,
+        config: {
+          theme: { layout: { headerTransparentMode: 'always' } },
+        },
+      },
+    };
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <SiteLayout site={siteAlways} projectId="proj1" />
+        </QueryClientProvider>,
+      );
+    });
+    const headerShellAlways = container.querySelector('[data-theme-region="header-shell"]');
+    expect(headerShellAlways?.getAttribute('data-header-transparent')).toBe('true');
+
+    // 3. Top (transparent at top, solid when scrolled)
+    Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
+    const siteTop: SiteShell = {
+      ...mockSite,
+      project: {
+        ...mockSite.project,
+        config: {
+          theme: { layout: { headerTransparentMode: 'top' } },
+        },
+      },
+    };
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <SiteLayout site={siteTop} projectId="proj1" />
+        </QueryClientProvider>,
+      );
+    });
+    const headerShellTop = container.querySelector('[data-theme-region="header-shell"]');
+    expect(headerShellTop?.getAttribute('data-header-transparent')).toBe('true');
+
+    // Scroll down past threshold
+    await act(async () => {
+      Object.defineProperty(window, 'scrollY', { value: 50, writable: true });
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(headerShellTop?.getAttribute('data-header-transparent')).toBe('false');
   });
 });

@@ -34,7 +34,7 @@ describe('SpaciousLayoutTemplate', () => {
 
     const shell = container.querySelector('#fd-spacious-layout');
     expect(shell).not.toBeNull();
-    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-spacious');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('spacious');
 
     const panel = container.querySelector('#nd-page-panel');
     expect(panel).not.toBeNull();
@@ -54,7 +54,7 @@ describe('SpaciousLayoutTemplate', () => {
       );
     });
 
-    const pageShell = container.querySelector('[data-documentation-layout="fumadocs-spacious-page"]');
+    const pageShell = container.querySelector('[data-documentation-layout="spacious-page"]');
     expect(pageShell).not.toBeNull();
     const article = container.querySelector('#nd-page');
     expect(article).not.toBeNull();

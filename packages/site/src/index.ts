@@ -10,6 +10,7 @@ export {
   type DocumentationThemeContextName,
   DocumentationThemeProvider,
   type DocumentationThemeTemplate,
+  useDocumentationTheme,
 } from './components/documentation-theme-provider';
 export { LanguageSwitcher } from './components/language-switcher';
 export { MadeWithBadge } from './components/made-with-badge';
@@ -35,6 +36,7 @@ export { SiteAnalyticsProvider, useSiteAnalytics } from './context/site-analytic
 // Context
 export { type SiteApiConfig, SiteApiProvider, useSiteApi } from './context/site-api-context';
 export { useSiteSearch } from './hooks/use-site-search';
+export * from './layouts';
 export { scalarOpenApiConfiguration } from './lib/openapi-reference';
 export { publishedSiteLogo } from './lib/site-branding';
 export { type LanguagePathRedirectInput, resolveLanguagePathRedirect } from './lib/site-language-path';
@@ -44,7 +46,6 @@ export { buildSiteRedirectHref } from './lib/site-redirect-href';
 export { redirectIfConfigured } from './lib/site-redirects';
 export { changelogFeedUrl, pageHead, siteHead, sitePageUrl } from './lib/site-seo';
 export { projectThemeCss, projectThemeStyle, projectThemeVariables, resolveProjectTheme, siteThemeNoFlashScript } from './lib/site-theme';
-export * from './layouts';
 export * from './types';
 export { SiteChangelogView } from './views/SiteChangelogView';
 // Views

@@ -34,8 +34,8 @@ describe('NotebookLayoutTemplate', () => {
 
     const shell = container.querySelector('#nd-notebook-layout');
     expect(shell).not.toBeNull();
-    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-notebook');
-    const paper = container.querySelector('.fumadocs-notebook-paper');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('notebook');
+    const paper = container.querySelector('.notebook-paper');
     expect(paper).not.toBeNull();
   });
 
@@ -49,7 +49,7 @@ describe('NotebookLayoutTemplate', () => {
       );
     });
 
-    const pageShell = container.querySelector('[data-documentation-layout="fumadocs-notebook-page"]');
+    const pageShell = container.querySelector('[data-documentation-layout="notebook-page"]');
     expect(pageShell).not.toBeNull();
     const article = container.querySelector('#nd-page');
     expect(article).not.toBeNull();

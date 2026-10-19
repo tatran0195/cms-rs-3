@@ -34,7 +34,7 @@ describe('FluxLayoutTemplate', () => {
 
     const shell = container.querySelector('#nd-flux-layout');
     expect(shell).not.toBeNull();
-    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-flux');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('flux');
     const panel = container.querySelector('[data-flux-nav-panel="true"]');
     expect(panel).not.toBeNull();
   });
@@ -49,7 +49,7 @@ describe('FluxLayoutTemplate', () => {
       );
     });
 
-    const pageShell = container.querySelector('[data-documentation-layout="fumadocs-flux-page"]');
+    const pageShell = container.querySelector('[data-documentation-layout="flux-page"]');
     expect(pageShell).not.toBeNull();
     const article = container.querySelector('#nd-page');
     expect(article).not.toBeNull();

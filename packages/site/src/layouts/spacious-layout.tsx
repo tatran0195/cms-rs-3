@@ -21,7 +21,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
     return (
       <div
         id="fd-spacious-layout"
-        data-documentation-layout="fumadocs-spacious"
+        data-documentation-layout="spacious"
         className="relative grid min-h-screen bg-card/40 dark:bg-card/20 md:h-screen md:overflow-clip [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-page-width:760px] [--fd-toc-width:240px] print:h-auto print:overflow-visible"
         style={{
           gridTemplate: `"sidebar header right" auto
@@ -32,9 +32,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
         {slots.banner}
 
         {/* Mobile Header (md:hidden) */}
-        <div className={cn('[grid-area:header]', hasGranular && 'md:hidden')}>
-          {slots.header}
-        </div>
+        <div className={cn('[grid-area:header]', hasGranular && 'md:hidden')}>{slots.header}</div>
 
         {/* Left Minimalist Sidebar: border-e-0 per Fumadocs Spacious */}
         <aside
@@ -44,14 +42,8 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
         >
           {hasGranular ? (
             <>
-              <div className="flex items-center justify-between pb-3">
-                {slots.brand}
-              </div>
-              {slots.searchFull && (
-                <div className="pt-2 pb-1">
-                  {slots.searchFull}
-                </div>
-              )}
+              <div className="flex items-center justify-between pb-3">{slots.brand}</div>
+              {slots.searchFull && <div className="pt-2 pb-1">{slots.searchFull}</div>}
               {slots.navTabs && <div className="py-2">{slots.navTabs}</div>}
               <ScrollArea className="flex-1 py-2">
                 <div data-theme-region="sidebar-content">
@@ -69,9 +61,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
             </>
           ) : (
             <ScrollArea className="h-full">
-              <div data-theme-region="sidebar-content">
-                {slots.navigation}
-              </div>
+              <div data-theme-region="sidebar-content">{slots.navigation}</div>
             </ScrollArea>
           )}
         </aside>
@@ -87,9 +77,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="font-medium text-foreground/85">Documentation</span>
             </div>
-            <div className="flex items-center gap-2">
-              {slots.tools}
-            </div>
+            <div className="flex items-center gap-2">{slots.tools}</div>
           </header>
 
           {/* Internal Scroll Container for Desktop Viewport */}
@@ -113,7 +101,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
       <div
         id="fd-spacious-layout"
         className="flex min-h-0 flex-1 bg-card/40 p-3"
-        data-documentation-layout="fumadocs-spacious-preview"
+        data-documentation-layout="spacious-preview"
         data-theme-region="preview-shell"
       >
         <aside className="hidden w-56 flex-col border-e-0 bg-transparent p-3 md:flex" data-theme-region="sidebar">
@@ -129,12 +117,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
   ),
 
   StudioPreviewLayout: ({ header, navigation, content }) => (
-    <div
-      id="fd-spacious-layout"
-      className="bg-card/40 p-3"
-      data-documentation-layout="fumadocs-spacious-studio"
-      data-theme-region="preview-shell"
-    >
+    <div id="fd-spacious-layout" className="bg-card/40 p-3" data-documentation-layout="spacious-studio" data-theme-region="preview-shell">
       <div className="mx-auto max-w-[48rem]">
         {header}
         <div className="grid min-h-[20rem] grid-cols-[7.5rem_minmax(0,1fr)] gap-2 p-2">
@@ -154,22 +137,16 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
   PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
     <div
       className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
-      data-documentation-layout="fumadocs-spacious-page"
+      data-documentation-layout="spacious-page"
       data-theme-region="page-shell"
     >
-      <article
-        id="nd-page"
-        className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pt-4 pb-12"
-      >
+      <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pt-4 pb-12">
         {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
         {article}
         {footer}
       </article>
       {tableOfContents && (
-        <aside
-          className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start"
-          data-theme-region="toc"
-        >
+        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
           {tableOfContents}
         </aside>
       )}

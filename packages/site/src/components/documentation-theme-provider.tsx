@@ -1,15 +1,8 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
-import { type DocsLayoutId, type ResolvedTheme, resolveDocsLayout, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
+import { type ResolvedTheme, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
 import { type CSSProperties, createContext, type ReactNode, useContext } from 'react';
-import {
-  type DocsLayoutSlots,
-  type DocsLayoutTemplate,
-  type DocsPageSlots,
-  getDocsLayoutTemplate,
-  type ProjectPreviewSlots,
-  type StudioPreviewSlots,
-} from '../layouts';
+import { type DocsLayoutSlots, type DocsPageSlots, getDocsLayoutTemplate, type ProjectPreviewSlots, type StudioPreviewSlots } from '../layouts';
 
 export type DocumentationThemeContextName = 'reader' | 'project-preview' | 'studio-preview';
 
@@ -268,6 +261,9 @@ export const DOCUMENTATION_THEME_TEMPLATES = {
 } as const satisfies Record<ThemeLayout['shell'], DocumentationThemeTemplate>;
 
 const DocumentationTemplateContext = createContext<DocumentationThemeTemplate>(HarborTemplate);
+const DocumentationThemeContext = createContext<ResolvedTheme | null>(null);
+
+export const useDocumentationTheme = (): ResolvedTheme | null => useContext(DocumentationThemeContext);
 
 export function DocumentationThemeProvider({
   theme,
@@ -291,39 +287,46 @@ export function DocumentationThemeProvider({
   const isCustomDocsLayout = Boolean(theme.layout.docsLayout);
   const template = isCustomDocsLayout
     ? getDocsLayoutTemplate(theme.layout.docsLayout!)
-    : DOCUMENTATION_THEME_TEMPLATES[theme.layout.shell] ?? HarborTemplate;
+    : (DOCUMENTATION_THEME_TEMPLATES[theme.layout.shell] ?? HarborTemplate);
+
+  const isPreview = context === 'studio-preview' || context === 'project-preview';
 
   return (
-    <DocumentationTemplateContext.Provider value={template}>
-      <div
-        className={cn('cms-site-chrome', className, appearance === 'dark' && 'dark')}
-        data-documentation-layout={isCustomDocsLayout ? `fumadocs-${theme.layout.docsLayout}` : undefined}
-        data-documentation-template={template.id}
-        data-theme-callouts={theme.components.callouts}
-        data-theme-context={context}
-        data-theme-cards={theme.components.cards}
-        data-theme-code={theme.components.codeBlocks}
-        data-theme-density={theme.layout.density}
-        data-theme-header={theme.layout.header}
-        data-theme-id={theme.id}
-        data-theme-navigation={theme.layout.navigation}
-        data-theme-radius={theme.layout.radius}
-        data-theme-schema={THEME_SCHEMA_VERSION}
-        data-theme-shell={theme.layout.shell}
-        data-theme-sidebar={theme.layout.sidebar}
-        data-theme-tables={theme.components.tables}
-        data-theme-tabs={theme.components.tabs}
-        data-theme-width={theme.layout.contentWidth}
-        dir={direction}
-        style={style}
-      >
-        {css ? (
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: callers provide schema-validated, enum-derived theme CSS.
-          <style dangerouslySetInnerHTML={{ __html: css }} />
-        ) : null}
-        {children}
-      </div>
-    </DocumentationTemplateContext.Provider>
+    <DocumentationThemeContext.Provider value={theme}>
+      <DocumentationTemplateContext.Provider value={template}>
+        <div
+          className={cn('cms-site-chrome', className, appearance === 'dark' && 'dark', isPreview && '[transform:translateZ(0)]')}
+          data-documentation-layout={isCustomDocsLayout ? theme.layout.docsLayout : undefined}
+          data-documentation-template={template.id}
+          data-theme-callouts={theme.components.callouts}
+          data-theme-context={context}
+          data-theme-cards={theme.components.cards}
+          data-theme-code={theme.components.codeBlocks}
+          data-theme-density={theme.layout.density}
+          data-theme-header={theme.layout.header}
+          data-theme-id={theme.id}
+          data-theme-navigation={theme.layout.navigation}
+          data-theme-radius={theme.layout.radius}
+          data-theme-schema={THEME_SCHEMA_VERSION}
+          data-theme-shell={theme.layout.shell}
+          data-theme-sidebar={theme.layout.sidebar}
+          data-theme-tables={theme.components.tables}
+          data-theme-tabs={theme.components.tabs}
+          data-theme-width={theme.layout.contentWidth}
+          dir={direction}
+          style={{
+            ...(isPreview ? { transform: 'translateZ(0)' } : {}),
+            ...style,
+          }}
+        >
+          {css ? (
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: callers provide schema-validated, enum-derived theme CSS.
+            <style dangerouslySetInnerHTML={{ __html: css }} />
+          ) : null}
+          {children}
+        </div>
+      </DocumentationTemplateContext.Provider>
+    </DocumentationThemeContext.Provider>
   );
 }
 

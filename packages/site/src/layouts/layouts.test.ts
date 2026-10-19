@@ -1,6 +1,6 @@
+import { DOCS_LAYOUT_IDS } from '@cms/shared/themes';
 import { describe, expect, it } from 'vitest';
 import { getDocsLayoutTemplate } from './index';
-import { DOCS_LAYOUT_IDS } from '@cms/shared/themes';
 
 describe('DocsLayout registry', () => {
   it('provides a valid template for all 5 layout IDs', () => {

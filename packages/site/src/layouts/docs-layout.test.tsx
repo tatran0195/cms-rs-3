@@ -34,7 +34,7 @@ describe('DocsStandardLayoutTemplate', () => {
 
     const shell = container.querySelector('#nd-docs-layout');
     expect(shell).not.toBeNull();
-    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-docs');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('docs');
 
     const sidebar = container.querySelector('#nd-sidebar');
     expect(sidebar).not.toBeNull();
@@ -53,7 +53,7 @@ describe('DocsStandardLayoutTemplate', () => {
       );
     });
 
-    const pageShell = container.querySelector('[data-documentation-layout="fumadocs-docs-page"]');
+    const pageShell = container.querySelector('[data-documentation-layout="docs-page"]');
     expect(pageShell).not.toBeNull();
     const article = container.querySelector('#nd-page');
     expect(article).not.toBeNull();

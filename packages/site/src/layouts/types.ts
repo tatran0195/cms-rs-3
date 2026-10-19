@@ -52,4 +52,3 @@ export interface DocsLayoutTemplate {
   StudioPreviewLayout: (slots: StudioPreviewSlots) => ReactNode;
   PageLayout: (slots: DocsPageSlots) => ReactNode;
 }
-

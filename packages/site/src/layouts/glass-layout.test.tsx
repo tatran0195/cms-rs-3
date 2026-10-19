@@ -34,8 +34,8 @@ describe('GlassLayoutTemplate', () => {
 
     const shell = container.querySelector('#fd-glass-layout');
     expect(shell).not.toBeNull();
-    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-glass');
-    const sidebar = container.querySelector('.fumadocs-glass-sidebar');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('glass');
+    const sidebar = container.querySelector('.glass-sidebar');
     expect(sidebar).not.toBeNull();
   });
 
@@ -49,7 +49,7 @@ describe('GlassLayoutTemplate', () => {
       );
     });
 
-    const pageShell = container.querySelector('[data-documentation-layout="fumadocs-glass-page"]');
+    const pageShell = container.querySelector('[data-documentation-layout="glass-page"]');
     expect(pageShell).not.toBeNull();
     const article = container.querySelector('#nd-page');
     expect(article).not.toBeNull();

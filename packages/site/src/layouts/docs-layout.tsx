@@ -23,13 +23,11 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
         {slots.banner}
 
         {/* Mobile Header (md:hidden) */}
-        <div className={cn(hasGranular && 'md:hidden')}>
-          {slots.header}
-        </div>
+        <div className={cn(hasGranular && 'md:hidden')}>{slots.header}</div>
 
         <div
           id="nd-docs-layout"
-          data-documentation-layout="fumadocs-docs"
+          data-documentation-layout="docs"
           className="relative grid min-h-(--fd-docs-height) flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-toc-width:240px]"
           style={{
             gridTemplate: `"sidebar sidebar header toc toc"
@@ -46,19 +44,9 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
           >
             {hasGranular ? (
               <>
-                <div className="flex h-14 items-center justify-between px-4 border-b border-border/60">
-                  {slots.brand}
-                </div>
-                {slots.searchFull && (
-                  <div className="px-3 pt-3 pb-1">
-                    {slots.searchFull}
-                  </div>
-                )}
-                {slots.navTabs && (
-                  <div className="px-3 py-1 border-b border-border/50">
-                    {slots.navTabs}
-                  </div>
-                )}
+                <div className="flex h-14 items-center justify-between px-4 border-b border-border/60">{slots.brand}</div>
+                {slots.searchFull && <div className="px-3 pt-3 pb-1">{slots.searchFull}</div>}
+                {slots.navTabs && <div className="px-3 py-1 border-b border-border/50">{slots.navTabs}</div>}
                 <ScrollArea className="flex-1 px-3 py-3">
                   <div className="pb-12" data-theme-region="sidebar-content">
                     {slots.navAnchors}
@@ -85,19 +73,13 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
           {/* Desktop Top Header if provided */}
           {hasGranular && slots.navLinks && (
             <div className="hidden md:flex items-center justify-between px-8 h-14 border-b border-border/40 [grid-area:header]">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {slots.navLinks}
-              </div>
-              <div className="flex items-center gap-2">
-                {slots.tools}
-              </div>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">{slots.navLinks}</div>
+              <div className="flex items-center gap-2">{slots.tools}</div>
             </div>
           )}
 
           {/* Main content area */}
-          <div className="min-w-0 flex-1 px-4 sm:px-6 lg:px-10 [grid-area:main]">
-            {slots.content}
-          </div>
+          <div className="min-w-0 flex-1 px-4 sm:px-6 lg:px-10 [grid-area:main]">{slots.content}</div>
         </div>
 
         {slots.footer}
@@ -112,7 +94,7 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
       <div
         id="nd-docs-layout"
         className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]"
-        data-documentation-layout="fumadocs-docs-preview"
+        data-documentation-layout="docs-preview"
         data-theme-region="preview-shell"
       >
         <aside id="nd-sidebar" className="hidden min-h-0 flex-col border-border border-e bg-card/40 md:flex" data-theme-region="sidebar">
@@ -131,7 +113,7 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
       <div
         id="nd-docs-layout"
         className="grid min-h-[22rem] grid-cols-[7.5rem_minmax(0,1fr)]"
-        data-documentation-layout="fumadocs-docs-studio"
+        data-documentation-layout="docs-studio"
         data-theme-region="preview-shell"
       >
         <div id="nd-sidebar" className="border-border border-e bg-card/45 p-2 text-xs" data-theme-region="sidebar">
@@ -145,22 +127,16 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
   PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
     <div
       className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center py-6"
-      data-documentation-layout="fumadocs-docs-page"
+      data-documentation-layout="docs-page"
       data-theme-region="page-shell"
     >
-      <article
-        id="nd-page"
-        className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12"
-      >
+      <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12">
         {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
         {article}
         {footer}
       </article>
       {tableOfContents && (
-        <aside
-          className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start [grid-area:toc]"
-          data-theme-region="toc"
-        >
+        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start [grid-area:toc]" data-theme-region="toc">
           {tableOfContents}
         </aside>
       )}
