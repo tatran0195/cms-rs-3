@@ -25,6 +25,7 @@ import {
   Globe2,
   KeyRound,
   Languages,
+  LayoutTemplate,
   LockKeyhole,
   type LucideIcon,
   Plug,
@@ -47,12 +48,14 @@ import { MembersSection } from "./components/members-section";
 import { NotificationsTab } from "./components/notifications-tab";
 import { OpenApiSection } from "./components/openapi-section";
 import { SearchSection } from "./components/search-section";
+import { ThemeSection } from "./components/theme-section";
 import { UsageTab } from "./components/usage-tab";
 
 export type SettingsGroupId = "site" | "deployment" | "workspace" | "advanced";
 
 export type SectionId =
   | "general"
+  | "theme"
   | "languages"
   | "domain"
   | "authentication"
@@ -80,6 +83,7 @@ export const GROUPS = [
 
 export const SECTIONS = [
   { id: "general", group: "site", icon: CirclePlus },
+  { id: "theme", group: "site", icon: LayoutTemplate },
   { id: "languages", group: "site", icon: Languages },
   { id: "domain", group: "site", icon: Globe2 },
   { id: "authentication", group: "site", icon: LockKeyhole },
@@ -228,6 +232,7 @@ function ActiveSection({
   // `key` forces a fresh form instance (with the right defaults) per project/section.
   const sections: Record<SectionId, ReactNode> = {
     general: <GeneralSection key={`general-${project.id}`} project={project} />,
+    theme: <ThemeSection key={`theme-${project.id}`} project={project} />,
     languages: (
       <LanguagesSection key={`languages-${project.id}`} project={project} />
     ),
@@ -271,6 +276,7 @@ function ActiveSection({
   };
   const wideSection =
     section === "general" ||
+    section === "theme" ||
     section === "usage" ||
     section === "integrations" ||
     section === "exports";
