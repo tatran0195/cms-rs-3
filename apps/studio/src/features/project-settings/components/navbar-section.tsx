@@ -410,7 +410,7 @@ function TabTreeNodeItem({ item, path, depth, isFirst, isLast, direction, tree, 
               isFirst={index === 0}
               isLast={index === (item.items?.length ?? 1) - 1}
               item={child}
-              key={index}
+              key={`${path.join('-')}-${child.href || child.label || index}`}
               onChange={onChange}
               path={[...path, index]}
               tree={tree}
@@ -448,7 +448,7 @@ export function TabsTreeEditor({
               isFirst={index === 0}
               isLast={index === value.length - 1}
               item={item}
-              key={index}
+              key={`root-${item.href || item.label || index}`}
               onChange={onChange}
               path={[index]}
               tree={value}

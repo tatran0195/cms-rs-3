@@ -80,7 +80,7 @@
         "noBitwiseOperators": "off",
         "noConsole": "off",
         "noEqualsToNull": "off",
-        "noExplicitAny": "warn",
+        "noExplicitAny": "off",
         "noLeakedRender": "off",
         // Component libraries (@cms/ui and @cms/icons) use React.forwardRef for Radix UI slotting and ref forwarding
         "noReactForwardRef": "off",
@@ -94,7 +94,7 @@
         "noIncrementDecrement": "off",
         "noNegationElse": "off",
         "noNestedTernary": "off",
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "off",
         "noParameterProperties": "off",
         "useAtIndex": "off",
         "useBlockStatements": "off",

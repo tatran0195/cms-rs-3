@@ -1,5 +1,6 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
+import type { CSSProperties } from 'react';
 import { SidebarToggle } from '../components/sidebar-toggle';
 import { useSidebar } from '../context/sidebar-context';
 import type { DocsLayoutSlots, DocsLayoutTemplate } from './types';
@@ -12,45 +13,55 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
     <div className="flex min-h-screen flex-col bg-card/40 dark:bg-card/20">
       {slots.banner}
 
-      {/* Header with attached horizontal layout tabs */}
-      <div className="sticky top-0 z-30 border-border/70 border-b bg-background/85 backdrop-blur-md">
-        {slots.header}
-        {slots.navTabs && (
-          <div className="border-border/60 border-t bg-muted/30 px-6 h-10 flex items-center gap-6 text-sm overflow-x-auto">{slots.navTabs}</div>
-        )}
-      </div>
-
+      {/* Outer Grid Container modeled after Fumadocs NotebookLayout slots/container.tsx */}
       <div
         id="nd-notebook-layout"
+        data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         data-documentation-layout="notebook"
-        className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 sm:px-6 lg:gap-8"
+        className="relative grid overflow-x-clip min-h-(--fd-docs-height) flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:260px] [--fd-toc-col:268px] transition-[--fd-sidebar-col]"
+        style={
+          {
+            gridTemplate: `"sidebar sidebar header header ."
+"sidebar sidebar toc-popover toc-popover ."
+"sidebar sidebar main toc ." 1fr / minmax(min-content, 1fr) var(--fd-sidebar-col) minmax(0, calc(var(--fd-layout-width,97rem) - var(--fd-sidebar-col) - var(--fd-toc-col))) var(--fd-toc-col) minmax(min-content, 1fr)`,
+            '--fd-docs-row-1': 'var(--fd-banner-height, 0px)',
+            '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height))',
+            '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height))',
+            '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
+            '--fd-sidebar-width': '260px',
+            '--fd-toc-col': '268px',
+            '--fd-header-height': '3.5rem',
+            '--fd-toc-popover-height': '2.5rem',
+          } as CSSProperties
+        }
         data-theme-region="content-shell"
       >
-        {/* Left Sidebar */}
+        {/* Left Sidebar [grid-area:sidebar] */}
         <aside
           id="nd-sidebar"
           data-collapsed={collapsed ? 'true' : 'false'}
           className={cn(
-            'sticky top-[calc(var(--site-header-h,4rem)+1.5rem)] hidden h-[calc(100dvh-var(--site-header-h,4rem)-3rem)] shrink-0 flex-col border-border/60 border-e lg:flex transition-all duration-200',
-            collapsed ? 'w-0 p-0 m-0 border-none overflow-hidden opacity-0 pointer-events-none' : 'w-60 py-6 pe-4',
+            'sticky top-(--fd-docs-row-1) z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/60 border-e bg-card/60 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
+            collapsed ? 'w-0 overflow-hidden border-none opacity-0 pointer-events-none' : 'w-[260px]',
           )}
           data-theme-region="sidebar"
         >
           {hasGranular ? (
             <>
-              <div className="flex items-center justify-between pb-3">
+              <div className="flex h-14 items-center justify-between px-4 border-b border-border/50">
                 {slots.brand}
                 {collapsible && <SidebarToggle />}
               </div>
-              {slots.searchFull && <div className="pt-2 pb-1">{slots.searchFull}</div>}
-              <ScrollArea className="flex-1 py-2">
-                <div data-theme-region="sidebar-content">
+              {slots.searchFull && <div className="px-3 pt-3 pb-1">{slots.searchFull}</div>}
+              {slots.navTabs && <div className="px-3 py-1 border-b border-border/40">{slots.navTabs}</div>}
+              <ScrollArea className="flex-1 px-3 py-3">
+                <div className="pb-12" data-theme-region="sidebar-content">
                   {slots.navAnchors}
                   {slots.sidebarTree ?? slots.navigation}
                 </div>
               </ScrollArea>
               {slots.tools && (
-                <div className="mt-auto border-t border-border/40 pt-3">
+                <div className="mt-auto border-t border-border/50 p-3">
                   <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
                     {slots.tools}
                   </div>
@@ -59,24 +70,32 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
             </>
           ) : (
             <ScrollArea className="h-full">
-              <div data-theme-region="sidebar-content">{slots.navigation}</div>
+              <div className="pt-6 pb-16 pe-4" data-theme-region="sidebar-content">
+                {slots.navigation}
+              </div>
             </ScrollArea>
           )}
         </aside>
 
-        {/* Elevated Notebook Card Paper */}
-        <div className="flex flex-1 min-w-0 py-6">
-          <div
-            className="notebook-paper mx-auto w-full max-w-[960px] rounded-2xl border border-border bg-background p-6 shadow-xs sm:p-10 lg:p-12 min-w-0"
-            data-theme-region="notebook-paper"
-          >
-            {collapsed && (
-              <div className="hidden lg:flex items-center mb-4">
-                <SidebarToggle />
-              </div>
-            )}
-            {slots.content}
+        {/* Top Header [grid-area:header] */}
+        <header
+          className={cn(
+            'sticky top-(--fd-docs-row-1) z-30 flex items-center justify-between px-6 h-14 border-b border-border/50 bg-background/80 backdrop-blur-md [grid-area:header]',
+          )}
+        >
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {collapsed && <SidebarToggle />}
+            {slots.navLinks}
           </div>
+          <div className="flex items-center gap-2">
+            {slots.searchButton}
+            {collapsed && slots.tools}
+          </div>
+        </header>
+
+        {/* Content slots rendered with contents so toc-popover, main, and toc snap to grid areas */}
+        <div className="notebook-paper contents" data-theme-region="content-slot">
+          {slots.content}
         </div>
       </div>
 
@@ -88,11 +107,16 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
 
 /**
  * Notebook Layout (`notebook`)
- * Modeled after upstream Fumadocs Notebook layout:
- * - Multi-track grid (`#nd-notebook-layout`) on a tinted canvas (`bg-card/40 dark:bg-card/20`)
- * - Clean sidebar on left (`#nd-sidebar`) in `[grid-area:sidebar]`
- * - Elevated central paper sheet (`fumadocs-notebook-paper` / `data-layout-content`)
- * - Article reading measure in `#nd-page` with margin TOC in `[grid-area:toc]`
+ * Modeled 100% after upstream Fumadocs Notebook layout:
+ * - Multi-track grid (`#nd-notebook-layout`) on a tinted canvas (`bg-card/40 dark:bg-card/20`):
+ *   `sidebar sidebar header header .`
+ *   `sidebar sidebar toc-popover toc-popover .`
+ *   `sidebar sidebar main toc .`
+ * - Sticky sidebar on left (`#nd-sidebar`) in `[grid-area:sidebar]`
+ * - Top header in `[grid-area:header]`
+ * - Mobile/Tablet TOC popover in `[grid-area:toc-popover]` for screens < xl
+ * - Main container in `[grid-area:main]` with elevated notebook card paper (`*:max-w-[900px]`)
+ * - Desktop sticky Table of Contents in `[grid-area:toc]`
  */
 export const NotebookLayoutTemplate: DocsLayoutTemplate = {
   id: 'notebook',
@@ -129,19 +153,31 @@ export const NotebookLayoutTemplate: DocsLayoutTemplate = {
     </div>
   ),
 
-  PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
-    <div
-      className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
-      data-documentation-layout="notebook-page"
-      data-theme-region="page-shell"
-    >
-      <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12">
-        {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
-        {article}
-        {footer}
-      </article>
+  PageLayout: ({ article, tableOfContents, breadcrumb, footer, tocPopover }) => (
+    <div className="contents" data-documentation-layout="notebook-page" data-theme-region="page-shell">
+      {/* Mobile & Tablet TOC Popover in [grid-area:toc-popover] */}
+      {tocPopover && <div className="[grid-area:toc-popover] sticky top-(--fd-docs-row-2) z-10 xl:hidden w-full">{tocPopover}</div>}
+
+      {/* Main Container in [grid-area:main] with Notebook Card Paper styling */}
+      <main className="grid [grid-area:main] p-4 sm:p-6 lg:p-8" data-layout-main="">
+        <article
+          id="nd-page"
+          data-layout-content=""
+          className="flex flex-col min-w-0 px-6 py-6 gap-4 md:px-8 md:pt-8 xl:px-10 xl:pt-10 *:max-w-[900px] notebook-paper bg-background rounded-2xl border border-border/80 shadow-xs"
+        >
+          {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
+          {article}
+          {footer}
+        </article>
+      </main>
+
+      {/* Desktop Sticky TOC in [grid-area:toc] */}
       {tableOfContents && (
-        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
+        <aside
+          id="nd-toc"
+          className="sticky top-(--fd-docs-row-1) h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-[268px] pt-12 pe-4 pb-2 max-xl:hidden self-start"
+          data-theme-region="toc"
+        >
           {tableOfContents}
         </aside>
       )}

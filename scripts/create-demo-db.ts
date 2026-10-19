@@ -1,6 +1,6 @@
-import { Database } from 'bun:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
+import { Database } from 'bun:sqlite';
 
 const outDir = path.resolve('target/demo-site');
 fs.mkdirSync(outDir, { recursive: true });
@@ -122,7 +122,7 @@ db.run(`
   INSERT INTO page_content VALUES (
     'page_intro',
     'en',
-    '# Getting Started with Acme Cloud\n\nWelcome to Acme Cloud Platform. This guide walks you through provisioning your first cluster and connecting your MCP agents.\n\n## Prerequisites\n\n- Rust 1.80+\n- An Acme API key\n\n## Quickstart\n\nRun the following command:\n\n` + '```bash\nacme init\n```' + `\n',
+    '# Getting Started with Acme Cloud\\n\\nWelcome to Acme Cloud Platform. This guide walks you through provisioning your first cluster and connecting your MCP agents.\\n\\n## Prerequisites\\n\\n- Rust 1.80+\\n- An Acme API key\\n\\n## Quickstart\\n\\nRun the following command:\\n\\n\`\`\`bash\\nacme init\\n\`\`\`\\n',
     'Learn how to get started with Acme Cloud documentation and platform tools.',
     '2026-10-17T02:00:00Z'
   );
@@ -170,7 +170,7 @@ db.run(`
   INSERT INTO page_content VALUES (
     'page_auth',
     'en',
-    '# Authentication & Tokens\n\nAcme Cloud uses Bearer tokens and mutual TLS for API security.\n\n## Bearer Authentication\n\nSend your token in the Authorization header:\n\n` + '```http\nAuthorization: Bearer <your-token>\n```' + `\n\n## Scopes\n\n- pages:read\n- search:read\n',
+    '# Authentication & Tokens\\n\\nAcme Cloud uses Bearer tokens and mutual TLS for API security.\\n\\n## Bearer Authentication\\n\\nSend your token in the Authorization header:\\n\\n\`\`\`http\\nAuthorization: Bearer <your-token>\\n\`\`\`\\n\\n## Scopes\\n\\n- pages:read\\n- search:read\\n',
     'Authentication mechanisms, token lifecycle, and RBAC scopes.',
     '2026-10-17T02:00:00Z'
   );
@@ -202,7 +202,7 @@ db.run(`
   INSERT INTO page_content VALUES (
     'page_webhooks',
     'en',
-    '# Webhooks & Event Delivery\n\nReceive real-time notifications when documentation changes.\n\n## Signature Verification\n\nAll webhook payloads are signed using HMAC-SHA256.\n',
+    '# Webhooks & Event Delivery\\n\\nReceive real-time notifications when documentation changes.\\n\\n## Signature Verification\\n\\nAll webhook payloads are signed using HMAC-SHA256.\\n',
     'Webhook delivery, retries, and HMAC verification.',
     '2026-10-17T02:00:00Z'
   );

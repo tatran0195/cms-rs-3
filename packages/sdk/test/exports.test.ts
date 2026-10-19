@@ -33,14 +33,14 @@ describe('ExportsResource', () => {
   });
 
   it('triggers on-demand schedule run', async () => {
-    const mockFetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
-      return Promise.resolve(
+    const mockFetch = vi.fn().mockImplementation((_input: RequestInfo | URL) =>
+      Promise.resolve(
         new Response(JSON.stringify({ id: 'job-99', status: 'PENDING' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
-      );
-    });
+      ),
+    );
 
     const client = createCmsClient({ baseUrl: 'https://cms.test', fetch: mockFetch });
     const job = await client.exports.runSchedule('p1', 'sched-1');

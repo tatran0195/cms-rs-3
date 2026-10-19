@@ -116,13 +116,13 @@ describe('ExportsSection and Section Registration', () => {
           {
             id: 'art-1',
             format: 'MARKDOWN',
-            size: 2097152,
+            size: 2_097_152,
             fileName: 'docs-markdown.zip',
           },
           {
             id: 'art-2',
             format: 'SQLITE',
-            size: 524288,
+            size: 524_288,
             fileName: 'database.sqlite',
           },
         ],
@@ -182,4 +182,3 @@ describe('ExportsSection and Section Registration', () => {
     expect(mockRunScheduleMutate).toHaveBeenCalledWith('sched-456', expect.any(Object));
   });
 });
-

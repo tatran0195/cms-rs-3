@@ -22,11 +22,7 @@ export function VersionSwitcher({
 }) {
   const t = siteT(lang);
   const effectiveVersions =
-    versions && versions.length > 0
-      ? versions
-      : activeSlug
-        ? [{ id: activeSlug, name: activeSlug, slug: activeSlug, isDefault: true }]
-        : [];
+    versions && versions.length > 0 ? versions : activeSlug ? [{ id: activeSlug, name: activeSlug, slug: activeSlug, isDefault: true }] : [];
 
   if (effectiveVersions.length === 0) {
     return null;
@@ -41,7 +37,6 @@ export function VersionSwitcher({
     return (
       <div
         className="flex h-8 items-center gap-1.5 rounded-full border border-border/70 px-3 font-medium text-muted-foreground text-xs"
-        aria-label={active?.name ?? activeSlug}
         data-testid="version-indicator"
       >
         <GitBranch className="size-3.5" />

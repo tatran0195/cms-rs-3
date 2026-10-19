@@ -449,9 +449,7 @@ describe('SortablePageTree - React Component Interactions', () => {
     expect(container.textContent).toContain('Child Leaf');
   });
 
-  it(
-    'handles high-scale virtualized trees (1,000 nodes) without degradation',
-    async () => {
+  it('handles high-scale virtualized trees (1,000 nodes) without degradation', async () => {
     const largePages: PageNode[] = [];
     for (let i = 0; i < 1000; i++) {
       largePages.push(
@@ -468,5 +466,5 @@ describe('SortablePageTree - React Component Interactions', () => {
     // Confirms root container mounts and renders items cleanly
     const items = container.querySelectorAll('button');
     expect(items.length).toBeGreaterThan(0);
-  }, 20000);
+  }, 20_000);
 });

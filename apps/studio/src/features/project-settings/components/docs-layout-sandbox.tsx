@@ -8,11 +8,7 @@ import {
   resolveTheme,
   type ThemeOwnedProjectConfig,
 } from '@cms/shared/themes';
-import {
-  DocumentationThemeProvider,
-  projectThemeStyle,
-  projectThemeVariables,
-} from '@cms/site';
+import { DocumentationThemeProvider, projectThemeStyle, projectThemeVariables } from '@cms/site';
 import { getDocsLayoutTemplate } from '@cms/site/layouts';
 import type { ProjectConfig } from '@cms/validators';
 import {
@@ -20,10 +16,8 @@ import {
   Check,
   Code2,
   Copy,
-  ExternalLink,
   Folder,
   Layers,
-  LayoutTemplate,
   Moon,
   Palette,
   PanelLeftClose,
@@ -63,9 +57,7 @@ export function DocsLayoutSandbox({
 }: DocsLayoutSandboxProps) {
   const t = useT();
   const initialMode = appearance === 'dark' ? 'dark' : 'light';
-  const [activeLayout, setActiveLayout] = useState<DocsLayoutId>(
-    resolveDocsLayout(currentLayout),
-  );
+  const [activeLayout, setActiveLayout] = useState<DocsLayoutId>(resolveDocsLayout(currentLayout));
   const [options, setOptions] = useState<SandboxOptions>({
     themeMode: initialMode,
     collapsibleSidebar: true,
@@ -96,10 +88,7 @@ export function DocsLayoutSandbox({
     };
   }, [config, theme, activeLayout, options.themeMode]);
 
-  const resolvedTheme = useMemo(
-    () => resolveTheme(effectiveConfig as ThemeOwnedProjectConfig),
-    [effectiveConfig],
-  );
+  const resolvedTheme = useMemo(() => resolveTheme(effectiveConfig as ThemeOwnedProjectConfig), [effectiveConfig]);
 
   const template = getDocsLayoutTemplate(activeLayout);
 
@@ -135,9 +124,7 @@ export function DocsLayoutSandbox({
       <span className="size-6 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-xs shadow-2xs">
         F
       </span>
-      <span className="font-semibold text-sm tracking-tight text-foreground">
-        Fumadocs
-      </span>
+      <span className="font-semibold text-sm tracking-tight text-foreground">Fumadocs</span>
     </div>
   );
 
@@ -145,9 +132,7 @@ export function DocsLayoutSandbox({
     <div className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg border border-border/70 bg-background/80 text-muted-foreground text-xs shadow-2xs cursor-pointer hover:border-primary/50 transition-colors">
       <Search className="size-3.5" />
       <span className="flex-1">Search documentation...</span>
-      <kbd className="px-1.5 py-0.5 rounded border border-border/80 bg-muted text-[10px] font-mono">
-        ⌘K
-      </kbd>
+      <kbd className="px-1.5 py-0.5 rounded border border-border/80 bg-muted text-[10px] font-mono">⌘K</kbd>
     </div>
   );
 
@@ -169,11 +154,7 @@ export function DocsLayoutSandbox({
         className="grid size-8 place-items-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         aria-label="Toggle Theme"
       >
-        {options.themeMode === 'dark' ? (
-          <Sun className="size-4 text-amber-400" />
-        ) : (
-          <Moon className="size-4" />
-        )}
+        {options.themeMode === 'dark' ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4" />}
       </button>
       <a
         href="https://github.com/fuma-nama/fumadocs"
@@ -189,9 +170,7 @@ export function DocsLayoutSandbox({
 
   const navLinksSlot = (
     <nav className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-      <span className="text-foreground font-semibold hover:text-primary cursor-pointer">
-        Guide
-      </span>
+      <span className="text-foreground font-semibold hover:text-primary cursor-pointer">Guide</span>
       <span className="hover:text-foreground cursor-pointer">Components</span>
       <span className="hover:text-foreground cursor-pointer">API Reference</span>
     </nav>
@@ -199,22 +178,13 @@ export function DocsLayoutSandbox({
 
   const navTabsSlot = (
     <div className="flex items-center gap-2 text-xs">
-      <button
-        type="button"
-        className="px-2.5 py-1 rounded-md transition-colors bg-primary/10 text-primary font-semibold"
-      >
+      <button type="button" className="px-2.5 py-1 rounded-md transition-colors bg-primary/10 text-primary font-semibold">
         Core Guide
       </button>
-      <button
-        type="button"
-        className="px-2.5 py-1 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
-      >
+      <button type="button" className="px-2.5 py-1 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50">
         API Reference
       </button>
-      <button
-        type="button"
-        className="px-2.5 py-1 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
-      >
+      <button type="button" className="px-2.5 py-1 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50">
         Configuration
       </button>
     </div>
@@ -248,7 +218,7 @@ export function DocsLayoutSandbox({
               'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-start font-medium transition-colors cursor-pointer',
               activeNavId === 'overview'
                 ? 'bg-primary/15 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40',
             )}
           >
             <Book className="size-3.5 shrink-0" />
@@ -261,7 +231,7 @@ export function DocsLayoutSandbox({
               'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-start transition-colors cursor-pointer',
               activeNavId === 'quick-start'
                 ? 'bg-primary/15 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40',
             )}
           >
             <Rocket className="size-3.5 shrink-0" />
@@ -274,7 +244,7 @@ export function DocsLayoutSandbox({
               'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-start transition-colors cursor-pointer',
               activeNavId === 'theming'
                 ? 'bg-primary/15 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40',
             )}
           >
             <Palette className="size-3.5 shrink-0" />
@@ -293,9 +263,7 @@ export function DocsLayoutSandbox({
             onClick={() => setActiveNavId('intro')}
             className={cn(
               'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-start transition-colors cursor-pointer',
-              activeNavId === 'intro'
-                ? 'bg-primary/15 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              activeNavId === 'intro' ? 'bg-primary/15 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40',
             )}
           >
             <Terminal className="size-3.5 shrink-0" />
@@ -306,9 +274,7 @@ export function DocsLayoutSandbox({
             onClick={() => setActiveNavId('auth')}
             className={cn(
               'flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-start transition-colors cursor-pointer',
-              activeNavId === 'auth'
-                ? 'bg-primary/15 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              activeNavId === 'auth' ? 'bg-primary/15 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40',
             )}
           >
             <Layers className="size-3.5 shrink-0" />
@@ -329,12 +295,8 @@ export function DocsLayoutSandbox({
           <span>/</span>
           <span>Layouts</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-          {activeLayout.charAt(0).toUpperCase() + activeLayout.slice(1)} Layout
-        </h1>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {t(`settings.theme.layout.${activeLayout}.description`)}
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{activeLayout.charAt(0).toUpperCase() + activeLayout.slice(1)} Layout</h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">{t(`settings.theme.layout.${activeLayout}.description`)}</p>
       </div>
 
       {/* Feature Callout (with dynamic semantic styling) */}
@@ -354,8 +316,8 @@ export function DocsLayoutSandbox({
           <span>Good to know</span>
         </div>
         <p className="text-muted-foreground">
-          This preview runs Fumadocs&apos; CSS Grid and slot architecture.
-          Every component reflects your active color palette, typography tokens, and layout geometry.
+          This preview runs Fumadocs&apos; CSS Grid and slot architecture. Every component reflects your active color palette, typography tokens, and
+          layout geometry.
         </p>
       </div>
 
@@ -400,9 +362,7 @@ export function DocsLayoutSandbox({
                   onClick={() => setCodeTab(tab)}
                   className={cn(
                     'px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer',
-                    codeTab === tab
-                      ? 'bg-background text-foreground font-semibold shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                    codeTab === tab ? 'bg-background text-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {tab}
@@ -414,18 +374,11 @@ export function DocsLayoutSandbox({
               onClick={handleCopy}
               className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
-              {copied ? (
-                <Check className="size-3 text-emerald-500" />
-              ) : (
-                <Copy className="size-3" />
-              )}
+              {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <pre
-            data-theme-component="code"
-            className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto"
-          >
+          <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto">
             <code>{codeSnippets[codeTab]}</code>
           </pre>
         </div>
@@ -441,23 +394,13 @@ export function DocsLayoutSandbox({
 
   const demoTocSlot = (
     <div className="space-y-2.5 text-xs">
-      <div className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
-        On this page
-      </div>
+      <div className="font-semibold text-foreground uppercase tracking-wider text-[11px]">On this page</div>
       <div className="space-y-1 border-l-2 border-border/60 pl-3">
         <div className="font-medium text-primary cursor-pointer">Overview</div>
-        <div className="text-muted-foreground hover:text-foreground cursor-pointer">
-          Good to know
-        </div>
-        <div className="text-muted-foreground hover:text-foreground cursor-pointer">
-          Quick Start & Themes
-        </div>
-        <div className="text-muted-foreground hover:text-foreground cursor-pointer">
-          Installation Tabs
-        </div>
-        <div className="text-muted-foreground hover:text-foreground cursor-pointer">
-          Layout Configuration
-        </div>
+        <div className="text-muted-foreground hover:text-foreground cursor-pointer">Good to know</div>
+        <div className="text-muted-foreground hover:text-foreground cursor-pointer">Quick Start & Themes</div>
+        <div className="text-muted-foreground hover:text-foreground cursor-pointer">Installation Tabs</div>
+        <div className="text-muted-foreground hover:text-foreground cursor-pointer">Layout Configuration</div>
       </div>
     </div>
   );
@@ -476,9 +419,7 @@ export function DocsLayoutSandbox({
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
         <span>Docs</span>
         <span>/</span>
-        <span className="text-foreground font-medium">
-          {activeLayout.charAt(0).toUpperCase() + activeLayout.slice(1)}
-        </span>
+        <span className="text-foreground font-medium">{activeLayout.charAt(0).toUpperCase() + activeLayout.slice(1)}</span>
       </div>
     ),
     footer: demoFooterSlot,
@@ -489,9 +430,7 @@ export function DocsLayoutSandbox({
       {/* Interactive Controls Bar (WithControl) */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-border/80 bg-card/60 backdrop-blur-xs">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-semibold text-muted-foreground mr-1">
-            Layout:
-          </span>
+          <span className="text-xs font-semibold text-muted-foreground mr-1">Layout:</span>
           {DOCS_LAYOUT_IDS.map((id) => (
             <button
               key={id}
@@ -501,7 +440,7 @@ export function DocsLayoutSandbox({
                 'px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer',
                 activeLayout === id
                   ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
               )}
             >
               {t(`settings.theme.layout.${id}.name`)}
@@ -568,18 +507,9 @@ export function DocsLayoutSandbox({
           {/* macOS Window Chrome Header */}
           <div className="flex h-9 items-center justify-between border-b border-border/70 bg-muted/40 px-3.5 backdrop-blur-xs select-none">
             <div className="flex items-center gap-2">
-              <span
-                data-window-control="close"
-                className="size-3 rounded-full bg-[#ff5f57] border border-black/10 inline-block"
-              />
-              <span
-                data-window-control="minimize"
-                className="size-3 rounded-full bg-[#febc2e] border border-black/10 inline-block"
-              />
-              <span
-                data-window-control="maximize"
-                className="size-3 rounded-full bg-[#28c840] border border-black/10 inline-block"
-              />
+              <span data-window-control="close" className="size-3 rounded-full bg-[#ff5f57] border border-black/10 inline-block" />
+              <span data-window-control="minimize" className="size-3 rounded-full bg-[#febc2e] border border-black/10 inline-block" />
+              <span data-window-control="maximize" className="size-3 rounded-full bg-[#28c840] border border-black/10 inline-block" />
             </div>
             <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background/60 px-3 py-0.5 text-[11px] font-medium text-muted-foreground">
               <span>https://docs.local/preview/{activeLayout}</span>
@@ -590,12 +520,13 @@ export function DocsLayoutSandbox({
           {/* Live Layout Viewport Frame (wrapped in DocumentationThemeProvider with live theme variables) */}
           <DocumentationThemeProvider
             appearance={options.themeMode}
-            className="size-full overflow-hidden text-sm"
+            className="size-full overflow-hidden text-sm relative [transform:translateZ(0)]"
             context="studio-preview"
             direction="ltr"
             style={{
               ...projectThemeVariables(effectiveConfig, options.themeMode),
               ...projectThemeStyle(effectiveConfig),
+              transform: 'translateZ(0)',
             }}
             theme={resolvedTheme}
           >

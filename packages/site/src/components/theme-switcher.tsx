@@ -12,13 +12,7 @@ export interface ThemeSwitcherProps {
   className?: string;
 }
 
-export function ThemeSwitcher({
-  mode = 'light-dark',
-  appearance,
-  onChange,
-  enabled = true,
-  className,
-}: ThemeSwitcherProps) {
+export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabled = true, className }: ThemeSwitcherProps) {
   if (!enabled) return null;
 
   // Segmented: 3 options (System, Light, Dark)
@@ -26,10 +20,7 @@ export function ThemeSwitcher({
     return (
       <div
         data-theme-switcher="segmented-system"
-        className={cn(
-          'inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all',
-          className,
-        )}
+        className={cn('inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all', className)}
       >
         <button
           type="button"
@@ -79,10 +70,7 @@ export function ThemeSwitcher({
     return (
       <div
         data-theme-switcher="segmented-light-dark"
-        className={cn(
-          'inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all',
-          className,
-        )}
+        className={cn('inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all', className)}
       >
         <button
           type="button"

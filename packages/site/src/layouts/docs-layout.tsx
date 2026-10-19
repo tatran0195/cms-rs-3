@@ -1,5 +1,6 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
+import type { CSSProperties } from 'react';
 import { SidebarToggle } from '../components/sidebar-toggle';
 import { useSidebar } from '../context/sidebar-context';
 import type { DocsLayoutSlots, DocsLayoutTemplate } from './types';
@@ -12,26 +13,36 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
     <div className="flex min-h-screen flex-col bg-background">
       {slots.banner}
 
-      {/* Mobile Header (md:hidden) */}
-      <div className={cn(hasGranular && 'md:hidden')}>{slots.header}</div>
-
+      {/* Outer Grid Container modeled exactly after Fumadocs DocsLayout slots/container.tsx */}
       <div
         id="nd-docs-layout"
+        data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         data-documentation-layout="docs"
-        className="relative grid min-h-(--fd-docs-height) flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-toc-width:240px]"
-        style={{
-          gridTemplate: `"sidebar sidebar header toc toc"
+        className="relative grid overflow-x-clip min-h-(--fd-docs-height) flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:268px] [--fd-toc-width:268px] transition-[--fd-sidebar-col]"
+        style={
+          {
+            gridTemplate: `"sidebar sidebar header toc toc"
+"sidebar sidebar toc-popover toc toc"
 "sidebar sidebar tabs toc toc"
-"sidebar sidebar main toc toc" 1fr / minmax(0, 0px) minmax(0, ${collapsed ? '0px' : '268px'}) minmax(0, 1fr) auto minmax(0, 0px)`,
-        }}
+"sidebar sidebar main toc toc" 1fr / minmax(min-content, 1fr) var(--fd-sidebar-col) minmax(0, calc(var(--fd-layout-width,97rem) - var(--fd-sidebar-width) - var(--fd-toc-width))) var(--fd-toc-width) minmax(min-content, 1fr)`,
+            '--fd-docs-row-1': 'var(--fd-banner-height, 0px)',
+            '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height))',
+            '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height))',
+            '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
+            '--fd-sidebar-width': '268px',
+            '--fd-toc-width': '268px',
+            '--fd-header-height': '3.5rem',
+            '--fd-toc-popover-height': '2.5rem',
+          } as CSSProperties
+        }
         data-theme-region="content-shell"
       >
-        {/* Desktop Persistent Sidebar */}
+        {/* Desktop Sticky Sidebar [grid-area:sidebar] */}
         <aside
           id="nd-sidebar"
           data-collapsed={collapsed ? 'true' : 'false'}
           className={cn(
-            'sticky top-0 hidden h-screen shrink-0 flex-col border-border/70 border-e bg-card/50 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
+            'sticky top-(--fd-docs-row-1) z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/70 border-e bg-card/50 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
             collapsed ? 'w-0 overflow-hidden border-none opacity-0 pointer-events-none' : 'w-[268px]',
           )}
           data-theme-region="sidebar"
@@ -67,24 +78,34 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
           )}
         </aside>
 
-        {/* Desktop Top Header if provided or when collapsed */}
-        {hasGranular && (
-          <div
-            className={cn(
-              'hidden md:flex items-center justify-between px-8 h-14 border-b border-border/40 [grid-area:header]',
-              !slots.navLinks && !collapsed && 'invisible pointer-events-none',
-            )}
-          >
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              {collapsed && <SidebarToggle />}
-              {slots.navLinks}
-            </div>
-            <div className="flex items-center gap-2">{slots.tools}</div>
-          </div>
+        {/* Top Header [grid-area:header] */}
+        {hasGranular ? (
+          <>
+            {/* Mobile Header (md:hidden) */}
+            <div className="md:hidden [grid-area:header] sticky top-0 z-30">{slots.header}</div>
+
+            {/* Desktop Header bar when sidebar collapsed or nav links provided */}
+            <header
+              className={cn(
+                'hidden md:flex items-center justify-between px-8 h-14 border-b border-border/40 [grid-area:header] sticky top-0 z-20 bg-background/85 backdrop-blur-xs',
+                !slots.navLinks && !collapsed && 'invisible pointer-events-none',
+              )}
+            >
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                {collapsed && <SidebarToggle />}
+                {slots.navLinks}
+              </div>
+              <div className="flex items-center gap-2">{collapsed && slots.tools}</div>
+            </header>
+          </>
+        ) : (
+          <div className="[grid-area:header]">{slots.header}</div>
         )}
 
-        {/* Main content area */}
-        <div className="min-w-0 flex-1 px-4 sm:px-6 lg:px-10 [grid-area:main]">{slots.content}</div>
+        {/* Content slots rendered with contents so toc-popover, main, and toc snap to grid areas */}
+        <div className="contents" data-theme-region="content-slot">
+          {slots.content}
+        </div>
       </div>
 
       {slots.footer}
@@ -95,14 +116,16 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
 
 /**
  * Standard Docs Layout (`docs`)
- * Modeled after upstream Fumadocs default documentation layout:
- * - Multi-column CSS grid (`#nd-docs-layout`):
+ * Modeled 100% after upstream Fumadocs default documentation layout:
+ * - 5-column CSS grid (`#nd-docs-layout`):
  *   `sidebar sidebar header toc toc`
+ *   `sidebar sidebar toc-popover toc toc`
  *   `sidebar sidebar tabs toc toc`
  *   `sidebar sidebar main toc toc`
- * - Collapsible sidebar (`#nd-sidebar`) in `[grid-area:sidebar]` with brand, search, tree, and dock
- * - Category tabs in `[grid-area:tabs]`
- * - Article reading measure in `#nd-page` with sticky right-hand outline in `[grid-area:toc]`
+ * - Collapsible sticky sidebar (`#nd-sidebar`) in `[grid-area:sidebar]` with brand, search, tree, and tools dock
+ * - Mobile/Tablet TOC Popover in `[grid-area:toc-popover]` with progress ring and collapsible headings drawer
+ * - Centered main container in `[grid-area:main]` with article measure `#nd-page` max-w-[900px]
+ * - Desktop sticky Table of Contents in `[grid-area:toc]` with width 268px on xl+
  */
 export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
   id: 'docs',
@@ -144,19 +167,31 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
     </>
   ),
 
-  PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
-    <div
-      className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center py-6"
-      data-documentation-layout="docs-page"
-      data-theme-region="page-shell"
-    >
-      <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12">
-        {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
-        {article}
-        {footer}
-      </article>
+  PageLayout: ({ article, tableOfContents, breadcrumb, footer, tocPopover }) => (
+    <div className="contents" data-documentation-layout="docs-page" data-theme-region="page-shell">
+      {/* Mobile & Tablet TOC Popover in [grid-area:toc-popover] */}
+      {tocPopover && <div className="[grid-area:toc-popover] sticky top-(--fd-docs-row-2) z-10 xl:hidden w-full">{tocPopover}</div>}
+
+      {/* Main Container in [grid-area:main] matching Fumadocs slots/container.tsx */}
+      <main className="grid [grid-area:main] justify-items-center w-full min-w-0" data-layout-main="">
+        <article
+          id="nd-page"
+          data-layout-content=""
+          className="flex flex-col min-w-0 w-full max-w-[900px] px-4 py-6 gap-4 md:px-6 md:pt-8 xl:px-8 xl:pt-14"
+        >
+          {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
+          {article}
+          {footer}
+        </article>
+      </main>
+
+      {/* Desktop Sticky TOC in [grid-area:toc] matching Fumadocs slots/toc.tsx */}
       {tableOfContents && (
-        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start [grid-area:toc]" data-theme-region="toc">
+        <aside
+          id="nd-toc"
+          className="sticky top-(--fd-docs-row-1) h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-(--fd-toc-width,268px) pt-12 pe-4 pb-2 max-xl:hidden self-start"
+          data-theme-region="toc"
+        >
           {tableOfContents}
         </aside>
       )}

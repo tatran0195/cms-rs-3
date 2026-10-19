@@ -236,9 +236,7 @@ export function ExportsSection({ projectId }: { projectId: string }) {
                               return (
                                 <div>
                                   <div className="flex items-center gap-1.5">
-                                    <span className="font-medium text-foreground">
-                                      {version ? `v${version}` : 'Draft'}
-                                    </span>
+                                    <span className="font-medium text-foreground">{version ? `v${version}` : 'Draft'}</span>
                                     <span className="text-muted-foreground">· {pages.toLocaleString()} pages</span>
                                   </div>
                                   {m && totalMs !== undefined ? (
@@ -294,12 +292,7 @@ export function ExportsSection({ projectId }: { projectId: string }) {
                               </div>
                             ) : run.downloadUrl || run.download_url ? (
                               <div className="flex items-center justify-end">
-                                <Button
-                                  onClick={() => downloadArtifact(run)}
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 gap-1 px-2 text-xs"
-                                >
+                                <Button onClick={() => downloadArtifact(run)} size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs">
                                   <Download className="size-3" /> {t('settings.exports.workflow.legacyDownload')}
                                 </Button>
                               </div>
@@ -367,11 +360,7 @@ function StatusBadge({ status }: { status: string }) {
 
   const variant = normalizedKey === 'failed' ? 'destructive' : normalizedKey === 'succeeded' ? 'default' : 'secondary';
 
-  return (
-    <Badge variant={variant}>
-      {t(`settings.exports.workflow.status.${normalizedKey}` as MessageKey)}
-    </Badge>
-  );
+  return <Badge variant={variant}>{t(`settings.exports.workflow.status.${normalizedKey}` as MessageKey)}</Badge>;
 }
 
 function ScheduleForm({ projectId, onCreated }: { projectId: string; onCreated: () => void }) {
@@ -551,8 +540,7 @@ function ScheduleRow({ projectId, schedule }: { projectId: string; schedule: Exp
           <span dir="ltr">
             {String(hour).padStart(2, '0')}:{String(minute).padStart(2, '0')} {tz}
           </span>{' '}
-          · {t('settings.exports.workflow.next')} {formatDate(nextRun, locale)} ·{' '}
-          {t('settings.exports.workflow.runCount', { count: jobCount })}
+          · {t('settings.exports.workflow.next')} {formatDate(nextRun, locale)} · {t('settings.exports.workflow.runCount', { count: jobCount })}
         </div>
         {lastErr ? (
           <div className="mt-1 text-destructive text-xs" dir="auto">

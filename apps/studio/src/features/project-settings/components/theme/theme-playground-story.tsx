@@ -149,12 +149,16 @@ export function ThemePlaygroundStory({
                 }));
               }}
             >
-              <SelectTrigger aria-label="Select Docs Layout" className="h-7 min-w-[6.5rem] border-border/80 bg-background text-xs shadow-none">
+              <SelectTrigger
+                data-testid="docs-layout-select-trigger"
+                aria-label="Select Docs Layout"
+                className="h-7 min-w-[6.5rem] border-border/80 bg-background text-xs shadow-none"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {DOCS_LAYOUT_IDS.map((layout) => (
-                  <SelectItem key={layout} value={layout} className="text-xs">
+                  <SelectItem data-testid={`layout-option-${layout}`} key={layout} value={layout} className="text-xs">
                     {t(`settings.theme.layout.${layout}.name`)}
                   </SelectItem>
                 ))}

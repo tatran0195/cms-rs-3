@@ -129,7 +129,7 @@ export class ExportsResource {
     return this.http.delete<{ success: boolean }>(`/api/app/export/schedules/${scheduleId}`);
   }
 
-  async runSchedule(projectId: string, scheduleId: string): Promise<ExportJob> {
+  async runSchedule(_projectId: string, scheduleId: string): Promise<ExportJob> {
     return this.http.post<ExportJob>(`/api/app/export/schedules/${scheduleId}/run`);
   }
 }

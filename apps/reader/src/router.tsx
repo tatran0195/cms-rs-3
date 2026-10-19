@@ -219,7 +219,8 @@ const pageRoute = createRoute({
             if (firstLeaf) {
               const { lang: leafLang } = parseVersionAndLang(firstLeaf);
               const targetLang = effectiveLang || leafLang;
-              const prefix = effectiveVersion && bSite.versions.some((v) => v.slug === effectiveVersion && !v.isDefault) ? `/${effectiveVersion}` : '';
+              const prefix =
+                effectiveVersion && bSite.versions.some((v) => v.slug === effectiveVersion && !v.isDefault) ? `/${effectiveVersion}` : '';
               const targetHref = `${prefix}${firstLeaf.startsWith('/') ? firstLeaf : `/${firstLeaf}`}${targetLang ? `?lang=${encodeURIComponent(targetLang)}` : ''}`;
               throw redirect({ href: targetHref, statusCode: 302 });
             }

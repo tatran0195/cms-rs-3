@@ -4,38 +4,43 @@ import { SidebarToggle } from '../components/sidebar-toggle';
 import { useSidebar } from '../context/sidebar-context';
 import type { DocsLayoutSlots, DocsLayoutTemplate } from './types';
 
+const pillButtonClasses = 'rounded-full bg-card/80 text-foreground border border-border/70 backdrop-blur-md shadow-xs';
+
 function GlassReaderShell(slots: DocsLayoutSlots) {
   const hasGranular = Boolean(slots.brand);
   const { collapsed, collapsible } = useSidebar();
 
   return (
-    <div id="fd-glass-layout" data-documentation-layout="glass" className="flex min-h-screen flex-col bg-background relative">
+    <div
+      id="fd-glass-layout"
+      data-sidebar-collapsed={collapsed ? 'true' : 'false'}
+      data-documentation-layout="glass"
+      className="flex min-h-screen flex-col bg-background relative"
+    >
       {slots.banner}
 
       {/* Mobile Header (md:hidden) */}
       <div className={cn(hasGranular && 'md:hidden')}>{slots.header}</div>
 
-      {/* Floating Pill Controls Header on Desktop */}
+      {/* Floating Pill Controls Header on Desktop matching Fumadocs Glass header.tsx */}
       {hasGranular && (
         <header className="sticky top-0 z-20 hidden h-14 items-center justify-between gap-2 bg-gradient-to-b from-background px-6 pt-3 pointer-events-none *:pointer-events-auto md:flex">
           <div>
             {collapsed && (
-              <div className="rounded-full border border-border/70 bg-card/75 p-1 shadow-xs backdrop-blur-md">
+              <div className={cn(pillButtonClasses, 'p-1')}>
                 <SidebarToggle />
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {slots.searchFull && (
-              <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.searchFull}</div>
-            )}
-            {slots.tools && <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.tools}</div>}
+            {slots.searchFull && <div className={cn(pillButtonClasses, 'px-3 py-1 text-xs text-muted-foreground')}>{slots.searchFull}</div>}
+            {slots.tools && <div className={cn(pillButtonClasses, 'px-3 py-1')}>{slots.tools}</div>}
           </div>
         </header>
       )}
 
       <div className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 pt-2 pb-12 sm:px-6 lg:gap-8" data-theme-region="content-shell">
-        {/* Translucent Floating Card Sidebar */}
+        {/* Translucent Floating Card Sidebar matching Fumadocs Glass sidebar */}
         <aside
           id="nd-sidebar"
           data-collapsed={collapsed ? 'true' : 'false'}
@@ -59,7 +64,7 @@ function GlassReaderShell(slots: DocsLayoutSlots) {
                 </div>
               </ScrollArea>
               {slots.tools && (
-                <div className="mt-auto border-t border-border/50 pt-2 px-1">
+                <div className="mt-auto border-t border-border/40 pt-2">
                   <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
                     {slots.tools}
                   </div>
@@ -75,7 +80,7 @@ function GlassReaderShell(slots: DocsLayoutSlots) {
           )}
         </aside>
 
-        <div className="min-w-0 flex-1">{slots.content}</div>
+        <div className="min-w-0 flex-1 pt-4 md:pt-6">{slots.content}</div>
       </div>
 
       {slots.footer}
@@ -86,11 +91,11 @@ function GlassReaderShell(slots: DocsLayoutSlots) {
 
 /**
  * Glass Layout (`glass`)
- * Modeled after upstream Fumadocs Glass layout:
- * - Multi-track grid (`#fd-glass-layout`) with floating translucent header and frosted glass sidebar
- * - Floating rounded-full pill controls bar with backdrop-blur-md
- * - Elevated floating frosted sidebar (`#nd-sidebar` / `fumadocs-glass-sidebar`)
- * - Article reading measure in `#nd-page` with frosted glass accents
+ * Modeled 100% after upstream Fumadocs Glass layout:
+ * - Floating translucent header with rounded-full pill buttons
+ * - Elevated floating frosted glass sidebar (`#nd-sidebar` / `glass-sidebar`)
+ * - Article reading measure in `#nd-page` with frosted glass aesthetics
+ * - Hover-expanding outline TOC
  */
 export const GlassLayoutTemplate: DocsLayoutTemplate = {
   id: 'glass',
@@ -135,17 +140,21 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
     </div>
   ),
 
-  PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
+  PageLayout: ({ article, tableOfContents, breadcrumb, footer, tocPopover }) => (
     <div
       className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
       data-documentation-layout="glass-page"
       data-theme-region="page-shell"
     >
-      <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-12">
-        {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
-        {article}
-        {footer}
-      </article>
+      <div className="flex flex-col flex-1 min-w-0 max-w-[760px]">
+        {tocPopover && <div className="md:hidden mb-4 w-full">{tocPopover}</div>}
+        <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 pb-12">
+          {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
+          {article}
+          {footer}
+        </article>
+      </div>
+
       {tableOfContents && (
         <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
           {tableOfContents}

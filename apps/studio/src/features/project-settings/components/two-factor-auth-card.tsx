@@ -267,8 +267,8 @@ export function TwoFactorAuthCard() {
               </Alert>
 
               <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3 font-mono text-xs font-semibold">
-                {recoveryCodes.map((code, index) => (
-                  <div className="rounded bg-background px-2.5 py-1.5 text-center border shadow-xs" key={index}>
+                {recoveryCodes.map((code) => (
+                  <div className="rounded bg-background px-2.5 py-1.5 text-center border shadow-xs" key={code}>
                     {code}
                   </div>
                 ))}

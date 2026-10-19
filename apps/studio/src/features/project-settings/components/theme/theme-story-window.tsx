@@ -16,7 +16,7 @@ import {
   type ThemeComponents,
   type ThemeLayout,
 } from '@cms/shared/themes';
-import { DocumentationThemeProvider, projectThemeStyle, projectThemeVariables } from '@cms/site';
+import { DocumentationThemeProvider, projectThemeStyle, projectThemeVariables, TableOfContents, TOCPopover, type TocHeading } from '@cms/site';
 import { getDocsLayoutTemplate } from '@cms/site/layouts';
 import type { ProjectConfig } from '@cms/validators';
 import {
@@ -56,6 +56,46 @@ export interface ThemeStoryWindowProps {
   onToggleFullscreen?: () => void;
   className?: string;
 }
+
+const PREVIEW_HEADINGS_BY_PAGE: Record<string, TocHeading[]> = {
+  overview: [
+    { id: 'overview', text: 'Overview', depth: 2 },
+    { id: 'introduction', text: 'Introduction', depth: 2 },
+    { id: 'installation', text: 'Installation', depth: 3 },
+    { id: 'theme-configuration', text: 'Theme Configuration', depth: 3 },
+  ],
+  quickstart: [
+    { id: 'quickstart', text: 'Quick Start', depth: 2 },
+    { id: 'install-dependencies', text: 'Install Dependencies', depth: 3 },
+    { id: 'select-layout', text: 'Select Documentation Layout', depth: 3 },
+  ],
+  cards: [
+    { id: 'cards-component', text: 'Cards Component', depth: 2 },
+    { id: 'card-style-modes', text: 'Card Style Modes', depth: 3 },
+  ],
+  tabs: [
+    { id: 'tabs-component', text: 'Tabs Component', depth: 2 },
+    { id: 'tab-variations', text: 'Tab Variations', depth: 3 },
+  ],
+  callout: [
+    { id: 'callout-component', text: 'Callout Component', depth: 2 },
+    { id: 'callout-note', text: 'Note', depth: 3 },
+    { id: 'callout-tip', text: 'Tip', depth: 3 },
+    { id: 'callout-warning', text: 'Warning', depth: 3 },
+  ],
+  themes: [
+    { id: 'themes-and-styling', text: 'Themes & Styling', depth: 2 },
+    { id: 'color-tokens', text: 'Color Tokens', depth: 3 },
+  ],
+  markdown: [
+    { id: 'markdown-and-typography', text: 'Markdown & Typography', depth: 2 },
+    { id: 'syntax-reference', text: 'Syntax Reference', depth: 3 },
+  ],
+  search: [
+    { id: 'search-dialog', text: 'Search Dialog', depth: 2 },
+    { id: 'search-results', text: 'Search Results', depth: 3 },
+  ],
+};
 
 export function ThemeStoryWindow({
   layoutId,
@@ -533,14 +573,18 @@ export function ThemeStoryWindow({
       {activeNavId === 'overview' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Overview</h1>
+            <h1 id="overview" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Overview
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Live documentation architecture preview with interactive component customization.
             </p>
           </div>
 
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">Introduction</h2>
+            <h2 id="introduction" className="text-lg font-semibold tracking-tight text-foreground scroll-m-4">
+              Introduction
+            </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               This preview reflects your active documentation theme. Navigate pages in the sidebar or customize cards, tabs, and callouts in the
               interactive table below to see changes in real-time.
@@ -598,7 +642,9 @@ export function ThemeStoryWindow({
           {/* Installation block with tabs & code */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold tracking-tight text-foreground">Installation</h3>
+              <h3 id="installation" className="text-sm font-semibold tracking-tight text-foreground scroll-m-4">
+                Installation
+              </h3>
               <Button variant="ghost" size="xs" onClick={handleCopy} className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground">
                 <Copy className="size-3" />
                 <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -653,7 +699,9 @@ export function ThemeStoryWindow({
 
           {/* Interactive Properties Table Demo */}
           <div className="space-y-2 pb-6">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">Theme Configuration</h3>
+            <h3 id="theme-configuration" className="text-sm font-semibold tracking-tight text-foreground scroll-m-4">
+              Theme Configuration
+            </h3>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -698,7 +746,9 @@ export function ThemeStoryWindow({
       {activeNavId === 'cards' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Cards Component</h1>
+            <h1 id="cards-component" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Cards Component
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Display links, navigational hubs, or feature cards with style:{' '}
               <code className="font-mono text-primary">{resolvedTheme.components.cards}</code>.
@@ -809,7 +859,9 @@ export function ThemeStoryWindow({
             }
           >
             <Lightbulb className="size-4 shrink-0 text-primary" aria-hidden />
-            <AlertTitle className="font-semibold text-xs mb-0.5">Card Style Modes</AlertTitle>
+            <AlertTitle id="card-style-modes" className="font-semibold text-xs mb-0.5 scroll-m-4">
+              Card Style Modes
+            </AlertTitle>
             <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
               Use <code>Props &gt; components &gt; cards</code> in the table below to toggle between <strong>bordered</strong>,{' '}
               <strong>lifted</strong>, and <strong>flat</strong> cards.
@@ -822,7 +874,9 @@ export function ThemeStoryWindow({
       {activeNavId === 'tabs' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Tabs Component</h1>
+            <h1 id="tabs-component" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Tabs Component
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Switch between languages, packages, or options. Active style:{' '}
               <code className="font-mono text-primary">{resolvedTheme.components.tabs}</code>.
@@ -867,7 +921,9 @@ export function ThemeStoryWindow({
             }
           >
             <Info className="size-4 shrink-0 text-primary" aria-hidden />
-            <AlertTitle className="font-semibold text-xs mb-0.5">Tab Variations</AlertTitle>
+            <AlertTitle id="tab-variations" className="font-semibold text-xs mb-0.5 scroll-m-4">
+              Tab Variations
+            </AlertTitle>
             <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
               Change <code>Props &gt; components &gt; tabs</code> below to preview <strong>underline</strong>, <strong>pills</strong>, or{' '}
               <strong>boxed</strong> tabs.
@@ -880,7 +936,9 @@ export function ThemeStoryWindow({
       {activeNavId === 'callout' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Callout Component</h1>
+            <h1 id="callout-component" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Callout Component
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Admonition boxes for highlights, warnings, and tips. Active style:{' '}
               <code className="font-mono text-primary">{resolvedTheme.components.callouts}</code>.
@@ -903,7 +961,9 @@ export function ThemeStoryWindow({
               }
             >
               <Info className="size-4 shrink-0 text-primary" aria-hidden />
-              <AlertTitle className="font-semibold text-xs mb-0.5">Note</AlertTitle>
+              <AlertTitle id="callout-note" className="font-semibold text-xs mb-0.5 scroll-m-4">
+                Note
+              </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
                 This is an informative note highlighting standard documentation recommendations.
               </AlertDescription>
@@ -924,7 +984,9 @@ export function ThemeStoryWindow({
               }
             >
               <Lightbulb className="size-4 shrink-0 text-emerald-500" aria-hidden />
-              <AlertTitle className="font-semibold text-xs mb-0.5">Tip</AlertTitle>
+              <AlertTitle id="callout-tip" className="font-semibold text-xs mb-0.5 scroll-m-4">
+                Tip
+              </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
                 Toggle callout styles in <code>Props &gt; components &gt; callouts</code> to test soft, outline, and solid styles.
               </AlertDescription>
@@ -945,7 +1007,9 @@ export function ThemeStoryWindow({
               }
             >
               <AlertTriangle className="size-4 shrink-0 text-amber-500" aria-hidden />
-              <AlertTitle className="font-semibold text-xs mb-0.5">Warning</AlertTitle>
+              <AlertTitle id="callout-warning" className="font-semibold text-xs mb-0.5 scroll-m-4">
+                Warning
+              </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
                 Check contrast indicators when editing custom palette colors to ensure accessibility compliance.
               </AlertDescription>
@@ -958,7 +1022,9 @@ export function ThemeStoryWindow({
       {activeNavId === 'quickstart' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Quick Start</h1>
+            <h1 id="quickstart" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Quick Start
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">Step-by-step guide to get your documentation library running.</p>
           </div>
 
@@ -966,7 +1032,9 @@ export function ThemeStoryWindow({
             <div className="flex gap-3">
               <Badge className="size-6 p-0 font-bold rounded-full justify-center shrink-0">1</Badge>
               <div>
-                <h3 className="font-semibold text-sm text-foreground">Install Dependencies</h3>
+                <h3 id="install-dependencies" className="font-semibold text-sm text-foreground scroll-m-4">
+                  Install Dependencies
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Run the package manager command below:</p>
                 <div
                   data-theme-component="code"
@@ -980,7 +1048,9 @@ export function ThemeStoryWindow({
             <div className="flex gap-3">
               <Badge className="size-6 p-0 font-bold rounded-full justify-center shrink-0">2</Badge>
               <div>
-                <h3 className="font-semibold text-sm text-foreground">Select Documentation Layout</h3>
+                <h3 id="select-layout" className="font-semibold text-sm text-foreground scroll-m-4">
+                  Select Documentation Layout
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Pick from standard Docs, Frosted Glass, Academic Notebook, Flux, or Spacious layouts.
                 </p>
@@ -994,27 +1064,34 @@ export function ThemeStoryWindow({
       {activeNavId === 'themes' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Themes & Styling</h1>
+            <h1 id="themes-and-styling" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Themes & Styling
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Active preset: <strong className="text-primary capitalize">{resolvedTheme.id}</strong>.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Card size="sm" className="p-3">
-              <span className="text-xs font-medium text-muted-foreground">Canvas</span>
-              <p className="font-mono text-xs font-semibold mt-1">{resolvedTheme.colors[appearance === 'dark' ? 'dark' : 'light'].canvas}</p>
-            </Card>
-            <Card size="sm" className="p-3">
-              <span className="text-xs font-medium text-muted-foreground">Accent</span>
-              <p className="font-mono text-xs font-semibold mt-1 text-primary">
-                {resolvedTheme.colors[appearance === 'dark' ? 'dark' : 'light'].accent}
-              </p>
-            </Card>
-            <Card size="sm" className="p-3">
-              <span className="text-xs font-medium text-muted-foreground">Surface</span>
-              <p className="font-mono text-xs font-semibold mt-1">{resolvedTheme.colors[appearance === 'dark' ? 'dark' : 'light'].surface}</p>
-            </Card>
+          <div className="space-y-2 mt-4">
+            <h3 id="color-tokens" className="text-sm font-semibold tracking-tight text-foreground scroll-m-4">
+              Color Tokens
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Card size="sm" className="p-3">
+                <span className="text-xs font-medium text-muted-foreground">Canvas</span>
+                <p className="font-mono text-xs font-semibold mt-1">{resolvedTheme.colors[appearance === 'dark' ? 'dark' : 'light'].canvas}</p>
+              </Card>
+              <Card size="sm" className="p-3">
+                <span className="text-xs font-medium text-muted-foreground">Accent</span>
+                <p className="font-mono text-xs font-semibold mt-1 text-primary">
+                  {resolvedTheme.colors[appearance === 'dark' ? 'dark' : 'light'].accent}
+                </p>
+              </Card>
+              <Card size="sm" className="p-3">
+                <span className="text-xs font-medium text-muted-foreground">Surface</span>
+                <p className="font-mono text-xs font-semibold mt-1">{resolvedTheme.colors[appearance === 'dark' ? 'dark' : 'light'].surface}</p>
+              </Card>
+            </div>
           </div>
         </>
       )}
@@ -1023,13 +1100,18 @@ export function ThemeStoryWindow({
       {activeNavId === 'markdown' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Markdown & Typography</h1>
+            <h1 id="markdown-and-typography" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Markdown & Typography
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               Typography and table rendering with density: <code className="font-mono text-primary">{resolvedTheme.layout.density}</code>.
             </p>
           </div>
 
           <div className="typeset space-y-4">
+            <h3 id="syntax-reference" className="text-sm font-semibold tracking-tight text-foreground scroll-m-4">
+              Syntax Reference
+            </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
               Documentation pages render Markdown with clean typographic hierarchy, responsive tables, and syntax-highlighted code.
             </p>
@@ -1069,7 +1151,9 @@ export function ThemeStoryWindow({
       {activeNavId === 'search' && (
         <>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Search</h1>
+            <h1 id="search-dialog" className="text-2xl font-bold tracking-tight text-foreground scroll-m-4">
+              Search Dialog
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">Full-text Tantivy search indexing documentation pages and headers.</p>
           </div>
 
@@ -1085,6 +1169,9 @@ export function ThemeStoryWindow({
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <h3 id="search-results" className="text-sm font-semibold tracking-tight text-foreground scroll-m-4">
+              Search Results
+            </h3>
             <Card className="divide-y divide-border/60 overflow-hidden text-xs py-0">
               <button
                 type="button"
@@ -1322,19 +1409,50 @@ export function ThemeStoryWindow({
           theme={effectiveTheme}
         >
           <div className={cn('overflow-y-auto', isFullscreen ? 'flex-1 min-h-0 size-full' : 'min-h-[340px] max-h-[420px]')}>
-            {template.ReaderLayout({
-              header: headerElement,
-              navigation: sidebarTreeSlot,
-              content: contentSlot,
-              brand: brandSlot,
-              searchFull: searchFullSlot,
-              searchButton: searchButtonSlot,
-              tools: toolsSlot,
-              navLinks: navLinksSlot,
-              navTabs: navTabsSlot,
-              navAnchors: navAnchorsSlot,
-              sidebarTree: sidebarTreeSlot,
-            })}
+            {(() => {
+              const previewHeadings: TocHeading[] = PREVIEW_HEADINGS_BY_PAGE[activeNavId] ?? PREVIEW_HEADINGS_BY_PAGE.overview ?? [];
+              const tableOfContentsSlot = (
+                <TableOfContents
+                  headings={previewHeadings}
+                  style={resolvedLayout?.tocStyle ?? 'clerk'}
+                  depth={resolvedLayout?.tocDepth ?? 3}
+                  label="On this page"
+                />
+              );
+              const tocPopoverSlot = (
+                <TOCPopover
+                  headings={previewHeadings}
+                  style={resolvedLayout?.tocStyle ?? 'clerk'}
+                  depth={resolvedLayout?.tocDepth ?? 3}
+                  label="On this page"
+                />
+              );
+              const pageContent = template.PageLayout({
+                article: contentSlot,
+                tableOfContents: tableOfContentsSlot,
+                tocPopover: tocPopoverSlot,
+                breadcrumb: (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+                    <span>Docs</span>
+                    <span>/</span>
+                    <span className="text-foreground font-medium capitalize">{activeNavId}</span>
+                  </div>
+                ),
+              });
+              return template.ReaderLayout({
+                header: headerElement,
+                navigation: sidebarTreeSlot,
+                content: pageContent,
+                brand: brandSlot,
+                searchFull: searchFullSlot,
+                searchButton: searchButtonSlot,
+                tools: toolsSlot,
+                navLinks: navLinksSlot,
+                navTabs: navTabsSlot,
+                navAnchors: navAnchorsSlot,
+                sidebarTree: sidebarTreeSlot,
+              });
+            })()}
           </div>
         </DocumentationThemeProvider>
       </div>

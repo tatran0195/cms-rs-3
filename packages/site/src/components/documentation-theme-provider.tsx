@@ -51,7 +51,7 @@ const HarborTemplate: DocumentationThemeTemplate = {
             </div>
           </ScrollArea>
         </aside>
-        {slots.content}
+        <main className="min-w-0">{slots.content}</main>
       </div>,
     ),
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content }) => (
@@ -118,9 +118,9 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
               {slots.navigation}
             </div>
           </aside>
-          <div className="documentation-manuscript-paper min-w-0 flex-1 border border-(--theme-border) bg-(--theme-surface) shadow-[0_18px_50px_-20px_color-mix(in_oklab,var(--theme-foreground)_22%,transparent)] lg:mt-2">
+          <main className="documentation-manuscript-paper min-w-0 flex-1 border border-(--theme-border) bg-(--theme-surface) shadow-[0_18px_50px_-20px_color-mix(in_oklab,var(--theme-foreground)_22%,transparent)] lg:mt-2">
             {slots.content}
-          </div>
+          </main>
         </div>
       </section>
       {slots.footer}
@@ -196,7 +196,7 @@ const SignalTemplate: DocumentationThemeTemplate = {
               </div>
             </ScrollArea>
           </aside>
-          <div className="min-w-0">{slots.content}</div>
+          <main className="min-w-0">{slots.content}</main>
         </div>
       </section>
       {slots.footer}

@@ -1,5 +1,5 @@
-import { SQL } from 'bun';
 import crypto from 'node:crypto';
+import { SQL } from 'bun';
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres!Tsvs7345@localhost:5432/cms';
 
@@ -46,7 +46,7 @@ async function runBenchmark() {
     const pageCounts = await sql<{ count: string }[]>`
       SELECT COUNT(*)::text as count FROM "Page" WHERE project_id = ${projectId} AND branch_id = ${branchId}
     `;
-    const totalBranchPages = parseInt(pageCounts[0].count, 10);
+    const totalBranchPages = Number.parseInt(pageCounts[0].count, 10);
     console.log(`\nProject: ${projects[0].name} (${projectId})`);
     console.log(`Branch: ${branches[0].name} (${branchId})`);
     console.log(`Pages In Scope: ${totalBranchPages.toLocaleString()} pages with 1,000+ words each`);
@@ -65,9 +65,9 @@ async function runBenchmark() {
     const results: BenchmarkResult[] = [];
 
     for (const format of formatsToTest) {
-      console.log(`\n---------------------------------------------------------------------------`);
+      console.log('\n---------------------------------------------------------------------------');
       console.log(`BENCHMARKING EXPORT FORMAT: [${format}] on ${totalBranchPages.toLocaleString()} Pages`);
-      console.log(`---------------------------------------------------------------------------`);
+      console.log('---------------------------------------------------------------------------');
 
       const exportJobId = crypto.randomUUID();
       const cmsJobId = crypto.randomUUID();
@@ -103,13 +103,15 @@ async function runBenchmark() {
       let completedJob: any = null;
       const pollStart = performance.now();
 
-      while (performance.now() - pollStart < 60000) {
-        const rows = await sql<{
-          status: string;
-          metrics: any;
-          error_message: string | null;
-          output_path: string | null;
-        }[]>`
+      while (performance.now() - pollStart < 60_000) {
+        const rows = await sql<
+          {
+            status: string;
+            metrics: any;
+            error_message: string | null;
+            output_path: string | null;
+          }[]
+        >`
           SELECT status, metrics, error_message, output_path
           FROM "ExportJob"
           WHERE id = ${exportJobId}
@@ -127,7 +129,7 @@ async function runBenchmark() {
       }
 
       if (!completedJob) {
-        throw new Error(`Export job timed out after 60 seconds`);
+        throw new Error('Export job timed out after 60 seconds');
       }
 
       // Check artifacts generated
@@ -137,7 +139,7 @@ async function runBenchmark() {
         WHERE job_id = ${exportJobId}
       `;
 
-      const artifactSize = artifacts.length ? parseInt(artifacts[0].file_size, 10) : 0;
+      const artifactSize = artifacts.length ? Number.parseInt(artifacts[0].file_size, 10) : 0;
       const sizeMb = artifactSize / (1024 * 1024);
       const metrics = completedJob.metrics || {};
 
@@ -155,7 +157,7 @@ async function runBenchmark() {
 
       results.push(result);
 
-      console.log(`  ✓ Status       : SUCCEEDED`);
+      console.log('  ✓ Status       : SUCCEEDED');
       console.log(`  ✓ Total Time   : ${result.totalMs} ms`);
       console.log(`  ✓ DB Fetch     : ${result.fetchMs} ms`);
       console.log(`  ✓ Render Engine: ${result.renderMs} ms`);
@@ -167,34 +169,33 @@ async function runBenchmark() {
     }
 
     // Final Summary Matrix
-    console.log('\n' + '='.repeat(85));
+    console.log(`\n${'='.repeat(85)}`);
     console.log('FINAL PERFORMANCE BENCHMARK MATRIX (15,000 PAGES · 11,500,000 WORDS)');
     console.log('='.repeat(85));
     console.log(
       'Format'.padEnd(14) +
-      'Total Time'.padEnd(14) +
-      'DB Fetch'.padEnd(12) +
-      'Render'.padEnd(12) +
-      'Storage'.padEnd(12) +
-      'Throughput'.padEnd(14) +
-      'Size (MB)'
+        'Total Time'.padEnd(14) +
+        'DB Fetch'.padEnd(12) +
+        'Render'.padEnd(12) +
+        'Storage'.padEnd(12) +
+        'Throughput'.padEnd(14) +
+        'Size (MB)',
     );
     console.log('-'.repeat(85));
 
     for (const r of results) {
       console.log(
         r.format.padEnd(14) +
-        `${r.totalMs} ms`.padEnd(14) +
-        `${r.fetchMs} ms`.padEnd(12) +
-        `${r.renderMs} ms`.padEnd(12) +
-        `${r.storageMs} ms`.padEnd(12) +
-        `${r.throughputPps.toFixed(0)} p/s`.padEnd(14) +
-        `${r.outputSizeMb.toFixed(2)} MB`
+          `${r.totalMs} ms`.padEnd(14) +
+          `${r.fetchMs} ms`.padEnd(12) +
+          `${r.renderMs} ms`.padEnd(12) +
+          `${r.storageMs} ms`.padEnd(12) +
+          `${r.throughputPps.toFixed(0)} p/s`.padEnd(14) +
+          `${r.outputSizeMb.toFixed(2)} MB`,
       );
     }
     console.log('='.repeat(85));
     console.log('ALL EXPORT ENGINES QUALIFY UNDER PRODUCTION PERFORMANCE THRESHOLDS');
-
   } finally {
     await sql.close();
   }

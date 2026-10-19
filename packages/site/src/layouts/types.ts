@@ -43,6 +43,7 @@ export interface DocsPageSlots {
   tableOfContents: ReactNode;
   breadcrumb?: ReactNode;
   footer?: ReactNode;
+  tocPopover?: ReactNode;
 }
 
 export interface DocsLayoutTemplate {

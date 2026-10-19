@@ -48,9 +48,11 @@ describe('TableOfContents', () => {
 
     const rootEl = container.querySelector('[data-toc-style="clerk"]');
     expect(rootEl).not.toBeNull();
-    // Track line is present
-    const track = container.querySelector('.bg-border\\/70');
-    expect(track).not.toBeNull();
+    // SVG track lines are present
+    const trackLines = container.querySelectorAll('svg line');
+    expect(trackLines.length).toBe(3);
+    const activeItem = container.querySelector('[data-active="true"]');
+    expect(activeItem).not.toBeNull();
   });
 
   it('renders block style with block item attributes', () => {
@@ -73,5 +75,26 @@ describe('TableOfContents', () => {
     expect(rootEl).not.toBeNull();
     const normalItems = container.querySelectorAll('[data-toc-item="normal"]');
     expect(normalItems.length).toBe(3);
+  });
+
+  it('supports multi-heading active range with activeIds prop', () => {
+    act(() => {
+      root.render(<TableOfContents headings={headings} label="On this page" style="clerk" depth={3} activeIds={['intro', 'install']} />);
+    });
+
+    const activeItems = container.querySelectorAll('[data-active="true"]');
+    expect(activeItems.length).toBe(2);
+    expect(activeItems[0]?.textContent).toContain('Introduction');
+    expect(activeItems[1]?.textContent).toContain('Installation');
+  });
+
+  it('supports single controlled activeId prop', () => {
+    act(() => {
+      root.render(<TableOfContents headings={headings} label="On this page" style="clerk" depth={3} activeId="install" />);
+    });
+
+    const activeItems = container.querySelectorAll('[data-active="true"]');
+    expect(activeItems.length).toBe(1);
+    expect(activeItems[0]?.textContent).toContain('Installation');
   });
 });

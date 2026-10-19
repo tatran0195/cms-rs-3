@@ -1,5 +1,5 @@
-import { SQL } from 'bun';
 import crypto from 'node:crypto';
+import { SQL } from 'bun';
 
 // Connection string matching local development configuration
 const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres!Tsvs7345@localhost:5432/cms';
@@ -60,11 +60,12 @@ const PARAGRAPHS = [
  */
 function generateTechnicalMarkdown(title: string, index: number, localeCode: string, version: string): string {
   const words: string[] = [];
-  
+
   // Header
-  const header = `# ${title}\n\n` +
+  const header =
+    `# ${title}\n\n` +
     `> **Classification:** Enterprise Technical Standard · **Version:** \`${version}\` · **Locale:** \`${localeCode}\` · **Document ID:** \`DOC-${index.toString().padStart(6, '0')}\`\n\n` +
-    `## Executive Architecture Summary\n\n`;
+    '## Executive Architecture Summary\n\n';
   words.push(header);
 
   // Architecture Section
@@ -74,98 +75,91 @@ function generateTechnicalMarkdown(title: string, index: number, localeCode: str
   }
 
   // Visual / Architecture Diagram block
-  words.push(`### High-Level System Architecture\n\n\`\`\`text\n` +
-    `+-------------------------------------------------------------------------+\n` +
-    `|                       Client Application Gateway                        |\n` +
-    `+-------------------------------------------------------------------------+\n` +
-    `                                     | (mTLS v1.3 / gRPC)\n` +
-    `                                     v\n` +
-    `+-------------------------+                     +-------------------------+\n` +
-    `|    Ingestion Service    | <-----------------> |  Authentication Guard   |\n` +
-    `+-------------------------+                     +-------------------------+\n` +
-    `             |                                               |\n` +
-    `             v                                               v\n` +
-    `+-------------------------+                     +-------------------------+\n` +
-    `| High-Speed Message Ring |                     | ReBAC Access Directory  |\n` +
-    `+-------------------------+                     +-------------------------+\n` +
-    `             |                                               |\n` +
-    `             v                                               v\n` +
-    `+-------------------------------------------------------------------------+\n` +
-    `|                 Durable Multi-Region Storage Engine                     |\n` +
-    `+-------------------------------------------------------------------------+\n\`\`\`\n\n`
+  words.push(
+    '### High-Level System Architecture\n\n```text\n' +
+      '+-------------------------------------------------------------------------+\n' +
+      '|                       Client Application Gateway                        |\n' +
+      '+-------------------------------------------------------------------------+\n' +
+      '                                     | (mTLS v1.3 / gRPC)\n' +
+      '                                     v\n' +
+      '+-------------------------+                     +-------------------------+\n' +
+      '|    Ingestion Service    | <-----------------> |  Authentication Guard   |\n' +
+      '+-------------------------+                     +-------------------------+\n' +
+      '             |                                               |\n' +
+      '             v                                               v\n' +
+      '+-------------------------+                     +-------------------------+\n' +
+      '| High-Speed Message Ring |                     | ReBAC Access Directory  |\n' +
+      '+-------------------------+                     +-------------------------+\n' +
+      '             |                                               |\n' +
+      '             v                                               v\n' +
+      '+-------------------------------------------------------------------------+\n' +
+      '|                 Durable Multi-Region Storage Engine                     |\n' +
+      '+-------------------------------------------------------------------------+\n```\n\n',
   );
 
   // Deep Dive Sections
-  words.push(`## Operational Specifications and Constraints\n\n`);
+  words.push('## Operational Specifications and Constraints\n\n');
   for (let i = 0; i < 4; i++) {
     const p = PARAGRAPHS[(index + i + 3) % PARAGRAPHS.length];
     words.push(`${p}\n\n`);
   }
 
   // Configuration Table
-  words.push(`### Configuration Parameters and Tuning Matrix\n\n` +
-    `| Directive Name | Type | Default Value | Production Recommended | Description |\n` +
-    `| :--- | :--- | :--- | :--- | :--- |\n` +
-    `| \`worker.concurrency\` | \`integer\` | \`4\` | \`32\` | Number of parallel worker green threads |\n` +
-    `| \`socket.buffer_size_kb\` | \`integer\` | \`64\` | \`512\` | TCP receive socket memory allocation |\n` +
-    `| \`storage.wal_sync_mode\` | \`string\` | \`"NORMAL"\` | \`"OFF" / "MEMORY"\` | Write-Ahead Log disk persistence model |\n` +
-    `| \`cache.max_memory_mb\` | \`integer\` | \`512\` | \`8192\` | Maximum LRU heap cache threshold |\n` +
-    `| \`timeout.connection_ms\`| \`integer\` | \`5000\` | \`1500\` | Fail-fast network handshake deadline |\n` +
-    `| \`security.cipher_suite\` | \`string\` | \`"ECDHE-RSA"\` | \`"TLS_AES_256_GCM"\` | Symmetric session encryption standard |\n` +
-    `| \`retry.max_attempts\` | \`integer\` | \`3\` | \`5\` | Max exponential backoff retry cycles |\n` +
-    `| \`telemetry.sample_rate\`| \`float\` | \`0.01\` | \`1.00\` | Distributed OpenTelemetry trace sample ratio |\n\n`
+  words.push(
+    '### Configuration Parameters and Tuning Matrix\n\n' +
+      '| Directive Name | Type | Default Value | Production Recommended | Description |\n' +
+      '| :--- | :--- | :--- | :--- | :--- |\n' +
+      '| `worker.concurrency` | `integer` | `4` | `32` | Number of parallel worker green threads |\n' +
+      '| `socket.buffer_size_kb` | `integer` | `64` | `512` | TCP receive socket memory allocation |\n' +
+      `| \`storage.wal_sync_mode\` | \`string\` | \`"NORMAL"\` | \`"OFF" / "MEMORY"\` | Write-Ahead Log disk persistence model |\n` +
+      '| `cache.max_memory_mb` | `integer` | `512` | `8192` | Maximum LRU heap cache threshold |\n' +
+      '| `timeout.connection_ms`| `integer` | `5000` | `1500` | Fail-fast network handshake deadline |\n' +
+      `| \`security.cipher_suite\` | \`string\` | \`"ECDHE-RSA"\` | \`"TLS_AES_256_GCM"\` | Symmetric session encryption standard |\n` +
+      '| `retry.max_attempts` | `integer` | `3` | `5` | Max exponential backoff retry cycles |\n' +
+      '| `telemetry.sample_rate`| `float` | `0.01` | `1.00` | Distributed OpenTelemetry trace sample ratio |\n\n',
   );
 
   // Multi-Language Code Snippet
-  words.push(`## Implementation Reference Code\n\n` +
-    `#### Rust SDK Initializer\n` +
-    `\`\`\`rust\n` +
-    `use cms_biz::export::ExportMetrics;\n` +
-    `use std::time::Instant;\n\n` +
-    `pub async fn initialize_benchmark_engine(config: &EnterpriseConfig) -> Result<ExportMetrics, EngineError> {\n` +
-    `    let stopwatch = Instant::now();\n` +
-    `    tracing::info!("Initializing enterprise node ID {}", config.node_id);\n` +
-    `    let worker_pool = WorkerPool::new(config.max_concurrency).await?;\n` +
-    `    let processed_pages = worker_pool.execute_batch(&config.records).await?;\n` +
-    `    Ok(ExportMetrics {\n` +
-    `        fetch_ms: 24,\n` +
-    `        render_ms: 110,\n` +
-    `        storage_ms: 32,\n` +
-    `        total_ms: stopwatch.elapsed().as_millis() as u64,\n` +
-    `        pages_count: processed_pages.len(),\n` +
-    `        words_count: 1_250_000,\n` +
-    `        throughput_pages_per_sec: 14_285.7,\n` +
-    `    })\n` +
-    `}\n` +
-    `\`\`\`\n\n`
+  words.push(
+    '## Implementation Reference Code\n\n' +
+      '#### Rust SDK Initializer\n' +
+      '```rust\n' +
+      'use cms_biz::export::ExportMetrics;\n' +
+      'use std::time::Instant;\n\n' +
+      'pub async fn initialize_benchmark_engine(config: &EnterpriseConfig) -> Result<ExportMetrics, EngineError> {\n' +
+      '    let stopwatch = Instant::now();\n' +
+      `    tracing::info!("Initializing enterprise node ID {}", config.node_id);\n` +
+      '    let worker_pool = WorkerPool::new(config.max_concurrency).await?;\n' +
+      '    let processed_pages = worker_pool.execute_batch(&config.records).await?;\n' +
+      '    Ok(ExportMetrics {\n' +
+      '        fetch_ms: 24,\n' +
+      '        render_ms: 110,\n' +
+      '        storage_ms: 32,\n' +
+      '        total_ms: stopwatch.elapsed().as_millis() as u64,\n' +
+      '        pages_count: processed_pages.len(),\n' +
+      '        words_count: 1_250_000,\n' +
+      '        throughput_pages_per_sec: 14_285.7,\n' +
+      '    })\n' +
+      '}\n' +
+      '```\n\n',
   );
 
-  words.push(`#### TypeScript / Bun Integration Client\n` +
-    `\`\`\`typescript\n` +
-    `import { CmsClient } from '@cms/sdk';\n\n` +
-    `export async function runEnterpriseExportWorkflow(projectId: string) {\n` +
-    `  const client = new CmsClient({ baseUrl: 'http://localhost:3000' });\n` +
-    `  const job = await client.exports.createJob({\n` +
-    `    projectId,\n` +
-    `    formats: ['markdown', 'html', 'pdf', 'sqlite'],\n` +
-    `  });\n` +
-    `  console.log(\`Job scheduled successfully: \${job.id} - status: \${job.status}\`);\n` +
-    `  return job;\n` +
-    `}\n` +
-    `\`\`\`\n\n`
+  words.push(
+    `#### TypeScript / Bun Integration Client\n\`\`\`typescript\nimport { CmsClient } from '@cms/sdk';\n\nexport async function runEnterpriseExportWorkflow(projectId: string) {\n  const client = new CmsClient({ baseUrl: 'http://localhost:3000' });\n  const job = await client.exports.createJob({\n    projectId,\n    formats: ['markdown', 'html', 'pdf', 'sqlite'],\n  });\n  console.log(\`Job scheduled successfully: \${job.id} - status: \${job.status}\`);\n  return job;\n}\n\`\`\`\n\n`,
   );
 
   // Final Detailed Architectural Considerations
-  words.push(`## Verification, Monitoring, and Failure Recovery\n\n`);
+  words.push('## Verification, Monitoring, and Failure Recovery\n\n');
   for (let i = 0; i < 3; i++) {
     const p = PARAGRAPHS[(index + i + 1) % PARAGRAPHS.length];
     words.push(`${p}\n\n`);
   }
 
-  words.push(`> [!IMPORTANT]\n` +
-    `> All production nodes must adhere to zero-downtime rolling maintenance schedules. ` +
-    `Drain active TCP connections prior to process restart signals.\n\n` +
-    `---\n*Enterprise Documentation System · Generated for high-throughput benchmark validation.*`
+  words.push(
+    '> [!IMPORTANT]\n' +
+      '> All production nodes must adhere to zero-downtime rolling maintenance schedules. ' +
+      'Drain active TCP connections prior to process restart signals.\n\n' +
+      '---\n*Enterprise Documentation System · Generated for high-throughput benchmark validation.*',
   );
 
   return words.join('');
@@ -174,7 +168,7 @@ function generateTechnicalMarkdown(title: string, index: number, localeCode: str
 async function runSeed() {
   console.log('='.repeat(70));
   console.log('ENTERPRISE SCALE BENCHMARK SEED GENERATOR');
-  console.log(`Target: 3,000+ Long Docs (1,000+ words each) per locale across 3+ locales & 5+ versions`);
+  console.log('Target: 3,000+ Long Docs (1,000+ words each) per locale across 3+ locales & 5+ versions');
   console.log(`Database: ${DATABASE_URL.replace(/:[^:@]+@/, ':****@')}`);
   console.log('='.repeat(70));
 
@@ -241,7 +235,7 @@ async function runSeed() {
         branchId = crypto.randomUUID();
         await sql`
           INSERT INTO "Branch" (id, project_id, name, slug, description, is_default, created_at, updated_at)
-          VALUES (${branchId}, ${projectId}, ${v}, ${v}, ${'Release branch ' + v}, ${isDefault}, NOW(), NOW())
+          VALUES (${branchId}, ${projectId}, ${v}, ${v}, ${`Release branch ${v}`}, ${isDefault}, NOW(), NOW())
         `;
       }
       branchMap.set(v, branchId);
@@ -271,7 +265,7 @@ async function runSeed() {
     }
 
     // 5. Clean up previous benchmark pages and snapshots for clean idempotent run
-    console.log(`\nCleaning previous benchmark pages and snapshots...`);
+    console.log('\nCleaning previous benchmark pages and snapshots...');
     await sql`DELETE FROM "ExportJob" WHERE project_id = ${projectId}`;
     await sql`DELETE FROM "ExportSnapshot" WHERE project_id = ${projectId}`;
     await sql`DELETE FROM "Page" WHERE project_id = ${projectId}`;
@@ -306,7 +300,9 @@ async function runSeed() {
           const content = generateTechnicalMarkdown(title, idx, loc.code, CONFIG.versions[0]);
           const wordCount = content.split(/\s+/).length;
 
-          placeholders.push(`($${p++}, $${p++}, $${p++}, $${p++}, 'PAGE', $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, true, true, NOW(), NOW())`);
+          placeholders.push(
+            `($${p++}, $${p++}, $${p++}, $${p++}, 'PAGE', $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, true, true, NOW(), NOW())`,
+          );
           values.push(
             docId,
             projectId,
@@ -344,7 +340,7 @@ async function runSeed() {
     }
 
     // 7. Ensure sample documents exist across all secondary versions
-    console.log(`\nDistributing versioned releases across secondary branches...`);
+    console.log('\nDistributing versioned releases across secondary branches...');
     const defaultLangId = langMap.get('en')!;
     for (let i = 1; i < CONFIG.versions.length; i++) {
       const ver = CONFIG.versions[i];
@@ -362,7 +358,9 @@ async function runSeed() {
         const path = `/releases/${ver}/${slug}`;
         const content = generateTechnicalMarkdown(title, idx, 'en', ver);
 
-        placeholders.push(`($${p++}, $${p++}, $${p++}, $${p++}, 'PAGE', $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, true, true, NOW(), NOW())`);
+        placeholders.push(
+          `($${p++}, $${p++}, $${p++}, $${p++}, 'PAGE', $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, true, true, NOW(), NOW())`,
+        );
         values.push(
           docId,
           projectId,
@@ -405,19 +403,18 @@ async function runSeed() {
     console.log(`\nCreated immutable ExportSnapshot: ${snapshotId} (pages: ${CONFIG.pagesPerLocale}, revision: v1)`);
 
     const totalSeconds = ((performance.now() - startTime) / 1000).toFixed(2);
-    const pagesPerSec = (totalPagesSeeded / parseFloat(totalSeconds)).toFixed(1);
+    const pagesPerSec = (totalPagesSeeded / Number.parseFloat(totalSeconds)).toFixed(1);
 
-    console.log('\n' + '='.repeat(70));
+    console.log(`\n${'='.repeat(70)}`);
     console.log('BENCHMARK SEED COMPLETE');
     console.log(`Total Pages Created : ${totalPagesSeeded.toLocaleString()}`);
     console.log(`Total Words Seeded  : ~${totalWordsSeeded.toLocaleString()} words`);
     console.log(`Versions Seeded     : ${CONFIG.versions.join(', ')} (5 versions)`);
-    console.log(`Locales Configured  : ${CONFIG.locales.map(l => l.code).join(', ')} (5 locales)`);
+    console.log(`Locales Configured  : ${CONFIG.locales.map((l) => l.code).join(', ')} (5 locales)`);
     console.log(`Total Execution Time: ${totalSeconds} seconds (${pagesPerSec} pages/sec)`);
     console.log(`Project ID          : ${projectId}`);
     console.log(`Project Slug        : ${CONFIG.projectSlug}`);
     console.log('='.repeat(70));
-
   } finally {
     await sql.close();
   }

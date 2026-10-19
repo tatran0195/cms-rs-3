@@ -11,7 +11,9 @@ export const cmsClient = CmsClientBuilder.create()
   .withLocale(() => {
     try {
       return getLocale();
-    } catch {}
+    } catch {
+      // Ignore fallback when locale is unavailable
+    }
   })
   .withCredentials('include')
   .build();

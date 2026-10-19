@@ -45,8 +45,8 @@ vi.mock('@cms/sdk/react', () => ({
   useExportProjectTheme: () => mutation,
 }));
 
-vi.mock('@cms/site', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@cms/site')>();
+vi.mock('@cms/site', async () => {
+  const actual = await vi.importActual<typeof import('@cms/site')>('@cms/site');
   return {
     ...actual,
     projectThemeVariables: () => ({}),

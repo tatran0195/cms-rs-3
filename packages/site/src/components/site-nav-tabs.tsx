@@ -63,6 +63,8 @@ function CascadingSubmenuItem({ item, resolveNavHref, currentPath, depth = 1 }: 
   }
 
   return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: cascading submenu container manages focus
+    // biome-ignore lint/a11y/noStaticElementInteractions: cascading submenu container manages focus
     <div
       className="relative group/cascading"
       onMouseEnter={() => setOpen(true)}
@@ -103,7 +105,13 @@ function CascadingSubmenuItem({ item, resolveNavHref, currentPath, depth = 1 }: 
         >
           <div className="flex flex-col gap-0.5">
             {item.items?.map((child, idx) => (
-              <CascadingSubmenuItem currentPath={currentPath} depth={depth + 1} item={child} key={idx} resolveNavHref={resolveNavHref} />
+              <CascadingSubmenuItem
+                currentPath={currentPath}
+                depth={depth + 1}
+                item={child}
+                key={child.href || `${child.label}-${idx}`}
+                resolveNavHref={resolveNavHref}
+              />
             ))}
           </div>
         </div>
@@ -132,7 +140,7 @@ export function SiteNavTabs({ tabs, currentPath = '', projectId, lang, version, 
 
             if (!hasChildren) {
               return (
-                <NavigationMenuItem className="list-none" key={idx}>
+                <NavigationMenuItem className="list-none" key={tab.href || `${tab.label}-${idx}`}>
                   <NavigationMenuLink
                     className={cn(
                       'rounded-md px-3 py-1.5 font-medium text-xs transition-colors',
@@ -150,7 +158,7 @@ export function SiteNavTabs({ tabs, currentPath = '', projectId, lang, version, 
             }
 
             return (
-              <NavigationMenuItem className="list-none" key={idx}>
+              <NavigationMenuItem className="list-none" key={tab.href || `${tab.label}-${idx}`}>
                 <NavigationMenuTrigger
                   className={cn(
                     'h-auto rounded-md px-3 py-1.5 font-medium text-xs transition-colors',
@@ -164,7 +172,12 @@ export function SiteNavTabs({ tabs, currentPath = '', projectId, lang, version, 
                 <NavigationMenuContent className="min-w-[200px] p-1">
                   <div className="flex flex-col gap-0.5">
                     {tab.items?.map((child, childIdx) => (
-                      <CascadingSubmenuItem currentPath={currentPath} item={child} key={childIdx} resolveNavHref={resolveNavHref} />
+                      <CascadingSubmenuItem
+                        currentPath={currentPath}
+                        item={child}
+                        key={child.href || `${child.label}-${childIdx}`}
+                        resolveNavHref={resolveNavHref}
+                      />
                     ))}
                   </div>
                 </NavigationMenuContent>

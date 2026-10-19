@@ -23,7 +23,7 @@ async function testStdioMcp() {
   });
 
   // 1. Send initialize request
-  const initMsg = JSON.stringify({
+  const initMsg = `${JSON.stringify({
     jsonrpc: '2.0',
     id: 1,
     method: 'initialize',
@@ -32,7 +32,7 @@ async function testStdioMcp() {
       capabilities: {},
       clientInfo: { name: 'stdio-tester', version: '1.0' },
     },
-  }) + '\n';
+  })}\n`;
 
   child.stdin.write(initMsg);
 
@@ -40,7 +40,7 @@ async function testStdioMcp() {
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
   // 2. Send tools/call search_docs
-  const callMsg = JSON.stringify({
+  const callMsg = `${JSON.stringify({
     jsonrpc: '2.0',
     id: 2,
     method: 'tools/call',
@@ -48,7 +48,7 @@ async function testStdioMcp() {
       name: 'search_docs',
       arguments: { query: 'HMAC' },
     },
-  }) + '\n';
+  })}\n`;
 
   child.stdin.write(callMsg);
 
@@ -64,7 +64,10 @@ async function testStdioMcp() {
   console.log(stdoutData.trim());
 
   // Verification checks:
-  const lines = stdoutData.trim().split('\n').filter((l) => l.trim().length > 0);
+  const lines = stdoutData
+    .trim()
+    .split('\n')
+    .filter((l) => l.trim().length > 0);
   console.log(`\nReceived ${lines.length} lines on stdout.`);
 
   for (let i = 0; i < lines.length; i++) {

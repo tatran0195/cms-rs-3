@@ -379,26 +379,27 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     </div>
   );
 
-  const navLinksNode = (
-    <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
-      {headerLinks.map((link) => (
-        <a
-          key={`${link.label}-${link.href}`}
-          href={link.href}
-          target={link.external ? '_blank' : undefined}
-          rel={link.external ? 'noopener noreferrer' : undefined}
-          aria-current={link.active ? 'page' : undefined}
-          className={cn(
-            'inline-flex items-center gap-1 transition-colors',
-            link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {link.label}
-          {link.external && <ExternalLink className="size-3" />}
-        </a>
-      ))}
-    </nav>
-  );
+  const navLinksNode =
+    headerLinks.length > 0 ? (
+      <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
+        {headerLinks.map((link) => (
+          <a
+            key={`${link.label}-${link.href}`}
+            href={link.href}
+            target={link.external ? '_blank' : undefined}
+            rel={link.external ? 'noopener noreferrer' : undefined}
+            aria-current={link.active ? 'page' : undefined}
+            className={cn(
+              'inline-flex items-center gap-1 transition-colors',
+              link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {link.label}
+            {link.external && <ExternalLink className="size-3" />}
+          </a>
+        ))}
+      </nav>
+    ) : null;
 
   const navTabsNode =
     navTabs.length > 0 ? (
@@ -514,9 +515,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
               </>
             }
             content={
-              <main className="min-w-0">
-                <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
-              </main>
+              <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
             }
             brand={brandNode}
             searchFull={searchFullNode}

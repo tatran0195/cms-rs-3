@@ -1,7 +1,7 @@
 import { cn } from '@cms/design-system/lib/utils';
 import { siteT } from '@cms/i18n/site';
 import { protectMarkdownCode } from '@cms/shared/markdown-code';
-import { CalendarClock, Check, ChevronLeft, ChevronRight, CircleAlert, Clock3, Image, PencilLine, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { CalendarClock, Check, CircleAlert, Clock3, Image, PencilLine, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSiteAnalytics } from '../context/site-analytics-provider';
 import { localeTag } from '../lib/format';
@@ -10,7 +10,9 @@ import { resolveSiteFeatures, type SiteFeatures, type SitePage } from '../types'
 import { DocumentationPageLayout, useDocumentationTheme } from './documentation-theme-provider';
 import { Markdown } from './markdown';
 import { useSitePageAlternates } from './page-alternates-context';
+import { SitePageFooter } from './site-page-footer';
 import { TableOfContents } from './toc';
+import { TOCPopover } from './toc-popover';
 
 const applyUrlTemplate = (template: string | undefined, path: string, fallbackUrl: string): string | null => {
   const trimmed = template?.trim();
@@ -151,7 +153,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
   // Whether ReaderActions will render — when it doesn't, the prev/next pager
   // takes over the article-footer divider it normally provides.
   const features = data.project.features ?? resolveSiteFeatures(data.project.config);
-  const hasReaderActions =
+  const _hasReaderActions =
     features.feedback.enabled ||
     (features.editSuggestions.enabled && Boolean(features.editSuggestions.url)) ||
     (features.issueLinks.enabled && Boolean(features.issueLinks.url));
@@ -229,49 +231,37 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
       {readerActionsAfterNavigation ? null : <ReaderActions projectId={projectId} path={page.path} language={language} features={features} />}
 
       {prev || next ? (
-        <nav
-          className={cn(
-            'flex items-center justify-between gap-6 text-sm',
-            hasReaderActions && !readerActionsAfterNavigation ? 'mt-8' : 'mt-14 border-border/70 border-t pt-6',
-          )}
-          aria-label={`${tArticle('previous')} / ${tArticle('next')}`}
-        >
-          {prev ? (
-            <a
-              href={siteHref(projectId, prev.path, {
-                lang: navigationLanguage,
-                version: versionPrefix,
-              })}
-              className="group inline-flex min-w-0 items-center gap-1.5 font-medium text-muted-foreground transition-colors hover:text-primary"
-            >
-              <ChevronLeft className="size-4 shrink-0 rtl:-scale-x-100" />
-              <span className="truncate">{prev.title}</span>
-            </a>
-          ) : (
-            <span />
-          )}
-          {next ? (
-            <a
-              href={siteHref(projectId, next.path, {
-                lang: navigationLanguage,
-                version: versionPrefix,
-              })}
-              className="group inline-flex min-w-0 items-center gap-1.5 text-end font-medium text-muted-foreground transition-colors hover:text-primary"
-            >
-              <span className="truncate">{next.title}</span>
-              <ChevronRight className="size-4 shrink-0 rtl:-scale-x-100" />
-            </a>
-          ) : (
-            <span />
-          )}
-        </nav>
+        <SitePageFooter
+          previous={
+            prev
+              ? {
+                  title: prev.title,
+                  href: siteHref(projectId, prev.path, {
+                    lang: navigationLanguage,
+                    version: versionPrefix,
+                  }),
+                }
+              : null
+          }
+          next={
+            next
+              ? {
+                  title: next.title,
+                  href: siteHref(projectId, next.path, {
+                    lang: navigationLanguage,
+                    version: versionPrefix,
+                  }),
+                }
+              : null
+          }
+        />
       ) : null}
       {readerActionsAfterNavigation ? <ReaderActions projectId={projectId} path={page.path} language={language} features={features} /> : null}
     </article>
   );
 
   const currentTheme = useDocumentationTheme();
-  const tocStyle = currentTheme?.layout?.tocStyle ?? 'normal';
+  const tocStyle = currentTheme?.layout?.tocStyle ?? 'clerk';
   const tocDepth = currentTheme?.layout?.tocDepth ?? 3;
 
   if (mode === 'center') {
@@ -281,16 +271,8 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
   return (
     <DocumentationPageLayout
       article={article}
-      tableOfContents={
-        showToc ? (
-          <TableOfContents
-            headings={page.headings}
-            label={tArticle('onThisPage')}
-            style={tocStyle}
-            depth={tocDepth}
-          />
-        ) : null
-      }
+      tableOfContents={showToc ? <TableOfContents headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} /> : null}
+      tocPopover={showToc ? <TOCPopover headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} /> : null}
     />
   );
 }

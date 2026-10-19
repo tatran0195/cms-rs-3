@@ -289,7 +289,6 @@ export const useRotateGitWebhookSecret = (projectId: string) => {
   });
 };
 
-
 export const useTransferWorkspaceOwnership = () => {
   const client = useCmsClient();
   const qc = useQueryClient();

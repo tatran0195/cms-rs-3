@@ -192,6 +192,8 @@ export function Tabs({ children, language }: { children?: ReactNode; language?: 
               tabRefs.current[i] = element;
             }}
             type="button"
+            data-theme-component="tab"
+            data-state={i === active ? 'active' : 'inactive'}
             onClick={() => setActive(i)}
             onKeyDown={(event) => handleTabKeyDown(event, i, tabs.length, language, setActive, tabRefs.current)}
             id={`${tabsId}-tab-${i}`}
@@ -212,6 +214,7 @@ export function Tabs({ children, language }: { children?: ReactNode; language?: 
         <div
           key={tab.key}
           id={`${tabsId}-panel-${i}`}
+          data-theme-component="tab-panel"
           role="tabpanel"
           aria-labelledby={`${tabsId}-tab-${i}`}
           hidden={i !== active}

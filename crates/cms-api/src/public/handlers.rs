@@ -522,8 +522,29 @@ async fn resolve_public_site(
     .await?
     .map(|domain| domain.hostname);
 
+    let mut project = snapshot.project;
+    if let Some(live_config) = live_project.config {
+        project.config = Some(match project.config {
+            Some(mut snap_cfg) => {
+                if let (Some(snap_map), Some(live_map)) =
+                    (snap_cfg.as_object_mut(), live_config.as_object())
+                {
+                    for (k, v) in live_map {
+                        snap_map.insert(k.clone(), v.clone());
+                    }
+                    snap_cfg
+                } else {
+                    live_config
+                }
+            }
+            None => live_config,
+        });
+    }
+    project.name = live_project.name;
+    project.description = live_project.description;
+
     Ok(ResolvedPublicSite {
-        project: snapshot.project,
+        project,
         branch: snapshot.branch,
         deployment_id,
         branches,

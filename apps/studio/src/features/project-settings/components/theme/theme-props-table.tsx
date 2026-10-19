@@ -157,7 +157,7 @@ export function ThemePropsTable({
             <NavRow
               id="toc"
               name="toc"
-              summary={formatPropSummary({ style: resolvedLayout.tocStyle ?? 'normal', depth: resolvedLayout.tocDepth ?? 3 })}
+              summary={formatPropSummary({ style: resolvedLayout.tocStyle ?? 'clerk', depth: resolvedLayout.tocDepth ?? 3 })}
               type="object"
               onNavigate={() => onNavigate(['toc'])}
             />
@@ -284,8 +284,8 @@ export function ThemePropsTable({
           <div className="divide-y divide-border/60">
             <EnumRow
               name="tocStyle"
-              value={resolvedLayout.tocStyle ?? 'normal'}
-              options={['normal', 'clerk', 'block']}
+              value={resolvedLayout.tocStyle ?? 'clerk'}
+              options={['clerk', 'normal', 'block']}
               onChange={(v) => setLayoutPart('tocStyle', v as 'normal' | 'clerk' | 'block')}
             />
             <NumberRow name="tocDepth" value={resolvedLayout.tocDepth ?? 3} min={1} max={6} onChange={(v) => setLayoutPart('tocDepth', v)} />

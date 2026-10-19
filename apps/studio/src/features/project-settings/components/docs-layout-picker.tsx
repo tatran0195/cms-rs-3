@@ -64,7 +64,10 @@ function DocsLayoutThumbnail({ layoutId }: { layoutId: DocsLayoutId }) {
 
   if (layoutId === 'flux') {
     return (
-      <span className="mb-3 relative flex h-20 flex-col items-center justify-between overflow-hidden rounded-lg border border-border bg-card p-2" aria-hidden>
+      <span
+        className="mb-3 relative flex h-20 flex-col items-center justify-between overflow-hidden rounded-lg border border-border bg-card p-2"
+        aria-hidden
+      >
         <span className="flex flex-col items-center gap-1 w-3/5 pt-1">
           <span className="h-2 w-3/4 rounded bg-foreground/80" />
           <span className="h-1 w-full rounded bg-muted-foreground/20" />
@@ -142,9 +145,7 @@ export function DocsLayoutPicker({ value, onChange, className }: DocsLayoutPicke
             type="button"
           >
             <DocsLayoutThumbnail layoutId={layoutId} />
-            <span className="block text-sm font-semibold text-foreground">
-              {t(`settings.theme.layout.${layoutId}.name` as const)}
-            </span>
+            <span className="block text-sm font-semibold text-foreground">{t(`settings.theme.layout.${layoutId}.name` as const)}</span>
             <span className="mt-1 block text-muted-foreground text-xs leading-relaxed">
               {t(`settings.theme.layout.${layoutId}.description` as const)}
             </span>

@@ -1,7 +1,7 @@
 async function callMcp(endpoint: string, method: string, params: any = {}, sessionId?: string) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json, text/event-stream',
+    Accept: 'application/json, text/event-stream',
   };
   if (sessionId) {
     headers['Mcp-Session-Id'] = sessionId;
@@ -12,7 +12,7 @@ async function callMcp(endpoint: string, method: string, params: any = {}, sessi
     headers,
     body: JSON.stringify({
       jsonrpc: '2.0',
-      id: Math.floor(Math.random() * 10000),
+      id: Math.floor(Math.random() * 10_000),
       method,
       params,
     }),

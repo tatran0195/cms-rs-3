@@ -66,9 +66,13 @@ function MobileTabTreeItem({
             {item.label}
           </a>
         ) : (
-          <span className="flex-1 cursor-pointer truncate" onClick={() => hasChildren && setOpen(!open)}>
+          <button
+            type="button"
+            className="flex-1 cursor-pointer truncate text-left bg-transparent border-0 p-0 font-normal text-sm text-foreground"
+            onClick={() => hasChildren && setOpen(!open)}
+          >
             {item.label}
-          </span>
+          </button>
         )}
 
         {hasChildren && (
@@ -91,7 +95,7 @@ function MobileTabTreeItem({
               currentPath={currentPath}
               depth={depth + 1}
               item={child}
-              key={idx}
+              key={child.href || `${child.label}-${idx}`}
               lang={lang}
               projectId={projectId}
               version={version}
@@ -181,7 +185,7 @@ export function MobileNav({
                     basePath={basePath}
                     currentPath={currentPath}
                     item={tab}
-                    key={idx}
+                    key={tab.href || `${tab.label}-${idx}`}
                     lang={lang}
                     projectId={projectId}
                     version={version}

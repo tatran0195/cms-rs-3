@@ -42,7 +42,12 @@ describe('DocsLayoutSandbox', () => {
   it('renders macOS window chrome with red, yellow, and green traffic lights', async () => {
     await act(async () => {
       root.render(
-        <DocsLayoutSandbox currentLayout="spacious" onSelectLayout={() => {}} />
+        <DocsLayoutSandbox
+          currentLayout="spacious"
+          onSelectLayout={() => {
+            /* noop */
+          }}
+        />,
       );
     });
 
@@ -54,9 +59,7 @@ describe('DocsLayoutSandbox', () => {
   it('renders interactive layout controls and allows switching layouts', async () => {
     const onSelect = vi.fn();
     await act(async () => {
-      root.render(
-        <DocsLayoutSandbox currentLayout="spacious" onSelectLayout={onSelect} />
-      );
+      root.render(<DocsLayoutSandbox currentLayout="spacious" onSelectLayout={onSelect} />);
     });
 
     const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')];
@@ -68,9 +71,7 @@ describe('DocsLayoutSandbox', () => {
     });
 
     // Verify Apply button calls onSelect with flux
-    const applyButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
-      b.textContent?.includes('Apply to Project')
-    );
+    const applyButton = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes('Apply to Project'));
     expect(applyButton).toBeDefined();
 
     await act(async () => {

@@ -40,6 +40,7 @@ describe('CmsClientProvider & useCmsClient', () => {
 
     function BrokenConsumer() {
       try {
+        // biome-ignore lint/correctness/useHookAtTopLevel: testing hook error throwing behavior in unit test
         useCmsClient();
       } catch (err) {
         capturedError = err as Error;

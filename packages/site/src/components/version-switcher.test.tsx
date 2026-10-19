@@ -39,13 +39,7 @@ describe('VersionSwitcher', () => {
   it('renders a badge indicator when only 1 version exists', async () => {
     const onChange = vi.fn();
     await act(async () => {
-      root.render(
-        <VersionSwitcher
-          versions={[{ id: 'v1', name: 'v1.0', slug: 'v1.0', isDefault: true }]}
-          activeSlug="v1.0"
-          onChange={onChange}
-        />,
-      );
+      root.render(<VersionSwitcher versions={[{ id: 'v1', name: 'v1.0', slug: 'v1.0', isDefault: true }]} activeSlug="v1.0" onChange={onChange} />);
     });
 
     expect(container.textContent).toContain('v1.0');
@@ -56,13 +50,7 @@ describe('VersionSwitcher', () => {
   it('renders a badge indicator when versions is empty but activeSlug is provided', async () => {
     const onChange = vi.fn();
     await act(async () => {
-      root.render(
-        <VersionSwitcher
-          versions={[]}
-          activeSlug="v1.0"
-          onChange={onChange}
-        />,
-      );
+      root.render(<VersionSwitcher versions={[]} activeSlug="v1.0" onChange={onChange} />);
     });
 
     expect(container.textContent).toContain('v1.0');
@@ -71,13 +59,7 @@ describe('VersionSwitcher', () => {
   it('renders dropdown menu trigger when multiple versions exist', async () => {
     const onChange = vi.fn();
     await act(async () => {
-      root.render(
-        <VersionSwitcher
-          versions={mockVersions}
-          activeSlug="v1.0"
-          onChange={onChange}
-        />,
-      );
+      root.render(<VersionSwitcher versions={mockVersions} activeSlug="v1.0" onChange={onChange} />);
     });
 
     const trigger = container.querySelector('button');

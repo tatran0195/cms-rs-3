@@ -127,10 +127,7 @@ export function PublishModal({ project, open, onOpenChange, onPublished }: Publi
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn(
-          'flex flex-col gap-0 p-0 overflow-hidden sm:max-w-[480px]',
-          reviewing && 'sm:max-w-[940px]',
-        )}
+        className={cn('flex flex-col gap-0 p-0 overflow-hidden sm:max-w-[480px]', reviewing && 'sm:max-w-[940px]')}
         showCloseButton={false}
       >
         <DialogHeader className="gap-1 border-border border-b px-6 pt-5 pb-4 shrink-0">

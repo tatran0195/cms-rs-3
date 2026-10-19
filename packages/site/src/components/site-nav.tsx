@@ -54,7 +54,16 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, rail, bas
         ) : null}
       </a>
       {node.children.length > 0 ? (
-        <NavItems nodes={node.children} projectId={projectId} currentPath={currentPath} depth={depth + 1} lang={lang} version={version} basePath={basePath} rail />
+        <NavItems
+          nodes={node.children}
+          projectId={projectId}
+          currentPath={currentPath}
+          depth={depth + 1}
+          lang={lang}
+          version={version}
+          basePath={basePath}
+          rail
+        />
       ) : null}
     </li>
   );
