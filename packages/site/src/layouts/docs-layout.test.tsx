@@ -32,16 +32,18 @@ describe('DocsStandardLayoutTemplate', () => {
       );
     });
 
-    const shell = container.querySelector('[data-documentation-layout="fumadocs-docs"]');
+    const shell = container.querySelector('#nd-docs-layout');
     expect(shell).not.toBeNull();
-    const sidebar = container.querySelector('[data-theme-region="sidebar"]');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-docs');
+
+    const sidebar = container.querySelector('#nd-sidebar');
     expect(sidebar).not.toBeNull();
     expect(container.querySelector('[data-testid="hdr"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="nav"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="cnt"]')).not.toBeNull();
   });
 
-  it('renders PageLayout with two-column article and TOC structure', () => {
+  it('renders PageLayout with #nd-page and TOC structure', () => {
     act(() => {
       root.render(
         DocsStandardLayoutTemplate.PageLayout({
@@ -53,6 +55,8 @@ describe('DocsStandardLayoutTemplate', () => {
 
     const pageShell = container.querySelector('[data-documentation-layout="fumadocs-docs-page"]');
     expect(pageShell).not.toBeNull();
+    const article = container.querySelector('#nd-page');
+    expect(article).not.toBeNull();
     expect(container.querySelector('[data-testid="art"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="toc"]')).not.toBeNull();
   });
