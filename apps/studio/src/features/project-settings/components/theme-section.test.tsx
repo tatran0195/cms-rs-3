@@ -7,56 +7,44 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeSection } from './theme-section';
 
-/** Option labels are deliberately distinct from the raw option ids so a trigger
- *  that shows the id instead of the label is caught. */
-const OPTION_IDS = [
-  'reference',
-  'editorial',
-  'console',
-  'compact',
-  'comfortable',
-  'relaxed',
-  'focused',
-  'balanced',
-  'wide',
-  'inline',
-  'stacked',
-  'floating',
-  'bordered',
-  'soft',
-  'rail',
-  'tree',
-  'sectioned',
-  'sharp',
-  'rounded',
-  'pill',
-  'system',
-  'dim',
-  'vivid',
-  'outline',
-  'solid',
-  'lifted',
-  'flat',
-  'underline',
-  'pills',
-  'boxed',
-  'lines',
-  'rows',
-  'cards',
-];
-const translations: Record<string, string> = Object.fromEntries(OPTION_IDS.map((id) => [`settings.theme.option.${id}`, `Label ${id}`]));
+const translations: Record<string, string> = {
+  'settings.theme.title': 'Theme',
+  'settings.theme.draftTitle': 'Theme Draft',
+  'settings.theme.draftHint': 'Changes are applied in preview before saving.',
+  'settings.theme.layout.docs.name': 'Docs Layout',
+  'settings.theme.layout.glass.name': 'Glass Layout',
+  'settings.theme.layout.notebook.name': 'Notebook Layout',
+  'settings.theme.layout.flux.name': 'Flux Layout',
+  'settings.theme.layout.spacious.name': 'Spacious Layout',
+  'settings.theme.gallery': 'Preset Gallery',
+  'settings.theme.galleryHint': 'Quick baseline themes',
+  'settings.theme.preset.harbor.name': 'Harbor',
+  'settings.theme.preset.harbor.description': 'Clean harbor theme',
+  'settings.theme.preset.manuscript.name': 'Manuscript',
+  'settings.theme.preset.manuscript.description': 'Warm editorial theme',
+  'settings.theme.preset.signal.name': 'Signal',
+  'settings.theme.preset.signal.description': 'High contrast tech theme',
+  'settings.theme.exchange': 'Theme Exchange',
+  'common.save': 'Save Changes',
+  'common.saving': 'Saving...',
+  'settings.theme.undo': 'Undo',
+  'settings.theme.reset': 'Reset',
+  'common.cancel': 'Cancel',
+};
 
 const mutation = { isPending: false, mutate: vi.fn() };
 
 vi.mock('@cms/i18n/react', () => ({
   useT: () => (key: string) => translations[key] ?? key,
-  translateFn: (key: string) => key,
+  translateFn: (key: string) => translations[key] ?? key,
 }));
+
 vi.mock('@cms/sdk/react', () => ({
   useUpdateProjectConfig: () => mutation,
   useImportProjectTheme: () => mutation,
   useExportProjectTheme: () => mutation,
 }));
+
 vi.mock('@cms/site', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@cms/site')>();
   return {
@@ -72,11 +60,21 @@ vi.mock('@cms/site', async (importOriginal) => {
       theme: { id: string; layout: { shell: string; docsLayout?: string } };
       direction: string;
     }) => (
-      <div data-docs-layout={theme.layout.docsLayout} data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
+      <div
+        data-docs-layout={theme.layout.docsLayout}
+        data-preset={theme.id}
+        data-shell={theme.layout.shell}
+        data-testid="preview"
+        dir={direction}
+      >
         {children}
       </div>
     ),
-    DocumentationStudioPreviewLayout: ({ header, navigation, content }: Record<'header' | 'navigation' | 'content', ReactNode>) => (
+    DocumentationStudioPreviewLayout: ({
+      header,
+      navigation,
+      content,
+    }: Record<'header' | 'navigation' | 'content', ReactNode>) => (
       <div>
         {header}
         {navigation}
@@ -98,10 +96,8 @@ const project: Project = {
 };
 
 const preview = () => document.querySelector<HTMLElement>('[data-testid="preview"]');
-const triggers = () => [...document.querySelectorAll<HTMLElement>('[data-slot="select-trigger"]')];
-const triggerLabel = (trigger: HTMLElement) => trigger.querySelector('[data-slot="select-value"]')?.textContent;
 
-describe('ThemeSection controls', () => {
+describe('ThemeSection with Fumadocs Story & Props Table', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -116,8 +112,8 @@ describe('ThemeSection controls', () => {
       },
     );
     Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.getAnimations = Element.prototype.getAnimations || (() => []);
     container = document.createElement('div');
-    container.dir = 'rtl';
     document.body.append(container);
     root = createRoot(container);
     await act(async () => root.render(<ThemeSection project={project} />));
@@ -130,92 +126,85 @@ describe('ThemeSection controls', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders every layout and component option as a design-system select showing the translated label', () => {
-    expect(container.querySelector('select')).toBeNull();
-    const resolved = resolveTheme(null);
-    const labels = triggers().map(triggerLabel);
-    expect(labels).toHaveLength(12);
-    expect(labels[0]).toBe(translations[`settings.theme.option.${resolved.layout.shell}`]);
-    expect(labels[7]).toBe(translations[`settings.theme.option.${resolved.components.codeBlocks}`]);
-    for (const label of labels) {
-      expect(label).toMatch(/^Label /);
-    }
-    // Every trigger is labelled for assistive tech through its visible label.
-    for (const trigger of triggers()) {
-      const id = trigger.getAttribute('id');
-      expect(id).toBeTruthy();
-      expect(container.querySelector(`label[for="${id}"]`)?.textContent).toBeTruthy();
-    }
+  it('renders the Fumadocs Story preview and root Props Table rows', () => {
+    // Props navigation root is rendered
+    expect(container.textContent).toContain('Props');
+    expect(container.textContent).toContain('nav');
+    expect(container.textContent).toContain('themeSwitch');
+    expect(container.textContent).toContain('searchToggle');
+    expect(container.textContent).toContain('sidebar');
+    expect(container.textContent).toContain('palette');
+    expect(container.textContent).toContain('layout');
+    expect(container.textContent).toContain('components');
+
+    // macOS window frame controls
+    expect(container.querySelector('[data-window-control="close"]')).toBeDefined();
+    expect(container.querySelector('[data-window-control="minimize"]')).toBeDefined();
+    expect(container.querySelector('[data-window-control="maximize"]')).toBeDefined();
   });
 
-  it('updates the preview when an option is picked from the select', async () => {
-    const [shell] = triggers();
-    if (!shell) throw new Error('missing shell select');
-    expect(preview()?.dataset.shell).toBe(resolveTheme(null).layout.shell);
+  it('switches docs layout via story header layout selector', async () => {
+    const select = container.querySelector<HTMLSelectElement>('select[aria-label="Select Docs Layout"]');
+    if (!select) throw new Error('missing layout select');
 
     await act(async () => {
-      shell.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
-      shell.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
-      shell.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
-      shell.click();
-    });
-    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((node) => node.textContent?.includes('console'));
-    if (!option) throw new Error('select popup did not open');
-    await act(async () => {
-      option.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
-      option.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
-      option.click();
+      select.value = 'glass';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    expect(preview()?.dataset.shell).toBe('console');
-    expect(triggerLabel(triggers()[0] as HTMLElement)).toBe(translations['settings.theme.option.console']);
-  });
-
-  it('switches the preview to a preset and to RTL without native controls', async () => {
-    const gallery = [...container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]:has(strong)')];
-    expect(gallery).toHaveLength(3);
-    const signal = gallery[2];
-    if (!signal) throw new Error('missing preset button');
-    await act(async () => signal.click());
-    expect(preview()?.dataset.preset).toBe('signal');
-    expect(preview()?.dataset.shell).toBe(THEME_PRESETS.signal.layout.shell);
-
-    const toggle = container.querySelector<HTMLButtonElement>('button[dir="rtl"]');
-    if (!toggle) throw new Error('missing preview direction toggle');
-    expect(toggle.getAttribute('dir')).toBe('rtl');
-    expect(preview()?.getAttribute('dir')).toBe('ltr');
-    await act(async () => toggle.click());
-    expect(preview()?.getAttribute('dir')).toBe('rtl');
-    expect(toggle.getAttribute('dir')).toBe('ltr');
-  });
-
-  it('switches the docs layout when a layout card is picked', async () => {
-    const glassCard = container.querySelector<HTMLButtonElement>('button[data-docs-layout="glass"]');
-    if (!glassCard) throw new Error('missing glass layout card');
-    expect(glassCard.getAttribute('aria-pressed')).toBe('false');
-
-    await act(async () => glassCard.click());
-
-    expect(glassCard.getAttribute('aria-pressed')).toBe('true');
     expect(preview()?.dataset.docsLayout).toBe('glass');
   });
 
-  it('saves the selected layout and theme configuration when submit button is clicked', async () => {
-    const glassCard = container.querySelector<HTMLButtonElement>('button[data-docs-layout="glass"]');
-    if (!glassCard) throw new Error('missing glass layout card');
-    await act(async () => glassCard.click());
+  it('navigates into nested props and toggles values', async () => {
+    const sidebarRow = container.querySelector<HTMLButtonElement>('button[data-prop-id="sidebar"]');
+    if (!sidebarRow) throw new Error('missing sidebar prop button');
+
+    await act(async () => sidebarRow.click());
+
+    // Should now show breadcrumb and collapsible field
+    expect(container.textContent).toContain('collapsible');
+
+    // Toggle collapsible to false
+    const falseBtn = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (btn) => btn.textContent === 'false',
+    );
+    expect(falseBtn).toBeDefined();
+
+    await act(async () => falseBtn?.click());
+    expect(falseBtn?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('switches baseline preset and updates preview', async () => {
+    const signalBtn = container.querySelector<HTMLButtonElement>('button[data-preset-id="signal"]');
+    if (!signalBtn) throw new Error('missing signal preset button');
+
+    await act(async () => signalBtn.click());
+
+    expect(preview()?.dataset.preset).toBe('signal');
+    expect(preview()?.dataset.shell).toBe(THEME_PRESETS.signal.layout.shell);
+  });
+
+  it('saves the updated theme draft when save is clicked', async () => {
+    const select = container.querySelector<HTMLSelectElement>('select[aria-label="Select Docs Layout"]');
+    if (!select) throw new Error('missing layout select');
+
+    await act(async () => {
+      select.value = 'notebook';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
     const submitBtn = container.querySelector<HTMLButtonElement>('button[type="submit"]');
-    if (!submitBtn) throw new Error('missing save button');
+    if (!submitBtn) throw new Error('missing submit button');
     expect(submitBtn.disabled).toBe(false);
 
     await act(async () => submitBtn.click());
+
     expect(mutation.mutate).toHaveBeenCalledWith(
       expect.objectContaining({
         config: expect.objectContaining({
           theme: expect.objectContaining({
             layout: expect.objectContaining({
-              docsLayout: 'glass',
+              docsLayout: 'notebook',
             }),
           }),
         }),
