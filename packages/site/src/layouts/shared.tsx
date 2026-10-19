@@ -16,3 +16,20 @@ export function renderReaderFrame(slots: DocsLayoutSlots, body: ReactNode): Reac
     </>
   );
 }
+
+/**
+ * Fumadocs signature bottom dock: combines language switcher, external icons,
+ * and theme toggle into a sleek bordered pill.
+ */
+export function SidebarDock({ tools }: { tools?: ReactNode }) {
+  if (!tools) return null;
+  return (
+    <div
+      data-sidebar-dock="true"
+      className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden"
+    >
+      {tools}
+    </div>
+  );
+}
+

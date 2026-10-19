@@ -41,6 +41,8 @@ export interface StudioPreviewSlots {
 export interface DocsPageSlots {
   article: ReactNode;
   tableOfContents: ReactNode;
+  breadcrumb?: ReactNode;
+  footer?: ReactNode;
 }
 
 export interface DocsLayoutTemplate {
