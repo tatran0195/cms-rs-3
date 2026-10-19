@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_FUMADOCS_LAYOUT_OPTIONS,
-  formatPropSummary,
-  type FumadocsLayoutOptions,
-  type PropsTablePath,
-} from './types';
+import { DEFAULT_FUMADOCS_LAYOUT_OPTIONS, type FumadocsLayoutOptions, formatPropSummary, type PropsTablePath } from './types';
 
 describe('theme props types and helpers', () => {
   it('provides default Fumadocs layout options', () => {

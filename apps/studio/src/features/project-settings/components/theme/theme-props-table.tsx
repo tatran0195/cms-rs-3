@@ -1,33 +1,17 @@
-import { type ReactNode, useId } from 'react';
 import { cn } from '@cms/design-system/lib/utils';
-import type {
-  DocsLayoutId,
-  ThemeColorKey,
-  ThemeColorTokens,
-  ThemeComponents,
-  ThemeLayout,
-  cmsThemeConfig,
-} from '@cms/shared/themes';
+import type { cmsThemeConfig, DocsLayoutId, ThemeColorKey, ThemeColorTokens, ThemeComponents, ThemeLayout } from '@cms/shared/themes';
 import { ArrowLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { useId } from 'react';
 import { ThemePaletteEditor } from './theme-palette-editor';
-import {
-  formatPropSummary,
-  type FumadocsLayoutOptions,
-  type PropsTablePath,
-  type PropsTablePathCategory,
-} from './types';
+import { type FumadocsLayoutOptions, formatPropSummary, type PropsTablePath } from './types';
 
 export interface ThemePropsTableProps {
   path: PropsTablePath;
   onNavigate: (path: PropsTablePath) => void;
   layoutOptions: FumadocsLayoutOptions;
-  onLayoutOptionsChange: (
-    options: FumadocsLayoutOptions | ((prev: FumadocsLayoutOptions) => FumadocsLayoutOptions),
-  ) => void;
+  onLayoutOptionsChange: (options: FumadocsLayoutOptions | ((prev: FumadocsLayoutOptions) => FumadocsLayoutOptions)) => void;
   themeConfig: cmsThemeConfig;
-  onThemeConfigChange: (
-    config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig),
-  ) => void;
+  onThemeConfigChange: (config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig)) => void;
   resolvedColors: {
     light: ThemeColorTokens;
     dark: ThemeColorTokens;
@@ -43,7 +27,7 @@ export function ThemePropsTable({
   onNavigate,
   layoutOptions,
   onLayoutOptionsChange,
-  themeConfig,
+  themeConfig: _themeConfig,
   onThemeConfigChange,
   resolvedColors,
   resolvedLayout,
@@ -53,20 +37,14 @@ export function ThemePropsTable({
 }: ThemePropsTableProps) {
   const currentCategory = path[0];
 
-  const setNavProp = <K extends keyof FumadocsLayoutOptions['nav']>(
-    key: K,
-    val: FumadocsLayoutOptions['nav'][K],
-  ) => {
+  const setNavProp = <K extends keyof FumadocsLayoutOptions['nav']>(key: K, val: FumadocsLayoutOptions['nav'][K]) => {
     onLayoutOptionsChange((prev) => ({
       ...prev,
       nav: { ...prev.nav, [key]: val },
     }));
   };
 
-  const setThemeSwitchProp = <K extends keyof FumadocsLayoutOptions['themeSwitch']>(
-    key: K,
-    val: FumadocsLayoutOptions['themeSwitch'][K],
-  ) => {
+  const setThemeSwitchProp = <K extends keyof FumadocsLayoutOptions['themeSwitch']>(key: K, val: FumadocsLayoutOptions['themeSwitch'][K]) => {
     onLayoutOptionsChange((prev) => ({
       ...prev,
       themeSwitch: { ...prev.themeSwitch, [key]: val },
@@ -97,10 +75,7 @@ export function ThemePropsTable({
     }));
   };
 
-  const setComponentPart = <K extends keyof ThemeComponents>(
-    key: K,
-    value: ThemeComponents[K],
-  ) => {
+  const setComponentPart = <K extends keyof ThemeComponents>(key: K, value: ThemeComponents[K]) => {
     onThemeConfigChange((prev) => ({
       ...prev,
       components: {
@@ -124,12 +99,7 @@ export function ThemePropsTable({
   };
 
   return (
-    <div
-      className={cn(
-        'not-prose overflow-hidden rounded-xl border border-border bg-card text-card-foreground',
-        className,
-      )}
-    >
+    <div className={cn('not-prose overflow-hidden rounded-xl border border-border bg-card text-card-foreground', className)}>
       {/* Breadcrumbs Navigation Header */}
       <nav
         aria-label="Props navigation"
@@ -162,9 +132,7 @@ export function ThemePropsTable({
           {currentCategory && (
             <li className="flex items-center gap-1">
               <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
-              <span className="font-mono font-medium text-foreground px-1.5 py-0.5">
-                {currentCategory}
-              </span>
+              <span className="font-mono font-medium text-foreground px-1.5 py-0.5">{currentCategory}</span>
             </li>
           )}
         </ol>
@@ -185,13 +153,7 @@ export function ThemePropsTable({
         {/* ROOT PROPS TABLE VIEW */}
         {!currentCategory && (
           <div className="divide-y divide-border/60">
-            <NavRow
-              id="nav"
-              name="nav"
-              summary={formatPropSummary(layoutOptions.nav)}
-              type="object"
-              onNavigate={() => onNavigate(['nav'])}
-            />
+            <NavRow id="nav" name="nav" summary={formatPropSummary(layoutOptions.nav)} type="object" onNavigate={() => onNavigate(['nav'])} />
             <NavRow
               id="themeSwitch"
               name="themeSwitch"
@@ -220,13 +182,7 @@ export function ThemePropsTable({
               type="object"
               onNavigate={() => onNavigate(['palette'])}
             />
-            <NavRow
-              id="layout"
-              name="layout"
-              summary={formatPropSummary(resolvedLayout)}
-              type="object"
-              onNavigate={() => onNavigate(['layout'])}
-            />
+            <NavRow id="layout" name="layout" summary={formatPropSummary(resolvedLayout)} type="object" onNavigate={() => onNavigate(['layout'])} />
             <NavRow
               id="components"
               name="components"
@@ -240,19 +196,12 @@ export function ThemePropsTable({
         {/* DRILL-DOWN: NAV */}
         {currentCategory === 'nav' && (
           <div className="divide-y divide-border/60">
-            <StringRow
-              name="title"
-              value={layoutOptions.nav.title}
-              onChange={(v) => setNavProp('title', v)}
-              placeholder="Docs title"
-            />
+            <StringRow name="title" value={layoutOptions.nav.title} onChange={(v) => setNavProp('title', v)} placeholder="Docs title" />
             <EnumRow
               name="transparentMode"
               value={layoutOptions.nav.transparentMode ?? 'none'}
               options={['none', 'top', 'always']}
-              onChange={(v) =>
-                setNavProp('transparentMode', v as 'none' | 'top' | 'always')
-              }
+              onChange={(v) => setNavProp('transparentMode', v as 'none' | 'top' | 'always')}
             />
           </div>
         )}
@@ -260,18 +209,12 @@ export function ThemePropsTable({
         {/* DRILL-DOWN: THEME SWITCH */}
         {currentCategory === 'themeSwitch' && (
           <div className="divide-y divide-border/60">
-            <BooleanRow
-              name="enabled"
-              value={layoutOptions.themeSwitch.enabled}
-              onChange={(v) => setThemeSwitchProp('enabled', v)}
-            />
+            <BooleanRow name="enabled" value={layoutOptions.themeSwitch.enabled} onChange={(v) => setThemeSwitchProp('enabled', v)} />
             <EnumRow
               name="mode"
               value={layoutOptions.themeSwitch.mode ?? 'light-dark'}
               options={['light-dark', 'light-dark-system']}
-              onChange={(v) =>
-                setThemeSwitchProp('mode', v as 'light-dark' | 'light-dark-system')
-              }
+              onChange={(v) => setThemeSwitchProp('mode', v as 'light-dark' | 'light-dark-system')}
             />
           </div>
         )}
@@ -279,32 +222,19 @@ export function ThemePropsTable({
         {/* DRILL-DOWN: SEARCH TOGGLE */}
         {currentCategory === 'searchToggle' && (
           <div className="divide-y divide-border/60">
-            <BooleanRow
-              name="enabled"
-              value={layoutOptions.searchToggle.enabled}
-              onChange={setSearchToggleProp}
-            />
+            <BooleanRow name="enabled" value={layoutOptions.searchToggle.enabled} onChange={setSearchToggleProp} />
           </div>
         )}
 
         {/* DRILL-DOWN: SIDEBAR */}
         {currentCategory === 'sidebar' && (
           <div className="divide-y divide-border/60">
-            <BooleanRow
-              name="collapsible"
-              value={layoutOptions.sidebar.collapsible}
-              onChange={setSidebarProp}
-            />
+            <BooleanRow name="collapsible" value={layoutOptions.sidebar.collapsible} onChange={setSidebarProp} />
           </div>
         )}
 
         {/* DRILL-DOWN: PALETTE */}
-        {currentCategory === 'palette' && (
-          <ThemePaletteEditor
-            colors={resolvedColors}
-            onColorChange={handleColorChange}
-          />
-        )}
+        {currentCategory === 'palette' && <ThemePaletteEditor colors={resolvedColors} onColorChange={handleColorChange} />}
 
         {/* DRILL-DOWN: LAYOUT */}
         {currentCategory === 'layout' && (
@@ -367,41 +297,31 @@ export function ThemePropsTable({
               name="codeBlocks"
               value={resolvedComponents.codeBlocks}
               options={['system', 'dim', 'vivid']}
-              onChange={(v) =>
-                setComponentPart('codeBlocks', v as ThemeComponents['codeBlocks'])
-              }
+              onChange={(v) => setComponentPart('codeBlocks', v as ThemeComponents['codeBlocks'])}
             />
             <EnumRow
               name="callouts"
               value={resolvedComponents.callouts}
               options={['soft', 'outline', 'solid']}
-              onChange={(v) =>
-                setComponentPart('callouts', v as ThemeComponents['callouts'])
-              }
+              onChange={(v) => setComponentPart('callouts', v as ThemeComponents['callouts'])}
             />
             <EnumRow
               name="cards"
               value={resolvedComponents.cards}
               options={['bordered', 'lifted', 'flat']}
-              onChange={(v) =>
-                setComponentPart('cards', v as ThemeComponents['cards'])
-              }
+              onChange={(v) => setComponentPart('cards', v as ThemeComponents['cards'])}
             />
             <EnumRow
               name="tabs"
               value={resolvedComponents.tabs}
               options={['underline', 'pills', 'boxed']}
-              onChange={(v) =>
-                setComponentPart('tabs', v as ThemeComponents['tabs'])
-              }
+              onChange={(v) => setComponentPart('tabs', v as ThemeComponents['tabs'])}
             />
             <EnumRow
               name="tables"
               value={resolvedComponents.tables}
               options={['lines', 'rows', 'cards']}
-              onChange={(v) =>
-                setComponentPart('tables', v as ThemeComponents['tables'])
-              }
+              onChange={(v) => setComponentPart('tables', v as ThemeComponents['tables'])}
             />
           </div>
         )}
@@ -414,25 +334,11 @@ export function ThemePropsTable({
    INTERNAL ROW COMPONENTS MATCHING FUMADOCS SPEC
    ========================================================================= */
 
-function NavRow({
-  id,
-  name,
-  summary,
-  type,
-  onNavigate,
-}: {
-  id: string;
-  name: string;
-  summary: string;
-  type: string;
-  onNavigate: () => void;
-}) {
+function NavRow({ id, name, summary, type, onNavigate }: { id: string; name: string; summary: string; type: string; onNavigate: () => void }) {
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)]">
       <div className="flex min-w-0 items-center gap-1 py-2.5 ps-4 pe-3">
-        <span className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
-          {name}
-        </span>
+        <span className="truncate font-mono text-[0.8125rem] text-foreground font-medium">{name}</span>
       </div>
       <div className="flex min-h-9 items-stretch text-[0.8125rem] transition-colors @sm:border-s @sm:border-border/60 hover:bg-muted/30">
         <button
@@ -441,12 +347,8 @@ function NavRow({
           onClick={onNavigate}
           className="group/nav flex min-w-0 flex-1 items-center ps-3 text-start outline-none cursor-pointer"
         >
-          <span className="min-w-0 flex-1 truncate pe-2 font-mono text-xs text-muted-foreground">
-            {summary}
-          </span>
-          <span className="shrink-0 font-mono text-xs text-muted-foreground pe-1">
-            {type}
-          </span>
+          <span className="min-w-0 flex-1 truncate pe-2 font-mono text-xs text-muted-foreground">{summary}</span>
+          <span className="shrink-0 font-mono text-xs text-muted-foreground pe-1">{type}</span>
           <span className="flex w-7 shrink-0 items-center justify-center">
             <ChevronRight className="size-3.5 text-muted-foreground transition-transform duration-200 group-hover/nav:translate-x-0.5" />
           </span>
@@ -456,21 +358,11 @@ function NavRow({
   );
 }
 
-function BooleanRow({
-  name,
-  value,
-  onChange,
-}: {
-  name: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
+function BooleanRow({ name, value, onChange }: { name: string; value: boolean; onChange: (value: boolean) => void }) {
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/20 transition-colors">
       <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
-        <span className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
-          {name}
-        </span>
+        <span className="truncate font-mono text-[0.8125rem] text-foreground font-medium">{name}</span>
       </div>
       <div className="flex min-h-9 items-center justify-between px-3 @sm:border-s @sm:border-border/60">
         <div className="flex items-center gap-1">
@@ -482,9 +374,7 @@ function BooleanRow({
               onClick={() => onChange(option)}
               className={cn(
                 'h-6 rounded px-2.5 font-mono text-xs transition-colors cursor-pointer',
-                value === option
-                  ? 'bg-primary text-primary-foreground font-medium shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground'
+                value === option ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {String(option)}
@@ -497,25 +387,12 @@ function BooleanRow({
   );
 }
 
-function StringRow({
-  name,
-  value,
-  onChange,
-  placeholder,
-}: {
-  name: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
+function StringRow({ name, value, onChange, placeholder }: { name: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
   const id = useId();
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/20 transition-colors">
       <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
-        <label
-          htmlFor={id}
-          className="truncate font-mono text-[0.8125rem] text-foreground font-medium"
-        >
+        <label htmlFor={id} className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
           {name}
         </label>
       </div>
@@ -551,10 +428,7 @@ function EnumRow<T extends string>({
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/20 transition-colors">
       <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
-        <label
-          htmlFor={id}
-          className="truncate font-mono text-[0.8125rem] text-foreground font-medium"
-        >
+        <label htmlFor={id} className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
           {name}
         </label>
       </div>

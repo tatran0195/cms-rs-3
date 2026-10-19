@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import {
+  type cmsThemeConfig,
   DOCS_LAYOUT_IDS,
   type DocsLayoutId,
   type ResolvedTheme,
@@ -9,10 +9,10 @@ import {
   type ThemeColorTokens,
   type ThemeComponents,
   type ThemeLayout,
-  type cmsThemeConfig,
 } from '@cms/shared/themes';
 import type { ProjectConfig } from '@cms/validators';
 import { Maximize, Minimize, Moon, Sun } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { ThemePropsTable } from './theme-props-table';
 import { ThemeStoryWindow } from './theme-story-window';
 import type { FumadocsLayoutOptions, PropsTablePath } from './types';
@@ -20,9 +20,7 @@ import type { FumadocsLayoutOptions, PropsTablePath } from './types';
 export interface ThemeFumadocsStoryProps {
   config: ProjectConfig;
   themeConfig: cmsThemeConfig;
-  onThemeConfigChange: (
-    config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig),
-  ) => void;
+  onThemeConfigChange: (config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig)) => void;
   resolvedTheme: ResolvedTheme;
   resolvedColors: {
     light: ThemeColorTokens;
@@ -33,9 +31,7 @@ export interface ThemeFumadocsStoryProps {
   appearance: 'light' | 'dark' | 'system';
   onAppearanceChange: (appearance: 'light' | 'dark' | 'system') => void;
   layoutOptions: FumadocsLayoutOptions;
-  onLayoutOptionsChange: (
-    options: FumadocsLayoutOptions | ((prev: FumadocsLayoutOptions) => FumadocsLayoutOptions),
-  ) => void;
+  onLayoutOptionsChange: (options: FumadocsLayoutOptions | ((prev: FumadocsLayoutOptions) => FumadocsLayoutOptions)) => void;
   onReset: () => void;
   className?: string;
 }
@@ -72,14 +68,12 @@ export function ThemeFumadocsStory({
       } else {
         setIsFullscreen(true);
       }
-    } else {
-      if (document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {
-          setIsFullscreen(false);
-        });
-      } else {
+    } else if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {
         setIsFullscreen(false);
-      }
+      });
+    } else {
+      setIsFullscreen(false);
     }
   };
 
@@ -97,9 +91,7 @@ export function ThemeFumadocsStory({
       {/* Top Story Header Bar */}
       <div className="flex h-10 items-center justify-between border-b border-border/70 ps-4 pe-2 bg-card">
         {/* Layout Name */}
-        <p className="truncate text-[0.8125rem] font-semibold text-foreground tracking-tight">
-          {layoutDisplayName}
-        </p>
+        <p className="truncate text-[0.8125rem] font-semibold text-foreground tracking-tight">{layoutDisplayName}</p>
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-1.5 ms-auto">
@@ -134,11 +126,7 @@ export function ThemeFumadocsStory({
             onClick={() => onAppearanceChange(previewMode === 'dark' ? 'light' : 'dark')}
             className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
           >
-            {previewMode === 'dark' ? (
-              <Sun className="size-3.5 text-amber-400" />
-            ) : (
-              <Moon className="size-3.5" />
-            )}
+            {previewMode === 'dark' ? <Sun className="size-3.5 text-amber-400" /> : <Moon className="size-3.5" />}
           </button>
 
           {/* Fullscreen Button */}

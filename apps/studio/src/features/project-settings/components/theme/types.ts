@@ -1,11 +1,3 @@
-import type {
-  DocsLayoutId,
-  ThemeColorTokens,
-  ThemeComponents,
-  ThemeLayout,
-  ThemePresetId,
-} from '@cms/shared/themes';
-
 export interface FumadocsLayoutOptions {
   nav: {
     title: string;
@@ -40,14 +32,7 @@ export const DEFAULT_FUMADOCS_LAYOUT_OPTIONS: FumadocsLayoutOptions = {
   },
 };
 
-export type PropsTablePathCategory =
-  | 'nav'
-  | 'themeSwitch'
-  | 'searchToggle'
-  | 'sidebar'
-  | 'palette'
-  | 'layout'
-  | 'components';
+export type PropsTablePathCategory = 'nav' | 'themeSwitch' | 'searchToggle' | 'sidebar' | 'palette' | 'layout' | 'components';
 
 export type PropsTablePath = [] | [PropsTablePathCategory];
 

@@ -5,7 +5,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemePropsTable } from './theme-props-table';
-import { DEFAULT_FUMADOCS_LAYOUT_OPTIONS, type PropsTablePath } from './types';
+import { DEFAULT_FUMADOCS_LAYOUT_OPTIONS } from './types';
 
 // @ts-expect-error configure react act environment for jsdom
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -41,7 +41,7 @@ describe('ThemePropsTable', () => {
           resolvedLayout={harbor.layout}
           resolvedComponents={harbor.components}
           onReset={vi.fn()}
-        />
+        />,
       );
     });
 
@@ -69,7 +69,7 @@ describe('ThemePropsTable', () => {
           resolvedLayout={harbor.layout}
           resolvedComponents={harbor.components}
           onReset={vi.fn()}
-        />
+        />,
       );
     });
 
@@ -98,7 +98,7 @@ describe('ThemePropsTable', () => {
           resolvedLayout={harbor.layout}
           resolvedComponents={harbor.components}
           onReset={vi.fn()}
-        />
+        />,
       );
     });
 

@@ -1,12 +1,7 @@
-import { useState } from 'react';
 import { cn } from '@cms/design-system/lib/utils';
-import {
-  THEME_COLOR_KEYS,
-  type ThemeColorKey,
-  type ThemeColorTokens,
-  themeContrastIssues,
-} from '@cms/shared/themes';
-import { AlertCircle, CheckCircle2, Moon, Sun } from 'lucide-react';
+import { THEME_COLOR_KEYS, type ThemeColorKey, type ThemeColorTokens, themeContrastIssues } from '@cms/shared/themes';
+import { AlertCircle, Moon, Sun } from 'lucide-react';
+import { useState } from 'react';
 
 export interface ThemePaletteEditorProps {
   colors: {
@@ -19,13 +14,7 @@ export interface ThemePaletteEditorProps {
   className?: string;
 }
 
-export function ThemePaletteEditor({
-  colors,
-  mode: controlledMode,
-  onModeChange,
-  onColorChange,
-  className,
-}: ThemePaletteEditorProps) {
+export function ThemePaletteEditor({ colors, mode: controlledMode, onModeChange, onColorChange, className }: ThemePaletteEditorProps) {
   const [internalMode, setInternalMode] = useState<'light' | 'dark'>('light');
   const activeMode = controlledMode ?? internalMode;
 
@@ -55,9 +44,7 @@ export function ThemePaletteEditor({
             onClick={() => setMode('light')}
             className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
-              activeMode === 'light'
-                ? 'bg-primary text-primary-foreground font-medium shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground'
+              activeMode === 'light' ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Sun className="size-3" />
@@ -69,9 +56,7 @@ export function ThemePaletteEditor({
             onClick={() => setMode('dark')}
             className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
-              activeMode === 'dark'
-                ? 'bg-primary text-primary-foreground font-medium shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground'
+              activeMode === 'dark' ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Moon className="size-3" />
@@ -97,32 +82,20 @@ export function ThemePaletteEditor({
           const issue = contrastIssues.find((ci) => ci.pair.includes(key));
 
           return (
-            <div
-              key={key}
-              className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/30 transition-colors"
-            >
+            <div key={key} className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/30 transition-colors">
               <div className="flex items-center gap-1.5 py-2 ps-4 pe-3">
-                <label
-                  htmlFor={`palette-color-${key}`}
-                  className="truncate font-mono text-[0.8125rem] text-foreground font-medium"
-                >
+                <label htmlFor={`palette-color-${key}`} className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
                   {key}
                 </label>
                 {issue && (
-                  <span
-                    title={`Contrast warning: ${issue.ratio.toFixed(1)}:1`}
-                    className="inline-block size-1.5 rounded-full bg-destructive"
-                  />
+                  <span title={`Contrast warning: ${issue.ratio.toFixed(1)}:1`} className="inline-block size-1.5 rounded-full bg-destructive" />
                 )}
               </div>
               <div className="flex min-h-9 items-center justify-between gap-3 px-3 py-1.5 @sm:border-s @sm:border-border/60">
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   {/* Swatch & Native Color Picker */}
                   <label className="relative size-6 shrink-0 cursor-pointer overflow-hidden rounded-md border border-border/80 shadow-2xs transition-transform hover:scale-105">
-                    <span
-                      className="absolute inset-0 block"
-                      style={{ backgroundColor: value }}
-                    />
+                    <span className="absolute inset-0 block" style={{ backgroundColor: value }} />
                     <input
                       id={`palette-color-${key}`}
                       type="color"
@@ -146,9 +119,7 @@ export function ThemePaletteEditor({
                   />
                 </div>
 
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground/80 select-none">
-                  color
-                </span>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground/80 select-none">color</span>
               </div>
             </div>
           );

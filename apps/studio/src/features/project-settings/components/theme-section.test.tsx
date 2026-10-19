@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { Project } from '@cms/sdk';
-import { resolveTheme, THEME_PRESETS } from '@cms/shared/themes';
+import { THEME_PRESETS } from '@cms/shared/themes';
 import { act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,21 +60,11 @@ vi.mock('@cms/site', async (importOriginal) => {
       theme: { id: string; layout: { shell: string; docsLayout?: string } };
       direction: string;
     }) => (
-      <div
-        data-docs-layout={theme.layout.docsLayout}
-        data-preset={theme.id}
-        data-shell={theme.layout.shell}
-        data-testid="preview"
-        dir={direction}
-      >
+      <div data-docs-layout={theme.layout.docsLayout} data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
         {children}
       </div>
     ),
-    DocumentationStudioPreviewLayout: ({
-      header,
-      navigation,
-      content,
-    }: Record<'header' | 'navigation' | 'content', ReactNode>) => (
+    DocumentationStudioPreviewLayout: ({ header, navigation, content }: Record<'header' | 'navigation' | 'content', ReactNode>) => (
       <div>
         {header}
         {navigation}
@@ -165,9 +155,7 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
     expect(container.textContent).toContain('collapsible');
 
     // Toggle collapsible to false
-    const falseBtn = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
-      (btn) => btn.textContent === 'false',
-    );
+    const falseBtn = [...container.querySelectorAll<HTMLButtonElement>('button')].find((btn) => btn.textContent === 'false');
     expect(falseBtn).toBeDefined();
 
     await act(async () => falseBtn?.click());

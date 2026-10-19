@@ -37,14 +37,7 @@ describe('ThemePaletteEditor', () => {
     const handleModeChange = vi.fn();
 
     await act(async () => {
-      root.render(
-        <ThemePaletteEditor
-          colors={harbor.colors}
-          mode="light"
-          onColorChange={handleColorChange}
-          onModeChange={handleModeChange}
-        />
-      );
+      root.render(<ThemePaletteEditor colors={harbor.colors} mode="light" onColorChange={handleColorChange} onModeChange={handleModeChange} />);
     });
 
     expect(container.textContent).toContain('accent');
@@ -55,14 +48,7 @@ describe('ThemePaletteEditor', () => {
   it('allows mode toggling between light and dark', async () => {
     const handleModeChange = vi.fn();
     await act(async () => {
-      root.render(
-        <ThemePaletteEditor
-          colors={harbor.colors}
-          mode="light"
-          onColorChange={vi.fn()}
-          onModeChange={handleModeChange}
-        />
-      );
+      root.render(<ThemePaletteEditor colors={harbor.colors} mode="light" onColorChange={vi.fn()} onModeChange={handleModeChange} />);
     });
 
     const buttons = Array.from(container.querySelectorAll('button'));
@@ -79,14 +65,7 @@ describe('ThemePaletteEditor', () => {
   it('triggers onColorChange when hex value is modified', async () => {
     const handleColorChange = vi.fn();
     await act(async () => {
-      root.render(
-        <ThemePaletteEditor
-          colors={harbor.colors}
-          mode="light"
-          onColorChange={handleColorChange}
-          onModeChange={vi.fn()}
-        />
-      );
+      root.render(<ThemePaletteEditor colors={harbor.colors} mode="light" onColorChange={handleColorChange} onModeChange={vi.fn()} />);
     });
 
     const accentInput = container.querySelector('input[aria-label="accent color hex"]') as HTMLInputElement;

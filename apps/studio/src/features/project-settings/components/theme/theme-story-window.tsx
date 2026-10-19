@@ -1,27 +1,10 @@
-import { useMemo, useState } from 'react';
 import { cn } from '@cms/design-system/lib/utils';
 import type { DocsLayoutId, ResolvedTheme } from '@cms/shared/themes';
-import {
-  DocumentationThemeProvider,
-  projectThemeStyle,
-  projectThemeVariables,
-} from '@cms/site';
+import { DocumentationThemeProvider, projectThemeStyle, projectThemeVariables } from '@cms/site';
 import { getDocsLayoutTemplate } from '@cms/site/layouts';
 import type { ProjectConfig } from '@cms/validators';
-import {
-  BookOpen,
-  Code2,
-  Copy,
-  ExternalLink,
-  Folder,
-  Layers,
-  Moon,
-  Rocket,
-  Search,
-  Sparkles,
-  Sun,
-  Terminal,
-} from 'lucide-react';
+import { BookOpen, Copy, Folder, Layers, Moon, Rocket, Search, Sparkles, Sun } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { FumadocsLayoutOptions } from './types';
 
 export interface ThemeStoryWindowProps {
@@ -33,14 +16,7 @@ export interface ThemeStoryWindowProps {
   className?: string;
 }
 
-export function ThemeStoryWindow({
-  layoutId,
-  effectiveConfig,
-  resolvedTheme,
-  appearance,
-  options,
-  className,
-}: ThemeStoryWindowProps) {
+export function ThemeStoryWindow({ layoutId, effectiveConfig, resolvedTheme, appearance, options, className }: ThemeStoryWindowProps) {
   const [copied, setCopied] = useState(false);
   const [codeTab, setCodeTab] = useState<'npm' | 'pnpm' | 'yarn'>('npm');
   const [activeNavId, setActiveNavId] = useState('overview');
@@ -64,9 +40,7 @@ export function ThemeStoryWindow({
       <span className="size-6 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center text-primary font-bold text-xs shadow-2xs">
         {options.nav.title.charAt(0) || 'D'}
       </span>
-      <span className="font-semibold text-sm tracking-tight text-foreground">
-        {options.nav.title}
-      </span>
+      <span className="font-semibold text-sm tracking-tight text-foreground">{options.nav.title}</span>
     </div>
   );
 
@@ -74,9 +48,7 @@ export function ThemeStoryWindow({
     <div className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg border border-border/70 bg-background/80 text-muted-foreground text-xs shadow-2xs cursor-pointer hover:border-primary/50 transition-colors">
       <Search className="size-3.5" />
       <span className="flex-1">Search...</span>
-      <kbd className="px-1.5 py-0.5 rounded border border-border/80 bg-muted text-[10px] font-mono">
-        Ctrl K
-      </kbd>
+      <kbd className="px-1.5 py-0.5 rounded border border-border/80 bg-muted text-[10px] font-mono">Ctrl K</kbd>
     </div>
   ) : null;
 
@@ -97,11 +69,7 @@ export function ThemeStoryWindow({
           className="p-1.5 rounded-lg border border-border/70 bg-background/80 text-muted-foreground hover:text-foreground shadow-2xs inline-flex items-center"
           title="Toggle Theme"
         >
-          {appearance === 'dark' ? (
-            <Sun className="size-3.5 text-amber-400" />
-          ) : (
-            <Moon className="size-3.5" />
-          )}
+          {appearance === 'dark' ? <Sun className="size-3.5 text-amber-400" /> : <Moon className="size-3.5" />}
         </span>
       )}
     </div>
@@ -109,9 +77,7 @@ export function ThemeStoryWindow({
 
   const navLinksSlot = (
     <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-      <span className="text-foreground hover:text-primary transition-colors cursor-pointer">
-        Docs
-      </span>
+      <span className="text-foreground hover:text-primary transition-colors cursor-pointer">Docs</span>
       <span className="hover:text-primary transition-colors cursor-pointer">Showcase</span>
       <span className="hover:text-primary transition-colors cursor-pointer">Blog</span>
     </div>
@@ -119,9 +85,7 @@ export function ThemeStoryWindow({
 
   const navTabsSlot = (
     <div className="flex items-center gap-1">
-      <span className="px-3 py-1 rounded-md text-xs font-semibold bg-primary text-primary-foreground shadow-2xs">
-        Framework
-      </span>
+      <span className="px-3 py-1 rounded-md text-xs font-semibold bg-primary text-primary-foreground shadow-2xs">Framework</span>
       <span className="px-3 py-1 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted/60 transition-colors cursor-pointer">
         Showcase
       </span>
@@ -138,9 +102,7 @@ export function ThemeStoryWindow({
   const sidebarTreeSlot = (
     <div className="space-y-4 text-xs">
       <div>
-        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">
-          Introduction
-        </div>
+        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Introduction</div>
         <div className="mt-1 space-y-0.5">
           <button
             type="button"
@@ -149,7 +111,7 @@ export function ThemeStoryWindow({
               'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-start transition-colors cursor-pointer',
               activeNavId === 'overview'
                 ? 'bg-primary/10 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             )}
           >
             <BookOpen className="size-3.5" />
@@ -162,7 +124,7 @@ export function ThemeStoryWindow({
               'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-start transition-colors cursor-pointer',
               activeNavId === 'quickstart'
                 ? 'bg-primary/10 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             )}
           >
             <Rocket className="size-3.5" />
@@ -173,9 +135,7 @@ export function ThemeStoryWindow({
             onClick={() => setActiveNavId('themes')}
             className={cn(
               'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-start transition-colors cursor-pointer',
-              activeNavId === 'themes'
-                ? 'bg-primary/10 text-primary font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              activeNavId === 'themes' ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             )}
           >
             <Sparkles className="size-3.5" />
@@ -185,9 +145,7 @@ export function ThemeStoryWindow({
       </div>
 
       <div>
-        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">
-          Writing
-        </div>
+        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Writing</div>
         <div className="mt-1 space-y-0.5">
           <span className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
             <Layers className="size-3.5" />
@@ -201,9 +159,7 @@ export function ThemeStoryWindow({
       </div>
 
       <div>
-        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">
-          Components
-        </div>
+        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Components</div>
         <div className="mt-1 space-y-0.5">
           <span className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
             <Folder className="size-3.5" />
@@ -225,18 +181,12 @@ export function ThemeStoryWindow({
   const contentSlot = (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Overview
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          An introduction to the documentation architecture.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Overview</h1>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">An introduction to the documentation architecture.</p>
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          Introduction
-        </h2>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Introduction</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           This is a live preview of the layout. Open the pages in sidebar, search for content, or switch the theme, it works like your docs site.
         </p>
@@ -249,29 +199,21 @@ export function ThemeStoryWindow({
             <Rocket className="size-4" />
             <span>Quick Start</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Create your first docs site in minutes.
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Create your first docs site in minutes.</p>
         </div>
         <div className="rounded-xl border border-border/80 bg-card p-4 hover:border-primary/40 transition-colors cursor-pointer shadow-2xs">
           <div className="flex items-center gap-2 text-primary font-semibold text-sm">
             <Sparkles className="size-4" />
             <span>Themes</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Customize the colors and the look of your site.
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Customize the colors and the look of your site.</p>
         </div>
       </div>
 
       {/* Installation block with tabs */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          Installation
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Install the packages with your package manager:
-        </p>
+        <h3 className="text-sm font-semibold tracking-tight text-foreground">Installation</h3>
+        <p className="text-xs text-muted-foreground">Install the packages with your package manager:</p>
 
         <div className="rounded-xl border border-border bg-card/70 overflow-hidden shadow-2xs">
           <div className="flex items-center justify-between px-3 border-b border-border/70 bg-muted/40 text-xs">
@@ -285,7 +227,7 @@ export function ThemeStoryWindow({
                     'py-1.5 px-2 font-mono transition-colors border-b-2 -mb-px cursor-pointer',
                     codeTab === tab
                       ? 'border-primary text-foreground font-semibold'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {tab}
@@ -309,24 +251,17 @@ export function ThemeStoryWindow({
 
       {/* Usage block */}
       <div className="space-y-2 pb-6">
-        <h3 className="text-sm font-semibold tracking-tight text-foreground">
-          Usage
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Wrap your pages with the layout, it takes a page tree which is generated from your content.
-        </p>
+        <h3 className="text-sm font-semibold tracking-tight text-foreground">Usage</h3>
+        <p className="text-xs text-muted-foreground">Wrap your pages with the layout, it takes a page tree which is generated from your content.</p>
       </div>
     </div>
   );
 
   return (
     <div
-      className={cn(
-        'relative overflow-hidden px-3 pt-4 pb-6 sm:px-6 sm:pt-6 sm:pb-8 bg-[#181615]',
-        className
-      )}
+      className={cn('relative overflow-hidden px-3 pt-4 pb-6 sm:px-6 sm:pt-6 sm:pb-8 bg-[#181615]', className)}
       style={{
-        backgroundImage: `radial-gradient(circle, #e29f372b 1.25px, transparent 1.25px)`,
+        backgroundImage: 'radial-gradient(circle, #e29f372b 1.25px, transparent 1.25px)',
         backgroundSize: '16px 16px',
       }}
     >
@@ -335,18 +270,9 @@ export function ThemeStoryWindow({
         {/* macOS Window Header */}
         <div className="flex h-8.5 items-center justify-between border-b border-border/70 bg-muted/50 px-3.5 backdrop-blur-xs select-none">
           <div className="flex items-center gap-2">
-            <span
-              data-window-control="close"
-              className="size-2.5 rounded-full bg-[#ff5f57] border border-black/10 inline-block"
-            />
-            <span
-              data-window-control="minimize"
-              className="size-2.5 rounded-full bg-[#febc2e] border border-black/10 inline-block"
-            />
-            <span
-              data-window-control="maximize"
-              className="size-2.5 rounded-full bg-[#28c840] border border-black/10 inline-block"
-            />
+            <span data-window-control="close" className="size-2.5 rounded-full bg-[#ff5f57] border border-black/10 inline-block" />
+            <span data-window-control="minimize" className="size-2.5 rounded-full bg-[#febc2e] border border-black/10 inline-block" />
+            <span data-window-control="maximize" className="size-2.5 rounded-full bg-[#28c840] border border-black/10 inline-block" />
           </div>
           <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background/60 px-2.5 py-0.5 text-[10.5px] font-mono text-muted-foreground">
             <span>https://docs.local/preview/{layoutId}</span>

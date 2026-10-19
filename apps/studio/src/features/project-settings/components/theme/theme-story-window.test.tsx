@@ -44,7 +44,7 @@ describe('ThemeStoryWindow', () => {
           resolvedTheme={harbor}
           appearance="light"
           options={DEFAULT_FUMADOCS_LAYOUT_OPTIONS}
-        />
+        />,
       );
     });
 
@@ -71,7 +71,7 @@ describe('ThemeStoryWindow', () => {
             ...DEFAULT_FUMADOCS_LAYOUT_OPTIONS,
             nav: { title: 'Customized Docs' },
           }}
-        />
+        />,
       );
     });
 

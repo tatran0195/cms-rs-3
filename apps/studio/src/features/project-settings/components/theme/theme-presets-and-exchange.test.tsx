@@ -50,14 +50,7 @@ describe('ThemePresetsAndExchange', () => {
   it('renders presets list', async () => {
     const handleSelectPreset = vi.fn();
     await act(async () => {
-      root.render(
-        <ThemePresetsAndExchange
-          project={mockProject}
-          activePreset="harbor"
-          onSelectPreset={handleSelectPreset}
-          onApplyTheme={vi.fn()}
-        />
-      );
+      root.render(<ThemePresetsAndExchange project={mockProject} activePreset="harbor" onSelectPreset={handleSelectPreset} onApplyTheme={vi.fn()} />);
     });
 
     expect(container.textContent).toContain('settings.theme.preset.harbor.name');
@@ -68,14 +61,7 @@ describe('ThemePresetsAndExchange', () => {
   it('triggers onSelectPreset when a preset button is clicked', async () => {
     const handleSelectPreset = vi.fn();
     await act(async () => {
-      root.render(
-        <ThemePresetsAndExchange
-          project={mockProject}
-          activePreset="harbor"
-          onSelectPreset={handleSelectPreset}
-          onApplyTheme={vi.fn()}
-        />
-      );
+      root.render(<ThemePresetsAndExchange project={mockProject} activePreset="harbor" onSelectPreset={handleSelectPreset} onApplyTheme={vi.fn()} />);
     });
 
     const manuscriptBtn = container.querySelector('button[data-preset-id="manuscript"]');

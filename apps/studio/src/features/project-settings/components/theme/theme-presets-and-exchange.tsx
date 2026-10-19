@@ -1,18 +1,12 @@
-import { useState, useRef, type ChangeEvent } from 'react';
 import { Button } from '@cms/design-system/components/ui/button';
 import { Textarea } from '@cms/design-system/components/ui/textarea';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Project, ProjectThemeImportResult } from '@cms/sdk';
 import { useExportProjectTheme, useImportProjectTheme } from '@cms/sdk/react';
-import {
-  MAX_THEME_TEMPLATE_BYTES,
-  THEME_PRESET_IDS,
-  THEME_PRESETS,
-  type ThemePresetId,
-  type cmsThemeConfig,
-} from '@cms/shared/themes';
+import { type cmsThemeConfig, MAX_THEME_TEMPLATE_BYTES, THEME_PRESET_IDS, THEME_PRESETS, type ThemePresetId } from '@cms/shared/themes';
 import { ChevronDown, Download, FileJson, Sparkles, Upload } from 'lucide-react';
+import { type ChangeEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 export interface ThemePresetsAndExchangeProps {
@@ -32,14 +26,8 @@ function PresetThumbnail({ presetId }: { presetId: ThemePresetId }) {
         style={{ background: colors.muted }}
         aria-hidden
       >
-        <span
-          className="mx-auto mt-1 h-1.5 w-12 rounded-full"
-          style={{ background: colors.accent }}
-        />
-        <span
-          className="mx-2 mt-1.5 h-1.5 border-y"
-          style={{ borderColor: colors.border, background: colors.canvas }}
-        />
+        <span className="mx-auto mt-1 h-1.5 w-12 rounded-full" style={{ background: colors.accent }} />
+        <span className="mx-2 mt-1.5 h-1.5 border-y" style={{ borderColor: colors.border, background: colors.canvas }} />
         <span
           className="mx-auto mt-1 flex h-6 w-2/3 flex-col gap-0.5 border px-1 py-1 shadow-2xs"
           style={{ borderColor: colors.border, background: colors.canvas }}
@@ -57,24 +45,15 @@ function PresetThumbnail({ presetId }: { presetId: ThemePresetId }) {
         style={{ background: colors.code }}
         aria-hidden
       >
-        <span
-          className="col-span-2 flex items-center gap-1 border px-1"
-          style={{ borderColor: colors.border, background: colors.surface }}
-        >
+        <span className="col-span-2 flex items-center gap-1 border px-1" style={{ borderColor: colors.border, background: colors.surface }}>
           <span className="size-1 rounded-full" style={{ background: colors.accent }} />
           <span className="h-0.5 w-8 rounded-full" style={{ background: colors.mutedForeground }} />
         </span>
-        <span
-          className="flex flex-col gap-0.5 border p-0.5"
-          style={{ borderColor: colors.border, background: colors.code }}
-        >
+        <span className="flex flex-col gap-0.5 border p-0.5" style={{ borderColor: colors.border, background: colors.code }}>
           <span className="h-0.5 w-full" style={{ background: colors.accent }} />
           <span className="h-0.5 w-2/3" style={{ background: colors.mutedForeground }} />
         </span>
-        <span
-          className="flex flex-col gap-0.5 border p-1"
-          style={{ borderColor: colors.border, background: colors.canvas }}
-        >
+        <span className="flex flex-col gap-0.5 border p-1" style={{ borderColor: colors.border, background: colors.canvas }}>
           <span className="h-1 w-1/2" style={{ background: colors.foreground }} />
           <span className="h-0.5 w-full" style={{ background: colors.border }} />
         </span>
@@ -82,14 +61,8 @@ function PresetThumbnail({ presetId }: { presetId: ThemePresetId }) {
     );
   }
   return (
-    <span
-      className="mb-2.5 grid h-14 grid-cols-[25%_1fr_16%] grid-rows-[10px_1fr] overflow-hidden rounded-lg border border-border/80"
-      aria-hidden
-    >
-      <span
-        className="col-span-3 border-b flex items-center px-1"
-        style={{ borderColor: colors.border, background: colors.canvas }}
-      >
+    <span className="mb-2.5 grid h-14 grid-cols-[25%_1fr_16%] grid-rows-[10px_1fr] overflow-hidden rounded-lg border border-border/80" aria-hidden>
+      <span className="col-span-3 border-b flex items-center px-1" style={{ borderColor: colors.border, background: colors.canvas }}>
         <span className="block h-1 w-8 rounded-full" style={{ background: colors.accent }} />
       </span>
       <span className="border-e" style={{ borderColor: colors.border, background: colors.muted }} />
@@ -103,9 +76,7 @@ function PresetThumbnail({ presetId }: { presetId: ThemePresetId }) {
 }
 
 const downloadText = (fileName: string, contents: string) => {
-  const href = URL.createObjectURL(
-    new Blob([contents], { type: 'application/json;charset=utf-8' }),
-  );
+  const href = URL.createObjectURL(new Blob([contents], { type: 'application/json;charset=utf-8' }));
   const anchor = document.createElement('a');
   anchor.href = href;
   anchor.download = fileName;
@@ -113,13 +84,7 @@ const downloadText = (fileName: string, contents: string) => {
   URL.revokeObjectURL(href);
 };
 
-export function ThemePresetsAndExchange({
-  project,
-  activePreset,
-  onSelectPreset,
-  onApplyTheme,
-  className,
-}: ThemePresetsAndExchangeProps) {
+export function ThemePresetsAndExchange({ project, activePreset, onSelectPreset, onApplyTheme, className }: ThemePresetsAndExchangeProps) {
   const t = useT();
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
@@ -173,10 +138,7 @@ export function ThemePresetsAndExchange({
         { template, mode: importMode, apply: false },
         {
           onSuccess: (result) => setImportPreview(result),
-          onError: (err) =>
-            toast.error(
-              err instanceof Error ? err.message : t('settings.theme.import.previewError'),
-            ),
+          onError: (err) => toast.error(err instanceof Error ? err.message : t('settings.theme.import.previewError')),
         },
       );
     } catch {
@@ -191,16 +153,10 @@ export function ThemePresetsAndExchange({
       {
         onSuccess: (result) => {
           setImportPreview(result);
-          onApplyTheme(
-            result.template.config.theme ?? {},
-            result.template.config.styling?.theme,
-          );
+          onApplyTheme(result.template.config.theme ?? {}, result.template.config.styling?.theme);
           toast.success(t('settings.theme.import.applied'));
         },
-        onError: (err) =>
-          toast.error(
-            err instanceof Error ? err.message : t('settings.theme.import.applyError'),
-          ),
+        onError: (err) => toast.error(err instanceof Error ? err.message : t('settings.theme.import.applyError')),
       },
     );
   };
@@ -212,9 +168,7 @@ export function ThemePresetsAndExchange({
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="size-4 text-primary" />
           <h3 className="font-semibold text-sm">{t('settings.theme.gallery')}</h3>
-          <span className="text-xs text-muted-foreground ms-auto">
-            {t('settings.theme.galleryHint')}
-          </span>
+          <span className="text-xs text-muted-foreground ms-auto">{t('settings.theme.galleryHint')}</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {THEME_PRESET_IDS.map((id) => {
@@ -228,15 +182,11 @@ export function ThemePresetsAndExchange({
                 onClick={() => onSelectPreset(id)}
                 className={cn(
                   'cursor-pointer rounded-xl border p-3 text-start outline-none transition focus-visible:ring-2 focus-visible:ring-ring/50 shadow-2xs',
-                  active
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
-                    : 'border-border hover:border-primary/40 bg-background/50',
+                  active ? 'border-primary bg-primary/5 ring-1 ring-primary/40' : 'border-border hover:border-primary/40 bg-background/50',
                 )}
               >
                 <PresetThumbnail presetId={id} />
-                <span className="block font-semibold text-xs text-foreground">
-                  {t(`settings.theme.preset.${id}.name`)}
-                </span>
+                <span className="block font-semibold text-xs text-foreground">{t(`settings.theme.preset.${id}.name`)}</span>
                 <span className="mt-1 block text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
                   {t(`settings.theme.preset.${id}.description`)}
                 </span>
@@ -256,28 +206,17 @@ export function ThemePresetsAndExchange({
           <div className="flex items-center gap-2">
             <FileJson className="size-4 text-primary" />
             <span>{t('settings.theme.exchange')}</span>
-            <span className="font-normal text-muted-foreground">
-              — Export or import theme JSON templates
-            </span>
+            <span className="font-normal text-muted-foreground">— Export or import theme JSON templates</span>
           </div>
-          <ChevronDown
-            className={cn(
-              'size-4 text-muted-foreground transition-transform duration-200',
-              exchangeOpen && 'rotate-180',
-            )}
-          />
+          <ChevronDown className={cn('size-4 text-muted-foreground transition-transform duration-200', exchangeOpen && 'rotate-180')} />
         </button>
 
         {exchangeOpen && (
           <div className="border-t border-border/70 p-4 space-y-4 bg-muted/10">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-card p-3">
-                <h4 className="font-semibold text-xs text-foreground">
-                  {t('settings.theme.exportTitle')}
-                </h4>
-                <p className="mt-1 text-[11.5px] text-muted-foreground">
-                  {t('settings.theme.exportHint')}
-                </p>
+                <h4 className="font-semibold text-xs text-foreground">{t('settings.theme.exportTitle')}</h4>
+                <p className="mt-1 text-[11.5px] text-muted-foreground">{t('settings.theme.exportHint')}</p>
                 <Button
                   size="sm"
                   variant="outline"
@@ -292,26 +231,10 @@ export function ThemePresetsAndExchange({
               </div>
 
               <div className="rounded-lg border border-border bg-card p-3">
-                <h4 className="font-semibold text-xs text-foreground">
-                  {t('settings.theme.importTitle')}
-                </h4>
-                <p className="mt-1 text-[11.5px] text-muted-foreground">
-                  {t('settings.theme.importHint')}
-                </p>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="application/json,.json"
-                  className="sr-only"
-                  onChange={handleFile}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3 cursor-pointer"
-                  onClick={() => fileInput.current?.click()}
-                  type="button"
-                >
+                <h4 className="font-semibold text-xs text-foreground">{t('settings.theme.importTitle')}</h4>
+                <p className="mt-1 text-[11.5px] text-muted-foreground">{t('settings.theme.importHint')}</p>
+                <input ref={fileInput} type="file" accept="application/json,.json" className="sr-only" onChange={handleFile} />
+                <Button size="sm" variant="outline" className="mt-3 cursor-pointer" onClick={() => fileInput.current?.click()} type="button">
                   <Upload className="size-3.5" />
                   <span>{t('settings.theme.chooseFile')}</span>
                 </Button>
@@ -336,9 +259,7 @@ export function ThemePresetsAndExchange({
                   onClick={() => setImportMode('merge')}
                   className={cn(
                     'px-2 py-0.5 rounded cursor-pointer transition-colors',
-                    importMode === 'merge'
-                      ? 'bg-primary text-primary-foreground font-semibold'
-                      : 'text-muted-foreground hover:text-foreground',
+                    importMode === 'merge' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {t('settings.theme.merge')}
@@ -348,9 +269,7 @@ export function ThemePresetsAndExchange({
                   onClick={() => setImportMode('replace')}
                   className={cn(
                     'px-2 py-0.5 rounded cursor-pointer transition-colors',
-                    importMode === 'replace'
-                      ? 'bg-primary text-primary-foreground font-semibold'
-                      : 'text-muted-foreground hover:text-foreground',
+                    importMode === 'replace' ? 'bg-primary text-primary-foreground font-semibold' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {t('settings.theme.replace')}
@@ -368,12 +287,7 @@ export function ThemePresetsAndExchange({
               </Button>
 
               {importPreview && (
-                <Button
-                  size="sm"
-                  disabled={importProjectTheme.isPending}
-                  onClick={applyImport}
-                  type="button"
-                >
+                <Button size="sm" disabled={importProjectTheme.isPending} onClick={applyImport} type="button">
                   {t('settings.theme.applyImport')}
                 </Button>
               )}

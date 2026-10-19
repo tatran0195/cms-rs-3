@@ -1,5 +1,4 @@
 import { Button } from '@cms/design-system/components/ui/button';
-import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Project } from '@cms/sdk';
 import { useUpdateProjectConfig } from '@cms/sdk/react';
@@ -12,23 +11,13 @@ import {
   type ThemePresetId,
   themeContrastIssues,
 } from '@cms/shared/themes';
-import {
-  DocumentationStudioPreviewLayout,
-  DocumentationThemeProvider,
-  projectThemeStyle,
-  projectThemeVariables,
-} from '@cms/site';
+import { DocumentationStudioPreviewLayout, DocumentationThemeProvider, projectThemeStyle, projectThemeVariables } from '@cms/site';
 import type { ProjectConfig } from '@cms/validators';
 import { LayoutTemplate, RotateCcw, Undo2 } from 'lucide-react';
-import { type CSSProperties, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SaveBar, SectionHeader } from './shared';
-import {
-  DEFAULT_FUMADOCS_LAYOUT_OPTIONS,
-  type FumadocsLayoutOptions,
-  ThemeFumadocsStory,
-  ThemePresetsAndExchange,
-} from './theme';
+import { DEFAULT_FUMADOCS_LAYOUT_OPTIONS, type FumadocsLayoutOptions, ThemeFumadocsStory, ThemePresetsAndExchange } from './theme';
 
 type Appearance = 'light' | 'dark' | 'system';
 type PreviewMode = 'light' | 'dark';
@@ -74,15 +63,7 @@ const initialDraft = (project: Project): ThemeDraft => {
   };
 };
 
-export function ThemePreview({
-  config,
-  mode,
-  rtl,
-}: {
-  config: ProjectConfig;
-  mode: PreviewMode;
-  rtl?: boolean;
-}) {
+export function ThemePreview({ config, mode, rtl }: { config: ProjectConfig; mode: PreviewMode; rtl?: boolean }) {
   const theme = resolveTheme(config as ThemeOwnedProjectConfig);
   return (
     <DocumentationThemeProvider
@@ -100,9 +81,7 @@ export function ThemePreview({
         header={
           <div className="border-border border-b bg-card" data-theme-region="header-shell">
             <div className="flex items-center gap-2 px-3 py-2.5" data-theme-region="header">
-              <span className="grid size-6 place-items-center rounded-md bg-primary font-semibold text-primary-foreground">
-                N
-              </span>
+              <span className="grid size-6 place-items-center rounded-md bg-primary font-semibold text-primary-foreground">N</span>
               <span className="font-semibold">Product Docs</span>
             </div>
           </div>
@@ -110,10 +89,7 @@ export function ThemePreview({
         navigation={
           <nav aria-label="Documentation navigation">
             <p className="mb-2 px-2 font-semibold">Start</p>
-            <button
-              className="mb-1 block w-full rounded-md bg-primary/10 px-2 py-1.5 text-start font-medium text-primary"
-              type="button"
-            >
+            <button className="mb-1 block w-full rounded-md bg-primary/10 px-2 py-1.5 text-start font-medium text-primary" type="button">
               Overview
             </button>
           </nav>
@@ -121,9 +97,7 @@ export function ThemePreview({
         content={
           <article className="min-w-0 p-5" data-theme-region="article" id="preview-content">
             <h3 className="font-semibold text-xl">Theme Preview</h3>
-            <p className="mt-2 text-muted-foreground leading-relaxed">
-              Live documentation preview rendered with current project variables.
-            </p>
+            <p className="mt-2 text-muted-foreground leading-relaxed">Live documentation preview rendered with current project variables.</p>
           </article>
         }
       />
@@ -137,9 +111,7 @@ export function ThemeSection({ project }: { project: Project }) {
   const saved = useMemo(() => initialDraft(project), [project]);
   const [draft, setDraft] = useState<ThemeDraft>(saved);
   const [history, setHistory] = useState<ThemeDraft[]>([]);
-  const [layoutOptions, setLayoutOptions] = useState<FumadocsLayoutOptions>(
-    DEFAULT_FUMADOCS_LAYOUT_OPTIONS,
-  );
+  const [layoutOptions, setLayoutOptions] = useState<FumadocsLayoutOptions>(DEFAULT_FUMADOCS_LAYOUT_OPTIONS);
 
   const change = (next: ThemeDraft | ((current: ThemeDraft) => ThemeDraft)) => {
     setHistory((items) => [...items.slice(-19), draft]);
@@ -185,10 +157,7 @@ export function ThemeSection({ project }: { project: Project }) {
 
   return (
     <form onSubmit={save} className="space-y-6">
-      <SectionHeader
-        icon={<LayoutTemplate className="size-4" />}
-        title={t('settings.theme.title')}
-      />
+      <SectionHeader icon={<LayoutTemplate className="size-4" />} title={t('settings.theme.title')} />
 
       {/* Draft Hint Banner */}
       <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm">
@@ -230,10 +199,7 @@ export function ThemeSection({ project }: { project: Project }) {
 
       {/* Contrast Warning if any */}
       {contrastIssues.length > 0 && (
-        <div
-          className="rounded-lg border border-destructive/35 bg-destructive/8 p-3 text-destructive text-xs"
-          role="alert"
-        >
+        <div className="rounded-lg border border-destructive/35 bg-destructive/8 p-3 text-destructive text-xs" role="alert">
           <strong>{t('settings.theme.contrastTitle')}</strong>
           <ul className="mt-1 list-disc ps-5">
             {contrastIssues.map((issue) => (
@@ -247,10 +213,7 @@ export function ThemeSection({ project }: { project: Project }) {
 
       {/* Action Toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-border border-y py-4">
-        <Button
-          disabled={!hasChanges || updateConfig.isPending || contrastIssues.length > 0}
-          type="submit"
-        >
+        <Button disabled={!hasChanges || updateConfig.isPending || contrastIssues.length > 0} type="submit">
           {updateConfig.isPending ? t('common.saving') : t('common.save')}
         </Button>
         <Button
@@ -305,9 +268,7 @@ export function ThemeSection({ project }: { project: Project }) {
               ...fullPresetTheme(presetId),
               layout: {
                 ...fullPresetTheme(presetId).layout,
-                ...(curr.theme.layout?.docsLayout
-                  ? { docsLayout: curr.theme.layout.docsLayout }
-                  : {}),
+                ...(curr.theme.layout?.docsLayout ? { docsLayout: curr.theme.layout.docsLayout } : {}),
               },
             },
             appearance: curr.appearance,
@@ -322,10 +283,7 @@ export function ThemeSection({ project }: { project: Project }) {
         }}
       />
 
-      <SaveBar
-        disabled={!hasChanges || contrastIssues.length > 0}
-        isSubmitting={updateConfig.isPending}
-      />
+      <SaveBar disabled={!hasChanges || contrastIssues.length > 0} isSubmitting={updateConfig.isPending} />
     </form>
   );
 }
