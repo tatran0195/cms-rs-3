@@ -29,6 +29,7 @@ import { type ChangeEvent, type CSSProperties, useId, useMemo, useRef, useState 
 import { toast } from 'sonner';
 import { Field, SaveBar, SectionHeader, Segmented } from './shared';
 import { DocsLayoutPicker } from './docs-layout-picker';
+import { DocsLayoutSandbox } from './docs-layout-sandbox';
 
 type Appearance = 'light' | 'dark' | 'system';
 type PreviewMode = 'light' | 'dark';
@@ -319,6 +320,7 @@ export function ThemeSection({ project }: { project: Project }) {
   const [importTemplate, setImportTemplate] = useState<unknown>();
   const [importPreview, setImportPreview] = useState<ProjectThemeImportResult>();
   const fileInput = useRef<HTMLInputElement>(null);
+  const [docsLayoutViewMode, setDocsLayoutViewMode] = useState<'cards' | 'sandbox'>('cards');
 
   const change = (next: ThemeDraft | ((current: ThemeDraft) => ThemeDraft)) => {
     setHistory((items) => [...items.slice(-19), draft]);
@@ -498,21 +500,55 @@ export function ThemeSection({ project }: { project: Project }) {
       </Field>
 
       <Field hint={t('settings.theme.docsLayoutHint')} label={t('settings.theme.docsLayout')}>
-        <DocsLayoutPicker
-          onChange={(docsLayout) =>
-            change((current) => ({
-              ...current,
-              theme: {
-                ...current.theme,
-                layout: {
-                  ...(current.theme.layout ?? {}),
-                  docsLayout,
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className="text-muted-foreground text-xs">
+            {docsLayoutViewMode === 'sandbox'
+              ? 'Interactive live macOS sandbox matching Fumadocs layout story'
+              : 'Choose a structural layout architecture'}
+          </span>
+          <Segmented
+            className="w-auto"
+            onChange={(mode) => setDocsLayoutViewMode(mode as 'cards' | 'sandbox')}
+            options={[
+              { value: 'cards', label: 'Cards' },
+              { value: 'sandbox', label: 'Interactive Sandbox' },
+            ]}
+            value={docsLayoutViewMode}
+          />
+        </div>
+        {docsLayoutViewMode === 'cards' ? (
+          <DocsLayoutPicker
+            onChange={(docsLayout) =>
+              change((current) => ({
+                ...current,
+                theme: {
+                  ...current.theme,
+                  layout: {
+                    ...(current.theme.layout ?? {}),
+                    docsLayout,
+                  },
                 },
-              },
-            }))
-          }
-          value={resolved.layout.docsLayout}
-        />
+              }))
+            }
+            value={resolved.layout.docsLayout}
+          />
+        ) : (
+          <DocsLayoutSandbox
+            currentLayout={resolved.layout.docsLayout}
+            onSelectLayout={(docsLayout) =>
+              change((current) => ({
+                ...current,
+                theme: {
+                  ...current.theme,
+                  layout: {
+                    ...(current.theme.layout ?? {}),
+                    docsLayout,
+                  },
+                },
+              }))
+            }
+          />
+        )}
       </Field>
 
       <Field hint={t('settings.theme.appearanceHint')} label={t('settings.theme.appearance')}>

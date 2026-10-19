@@ -18,6 +18,8 @@ export default defineConfig({
     alias: {
       '@/hooks': fileURLToPath(new URL('./src/shared/hooks', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@cms/site/layouts': fileURLToPath(new URL('../../packages/site/src/layouts/index.ts', import.meta.url)),
+      '@cms/site': fileURLToPath(new URL('../../packages/site/src/index.ts', import.meta.url)),
     },
   },
 });

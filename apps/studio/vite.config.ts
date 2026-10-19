@@ -51,6 +51,7 @@ export default defineConfig(({ mode }) => {
         '@cms/sdk/types': fileURLToPath(new URL('../../packages/sdk/src/types/index.ts', import.meta.url)),
         '@cms/sdk/errors': fileURLToPath(new URL('../../packages/sdk/src/errors.ts', import.meta.url)),
         '@cms/sdk': fileURLToPath(new URL('../../packages/sdk/src/index.ts', import.meta.url)),
+        '@cms/site/layouts': fileURLToPath(new URL('../../packages/site/src/layouts/index.ts', import.meta.url)),
         '@cms/site': fileURLToPath(new URL('../../packages/site/src/index.ts', import.meta.url)),
       },
     },
