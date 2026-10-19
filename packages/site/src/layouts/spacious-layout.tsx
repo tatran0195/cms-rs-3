@@ -1,6 +1,97 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
-import type { DocsLayoutTemplate } from './types';
+import { SidebarToggle } from '../components/sidebar-toggle';
+import { useSidebar } from '../context/sidebar-context';
+import type { DocsLayoutSlots, DocsLayoutTemplate } from './types';
+
+function SpaciousReaderShell(slots: DocsLayoutSlots) {
+  const hasGranular = Boolean(slots.brand);
+  const { collapsed, collapsible } = useSidebar();
+
+  return (
+    <div
+      id="fd-spacious-layout"
+      data-documentation-layout="spacious"
+      className="relative grid min-h-screen bg-card/40 dark:bg-card/20 md:h-screen md:overflow-clip [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-page-width:760px] [--fd-toc-width:240px] print:h-auto print:overflow-visible"
+      style={{
+        gridTemplate: `"sidebar header right" auto
+"sidebar toc-popover right" var(--fd-toc-popover-height, 0px)
+"sidebar main right" 1fr / minmax(0, ${collapsed ? '0px' : '268px'}) minmax(0, 1fr) auto`,
+      }}
+    >
+      {slots.banner}
+
+      {/* Mobile Header (md:hidden) */}
+      <div className={cn('[grid-area:header]', hasGranular && 'md:hidden')}>{slots.header}</div>
+
+      {/* Left Minimalist Sidebar: border-e-0 per Fumadocs Spacious */}
+      <aside
+        id="nd-sidebar"
+        data-collapsed={collapsed ? 'true' : 'false'}
+        className={cn(
+          'sticky top-0 hidden h-full shrink-0 flex-col border-e-0 bg-transparent md:flex [grid-area:sidebar] transition-all duration-200',
+          collapsed ? 'w-0 p-0 overflow-hidden opacity-0 pointer-events-none' : 'w-[268px] p-4',
+        )}
+        data-theme-region="sidebar"
+      >
+        {hasGranular ? (
+          <>
+            <div className="flex items-center justify-between pb-3">
+              {slots.brand}
+              {collapsible && <SidebarToggle />}
+            </div>
+            {slots.searchFull && <div className="pt-2 pb-1">{slots.searchFull}</div>}
+            {slots.navTabs && <div className="py-2">{slots.navTabs}</div>}
+            <ScrollArea className="flex-1 py-2">
+              <div data-theme-region="sidebar-content">
+                {slots.navAnchors}
+                {slots.sidebarTree ?? slots.navigation}
+              </div>
+            </ScrollArea>
+            {slots.tools && (
+              <div className="mt-auto border-t border-border/40 pt-3">
+                <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                  {slots.tools}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <ScrollArea className="h-full">
+            <div data-theme-region="sidebar-content">{slots.navigation}</div>
+          </ScrollArea>
+        )}
+      </aside>
+
+      {/* Elevated Crisp Inset Card Panel (#nd-page-panel) with internal scrolling on desktop */}
+      <div
+        id="nd-page-panel"
+        className="relative flex flex-col min-w-0 min-h-0 [grid-area:main] mx-2 my-2 bg-background md:ms-0 md:rounded-2xl md:border md:border-border/80 md:shadow-xs md:overflow-clip print:overflow-visible"
+        data-theme-region="spacious-panel"
+      >
+        {/* Top Panel Header fade bar */}
+        <header className="absolute inset-x-0 top-0 z-10 hidden md:flex items-center justify-between h-(--fd-header-height) ps-6 pe-4 bg-gradient-to-b from-background via-background/90 to-transparent pointer-events-none *:pointer-events-auto border-b border-border/30">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {collapsed && <SidebarToggle />}
+            <span className="font-medium text-foreground/85">Documentation</span>
+          </div>
+          <div className="flex items-center gap-2">{slots.tools}</div>
+        </header>
+
+        {/* Internal Scroll Container for Desktop Viewport */}
+        <div
+          data-spacious-scroll-container="true"
+          className="flex flex-1 items-start px-4 md:min-h-0 md:pt-14 md:px-8 md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
+        >
+          <div className="min-w-0 flex-1">{slots.content}</div>
+        </div>
+      </div>
+
+      {slots.footer}
+      {slots.overlays}
+    </div>
+  );
+}
 
 /**
  * Spacious Layout (`spacious`)
@@ -15,85 +106,7 @@ import type { DocsLayoutTemplate } from './types';
  */
 export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
   id: 'spacious',
-  ReaderLayout: (slots) => {
-    const hasGranular = Boolean(slots.brand);
-
-    return (
-      <div
-        id="fd-spacious-layout"
-        data-documentation-layout="spacious"
-        className="relative grid min-h-screen bg-card/40 dark:bg-card/20 md:h-screen md:overflow-clip [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-page-width:760px] [--fd-toc-width:240px] print:h-auto print:overflow-visible"
-        style={{
-          gridTemplate: `"sidebar header right" auto
-"sidebar toc-popover right" var(--fd-toc-popover-height, 0px)
-"sidebar main right" 1fr / minmax(0, 268px) minmax(0, 1fr) auto`,
-        }}
-      >
-        {slots.banner}
-
-        {/* Mobile Header (md:hidden) */}
-        <div className={cn('[grid-area:header]', hasGranular && 'md:hidden')}>{slots.header}</div>
-
-        {/* Left Minimalist Sidebar: border-e-0 per Fumadocs Spacious */}
-        <aside
-          id="nd-sidebar"
-          className="sticky top-0 hidden h-full w-[268px] shrink-0 flex-col border-e-0 bg-transparent p-4 md:flex [grid-area:sidebar]"
-          data-theme-region="sidebar"
-        >
-          {hasGranular ? (
-            <>
-              <div className="flex items-center justify-between pb-3">{slots.brand}</div>
-              {slots.searchFull && <div className="pt-2 pb-1">{slots.searchFull}</div>}
-              {slots.navTabs && <div className="py-2">{slots.navTabs}</div>}
-              <ScrollArea className="flex-1 py-2">
-                <div data-theme-region="sidebar-content">
-                  {slots.navAnchors}
-                  {slots.sidebarTree ?? slots.navigation}
-                </div>
-              </ScrollArea>
-              {slots.tools && (
-                <div className="mt-auto border-t border-border/40 pt-3">
-                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
-                    {slots.tools}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <ScrollArea className="h-full">
-              <div data-theme-region="sidebar-content">{slots.navigation}</div>
-            </ScrollArea>
-          )}
-        </aside>
-
-        {/* Elevated Crisp Inset Card Panel (#nd-page-panel) with internal scrolling on desktop */}
-        <div
-          id="nd-page-panel"
-          className="relative flex flex-col min-w-0 min-h-0 [grid-area:main] mx-2 my-2 bg-background md:ms-0 md:rounded-2xl md:border md:border-border/80 md:shadow-xs md:overflow-clip print:overflow-visible"
-          data-theme-region="spacious-panel"
-        >
-          {/* Top Panel Header fade bar */}
-          <header className="absolute inset-x-0 top-0 z-10 hidden md:flex items-center justify-between h-(--fd-header-height) ps-6 pe-4 bg-gradient-to-b from-background via-background/90 to-transparent pointer-events-none *:pointer-events-auto border-b border-border/30">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground/85">Documentation</span>
-            </div>
-            <div className="flex items-center gap-2">{slots.tools}</div>
-          </header>
-
-          {/* Internal Scroll Container for Desktop Viewport */}
-          <div
-            data-spacious-scroll-container="true"
-            className="flex flex-1 items-start px-4 md:min-h-0 md:pt-14 md:px-8 md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
-          >
-            <div className="min-w-0 flex-1">{slots.content}</div>
-          </div>
-        </div>
-
-        {slots.footer}
-        {slots.overlays}
-      </div>
-    );
-  },
+  ReaderLayout: (slots) => <SpaciousReaderShell {...slots} />,
 
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content }) => (
     <>

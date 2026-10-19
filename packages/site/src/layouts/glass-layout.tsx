@@ -1,6 +1,88 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
-import type { DocsLayoutTemplate } from './types';
+import { SidebarToggle } from '../components/sidebar-toggle';
+import { useSidebar } from '../context/sidebar-context';
+import type { DocsLayoutSlots, DocsLayoutTemplate } from './types';
+
+function GlassReaderShell(slots: DocsLayoutSlots) {
+  const hasGranular = Boolean(slots.brand);
+  const { collapsed, collapsible } = useSidebar();
+
+  return (
+    <div id="fd-glass-layout" data-documentation-layout="glass" className="flex min-h-screen flex-col bg-background relative">
+      {slots.banner}
+
+      {/* Mobile Header (md:hidden) */}
+      <div className={cn(hasGranular && 'md:hidden')}>{slots.header}</div>
+
+      {/* Floating Pill Controls Header on Desktop */}
+      {hasGranular && (
+        <header className="sticky top-0 z-20 hidden h-14 items-center justify-between gap-2 bg-gradient-to-b from-background px-6 pt-3 pointer-events-none *:pointer-events-auto md:flex">
+          <div>
+            {collapsed && (
+              <div className="rounded-full border border-border/70 bg-card/75 p-1 shadow-xs backdrop-blur-md">
+                <SidebarToggle />
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {slots.searchFull && (
+              <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.searchFull}</div>
+            )}
+            {slots.tools && <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.tools}</div>}
+          </div>
+        </header>
+      )}
+
+      <div className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 pt-2 pb-12 sm:px-6 lg:gap-8" data-theme-region="content-shell">
+        {/* Translucent Floating Card Sidebar */}
+        <aside
+          id="nd-sidebar"
+          data-collapsed={collapsed ? 'true' : 'false'}
+          className={cn(
+            'glass-sidebar sticky top-4 hidden h-[calc(100dvh-2rem)] shrink-0 flex-col rounded-2xl border border-border/70 bg-card/65 shadow-sm backdrop-blur-md md:flex transition-all duration-200',
+            collapsed ? 'w-0 p-0 m-0 border-none overflow-hidden opacity-0 pointer-events-none' : 'w-68 p-3.5',
+          )}
+          data-theme-region="sidebar"
+        >
+          {hasGranular ? (
+            <>
+              <div className="flex items-center justify-between px-2 pt-1 pb-3 border-b border-border/50">
+                {slots.brand}
+                {collapsible && <SidebarToggle />}
+              </div>
+              {slots.navTabs && <div className="px-1 py-2 border-b border-border/40">{slots.navTabs}</div>}
+              <ScrollArea className="flex-1 py-2">
+                <div className="pe-2" data-theme-region="sidebar-content">
+                  {slots.navAnchors}
+                  {slots.sidebarTree ?? slots.navigation}
+                </div>
+              </ScrollArea>
+              {slots.tools && (
+                <div className="mt-auto border-t border-border/50 pt-2 px-1">
+                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                    {slots.tools}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <ScrollArea className="h-full">
+              <div className="pe-2" data-theme-region="sidebar-content">
+                {slots.navigation}
+              </div>
+            </ScrollArea>
+          )}
+        </aside>
+
+        <div className="min-w-0 flex-1">{slots.content}</div>
+      </div>
+
+      {slots.footer}
+      {slots.overlays}
+    </div>
+  );
+}
 
 /**
  * Glass Layout (`glass`)
@@ -12,68 +94,7 @@ import type { DocsLayoutTemplate } from './types';
  */
 export const GlassLayoutTemplate: DocsLayoutTemplate = {
   id: 'glass',
-  ReaderLayout: (slots) => {
-    const hasGranular = Boolean(slots.brand);
-
-    return (
-      <div id="fd-glass-layout" data-documentation-layout="glass" className="flex min-h-screen flex-col bg-background relative">
-        {slots.banner}
-
-        {/* Mobile Header (md:hidden) */}
-        <div className={cn(hasGranular && 'md:hidden')}>{slots.header}</div>
-
-        {/* Floating Pill Controls Header on Desktop */}
-        {hasGranular && (
-          <header className="sticky top-0 z-20 hidden h-14 items-center justify-end gap-2 bg-gradient-to-b from-background px-6 pt-3 pointer-events-none *:pointer-events-auto md:flex">
-            {slots.searchFull && (
-              <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.searchFull}</div>
-            )}
-            {slots.tools && <div className="rounded-full border border-border/70 bg-card/75 px-3 py-1 shadow-xs backdrop-blur-md">{slots.tools}</div>}
-          </header>
-        )}
-
-        <div className="mx-auto flex w-full max-w-[96rem] flex-1 px-4 pt-2 pb-12 sm:px-6 lg:gap-8" data-theme-region="content-shell">
-          {/* Translucent Floating Card Sidebar */}
-          <aside
-            id="nd-sidebar"
-            className="glass-sidebar sticky top-4 hidden h-[calc(100dvh-2rem)] w-68 shrink-0 flex-col rounded-2xl border border-border/70 bg-card/65 p-3.5 shadow-sm backdrop-blur-md md:flex"
-            data-theme-region="sidebar"
-          >
-            {hasGranular ? (
-              <>
-                <div className="flex items-center justify-between px-2 pt-1 pb-3 border-b border-border/50">{slots.brand}</div>
-                {slots.navTabs && <div className="px-1 py-2 border-b border-border/40">{slots.navTabs}</div>}
-                <ScrollArea className="flex-1 py-2">
-                  <div className="pe-2" data-theme-region="sidebar-content">
-                    {slots.navAnchors}
-                    {slots.sidebarTree ?? slots.navigation}
-                  </div>
-                </ScrollArea>
-                {slots.tools && (
-                  <div className="mt-auto border-t border-border/50 pt-2 px-1">
-                    <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
-                      {slots.tools}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <ScrollArea className="h-full">
-                <div className="pe-2" data-theme-region="sidebar-content">
-                  {slots.navigation}
-                </div>
-              </ScrollArea>
-            )}
-          </aside>
-
-          <div className="min-w-0 flex-1">{slots.content}</div>
-        </div>
-
-        {slots.footer}
-        {slots.overlays}
-      </div>
-    );
-  },
+  ReaderLayout: (slots) => <GlassReaderShell {...slots} />,
 
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content, brand, tools }) => (
     <>

@@ -17,6 +17,7 @@ import { SiteSearch } from '../components/site-search';
 import { ThemeSwitcher } from '../components/theme-switcher';
 import { VersionSwitcher } from '../components/version-switcher';
 import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
+import { SidebarProvider } from '../context/sidebar-context';
 import { useIsScrollTop } from '../hooks/use-is-scroll-top';
 import { useSearchShortcutLabel } from '../lib/shortcut';
 import { publishedSiteLogo } from '../lib/site-branding';
@@ -505,80 +506,82 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
 
   return (
     <SiteAnalyticsProvider projectId={projectId} path={effectiveCurrentPath} language={activeLanguage?.code} config={config}>
-      <DocumentationThemeProvider
-        appearance={siteTheme}
-        className="flex min-h-screen flex-col bg-background [&_code]:[direction:ltr] [&_pre]:[direction:ltr]"
-        context="reader"
-        css={themeCss}
-        direction={isRtl ? 'rtl' : 'ltr'}
-        style={chromeStyle}
-        theme={resolvedTheme}
-      >
-        <DocumentationReaderLayout
-          banner={<SiteBanner projectId={projectId} banner={config?.banner} lang={activeLanguage?.code} />}
-          header={headerNode}
-          navigation={
-            <>
-              {navAnchorsNode}
-              {sidebarTreeNode}
-            </>
-          }
-          content={
-            <main className="min-w-0">
-              <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
-            </main>
-          }
-          brand={brandNode}
-          searchFull={searchFullNode}
-          searchButton={searchButtonNode}
-          tools={toolsNode}
-          navLinks={navLinksNode}
-          navTabs={navTabsNode}
-          navAnchors={navAnchorsNode}
-          sidebarTree={sidebarTreeNode}
-          mobileNav={mobileNavNode}
-          footer={
-            hasFooterContent || showBadge ? (
-              <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
-                <div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
-                  <div>{footer?.copyright || `© ${new Date().getFullYear()} ${siteName ?? 'Documentation'}`}</div>
-                  <div className="flex items-center gap-3">
-                    {footer?.github && (
-                      <a href={footer.github} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-                        <GithubIcon className="size-4" />
-                      </a>
-                    )}
-                    {footer?.x && (
-                      <a href={footer.x} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-                        <XIcon className="size-4" />
-                      </a>
-                    )}
-                    {footer?.linkedin && (
-                      <a href={footer.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-                        <LinkedinIcon className="size-4" />
-                      </a>
-                    )}
-                    {showBadge && <MadeWithBadge />}
+      <SidebarProvider collapsible={resolvedTheme.layout.sidebarCollapsible !== false}>
+        <DocumentationThemeProvider
+          appearance={siteTheme}
+          className="flex min-h-screen flex-col bg-background [&_code]:[direction:ltr] [&_pre]:[direction:ltr]"
+          context="reader"
+          css={themeCss}
+          direction={isRtl ? 'rtl' : 'ltr'}
+          style={chromeStyle}
+          theme={resolvedTheme}
+        >
+          <DocumentationReaderLayout
+            banner={<SiteBanner projectId={projectId} banner={config?.banner} lang={activeLanguage?.code} />}
+            header={headerNode}
+            navigation={
+              <>
+                {navAnchorsNode}
+                {sidebarTreeNode}
+              </>
+            }
+            content={
+              <main className="min-w-0">
+                <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
+              </main>
+            }
+            brand={brandNode}
+            searchFull={searchFullNode}
+            searchButton={searchButtonNode}
+            tools={toolsNode}
+            navLinks={navLinksNode}
+            navTabs={navTabsNode}
+            navAnchors={navAnchorsNode}
+            sidebarTree={sidebarTreeNode}
+            mobileNav={mobileNavNode}
+            footer={
+              hasFooterContent || showBadge ? (
+                <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
+                  <div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
+                    <div>{footer?.copyright || `© ${new Date().getFullYear()} ${siteName ?? 'Documentation'}`}</div>
+                    <div className="flex items-center gap-3">
+                      {footer?.github && (
+                        <a href={footer.github} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                          <GithubIcon className="size-4" />
+                        </a>
+                      )}
+                      {footer?.x && (
+                        <a href={footer.x} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                          <XIcon className="size-4" />
+                        </a>
+                      )}
+                      {footer?.linkedin && (
+                        <a href={footer.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                          <LinkedinIcon className="size-4" />
+                        </a>
+                      )}
+                      {showBadge && <MadeWithBadge />}
+                    </div>
                   </div>
-                </div>
-              </footer>
-            ) : null
-          }
-          overlays={
-            showSearch && (
-              <SiteSearch
-                open={searchOpen}
-                onOpenChange={setSearchOpen}
-                projectId={projectId}
-                lang={navigationLanguage}
-                version={activeVersionPrefix}
-                hotkey={searchHotkey}
-                direction={isRtl ? 'rtl' : 'ltr'}
-              />
-            )
-          }
-        />
-      </DocumentationThemeProvider>
+                </footer>
+              ) : null
+            }
+            overlays={
+              showSearch && (
+                <SiteSearch
+                  open={searchOpen}
+                  onOpenChange={setSearchOpen}
+                  projectId={projectId}
+                  lang={navigationLanguage}
+                  version={activeVersionPrefix}
+                  hotkey={searchHotkey}
+                  direction={isRtl ? 'rtl' : 'ltr'}
+                />
+              )
+            }
+          />
+        </DocumentationThemeProvider>
+      </SidebarProvider>
     </SiteAnalyticsProvider>
   );
 }
