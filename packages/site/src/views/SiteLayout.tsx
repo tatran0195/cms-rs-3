@@ -2,7 +2,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import { THEME_STORAGE_KEY } from '@cms/design-system/theme';
 import { siteT } from '@cms/i18n/site';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ExternalLink, Link2, Moon, Search, Sun } from 'lucide-react';
+import { BookOpen, ExternalLink, Link2, Search } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { DocumentationReaderLayout, DocumentationThemeProvider } from '../components/documentation-theme-provider';
 import { LanguageSwitcher } from '../components/language-switcher';
@@ -16,8 +16,8 @@ import { SiteNavTabs } from '../components/site-nav-tabs';
 import { SiteSearch } from '../components/site-search';
 import { ThemeSwitcher } from '../components/theme-switcher';
 import { VersionSwitcher } from '../components/version-switcher';
-import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
 import { SidebarProvider } from '../context/sidebar-context';
+import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
 import { useIsScrollTop } from '../hooks/use-is-scroll-top';
 import { useSearchShortcutLabel } from '../lib/shortcut';
 import { publishedSiteLogo } from '../lib/site-branding';
@@ -130,16 +130,6 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     setSiteThemeHydratedFor(projectId);
   }, [projectId, configTheme]);
 
-  const toggleSiteTheme = () => {
-    const next = siteTheme === 'dark' ? 'light' : 'dark';
-    try {
-      window.localStorage.setItem(`cms.site.theme.${projectId}`, next);
-    } catch {
-      // ignore
-    }
-    setSiteTheme(next);
-  };
-
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
@@ -173,6 +163,11 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     link.href = faviconUrl;
   }, [faviconUrl]);
 
+  const resolvedTheme = resolveProjectTheme(config);
+  const headerTransparentMode = resolvedTheme.layout.headerTransparentMode ?? 'none';
+  const isTop = useIsScrollTop({ enabled: Boolean(site) && headerTransparentMode === 'top' }) ?? true;
+  const isHeaderTransparent = headerTransparentMode === 'top' ? isTop : headerTransparentMode === 'always';
+
   const pageAlternatesContext = useMemo(() => ({ alternates: pageAlternates, setAlternates: setPageAlternates }), [pageAlternates]);
 
   if (!site) {
@@ -186,11 +181,6 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       </div>
     );
   }
-
-  const resolvedTheme = resolveProjectTheme(config);
-  const headerTransparentMode = resolvedTheme.layout.headerTransparentMode ?? 'none';
-  const isTop = useIsScrollTop({ enabled: headerTransparentMode === 'top' }) ?? true;
-  const isHeaderTransparent = headerTransparentMode === 'top' ? isTop : headerTransparentMode === 'always';
   const showSearch = config?.navbar?.showSearch !== false;
   const searchHotkey = config?.search?.hotkey;
   const navLinks = config?.navbar?.links ?? [];
@@ -474,9 +464,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       ref={observeHeader}
       className={cn(
         'sticky top-0 z-30 transition-colors duration-200',
-        isHeaderTransparent
-          ? 'bg-transparent border-b border-transparent'
-          : 'border-border/70 border-b bg-background/80 backdrop-blur-md',
+        isHeaderTransparent ? 'bg-transparent border-b border-transparent' : 'border-border/70 border-b bg-background/80 backdrop-blur-md',
       )}
       data-theme-region="header-shell"
       data-header-transparent={isHeaderTransparent ? 'true' : 'false'}

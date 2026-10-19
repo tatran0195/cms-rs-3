@@ -36,14 +36,7 @@ describe('ThemeStoryWindow', () => {
 
   it('renders macOS window controls and URL pill', async () => {
     await act(async () => {
-      root.render(
-        <ThemeStoryWindow
-          layoutId="glass"
-          effectiveConfig={{}}
-          resolvedTheme={harbor}
-          appearance="light"
-        />,
-      );
+      root.render(<ThemeStoryWindow layoutId="glass" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />);
     });
 
     const closeDot = container.querySelector('[data-window-control="close"]');
@@ -77,9 +70,7 @@ describe('ThemeStoryWindow', () => {
 
   it('renders interactive component elements with data-theme-component attributes', async () => {
     await act(async () => {
-      root.render(
-        <ThemeStoryWindow layoutId="docs" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />,
-      );
+      root.render(<ThemeStoryWindow layoutId="docs" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />);
     });
 
     const cards = container.querySelectorAll('[data-theme-component="card"]');
@@ -104,9 +95,7 @@ describe('ThemeStoryWindow', () => {
 
   it('supports interactive sidebar navigation switching pages and updating preview content', async () => {
     await act(async () => {
-      root.render(
-        <ThemeStoryWindow layoutId="docs" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />,
-      );
+      root.render(<ThemeStoryWindow layoutId="docs" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />);
     });
 
     // Find Cards in the sidebar navigation
@@ -269,14 +258,12 @@ describe('ThemeStoryWindow', () => {
 
   it('renders flux layout with contained navigation panel inside preview viewport', async () => {
     await act(async () => {
-      root.render(
-        <ThemeStoryWindow layoutId="flux" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />,
-      );
+      root.render(<ThemeStoryWindow layoutId="flux" effectiveConfig={{}} resolvedTheme={harbor} appearance="light" />);
     });
 
     const fluxShell = container.querySelector('#nd-flux-layout');
     expect(fluxShell).not.toBeNull();
-    expect(fluxShell?.getAttribute('data-documentation-layout')).toBe('fumadocs-flux');
+    expect(fluxShell?.getAttribute('data-documentation-layout')).toBe('flux');
 
     const navPanel = container.querySelector('aside[data-flux-nav-panel="true"]');
     expect(navPanel).not.toBeNull();

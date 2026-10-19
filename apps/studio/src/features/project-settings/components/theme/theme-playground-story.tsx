@@ -127,28 +127,27 @@ export function ThemePlaygroundStory({
         {/* Left: Title & Docs Layout selector */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground tracking-tight">{t('settings.theme.previewTitle')}</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">
-              {layoutDisplayName}
-            </span>
+            <span className="font-semibold text-foreground tracking-tight">Preview Playground</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">{layoutDisplayName}</span>
           </div>
 
           <div className="h-4 w-px bg-border/70" />
 
           {/* Docs Layout Mode Picker */}
           <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">{t('settings.theme.layout.label')}:</span>
+            <span className="text-muted-foreground">Layout:</span>
             <Select
               value={activeLayout}
-              onValueChange={(val: DocsLayoutId) =>
+              onValueChange={(val) => {
+                if (!val) return;
                 onThemeConfigChange((prev) => ({
                   ...prev,
                   layout: {
                     ...(prev.layout ?? {}),
-                    docsLayout: val,
+                    docsLayout: val as DocsLayoutId,
                   },
-                }))
-              }
+                }));
+              }}
             >
               <SelectTrigger aria-label="Select Docs Layout" className="h-7 min-w-[6.5rem] border-border/80 bg-background text-xs shadow-none">
                 <SelectValue />

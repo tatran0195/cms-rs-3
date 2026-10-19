@@ -1,11 +1,16 @@
 import { useSyncExternalStore } from 'react';
 
 const subscribe = (onChange: () => void) => {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined')
+    return () => {
+      /* noop */
+    };
   window.addEventListener('scroll', onChange, { passive: true });
   return () => window.removeEventListener('scroll', onChange);
 };
-const noop = () => () => {};
+const noop = () => () => {
+  /* noop */
+};
 const getServerSnapshot = () => undefined;
 
 /**

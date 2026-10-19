@@ -33,9 +33,7 @@ describe('ThemeSwitcher', () => {
   it('renders 3 segmented buttons for light-dark-system', () => {
     const handleChange = vi.fn();
     act(() => {
-      root.render(
-        <ThemeSwitcher mode="light-dark-system" appearance="system" onChange={handleChange} />,
-      );
+      root.render(<ThemeSwitcher mode="light-dark-system" appearance="system" onChange={handleChange} />);
     });
 
     const segmented = container.querySelector('[data-theme-switcher="segmented-system"]');
@@ -45,12 +43,12 @@ describe('ThemeSwitcher', () => {
     expect(buttons.length).toBe(3);
 
     act(() => {
-      buttons[1].click(); // click light
+      buttons[1]?.click(); // click light
     });
     expect(handleChange).toHaveBeenCalledWith('light');
 
     act(() => {
-      buttons[2].click(); // click dark
+      buttons[2]?.click(); // click dark
     });
     expect(handleChange).toHaveBeenCalledWith('dark');
   });
@@ -68,7 +66,7 @@ describe('ThemeSwitcher', () => {
     expect(buttons.length).toBe(2);
 
     act(() => {
-      buttons[1].click(); // click dark
+      buttons[1]?.click(); // click dark
     });
     expect(handleChange).toHaveBeenCalledWith('dark');
   });

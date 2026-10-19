@@ -147,7 +147,10 @@ export function ThemePropsTable({
             <NavRow
               id="themeSwitch"
               name="themeSwitch"
-              summary={formatPropSummary({ enabled: resolvedLayout.themeSwitchEnabled ?? true, mode: resolvedLayout.themeSwitchMode ?? 'light-dark' })}
+              summary={formatPropSummary({
+                enabled: resolvedLayout.themeSwitchEnabled ?? true,
+                mode: resolvedLayout.themeSwitchMode ?? 'light-dark',
+              })}
               type="object"
               onNavigate={() => onNavigate(['themeSwitch'])}
             />
@@ -285,13 +288,7 @@ export function ThemePropsTable({
               options={['normal', 'clerk', 'block']}
               onChange={(v) => setLayoutPart('tocStyle', v as 'normal' | 'clerk' | 'block')}
             />
-            <NumberRow
-              name="tocDepth"
-              value={resolvedLayout.tocDepth ?? 3}
-              min={1}
-              max={6}
-              onChange={(v) => setLayoutPart('tocDepth', v)}
-            />
+            <NumberRow name="tocDepth" value={resolvedLayout.tocDepth ?? 3} min={1} max={6} onChange={(v) => setLayoutPart('tocDepth', v)} />
           </div>
         )}
 
@@ -406,11 +403,13 @@ function EnumRow({ name, value, options, onChange }: { name: string; value: stri
         <span className="truncate font-mono text-[0.8125rem] text-foreground font-medium">{name}</span>
       </div>
       <div className="flex min-h-9 items-center justify-between px-3 @sm:border-s @sm:border-border/60">
-        <Select value={value} onValueChange={onChange}>
-          <SelectTrigger
-            data-prop-name={name}
-            className="h-7 w-auto min-w-28 text-xs font-mono border-border/80 bg-background shadow-none"
-          >
+        <Select
+          value={value}
+          onValueChange={(val) => {
+            if (val) onChange(val);
+          }}
+        >
+          <SelectTrigger data-prop-name={name} className="h-7 w-auto min-w-28 text-xs font-mono border-border/80 bg-background shadow-none">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -427,7 +426,19 @@ function EnumRow({ name, value, options, onChange }: { name: string; value: stri
   );
 }
 
-function NumberRow({ name, value, min = 0, max = 10, onChange }: { name: string; value: number; min?: number; max?: number; onChange: (next: number) => void }) {
+function NumberRow({
+  name,
+  value,
+  min = 0,
+  max = 10,
+  onChange,
+}: {
+  name: string;
+  value: number;
+  min?: number;
+  max?: number;
+  onChange: (next: number) => void;
+}) {
   const inputId = useId();
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)]">

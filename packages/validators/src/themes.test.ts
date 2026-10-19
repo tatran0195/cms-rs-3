@@ -98,4 +98,3 @@ describe('theme template schema', () => {
     expect(invalid.success).toBe(false);
   });
 });
-

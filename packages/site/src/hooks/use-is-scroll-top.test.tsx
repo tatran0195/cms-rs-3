@@ -8,15 +8,7 @@ import { useIsScrollTop } from './use-is-scroll-top';
 // @ts-expect-error react act test env
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function TestComponent({
-  enabled,
-  threshold,
-  onValue,
-}: {
-  enabled?: boolean;
-  threshold?: number;
-  onValue: (v: boolean | undefined) => void;
-}) {
+function TestComponent({ enabled, threshold, onValue }: { enabled?: boolean; threshold?: number; onValue: (v: boolean | undefined) => void }) {
   const isTop = useIsScrollTop({ enabled, threshold });
   onValue(isTop);
   return <div data-is-top={String(isTop)} />;
@@ -41,7 +33,15 @@ describe('useIsScrollTop', () => {
     Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
     let val: boolean | undefined;
     act(() => {
-      root.render(<TestComponent enabled={true} threshold={10} onValue={(v) => (val = v)} />);
+      root.render(
+        <TestComponent
+          enabled={true}
+          threshold={10}
+          onValue={(v) => {
+            val = v;
+          }}
+        />,
+      );
     });
     expect(val).toBe(true);
   });
@@ -50,7 +50,15 @@ describe('useIsScrollTop', () => {
     Object.defineProperty(window, 'scrollY', { value: 50, writable: true });
     let val: boolean | undefined;
     act(() => {
-      root.render(<TestComponent enabled={true} threshold={10} onValue={(v) => (val = v)} />);
+      root.render(
+        <TestComponent
+          enabled={true}
+          threshold={10}
+          onValue={(v) => {
+            val = v;
+          }}
+        />,
+      );
     });
     expect(val).toBe(false);
   });
@@ -59,7 +67,15 @@ describe('useIsScrollTop', () => {
     Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
     let val: boolean | undefined;
     act(() => {
-      root.render(<TestComponent enabled={true} threshold={10} onValue={(v) => (val = v)} />);
+      root.render(
+        <TestComponent
+          enabled={true}
+          threshold={10}
+          onValue={(v) => {
+            val = v;
+          }}
+        />,
+      );
     });
     expect(val).toBe(true);
 
@@ -81,7 +97,14 @@ describe('useIsScrollTop', () => {
   it('returns undefined when disabled', () => {
     let val: boolean | undefined;
     act(() => {
-      root.render(<TestComponent enabled={false} onValue={(v) => (val = v)} />);
+      root.render(
+        <TestComponent
+          enabled={false}
+          onValue={(v) => {
+            val = v;
+          }}
+        />,
+      );
     });
     expect(val).toBeUndefined();
   });

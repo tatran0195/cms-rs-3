@@ -414,12 +414,7 @@ export const FluxLayoutTemplate: DocsLayoutTemplate = {
   ),
 
   StudioPreviewLayout: ({ content }) => (
-    <div
-      id="nd-flux-layout"
-      className="bg-background p-3 relative"
-      data-documentation-layout="flux-studio"
-      data-theme-region="preview-shell"
-    >
+    <div id="nd-flux-layout" className="bg-background p-3 relative" data-documentation-layout="flux-studio" data-theme-region="preview-shell">
       <div className="mx-auto max-w-[44rem] min-h-[20rem] overflow-hidden pb-12">
         <div className="min-w-0">{content}</div>
       </div>
@@ -434,11 +429,7 @@ export const FluxLayoutTemplate: DocsLayoutTemplate = {
   ),
 
   PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
-    <div
-      className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
-      data-documentation-layout="flux-page"
-      data-theme-region="page-shell"
-    >
+    <div className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center" data-documentation-layout="flux-page" data-theme-region="page-shell">
       <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pb-32">
         {breadcrumb && <div className="mb-2">{breadcrumb}</div>}
         {article}

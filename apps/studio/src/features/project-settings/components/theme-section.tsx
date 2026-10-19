@@ -243,7 +243,6 @@ export function ThemeSection({ project }: { project: Project }) {
               theme: fullPresetTheme(resolved.id),
               appearance: draft.appearance,
             });
-            setLayoutOptions(DEFAULT_FUMADOCS_LAYOUT_OPTIONS);
           }}
           type="button"
           variant="outline"

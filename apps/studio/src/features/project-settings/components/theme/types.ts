@@ -1,5 +1,3 @@
-import type { ThemeLayout } from '@cms/shared/themes';
-
 export type PropsTablePathCategory = 'layout' | 'header' | 'sidebar' | 'themeSwitch' | 'toc' | 'palette' | 'components';
 
 export type PropsTablePath = [] | [PropsTablePathCategory];

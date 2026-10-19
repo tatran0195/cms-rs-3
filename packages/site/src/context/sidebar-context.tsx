@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 export interface SidebarContextValue {
   collapsed: boolean;
@@ -9,24 +9,22 @@ export interface SidebarContextValue {
 
 const SidebarContext = createContext<SidebarContextValue>({
   collapsed: false,
-  setCollapsed: () => {},
-  toggleCollapsed: () => {},
+  setCollapsed: () => {
+    /* noop */
+  },
+  toggleCollapsed: () => {
+    /* noop */
+  },
   collapsible: true,
 });
 
-export function SidebarProvider({
-  collapsible = true,
-  children,
-}: {
-  collapsible?: boolean;
-  children: ReactNode;
-}) {
+export function SidebarProvider({ collapsible = true, children }: { collapsible?: boolean; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const toggleCollapsed = () => {
+  const toggleCollapsed = useCallback(() => {
     if (!collapsible) return;
     setCollapsed((prev) => !prev);
-  };
+  }, [collapsible]);
 
   // Keyboard shortcut: Ctrl+B or Cmd+B to toggle sidebar collapse
   useEffect(() => {
@@ -53,7 +51,7 @@ export function SidebarProvider({
       toggleCollapsed,
       collapsible,
     }),
-    [collapsed, collapsible],
+    [collapsed, collapsible, toggleCollapsed],
   );
 
   return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;

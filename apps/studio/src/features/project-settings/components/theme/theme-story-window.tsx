@@ -93,7 +93,10 @@ export function ThemeStoryWindow({
   const currentLayout = resolvedLayout ?? resolvedTheme.layout;
   const headerTransparentMode = currentLayout.headerTransparentMode ?? 'none';
   const isNavTransparent = headerTransparentMode === 'always';
-  const title = (effectiveConfig?.branding?.title as string) || (effectiveConfig?.navbar?.ctaLabel as string) || 'Product Docs';
+  const title =
+    ((effectiveConfig?.branding as Record<string, unknown> | undefined)?.title as string) ||
+    (effectiveConfig?.navbar?.ctaLabel as string) ||
+    'Product Docs';
   const searchEnabled = effectiveConfig?.navbar?.showSearch !== false;
   const themeSwitchEnabled = currentLayout.themeSwitchEnabled !== false;
   const themeSwitchMode = currentLayout.themeSwitchMode ?? 'light-dark';

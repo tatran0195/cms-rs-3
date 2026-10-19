@@ -8,11 +8,7 @@ import { SidebarProvider, useSidebar } from './sidebar-context';
 // @ts-expect-error react act test env
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function TestSidebarConsumer({
-  onState,
-}: {
-  onState: (state: ReturnType<typeof useSidebar>) => void;
-}) {
+function TestSidebarConsumer({ onState }: { onState: (state: ReturnType<typeof useSidebar>) => void }) {
   const state = useSidebar();
   onState(state);
   return (
@@ -44,7 +40,11 @@ describe('SidebarProvider', () => {
     act(() => {
       root.render(
         <SidebarProvider collapsible={true}>
-          <TestSidebarConsumer onState={() => {}} />
+          <TestSidebarConsumer
+            onState={() => {
+              /* noop */
+            }}
+          />
         </SidebarProvider>,
       );
     });
@@ -68,7 +68,11 @@ describe('SidebarProvider', () => {
     act(() => {
       root.render(
         <SidebarProvider collapsible={true}>
-          <TestSidebarConsumer onState={() => {}} />
+          <TestSidebarConsumer
+            onState={() => {
+              /* noop */
+            }}
+          />
         </SidebarProvider>,
       );
     });
@@ -91,7 +95,11 @@ describe('SidebarProvider', () => {
     act(() => {
       root.render(
         <SidebarProvider collapsible={false}>
-          <TestSidebarConsumer onState={() => {}} />
+          <TestSidebarConsumer
+            onState={() => {
+              /* noop */
+            }}
+          />
         </SidebarProvider>,
       );
     });
