@@ -271,11 +271,18 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
   );
 
   if (mode === 'center') {
-    return <div className="mx-auto min-w-0 max-w-[42rem] py-9 lg:py-12">{article}</div>;
-  }
-  if (!showToc) {
-    return <div className="min-w-0 py-9 lg:py-12">{article}</div>;
+    return (
+      <DocumentationPageLayout
+        article={<div className="mx-auto min-w-0 max-w-[42rem]">{article}</div>}
+        tableOfContents={null}
+      />
+    );
   }
 
-  return <DocumentationPageLayout article={article} tableOfContents={<TableOfContents headings={page.headings} label={tArticle('onThisPage')} />} />;
+  return (
+    <DocumentationPageLayout
+      article={article}
+      tableOfContents={showToc ? <TableOfContents headings={page.headings} label={tArticle('onThisPage')} /> : null}
+    />
+  );
 }
