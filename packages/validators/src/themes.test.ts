@@ -71,4 +71,31 @@ describe('theme template schema', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('validates headerTransparentMode, sidebarCollapsible, themeSwitchMode, and tocStyle', () => {
+    const valid = themeConfigSchema.safeParse({
+      preset: 'harbor',
+      layout: {
+        headerTransparentMode: 'top',
+        sidebarCollapsible: true,
+        sidebarDefaultOpenLevel: 1,
+        themeSwitchMode: 'light-dark-system',
+        themeSwitchEnabled: true,
+        tocStyle: 'clerk',
+        tocDepth: 3,
+      },
+    });
+    expect(valid.success).toBe(true);
+  });
+
+  it('rejects invalid layout enum values', () => {
+    const invalid = themeConfigSchema.safeParse({
+      preset: 'harbor',
+      layout: {
+        headerTransparentMode: 'invalid-mode',
+      },
+    });
+    expect(invalid.success).toBe(false);
+  });
 });
+

@@ -97,8 +97,15 @@ export interface ThemeLayout {
   radius: 'sharp' | 'rounded' | 'pill';
   contentWidth: 'focused' | 'balanced' | 'wide';
   header: 'inline' | 'stacked' | 'floating';
+  headerTransparentMode?: 'none' | 'top' | 'always';
   sidebar: 'bordered' | 'soft' | 'rail';
+  sidebarCollapsible?: boolean;
+  sidebarDefaultOpenLevel?: number;
   navigation: 'tree' | 'sectioned' | 'compact';
+  themeSwitchMode?: 'light-dark' | 'light-dark-system' | 'button' | 'dropdown';
+  themeSwitchEnabled?: boolean;
+  tocStyle?: 'normal' | 'clerk' | 'block';
+  tocDepth?: number;
 }
 
 export interface ThemeComponents {
@@ -440,6 +447,13 @@ export const resolveTheme = (config?: ThemeOwnedProjectConfig | null): ResolvedT
     colors: { light, dark },
     layout: {
       ...preset.layout,
+      headerTransparentMode: config?.theme?.layout?.headerTransparentMode ?? 'none',
+      sidebarCollapsible: config?.theme?.layout?.sidebarCollapsible ?? true,
+      sidebarDefaultOpenLevel: config?.theme?.layout?.sidebarDefaultOpenLevel ?? 0,
+      themeSwitchMode: config?.theme?.layout?.themeSwitchMode ?? 'light-dark',
+      themeSwitchEnabled: config?.theme?.layout?.themeSwitchEnabled ?? true,
+      tocStyle: config?.theme?.layout?.tocStyle ?? 'normal',
+      tocDepth: config?.theme?.layout?.tocDepth ?? 3,
       ...config?.theme?.layout,
       ...(config?.theme?.layout?.docsLayout ? { docsLayout: config.theme.layout.docsLayout } : {}),
       ...(config?.styling?.radius ? { radius: config.styling.radius } : {}),

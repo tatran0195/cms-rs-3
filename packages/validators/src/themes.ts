@@ -38,8 +38,15 @@ export const themeConfigSchema = z
         radius: z.enum(['sharp', 'rounded', 'pill']).optional(),
         contentWidth: z.enum(['focused', 'balanced', 'wide']).optional(),
         header: z.enum(['inline', 'stacked', 'floating']).optional(),
+        headerTransparentMode: z.enum(['none', 'top', 'always']).optional(),
         sidebar: z.enum(['bordered', 'soft', 'rail']).optional(),
+        sidebarCollapsible: z.boolean().optional(),
+        sidebarDefaultOpenLevel: z.number().int().min(0).max(6).optional(),
         navigation: z.enum(['tree', 'sectioned', 'compact']).optional(),
+        themeSwitchMode: z.enum(['light-dark', 'light-dark-system', 'button', 'dropdown']).optional(),
+        themeSwitchEnabled: z.boolean().optional(),
+        tocStyle: z.enum(['normal', 'clerk', 'block']).optional(),
+        tocDepth: z.number().int().min(1).max(6).optional(),
       })
       .strict()
       .optional(),
