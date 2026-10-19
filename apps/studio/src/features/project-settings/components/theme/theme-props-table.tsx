@@ -133,7 +133,7 @@ export function ThemePropsTable({
       {/* Breadcrumbs Navigation Header */}
       <nav
         aria-label="Props navigation"
-        className="flex h-10 shrink-0 items-center gap-1 border-b border-border/70 ps-4 pe-2 text-[0.8125rem]"
+        className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-1 border-b border-border/70 ps-4 pe-2 text-[0.8125rem] bg-card/95 backdrop-blur-xs"
       >
         {currentCategory && (
           <button
@@ -181,7 +181,7 @@ export function ThemePropsTable({
       </nav>
 
       {/* Main Content Area */}
-      <div className="flex flex-col min-h-[220px]">
+      <div className="flex flex-col max-h-[520px] overflow-y-auto min-h-[220px]">
         {/* ROOT PROPS TABLE VIEW */}
         {!currentCategory && (
           <div className="divide-y divide-border/60">
