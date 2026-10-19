@@ -32,13 +32,14 @@ describe('FluxLayoutTemplate', () => {
       );
     });
 
-    const shell = container.querySelector('[data-documentation-layout="fumadocs-flux"]');
+    const shell = container.querySelector('#nd-flux-layout');
     expect(shell).not.toBeNull();
-    const rail = container.querySelector('.fumadocs-flux-rail');
-    expect(rail).not.toBeNull();
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-flux');
+    const panel = container.querySelector('[data-flux-nav-panel="true"]');
+    expect(panel).not.toBeNull();
   });
 
-  it('renders PageLayout with distraction-free layout', () => {
+  it('renders PageLayout with #nd-page and distraction-free layout', () => {
     act(() => {
       root.render(
         FluxLayoutTemplate.PageLayout({
@@ -50,5 +51,9 @@ describe('FluxLayoutTemplate', () => {
 
     const pageShell = container.querySelector('[data-documentation-layout="fumadocs-flux-page"]');
     expect(pageShell).not.toBeNull();
+    const article = container.querySelector('#nd-page');
+    expect(article).not.toBeNull();
+    expect(container.querySelector('[data-testid="art"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="toc"]')).not.toBeNull();
   });
 });
