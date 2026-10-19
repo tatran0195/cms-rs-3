@@ -4,11 +4,14 @@ import type { DocsLayoutTemplate } from './types';
 
 /**
  * Spacious Layout (`spacious`)
- * Modeled on Fumadocs Spacious layout:
- * - Generous whitespace and roomier padding
- * - Subtle muted canvas backdrop (`bg-muted/40 dark:bg-muted/20`) with an elevated crisp inset documentation card (`bg-background rounded-2xl border shadow-xs`)
- * - Sidebar has NO right border (`border-e-0`); separation is created by the floating inset card
- * - Clean breadcrumb/path on the left and actions/tools on the right inside the panel header
+ * Modeled after upstream Fumadocs Spacious layout:
+ * - Desktop locked height: `md:h-(--fd-layout-height) md:overflow-clip`
+ * - Grid template: `"sidebar header right" auto / "sidebar toc-popover right" var(...) / "sidebar main right" 1fr / var(--fd-sidebar-col) minmax(0, 1fr) auto`
+ * - Subtle canvas backdrop (`bg-card/40 dark:bg-card/20`) with borderless sidebar (`border-e-0`)
+ * - Elevated inset card panel (`#nd-page-panel`) with rounded-2xl border and shadow
+ * - Panel-internal scroll container: desktop scrolling occurs inside `#nd-page-panel` (`md:overflow-y-auto md:overscroll-y-contain`)
+ * - Absolute top fade bar with actions and breadcrumbs
+ * - Integrated Table of Contents side-by-side with `#nd-page`
  */
 export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
   id: 'spacious',
@@ -16,74 +19,85 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
     const hasGranular = Boolean(slots.brand);
 
     return (
-      <div className="flex min-h-screen flex-col bg-muted/40 dark:bg-muted/20">
+      <div
+        id="fd-spacious-layout"
+        data-documentation-layout="fumadocs-spacious"
+        className="relative grid min-h-screen bg-card/40 dark:bg-card/20 md:h-screen md:overflow-clip [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-page-width:760px] [--fd-toc-width:240px] print:h-auto print:overflow-visible"
+        style={{
+          gridTemplate: `"sidebar header right" auto
+"sidebar toc-popover right" var(--fd-toc-popover-height, 0px)
+"sidebar main right" 1fr / minmax(0, 268px) minmax(0, 1fr) auto`,
+        }}
+      >
         {slots.banner}
 
         {/* Mobile Header (md:hidden) */}
-        <div className={cn(hasGranular && 'md:hidden')}>
+        <div className={cn('[grid-area:header]', hasGranular && 'md:hidden')}>
           {slots.header}
         </div>
 
-        <div
-          className="mx-auto flex w-full flex-1 min-w-0"
-          data-documentation-layout="fumadocs-spacious"
-          data-theme-region="content-shell"
+        {/* Left Minimalist Sidebar: border-e-0 per Fumadocs Spacious */}
+        <aside
+          id="nd-sidebar"
+          className="sticky top-0 hidden h-full w-[268px] shrink-0 flex-col border-e-0 bg-transparent p-4 md:flex [grid-area:sidebar]"
+          data-theme-region="sidebar"
         >
-          {/* Left Minimalist Sidebar: border-e-0 per Fumadocs Spacious */}
-          <aside
-            className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-e-0 bg-transparent p-4 md:flex"
-            data-theme-region="sidebar"
-          >
-            {hasGranular ? (
-              <>
-                <div className="flex items-center justify-between pb-3">
-                  {slots.brand}
+          {hasGranular ? (
+            <>
+              <div className="flex items-center justify-between pb-3">
+                {slots.brand}
+              </div>
+              {slots.searchFull && (
+                <div className="pt-2 pb-1">
+                  {slots.searchFull}
                 </div>
-                {slots.searchFull && (
-                  <div className="pt-2 pb-1">
-                    {slots.searchFull}
-                  </div>
-                )}
-                {slots.navTabs && <div className="py-2">{slots.navTabs}</div>}
-                <ScrollArea className="flex-1 py-2">
-                  <div data-theme-region="sidebar-content">
-                    {slots.navAnchors}
-                    {slots.sidebarTree ?? slots.navigation}
-                  </div>
-                </ScrollArea>
-                {slots.tools && (
-                  <div className="mt-auto border-t border-border/40 pt-3">
-                    {slots.tools}
-                  </div>
-                )}
-              </>
-            ) : (
-              <ScrollArea className="h-full">
+              )}
+              {slots.navTabs && <div className="py-2">{slots.navTabs}</div>}
+              <ScrollArea className="flex-1 py-2">
                 <div data-theme-region="sidebar-content">
-                  {slots.navigation}
+                  {slots.navAnchors}
+                  {slots.sidebarTree ?? slots.navigation}
                 </div>
               </ScrollArea>
-            )}
-          </aside>
-
-          {/* Elevated Crisp Inset Card Panel (#nd-page-panel) */}
-          <div className="flex-1 min-w-0 p-2 sm:p-3 md:ps-0 flex flex-col">
-            <div
-              className="fumadocs-spacious-panel relative flex flex-1 flex-col rounded-2xl border border-border/80 bg-background p-6 shadow-xs sm:p-8 md:p-10 min-w-0 overflow-hidden"
-              data-theme-region="spacious-panel"
-            >
-              {hasGranular && (
-                <div className="hidden md:flex items-center justify-between pb-4 mb-6 border-b border-border/40">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground/80">Documentation</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+              {slots.tools && (
+                <div className="mt-auto border-t border-border/40 pt-3">
+                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
                     {slots.tools}
                   </div>
                 </div>
               )}
-              <div className="min-w-0 flex-1">{slots.content}</div>
+            </>
+          ) : (
+            <ScrollArea className="h-full">
+              <div data-theme-region="sidebar-content">
+                {slots.navigation}
+              </div>
+            </ScrollArea>
+          )}
+        </aside>
+
+        {/* Elevated Crisp Inset Card Panel (#nd-page-panel) with internal scrolling on desktop */}
+        <div
+          id="nd-page-panel"
+          className="relative flex flex-col min-w-0 min-h-0 [grid-area:main] mx-2 my-2 bg-background md:ms-0 md:rounded-2xl md:border md:border-border/80 md:shadow-xs md:overflow-clip print:overflow-visible"
+          data-theme-region="spacious-panel"
+        >
+          {/* Top Panel Header fade bar */}
+          <header className="absolute inset-x-0 top-0 z-10 hidden md:flex items-center justify-between h-(--fd-header-height) ps-6 pe-4 bg-gradient-to-b from-background via-background/90 to-transparent pointer-events-none *:pointer-events-auto border-b border-border/30">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground/85">Documentation</span>
             </div>
+            <div className="flex items-center gap-2">
+              {slots.tools}
+            </div>
+          </header>
+
+          {/* Internal Scroll Container for Desktop Viewport */}
+          <div
+            data-spacious-scroll-container="true"
+            className="flex flex-1 items-start px-4 md:min-h-0 md:pt-14 md:px-8 md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
+          >
+            <div className="min-w-0 flex-1">{slots.content}</div>
           </div>
         </div>
 
@@ -97,46 +111,68 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
     <>
       {mobileNavigation}
       <div
-        className="flex min-h-0 flex-1 bg-muted/40 p-3"
+        id="fd-spacious-layout"
+        className="flex min-h-0 flex-1 bg-card/40 p-3"
         data-documentation-layout="fumadocs-spacious-preview"
         data-theme-region="preview-shell"
       >
         <aside className="hidden w-56 flex-col border-e-0 bg-transparent p-3 md:flex" data-theme-region="sidebar">
           {navigation}
         </aside>
-        <div className="min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border/80 bg-background p-6 shadow-xs">
-          {content}
+        <div id="nd-page-panel" className="min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border/80 bg-background p-6 shadow-xs">
+          <div data-spacious-scroll-container="true" className="md:overflow-y-auto">
+            {content}
+          </div>
         </div>
       </div>
     </>
   ),
 
   StudioPreviewLayout: ({ header, navigation, content }) => (
-    <div className="bg-muted/40 p-3" data-documentation-layout="fumadocs-spacious-studio" data-theme-region="preview-shell">
+    <div
+      id="fd-spacious-layout"
+      className="bg-card/40 p-3"
+      data-documentation-layout="fumadocs-spacious-studio"
+      data-theme-region="preview-shell"
+    >
       <div className="mx-auto max-w-[48rem]">
         {header}
         <div className="grid min-h-[20rem] grid-cols-[7.5rem_minmax(0,1fr)] gap-2 p-2">
-          <div className="p-2 text-xs" data-theme-region="sidebar">
+          <div className="p-2 text-xs border-e-0" data-theme-region="sidebar">
             {navigation}
           </div>
-          <div className="min-w-0 rounded-xl border border-border/80 bg-background p-4 shadow-xs">{content}</div>
+          <div id="nd-page-panel" className="min-w-0 rounded-xl border border-border/80 bg-background p-4 shadow-xs">
+            <div data-spacious-scroll-container="true" className="md:overflow-y-auto">
+              {content}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   ),
 
-  PageLayout: ({ article, tableOfContents }) => (
+  PageLayout: ({ article, tableOfContents, breadcrumb, footer }) => (
     <div
-      className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_14rem]"
+      className="flex flex-1 items-start gap-8 w-full min-w-0 justify-center"
       data-documentation-layout="fumadocs-spacious-page"
       data-theme-region="page-shell"
     >
-      <div className="min-w-0 max-w-4xl">{article}</div>
-      <aside className="hidden lg:block" data-theme-region="toc">
-        <div className="sticky top-(--content-scroll-mt) max-h-[calc(100dvh-var(--content-scroll-mt)-2rem)] overflow-y-auto">
+      <article
+        id="nd-page"
+        className="flex flex-col gap-6 w-full min-w-0 max-w-[760px] pt-4 pb-12"
+      >
+        {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
+        {article}
+        {footer}
+      </article>
+      {tableOfContents && (
+        <aside
+          className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start"
+          data-theme-region="toc"
+        >
           {tableOfContents}
-        </div>
-      </aside>
+        </aside>
+      )}
     </div>
   ),
 };

@@ -32,13 +32,19 @@ describe('SpaciousLayoutTemplate', () => {
       );
     });
 
-    const shell = container.querySelector('[data-documentation-layout="fumadocs-spacious"]');
+    const shell = container.querySelector('#fd-spacious-layout');
     expect(shell).not.toBeNull();
-    const panel = container.querySelector('.fumadocs-spacious-panel');
+    expect(shell?.getAttribute('data-documentation-layout')).toBe('fumadocs-spacious');
+
+    const panel = container.querySelector('#nd-page-panel');
     expect(panel).not.toBeNull();
+
+    const scrollContainer = panel?.querySelector('[data-spacious-scroll-container="true"]');
+    expect(scrollContainer).not.toBeNull();
+    expect(scrollContainer?.className).toContain('md:overflow-y-auto');
   });
 
-  it('renders PageLayout with relaxed measure', () => {
+  it('renders PageLayout with #nd-page and side-by-side table of contents', () => {
     act(() => {
       root.render(
         SpaciousLayoutTemplate.PageLayout({
@@ -50,5 +56,9 @@ describe('SpaciousLayoutTemplate', () => {
 
     const pageShell = container.querySelector('[data-documentation-layout="fumadocs-spacious-page"]');
     expect(pageShell).not.toBeNull();
+    const article = container.querySelector('#nd-page');
+    expect(article).not.toBeNull();
+    expect(container.textContent).toContain('Article');
+    expect(container.textContent).toContain('TOC');
   });
 });
