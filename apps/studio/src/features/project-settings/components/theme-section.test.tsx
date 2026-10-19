@@ -57,10 +57,18 @@ vi.mock('@cms/site', async (importOriginal) => {
       direction,
     }: {
       children: ReactNode;
-      theme: { id: string; layout: { shell: string; docsLayout?: string } };
+      theme: { id: string; layout: { shell: string; docsLayout?: string }; components?: { cards?: string; tabs?: string } };
       direction: string;
     }) => (
-      <div data-docs-layout={theme.layout.docsLayout} data-preset={theme.id} data-shell={theme.layout.shell} data-testid="preview" dir={direction}>
+      <div
+        data-cards={theme.components?.cards}
+        data-docs-layout={theme.layout.docsLayout}
+        data-preset={theme.id}
+        data-shell={theme.layout.shell}
+        data-tabs={theme.components?.tabs}
+        data-testid="preview"
+        dir={direction}
+      >
         {children}
       </div>
     ),
@@ -119,12 +127,12 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
   it('renders the Fumadocs Story preview and root Props Table rows', () => {
     // Props navigation root is rendered
     expect(container.textContent).toContain('Props');
-    expect(container.textContent).toContain('nav');
-    expect(container.textContent).toContain('themeSwitch');
-    expect(container.textContent).toContain('searchToggle');
-    expect(container.textContent).toContain('sidebar');
-    expect(container.textContent).toContain('palette');
     expect(container.textContent).toContain('layout');
+    expect(container.textContent).toContain('header');
+    expect(container.textContent).toContain('sidebar');
+    expect(container.textContent).toContain('themeSwitch');
+    expect(container.textContent).toContain('toc');
+    expect(container.textContent).toContain('palette');
     expect(container.textContent).toContain('components');
 
     // macOS window frame controls
@@ -159,8 +167,8 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
 
     await act(async () => sidebarRow.click());
 
-    // Should now show breadcrumb and collapsible field
-    expect(container.textContent).toContain('collapsible');
+    // Should now show breadcrumb and sidebarCollapsible field
+    expect(container.textContent).toContain('sidebarCollapsible');
 
     // Toggle collapsible to false
     const falseBtn = [...container.querySelectorAll<HTMLButtonElement>('button')].find((btn) => btn.textContent === 'false');
@@ -215,5 +223,40 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
       }),
       expect.anything(),
     );
+  });
+
+  it('navigates to components props, changes cards and tabs settings, and reflects them immediately in preview', async () => {
+    const componentsRow = container.querySelector<HTMLButtonElement>('button[data-prop-id="components"]');
+    if (!componentsRow) throw new Error('missing components prop button');
+
+    await act(async () => componentsRow.click());
+
+    // Should now show components fields
+    expect(container.textContent).toContain('cards');
+    expect(container.textContent).toContain('tabs');
+
+    // Change cards to 'lifted'
+    const cardsSelect = container.querySelector<HTMLButtonElement>('button[data-prop-name="cards"]');
+    if (!cardsSelect) throw new Error('missing cards select trigger');
+    await act(async () => cardsSelect.click());
+    const liftedOption =
+      document.querySelector<HTMLElement>('[data-slot="select-item"][data-value="lifted"]') ??
+      [...document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')].find((el) => el.textContent?.includes('lifted'));
+    if (!liftedOption) throw new Error('missing lifted option');
+    await act(async () => liftedOption.click());
+
+    // Change tabs to 'pills'
+    const tabsSelect = container.querySelector<HTMLButtonElement>('button[data-prop-name="tabs"]');
+    if (!tabsSelect) throw new Error('missing tabs select trigger');
+    await act(async () => tabsSelect.click());
+    const pillsOption =
+      document.querySelector<HTMLElement>('[data-slot="select-item"][data-value="pills"]') ??
+      [...document.querySelectorAll<HTMLElement>('[data-slot="select-item"]')].find((el) => el.textContent?.includes('pills'));
+    if (!pillsOption) throw new Error('missing pills option');
+    await act(async () => pillsOption.click());
+
+    // Verify preview immediately has data-cards="lifted" and data-tabs="pills"
+    expect(preview()?.dataset.cards).toBe('lifted');
+    expect(preview()?.dataset.tabs).toBe('pills');
   });
 });

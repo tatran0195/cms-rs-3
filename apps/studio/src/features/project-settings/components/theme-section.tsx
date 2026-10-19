@@ -17,7 +17,7 @@ import { LayoutTemplate, RotateCcw, Undo2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { SaveBar, SectionHeader } from './shared';
-import { DEFAULT_FUMADOCS_LAYOUT_OPTIONS, type FumadocsLayoutOptions, ThemeFumadocsStory, ThemePresetsAndExchange } from './theme';
+import { ThemePlaygroundStory, ThemePresetsAndExchange } from './theme';
 
 type Appearance = 'light' | 'dark' | 'system';
 type PreviewMode = 'light' | 'dark';
@@ -111,7 +111,6 @@ export function ThemeSection({ project }: { project: Project }) {
   const saved = useMemo(() => initialDraft(project), [project]);
   const [draft, setDraft] = useState<ThemeDraft>(saved);
   const [history, setHistory] = useState<ThemeDraft[]>([]);
-  const [layoutOptions, setLayoutOptions] = useState<FumadocsLayoutOptions>(DEFAULT_FUMADOCS_LAYOUT_OPTIONS);
 
   const change = (next: ThemeDraft | ((current: ThemeDraft) => ThemeDraft)) => {
     setHistory((items) => [...items.slice(-19), draft]);
@@ -165,8 +164,8 @@ export function ThemeSection({ project }: { project: Project }) {
         <p className="mt-1 text-muted-foreground">{t('settings.theme.draftHint')}</p>
       </div>
 
-      {/* Main Fumadocs Story Preview & Interactive Props Table */}
-      <ThemeFumadocsStory
+      {/* Main Theme Story Preview & Interactive Props Table */}
+      <ThemePlaygroundStory
         config={config}
         themeConfig={draft.theme}
         onThemeConfigChange={(next) =>
@@ -186,14 +185,11 @@ export function ThemeSection({ project }: { project: Project }) {
             appearance,
           }))
         }
-        layoutOptions={layoutOptions}
-        onLayoutOptionsChange={setLayoutOptions}
         onReset={() => {
           change({
             theme: fullPresetTheme(resolved.id),
             appearance: draft.appearance,
           });
-          setLayoutOptions(DEFAULT_FUMADOCS_LAYOUT_OPTIONS);
         }}
       />
 
@@ -235,7 +231,6 @@ export function ThemeSection({ project }: { project: Project }) {
           onClick={() => {
             setDraft(saved);
             setHistory([]);
-            setLayoutOptions(DEFAULT_FUMADOCS_LAYOUT_OPTIONS);
           }}
           type="button"
           variant="outline"

@@ -1,38 +1,6 @@
-export interface FumadocsLayoutOptions {
-  nav: {
-    title: string;
-    transparentMode?: 'none' | 'top' | 'always';
-  };
-  themeSwitch: {
-    enabled: boolean;
-    mode?: 'light-dark' | 'light-dark-system';
-  };
-  searchToggle: {
-    enabled: boolean;
-  };
-  sidebar: {
-    collapsible: boolean;
-  };
-}
+import type { ThemeLayout } from '@cms/shared/themes';
 
-export const DEFAULT_FUMADOCS_LAYOUT_OPTIONS: FumadocsLayoutOptions = {
-  nav: {
-    title: 'My Docs',
-    transparentMode: 'none',
-  },
-  themeSwitch: {
-    enabled: true,
-    mode: 'light-dark',
-  },
-  searchToggle: {
-    enabled: true,
-  },
-  sidebar: {
-    collapsible: true,
-  },
-};
-
-export type PropsTablePathCategory = 'nav' | 'themeSwitch' | 'searchToggle' | 'sidebar' | 'palette' | 'layout' | 'components';
+export type PropsTablePathCategory = 'layout' | 'header' | 'sidebar' | 'themeSwitch' | 'toc' | 'palette' | 'components';
 
 export type PropsTablePath = [] | [PropsTablePathCategory];
 

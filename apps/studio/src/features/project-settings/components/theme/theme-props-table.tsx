@@ -5,13 +5,11 @@ import type { cmsThemeConfig, DocsLayoutId, ThemeColorKey, ThemeColorTokens, The
 import { ArrowLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { useId } from 'react';
 import { ThemePaletteEditor } from './theme-palette-editor';
-import { type FumadocsLayoutOptions, formatPropSummary, type PropsTablePath } from './types';
+import { formatPropSummary, type PropsTablePath } from './types';
 
 export interface ThemePropsTableProps {
   path: PropsTablePath;
   onNavigate: (path: PropsTablePath) => void;
-  layoutOptions: FumadocsLayoutOptions;
-  onLayoutOptionsChange: (options: FumadocsLayoutOptions | ((prev: FumadocsLayoutOptions) => FumadocsLayoutOptions)) => void;
   themeConfig: cmsThemeConfig;
   onThemeConfigChange: (config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig)) => void;
   resolvedColors: {
@@ -27,8 +25,6 @@ export interface ThemePropsTableProps {
 export function ThemePropsTable({
   path,
   onNavigate,
-  layoutOptions,
-  onLayoutOptionsChange,
   themeConfig: _themeConfig,
   onThemeConfigChange,
   resolvedColors,
@@ -38,34 +34,6 @@ export function ThemePropsTable({
   className,
 }: ThemePropsTableProps) {
   const currentCategory = path[0];
-
-  const setNavProp = <K extends keyof FumadocsLayoutOptions['nav']>(key: K, val: FumadocsLayoutOptions['nav'][K]) => {
-    onLayoutOptionsChange((prev) => ({
-      ...prev,
-      nav: { ...prev.nav, [key]: val },
-    }));
-  };
-
-  const setThemeSwitchProp = <K extends keyof FumadocsLayoutOptions['themeSwitch']>(key: K, val: FumadocsLayoutOptions['themeSwitch'][K]) => {
-    onLayoutOptionsChange((prev) => ({
-      ...prev,
-      themeSwitch: { ...prev.themeSwitch, [key]: val },
-    }));
-  };
-
-  const setSearchToggleProp = (enabled: boolean) => {
-    onLayoutOptionsChange((prev) => ({
-      ...prev,
-      searchToggle: { enabled },
-    }));
-  };
-
-  const setSidebarProp = (collapsible: boolean) => {
-    onLayoutOptionsChange((prev) => ({
-      ...prev,
-      sidebar: { collapsible },
-    }));
-  };
 
   const setLayoutPart = <K extends keyof ThemeLayout>(key: K, value: ThemeLayout[K]) => {
     onThemeConfigChange((prev) => ({
@@ -101,11 +69,11 @@ export function ThemePropsTable({
   };
 
   return (
-    <div className={cn('not-prose overflow-hidden rounded-xl border border-border bg-card text-card-foreground', className)}>
+    <div className={cn('not-prose overflow-hidden rounded-xl border border-border bg-card text-card-foreground flex flex-col h-[280px]', className)}>
       {/* Breadcrumbs Navigation Header */}
       <nav
         aria-label="Props navigation"
-        className="sticky top-0 z-10 flex h-10 shrink-0 items-center gap-1 border-b border-border/70 ps-4 pe-2 text-[0.8125rem] bg-card/95 backdrop-blur-xs"
+        className="flex h-10 shrink-0 items-center gap-1 border-b border-border/70 ps-4 pe-2 text-[0.8125rem] bg-card select-none"
       >
         {currentCategory && (
           <button
@@ -151,31 +119,44 @@ export function ThemePropsTable({
       </nav>
 
       {/* Main Content Area */}
-      <div className="flex flex-col max-h-[520px] overflow-y-auto min-h-[220px]">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
         {/* ROOT PROPS TABLE VIEW */}
         {!currentCategory && (
           <div className="divide-y divide-border/60">
-            <NavRow id="nav" name="nav" summary={formatPropSummary(layoutOptions.nav)} type="object" onNavigate={() => onNavigate(['nav'])} />
             <NavRow
-              id="themeSwitch"
-              name="themeSwitch"
-              summary={formatPropSummary(layoutOptions.themeSwitch)}
+              id="layout"
+              name="layout"
+              summary={formatPropSummary({ docsLayout: resolvedLayout.docsLayout, density: resolvedLayout.density, radius: resolvedLayout.radius })}
               type="object"
-              onNavigate={() => onNavigate(['themeSwitch'])}
+              onNavigate={() => onNavigate(['layout'])}
             />
             <NavRow
-              id="searchToggle"
-              name="searchToggle"
-              summary={formatPropSummary(layoutOptions.searchToggle)}
+              id="header"
+              name="header"
+              summary={formatPropSummary({ header: resolvedLayout.header, transparent: resolvedLayout.headerTransparentMode ?? 'none' })}
               type="object"
-              onNavigate={() => onNavigate(['searchToggle'])}
+              onNavigate={() => onNavigate(['header'])}
             />
             <NavRow
               id="sidebar"
               name="sidebar"
-              summary={formatPropSummary(layoutOptions.sidebar)}
+              summary={formatPropSummary({ sidebar: resolvedLayout.sidebar, collapsible: resolvedLayout.sidebarCollapsible ?? true })}
               type="object"
               onNavigate={() => onNavigate(['sidebar'])}
+            />
+            <NavRow
+              id="themeSwitch"
+              name="themeSwitch"
+              summary={formatPropSummary({ enabled: resolvedLayout.themeSwitchEnabled ?? true, mode: resolvedLayout.themeSwitchMode ?? 'light-dark' })}
+              type="object"
+              onNavigate={() => onNavigate(['themeSwitch'])}
+            />
+            <NavRow
+              id="toc"
+              name="toc"
+              summary={formatPropSummary({ style: resolvedLayout.tocStyle ?? 'normal', depth: resolvedLayout.tocDepth ?? 3 })}
+              type="object"
+              onNavigate={() => onNavigate(['toc'])}
             />
             <NavRow
               id="palette"
@@ -184,7 +165,6 @@ export function ThemePropsTable({
               type="object"
               onNavigate={() => onNavigate(['palette'])}
             />
-            <NavRow id="layout" name="layout" summary={formatPropSummary(resolvedLayout)} type="object" onNavigate={() => onNavigate(['layout'])} />
             <NavRow
               id="components"
               name="components"
@@ -194,49 +174,6 @@ export function ThemePropsTable({
             />
           </div>
         )}
-
-        {/* DRILL-DOWN: NAV */}
-        {currentCategory === 'nav' && (
-          <div className="divide-y divide-border/60">
-            <StringRow name="title" value={layoutOptions.nav.title} onChange={(v) => setNavProp('title', v)} placeholder="Docs title" />
-            <EnumRow
-              name="transparentMode"
-              value={layoutOptions.nav.transparentMode ?? 'none'}
-              options={['none', 'top', 'always']}
-              onChange={(v) => setNavProp('transparentMode', v as 'none' | 'top' | 'always')}
-            />
-          </div>
-        )}
-
-        {/* DRILL-DOWN: THEME SWITCH */}
-        {currentCategory === 'themeSwitch' && (
-          <div className="divide-y divide-border/60">
-            <BooleanRow name="enabled" value={layoutOptions.themeSwitch.enabled} onChange={(v) => setThemeSwitchProp('enabled', v)} />
-            <EnumRow
-              name="mode"
-              value={layoutOptions.themeSwitch.mode ?? 'light-dark'}
-              options={['light-dark', 'light-dark-system']}
-              onChange={(v) => setThemeSwitchProp('mode', v as 'light-dark' | 'light-dark-system')}
-            />
-          </div>
-        )}
-
-        {/* DRILL-DOWN: SEARCH TOGGLE */}
-        {currentCategory === 'searchToggle' && (
-          <div className="divide-y divide-border/60">
-            <BooleanRow name="enabled" value={layoutOptions.searchToggle.enabled} onChange={setSearchToggleProp} />
-          </div>
-        )}
-
-        {/* DRILL-DOWN: SIDEBAR */}
-        {currentCategory === 'sidebar' && (
-          <div className="divide-y divide-border/60">
-            <BooleanRow name="collapsible" value={layoutOptions.sidebar.collapsible} onChange={setSidebarProp} />
-          </div>
-        )}
-
-        {/* DRILL-DOWN: PALETTE */}
-        {currentCategory === 'palette' && <ThemePaletteEditor colors={resolvedColors} onColorChange={handleColorChange} />}
 
         {/* DRILL-DOWN: LAYOUT */}
         {currentCategory === 'layout' && (
@@ -266,24 +203,6 @@ export function ThemePropsTable({
               onChange={(v) => setLayoutPart('contentWidth', v as ThemeLayout['contentWidth'])}
             />
             <EnumRow
-              name="header"
-              value={resolvedLayout.header}
-              options={['inline', 'stacked', 'floating']}
-              onChange={(v) => setLayoutPart('header', v as ThemeLayout['header'])}
-            />
-            <EnumRow
-              name="sidebar"
-              value={resolvedLayout.sidebar}
-              options={['bordered', 'soft', 'rail']}
-              onChange={(v) => setLayoutPart('sidebar', v as ThemeLayout['sidebar'])}
-            />
-            <EnumRow
-              name="navigation"
-              value={resolvedLayout.navigation}
-              options={['tree', 'sectioned', 'compact']}
-              onChange={(v) => setLayoutPart('navigation', v as ThemeLayout['navigation'])}
-            />
-            <EnumRow
               name="radius"
               value={resolvedLayout.radius}
               options={['sharp', 'rounded', 'pill']}
@@ -291,6 +210,93 @@ export function ThemePropsTable({
             />
           </div>
         )}
+
+        {/* DRILL-DOWN: HEADER */}
+        {currentCategory === 'header' && (
+          <div className="divide-y divide-border/60">
+            <EnumRow
+              name="header"
+              value={resolvedLayout.header}
+              options={['inline', 'stacked', 'floating']}
+              onChange={(v) => setLayoutPart('header', v as ThemeLayout['header'])}
+            />
+            <EnumRow
+              name="headerTransparentMode"
+              value={resolvedLayout.headerTransparentMode ?? 'none'}
+              options={['none', 'top', 'always']}
+              onChange={(v) => setLayoutPart('headerTransparentMode', v as 'none' | 'top' | 'always')}
+            />
+          </div>
+        )}
+
+        {/* DRILL-DOWN: SIDEBAR */}
+        {currentCategory === 'sidebar' && (
+          <div className="divide-y divide-border/60">
+            <EnumRow
+              name="sidebar"
+              value={resolvedLayout.sidebar}
+              options={['bordered', 'soft', 'rail']}
+              onChange={(v) => setLayoutPart('sidebar', v as ThemeLayout['sidebar'])}
+            />
+            <BooleanRow
+              name="sidebarCollapsible"
+              value={resolvedLayout.sidebarCollapsible ?? true}
+              onChange={(v) => setLayoutPart('sidebarCollapsible', v)}
+            />
+            <NumberRow
+              name="sidebarDefaultOpenLevel"
+              value={resolvedLayout.sidebarDefaultOpenLevel ?? 0}
+              min={0}
+              max={6}
+              onChange={(v) => setLayoutPart('sidebarDefaultOpenLevel', v)}
+            />
+            <EnumRow
+              name="navigation"
+              value={resolvedLayout.navigation}
+              options={['tree', 'sectioned', 'compact']}
+              onChange={(v) => setLayoutPart('navigation', v as ThemeLayout['navigation'])}
+            />
+          </div>
+        )}
+
+        {/* DRILL-DOWN: THEME SWITCH */}
+        {currentCategory === 'themeSwitch' && (
+          <div className="divide-y divide-border/60">
+            <BooleanRow
+              name="themeSwitchEnabled"
+              value={resolvedLayout.themeSwitchEnabled ?? true}
+              onChange={(v) => setLayoutPart('themeSwitchEnabled', v)}
+            />
+            <EnumRow
+              name="themeSwitchMode"
+              value={resolvedLayout.themeSwitchMode ?? 'light-dark'}
+              options={['light-dark', 'light-dark-system', 'button', 'dropdown']}
+              onChange={(v) => setLayoutPart('themeSwitchMode', v as 'light-dark' | 'light-dark-system' | 'button' | 'dropdown')}
+            />
+          </div>
+        )}
+
+        {/* DRILL-DOWN: TABLE OF CONTENTS (TOC) */}
+        {currentCategory === 'toc' && (
+          <div className="divide-y divide-border/60">
+            <EnumRow
+              name="tocStyle"
+              value={resolvedLayout.tocStyle ?? 'normal'}
+              options={['normal', 'clerk', 'block']}
+              onChange={(v) => setLayoutPart('tocStyle', v as 'normal' | 'clerk' | 'block')}
+            />
+            <NumberRow
+              name="tocDepth"
+              value={resolvedLayout.tocDepth ?? 3}
+              min={1}
+              max={6}
+              onChange={(v) => setLayoutPart('tocDepth', v)}
+            />
+          </div>
+        )}
+
+        {/* DRILL-DOWN: PALETTE */}
+        {currentCategory === 'palette' && <ThemePaletteEditor colors={resolvedColors} onColorChange={handleColorChange} />}
 
         {/* DRILL-DOWN: COMPONENTS */}
         {currentCategory === 'components' && (
@@ -333,7 +339,7 @@ export function ThemePropsTable({
 }
 
 /* =========================================================================
-   INTERNAL ROW COMPONENTS MATCHING FUMADOCS SPEC
+   INTERNAL ROW COMPONENTS
    ========================================================================= */
 
 function NavRow({ id, name, summary, type, onNavigate }: { id: string; name: string; summary: string; type: string; onNavigate: () => void }) {
@@ -349,18 +355,22 @@ function NavRow({ id, name, summary, type, onNavigate }: { id: string; name: str
           onClick={onNavigate}
           className="group/nav flex min-w-0 flex-1 items-center ps-3 text-start outline-none cursor-pointer"
         >
-          <span className="min-w-0 flex-1 truncate pe-2 font-mono text-xs text-muted-foreground">{summary}</span>
-          <span className="shrink-0 font-mono text-xs text-muted-foreground pe-1">{type}</span>
-          <span className="flex w-7 shrink-0 items-center justify-center">
-            <ChevronRight className="size-3.5 text-muted-foreground transition-transform duration-200 group-hover/nav:translate-x-0.5" />
-          </span>
+          <span className="truncate text-muted-foreground group-hover/nav:text-foreground transition-colors font-mono text-xs">{summary}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="group/nav inline-flex shrink-0 items-center gap-1 pe-3 ps-2 text-muted-foreground/70 hover:text-foreground cursor-pointer transition-colors"
+        >
+          <span className="font-mono text-[0.6875rem] uppercase tracking-wider">{type}</span>
+          <ChevronRight className="size-3.5 transition-transform group-hover/nav:translate-x-0.5" />
         </button>
       </div>
     </div>
   );
 }
 
-function BooleanRow({ name, value, onChange }: { name: string; value: boolean; onChange: (value: boolean) => void }) {
+function BooleanRow({ name, value, onChange }: { name: string; value: boolean; onChange: (next: boolean) => void }) {
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/20 transition-colors">
       <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
@@ -389,75 +399,53 @@ function BooleanRow({ name, value, onChange }: { name: string; value: boolean; o
   );
 }
 
-function StringRow({ name, value, onChange, placeholder }: { name: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
-  const id = useId();
+function EnumRow({ name, value, options, onChange }: { name: string; value: string; options: string[]; onChange: (next: string) => void }) {
   return (
     <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/20 transition-colors">
       <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
-        <label htmlFor={id} className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
-          {name}
-        </label>
+        <span className="truncate font-mono text-[0.8125rem] text-foreground font-medium">{name}</span>
       </div>
       <div className="flex min-h-9 items-center justify-between px-3 @sm:border-s @sm:border-border/60">
-        <Input
-          id={id}
-          type="text"
-          density="compact"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          spellCheck={false}
-          autoComplete="off"
-          className="min-w-0 flex-1 border-0 bg-transparent font-mono text-xs text-foreground shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-1"
-        />
-        <span className="font-mono text-xs text-muted-foreground/70">string</span>
-      </div>
-    </div>
-  );
-}
-
-function EnumRow<T extends string>({
-  name,
-  value,
-  options,
-  onChange,
-}: {
-  name: string;
-  value: T;
-  options: readonly T[];
-  onChange: (value: T) => void;
-}) {
-  const id = useId();
-  return (
-    <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)] hover:bg-muted/20 transition-colors">
-      <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
-        <label htmlFor={id} className="truncate font-mono text-[0.8125rem] text-foreground font-medium">
-          {name}
-        </label>
-      </div>
-      <div className="flex min-h-9 items-center justify-between px-3 @sm:border-s @sm:border-border/60">
-        <Select
-          value={value}
-          onValueChange={(val) => {
-            if (val) onChange(val as T);
-          }}
-        >
+        <Select value={value} onValueChange={onChange}>
           <SelectTrigger
-            id={id}
-            size="sm"
-            className="h-7 w-auto min-w-28 border-0 bg-transparent px-1 font-mono text-xs hover:bg-muted/50 focus-visible:ring-1"
+            data-prop-name={name}
+            className="h-7 w-auto min-w-28 text-xs font-mono border-border/80 bg-background shadow-none"
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent align="start">
+          <SelectContent>
             {options.map((opt) => (
-              <SelectItem key={opt} value={opt} className="font-mono text-xs">
+              <SelectItem key={opt} value={opt} className="text-xs font-mono">
                 {opt}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <span className="font-mono text-xs text-muted-foreground/70">enum</span>
+      </div>
+    </div>
+  );
+}
+
+function NumberRow({ name, value, min = 0, max = 10, onChange }: { name: string; value: number; min?: number; max?: number; onChange: (next: number) => void }) {
+  const inputId = useId();
+  return (
+    <div className="grid @sm:grid-cols-[minmax(9rem,1fr)_minmax(0,2fr)]">
+      <div className="flex min-w-0 items-center gap-1 py-2 ps-4 pe-3">
+        <label htmlFor={inputId} className="truncate font-mono text-[0.8125rem] text-foreground font-medium cursor-pointer">
+          {name}
+        </label>
+      </div>
+      <div className="flex min-h-9 items-center px-3 text-[0.8125rem] @sm:border-s @sm:border-border/60">
+        <Input
+          id={inputId}
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="h-7 w-20 text-xs font-mono border-border/80 bg-background shadow-none"
+        />
       </div>
     </div>
   );
