@@ -14,6 +14,7 @@ import { SiteBanner } from '../components/site-banner';
 import { firstLeafPath, SiteNav } from '../components/site-nav';
 import { SiteNavTabs } from '../components/site-nav-tabs';
 import { SiteSearch } from '../components/site-search';
+import { ThemeSwitcher } from '../components/theme-switcher';
 import { VersionSwitcher } from '../components/version-switcher';
 import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
 import { useIsScrollTop } from '../hooks/use-is-scroll-top';
@@ -351,14 +352,29 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     <div className="ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex-nowrap">
       <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
       <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
-      <button
-        type="button"
-        onClick={toggleSiteTheme}
-        className="grid size-9 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        aria-label={t('toggleTheme')}
-      >
-        {siteTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-      </button>
+      <ThemeSwitcher
+        mode={resolvedTheme.layout.themeSwitchMode ?? 'light-dark'}
+        enabled={resolvedTheme.layout.themeSwitchEnabled !== false}
+        appearance={siteTheme}
+        onChange={(next) => {
+          if (next === 'system') {
+            const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setSiteTheme(prefersDark ? 'dark' : 'light');
+            try {
+              window.localStorage.removeItem(`cms.site.theme.${projectId}`);
+            } catch {
+              // ignore
+            }
+          } else {
+            setSiteTheme(next);
+            try {
+              window.localStorage.setItem(`cms.site.theme.${projectId}`, next);
+            } catch {
+              // ignore
+            }
+          }
+        }}
+      />
       {ctaLabel && ctaUrl && (
         <a
           href={ctaUrl}

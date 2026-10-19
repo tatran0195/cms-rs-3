@@ -7,7 +7,7 @@ import { useSiteAnalytics } from '../context/site-analytics-provider';
 import { localeTag } from '../lib/format';
 import { siteHref } from '../lib/site-paths';
 import { resolveSiteFeatures, type SiteFeatures, type SitePage } from '../types';
-import { DocumentationPageLayout } from './documentation-theme-provider';
+import { DocumentationPageLayout, useDocumentationTheme } from './documentation-theme-provider';
 import { Markdown } from './markdown';
 import { useSitePageAlternates } from './page-alternates-context';
 import { TableOfContents } from './toc';
@@ -270,19 +270,27 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
     </article>
   );
 
+  const currentTheme = useDocumentationTheme();
+  const tocStyle = currentTheme?.layout?.tocStyle ?? 'normal';
+  const tocDepth = currentTheme?.layout?.tocDepth ?? 3;
+
   if (mode === 'center') {
-    return (
-      <DocumentationPageLayout
-        article={<div className="mx-auto min-w-0 max-w-[42rem]">{article}</div>}
-        tableOfContents={null}
-      />
-    );
+    return <DocumentationPageLayout article={<div className="mx-auto min-w-0 max-w-[42rem]">{article}</div>} tableOfContents={null} />;
   }
 
   return (
     <DocumentationPageLayout
       article={article}
-      tableOfContents={showToc ? <TableOfContents headings={page.headings} label={tArticle('onThisPage')} /> : null}
+      tableOfContents={
+        showToc ? (
+          <TableOfContents
+            headings={page.headings}
+            label={tArticle('onThisPage')}
+            style={tocStyle}
+            depth={tocDepth}
+          />
+        ) : null
+      }
     />
   );
 }

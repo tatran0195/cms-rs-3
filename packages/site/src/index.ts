@@ -30,7 +30,8 @@ export { firstLeafPath, isVersionIndependentNavNode, SiteNav } from './component
 export { SiteNavTabs, type SiteNavTabsProps } from './components/site-nav-tabs';
 export { SitePageView } from './components/site-page-view';
 export { SiteSearch } from './components/site-search';
-export { TableOfContents } from './components/toc';
+export { TableOfContents, type TableOfContentsProps, type TocHeading } from './components/toc';
+export { ThemeSwitcher, type ThemeSwitcherProps, type ThemeSwitchMode } from './components/theme-switcher';
 export { VersionSwitcher } from './components/version-switcher';
 export { SiteAnalyticsProvider, useSiteAnalytics } from './context/site-analytics-provider';
 // Context
