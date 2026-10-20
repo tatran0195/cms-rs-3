@@ -56,11 +56,13 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
                   {slots.sidebarTree ?? slots.navigation}
                 </div>
               </ScrollArea>
-              {slots.tools && (
+              {(slots.sidebarTools || slots.tools) && (
                 <div className="mt-auto border-t border-border/50 p-3">
-                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
-                    {slots.tools}
-                  </div>
+                  {slots.sidebarTools ?? (
+                    <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                      {slots.tools}
+                    </div>
+                  )}
                 </div>
               )}
             </>

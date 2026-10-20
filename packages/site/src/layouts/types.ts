@@ -14,6 +14,11 @@ export interface DocsLayoutSlots {
   searchFull?: ReactNode;
   searchButton?: ReactNode;
   tools?: ReactNode;
+  sidebarTools?: ReactNode;
+  fluxTools?: ReactNode;
+  fluxTab?: ReactNode;
+  themeSwitch?: ReactNode;
+  languageButton?: ReactNode;
   navLinks?: ReactNode;
   navTabs?: ReactNode;
   navAnchors?: ReactNode;

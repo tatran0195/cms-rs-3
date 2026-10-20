@@ -104,7 +104,6 @@ export function TableOfContents({
   });
 
   const isControlled = (controlledActiveIds && controlledActiveIds.length > 0) || controlledActiveId !== undefined;
-  const isSingle = single ?? (controlledActiveIds === undefined || controlledActiveIds.length <= 1);
 
   const activeIds = useMemo(() => {
     if (controlledActiveIds && controlledActiveIds.length > 0) return controlledActiveIds;
@@ -140,7 +139,7 @@ export function TableOfContents({
     }
   }, [isControlled, items]);
 
-  // Reading-line scroll spy detection matching Fumadocs single-active item tracking
+  // Viewport scroll spy detection matching Fumadocs active item tracking
   const key = items.map((heading) => heading.id).join('|');
   // biome-ignore lint/correctness/useExhaustiveDependencies: key is the stable signature of items
   useEffect(() => {
@@ -170,38 +169,48 @@ export function TableOfContents({
     const updateActive = () => {
       if (isClickScrollingRef.current) return;
 
+      const firstId = itemElements[0]?.id;
+      if (!firstId) return;
+
+      const viewportTop = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
+      const viewportBottom = scrollParent ? viewportTop + scrollParent.clientHeight : window.innerHeight;
+
       const isAtBottom = scrollParent
         ? scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight < 30
         : window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 30;
 
       if (isAtBottom && itemElements.length > 0) {
-        const lastId = itemElements[itemElements.length - 1]?.id;
-        if (lastId) {
-          setInternalActiveIds([lastId]);
-          onActiveChange?.(lastId);
-          onActiveIdsChange?.([lastId]);
-          return;
-        }
+        const visibleBottomIds = itemElements
+          .filter(({ element }) => {
+            const rect = element.getBoundingClientRect();
+            return rect.bottom > viewportTop && rect.top < viewportBottom;
+          })
+          .map((e) => e.id);
+        const lastId = itemElements[itemElements.length - 1]?.id ?? firstId;
+        const result: string[] = visibleBottomIds.length > 0 ? visibleBottomIds : [lastId];
+        setInternalActiveIds(result);
+        if (result[0]) onActiveChange?.(result[0]);
+        onActiveIdsChange?.(result);
+        return;
       }
 
-      const containerTop = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
-      const readingLine = containerTop + 80;
+      const visibleIds: string[] = [];
+      let closestAboveId = firstId;
 
-      let activeHeadingId = itemElements[0]?.id;
       for (const { id, element } of itemElements) {
-        const top = element.getBoundingClientRect().top;
-        if (top <= readingLine) {
-          activeHeadingId = id;
-        } else {
-          break;
+        const rect = element.getBoundingClientRect();
+        if (rect.bottom > viewportTop && rect.top < viewportBottom) {
+          visibleIds.push(id);
+        } else if (rect.bottom <= viewportTop) {
+          closestAboveId = id;
         }
       }
 
-      if (activeHeadingId) {
-        setInternalActiveIds([activeHeadingId]);
-        onActiveChange?.(activeHeadingId);
-        onActiveIdsChange?.([activeHeadingId]);
-      }
+      const nextActiveIds: string[] = visibleIds.length > 0 ? visibleIds : [closestAboveId];
+
+      setInternalActiveIds(nextActiveIds);
+      if (nextActiveIds[0]) onActiveChange?.(nextActiveIds[0]);
+      onActiveIdsChange?.(nextActiveIds);
     };
 
     const onScroll = () => {
@@ -310,7 +319,7 @@ export function TableOfContents({
   }, [items, activeIds]);
 
   const startIdx = activeIndices.length > 0 ? (activeIndices[0] ?? -1) : -1;
-  const endIdx = isSingle ? startIdx : activeIndices.length > 0 ? (activeIndices[activeIndices.length - 1] ?? -1) : -1;
+  const endIdx = activeIndices.length > 0 ? (activeIndices[activeIndices.length - 1] ?? -1) : -1;
 
   // ResizeObserver for dynamic SVG track & block updates
   useEffect(() => {

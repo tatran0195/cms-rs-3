@@ -63,11 +63,13 @@ function GlassReaderShell(slots: DocsLayoutSlots) {
                   {slots.sidebarTree ?? slots.navigation}
                 </div>
               </ScrollArea>
-              {slots.tools && (
+              {(slots.sidebarTools || slots.tools) && (
                 <div className="mt-auto border-t border-border/40 pt-2">
-                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
-                    {slots.tools}
-                  </div>
+                  {slots.sidebarTools ?? (
+                    <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                      {slots.tools}
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -148,7 +150,7 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
     >
       <div className="flex flex-col flex-1 min-w-0 max-w-[760px]">
         {tocPopover && <div className="md:hidden mb-4 w-full">{tocPopover}</div>}
-        <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 pb-12">
+        <article id="nd-page" className="flex flex-col gap-4 w-full min-w-0 pb-12">
           {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
           {article}
           {footer}

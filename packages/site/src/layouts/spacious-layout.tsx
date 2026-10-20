@@ -54,11 +54,13 @@ function SpaciousReaderShell(slots: DocsLayoutSlots) {
                 {slots.sidebarTree ?? slots.navigation}
               </div>
             </ScrollArea>
-            {slots.tools && (
+            {(slots.sidebarTools || slots.tools) && (
               <div className="mt-auto border-t border-border/40 pt-3">
-                <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
-                  {slots.tools}
-                </div>
+                {slots.sidebarTools ?? (
+                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                    {slots.tools}
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -76,7 +78,7 @@ function SpaciousReaderShell(slots: DocsLayoutSlots) {
         data-theme-region="spacious-panel"
       >
         {/* Top Panel Header fade bar matching Fumadocs Spacious */}
-        <header className="absolute inset-x-0 top-0 z-10 hidden md:flex items-center justify-between h-14 ps-6 pe-4 bg-background/85 backdrop-blur-md pointer-events-none *:pointer-events-auto border-b border-border/40">
+        <header className="absolute inset-x-0 top-0 z-10 hidden md:flex items-center justify-between h-14 ps-6 pe-4 bg-gradient-to-b from-background to-transparent pointer-events-none *:pointer-events-auto">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             {collapsed && <SidebarToggle />}
             {slots.navLinks ? slots.navLinks : <span className="font-medium text-foreground/90">Documentation</span>}
@@ -90,7 +92,7 @@ function SpaciousReaderShell(slots: DocsLayoutSlots) {
         {/* Internal Scroll Container for Desktop Viewport */}
         <div
           data-spacious-scroll-container="true"
-          className="flex flex-1 flex-col items-start px-4 md:min-h-0 pt-6 md:pt-16 md:px-8 md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
+          className="flex flex-1 flex-col items-start px-4 md:min-h-0 pt-6 md:pt-14 md:px-[max(1.5rem,calc((100%-760px-240px)/2))] md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
         >
           <div className="min-w-0 flex-1 w-full">{slots.content}</div>
           {slots.footer && <div className="w-full mt-auto pt-8">{slots.footer}</div>}
@@ -107,7 +109,7 @@ function SpaciousReaderShell(slots: DocsLayoutSlots) {
  * Modeled 100% after upstream Fumadocs Spacious layout:
  * - Desktop locked viewport height: `md:h-screen md:overflow-clip`
  * - Grid template: `"sidebar header right" auto / "sidebar toc-popover right" var(...) / "sidebar main right" 1fr / var(--fd-sidebar-col) minmax(0, 1fr) auto`
- * - Subtle canvas backdrop (`bg-card/40 dark:bg-card/20`) with borderless sidebar (`border-e-0`)
+ * - Subtle canvas backdrop (`bg-card`) with borderless sidebar (`border-e-0`)
  * - Elevated inset card panel (`#nd-page-panel`) with rounded-2xl border and shadow
  * - Panel-internal scroll container: desktop scrolling occurs inside `#nd-page-panel` (`md:overflow-y-auto md:overscroll-y-contain`)
  * - Top fade bar inside panel with breadcrumbs and actions
@@ -165,7 +167,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
       <div className="flex flex-col flex-1 min-w-0 max-w-[760px]">
         {/* Mobile TOC Popover when below desktop */}
         {tocPopover && <div className="md:hidden mb-4 w-full">{tocPopover}</div>}
-        <article id="nd-page" className="flex flex-col gap-6 w-full min-w-0 pt-4 pb-12">
+        <article id="nd-page" className="flex flex-col gap-4 w-full min-w-0 pt-4 pb-12">
           {breadcrumb && <div className="mb-2 md:hidden">{breadcrumb}</div>}
           {article}
           {footer}
@@ -173,7 +175,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
       </div>
 
       {tableOfContents && (
-        <aside className="sticky top-20 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
+        <aside className="sticky top-4 hidden xl:block w-[240px] shrink-0 self-start pt-4" data-theme-region="toc">
           {tableOfContents}
         </aside>
       )}

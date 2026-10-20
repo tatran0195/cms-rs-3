@@ -19,6 +19,7 @@ import { VersionSwitcher } from '../components/version-switcher';
 import { SidebarProvider } from '../context/sidebar-context';
 import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
 import { useIsScrollTop } from '../hooks/use-is-scroll-top';
+import { FluxTabDropdown } from '../layouts';
 import { useSearchShortcutLabel } from '../lib/shortcut';
 import { publishedSiteLogo } from '../lib/site-branding';
 import { siteHref, siteLanguageParam } from '../lib/site-paths';
@@ -138,9 +139,11 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     const dashboardWasDark = dashboardTheme === 'dark' || (dashboardUsesSystem && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const dashboardResolvedTheme = dashboardWasDark ? 'dark' : 'light';
     return () => {
-      root.classList.remove('light', 'dark');
-      root.classList.add(dashboardResolvedTheme);
-      root.style.colorScheme = dashboardResolvedTheme;
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/sites')) {
+        root.classList.remove('light', 'dark');
+        root.classList.add(dashboardResolvedTheme);
+        root.style.colorScheme = dashboardResolvedTheme;
+      }
     };
   }, []);
 
@@ -206,6 +209,28 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       }
     },
     [basePrefix, navigateToHref],
+  );
+
+  const handleThemeChange = useCallback(
+    (next: 'light' | 'dark' | 'system') => {
+      if (next === 'system') {
+        const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setSiteTheme(prefersDark ? 'dark' : 'light');
+        try {
+          window.localStorage.removeItem(`cms.site.theme.${projectId}`);
+        } catch {
+          // ignore
+        }
+      } else {
+        setSiteTheme(next);
+        try {
+          window.localStorage.setItem(`cms.site.theme.${projectId}`, next);
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [projectId],
   );
 
   if (!site) {
@@ -379,30 +404,13 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
 
   const toolsNode = (
     <div className="ms-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex-nowrap">
-      <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} />
-      <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} />
+      <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} variant="pill" />
+      <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} variant="pill" />
       <ThemeSwitcher
         mode={resolvedTheme.layout.themeSwitchMode ?? 'light-dark'}
         enabled={resolvedTheme.layout.themeSwitchEnabled !== false}
         appearance={siteTheme}
-        onChange={(next) => {
-          if (next === 'system') {
-            const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setSiteTheme(prefersDark ? 'dark' : 'light');
-            try {
-              window.localStorage.removeItem(`cms.site.theme.${projectId}`);
-            } catch {
-              // ignore
-            }
-          } else {
-            setSiteTheme(next);
-            try {
-              window.localStorage.setItem(`cms.site.theme.${projectId}`, next);
-            } catch {
-              // ignore
-            }
-          }
-        }}
+        onChange={handleThemeChange}
       />
       {ctaLabel && ctaUrl && (
         <a
@@ -414,6 +422,48 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
           {ctaLabel}
         </a>
       )}
+    </div>
+  );
+
+  const sidebarToolsNode = (
+    <div className="flex flex-col gap-2 w-full">
+      {languages.length >= 2 && (
+        <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} variant="sidebar" />
+      )}
+      <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-0.5 rounded-lg text-muted-foreground text-sm">
+        {versions && versions.length > 0 && (
+          <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} variant="sidebar" />
+        )}
+        <ThemeSwitcher
+          mode={resolvedTheme.layout.themeSwitchMode ?? 'light-dark'}
+          enabled={resolvedTheme.layout.themeSwitchEnabled !== false}
+          appearance={siteTheme}
+          variant="sidebar"
+          className="ms-auto"
+          onChange={handleThemeChange}
+        />
+      </div>
+    </div>
+  );
+
+  const languageButtonNode =
+    languages.length >= 2 ? (
+      <LanguageSwitcher languages={languages} activeCode={activeLanguage?.code ?? ''} onChange={changeLanguage} variant="icon" />
+    ) : null;
+
+  const themeSwitchNode = (
+    <ThemeSwitcher
+      mode={resolvedTheme.layout.themeSwitchMode ?? 'light-dark'}
+      enabled={resolvedTheme.layout.themeSwitchEnabled !== false}
+      appearance={siteTheme}
+      onChange={handleThemeChange}
+    />
+  );
+
+  const fluxToolsNode = (
+    <div className="flex flex-row items-center text-muted-foreground gap-1 ms-auto shrink-0">
+      {languageButtonNode}
+      {themeSwitchNode}
     </div>
   );
 
@@ -448,6 +498,19 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
         lang={navigationLanguage}
         version={activeVersionPrefix}
         basePath={basePrefix}
+      />
+    ) : null;
+
+  const fluxTabNode =
+    navTabs.length > 0 ? (
+      <FluxTabDropdown navTabs={navTabsNode} />
+    ) : versions && versions.length > 0 ? (
+      <VersionSwitcher
+        versions={versions}
+        activeSlug={activeVersion}
+        onChange={changeVersion}
+        lang={activeLanguage?.code}
+        variant="tab"
       />
     ) : null;
 
@@ -558,6 +621,11 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
               searchFull={searchFullNode}
               searchButton={searchButtonNode}
               tools={toolsNode}
+              sidebarTools={sidebarToolsNode}
+              fluxTools={fluxToolsNode}
+              fluxTab={fluxTabNode}
+              themeSwitch={themeSwitchNode}
+              languageButton={languageButtonNode}
               navLinks={navLinksNode}
               navTabs={navTabsNode}
               navAnchors={navAnchorsNode}

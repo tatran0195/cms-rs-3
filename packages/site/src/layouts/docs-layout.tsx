@@ -57,11 +57,13 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
                   {slots.sidebarTree ?? slots.navigation}
                 </div>
               </ScrollArea>
-              {slots.tools && (
+              {(slots.sidebarTools || slots.tools) && (
                 <div className="mt-auto border-t border-border/60 p-3">
-                  <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
-                    {slots.tools}
-                  </div>
+                  {slots.sidebarTools ?? (
+                    <div className="flex items-center justify-between border border-border/60 bg-muted/40 p-1 rounded-xl text-muted-foreground text-sm empty:hidden">
+                      {slots.tools}
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -84,7 +86,7 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
             <header
               className={cn(
                 'hidden md:flex items-center justify-between px-8 h-14 border-b border-border/40 [grid-area:header] sticky top-0 z-20 bg-background/85 backdrop-blur-xs',
-                !slots.navLinks && !collapsed && 'invisible pointer-events-none',
+                !slots.navLinks && !collapsed && 'hidden pointer-events-none',
               )}
             >
               <div className="flex items-center gap-4 text-sm text-muted-foreground">

@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
 import { cmsClient, QueryProvider, queryClient } from '@/shared';
 
+const projectKnownVersions = new Map<string, Set<string>>();
+
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,
   notFoundComponent: SiteNotFoundComponent,
@@ -15,7 +17,6 @@ export const Route = createFileRoute('/sites/$projectId')({
       const rest = location.pathname.replace(new RegExp(`^/sites/${params.projectId}/?`), '').replace(/\/+$/, '');
       const rawCandidate = rest && rest !== 'changelog' ? decodeURIComponent(rest).split('/')[0] : undefined;
 
-      // Check if any cached query for this project already knows the valid version slugs
       const cached = queryClient.getQueriesData<SiteShell>({ queryKey: ['site', params.projectId] });
       const knownVersions = cached.find(([, data]) => Boolean(data?.versions))?.[1]?.versions;
       const isKnownVersion = knownVersions && rawCandidate ? knownVersions.some((v) => v.slug === rawCandidate || v.id === rawCandidate) : undefined;
@@ -29,6 +30,9 @@ export const Route = createFileRoute('/sites/$projectId')({
             language: deps.lang,
             version: candidate,
           });
+          if (res.versions) {
+            projectKnownVersions.set(params.projectId, new Set(res.versions.map((v) => v.slug)));
+          }
           if (candidate && !res.versions.some((v) => v.slug === candidate || v.id === candidate)) {
             queryClient.setQueryData(['site', params.projectId, { language: deps.lang, version: undefined }], res);
           }
@@ -36,6 +40,9 @@ export const Route = createFileRoute('/sites/$projectId')({
         },
         staleTime: 'static',
       });
+      if (site.versions) {
+        projectKnownVersions.set(params.projectId, new Set(site.versions.map((v) => v.slug)));
+      }
       return { site };
     } catch {
       return { site: null };

@@ -10,9 +10,10 @@ export interface ThemeSwitcherProps {
   onChange: (theme: 'light' | 'dark' | 'system') => void;
   enabled?: boolean;
   className?: string;
+  variant?: 'pill' | 'sidebar';
 }
 
-export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabled = true, className }: ThemeSwitcherProps) {
+export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabled = true, className, variant = 'pill' }: ThemeSwitcherProps) {
   if (!enabled) return null;
 
   // Segmented: 3 options (System, Light, Dark)
@@ -20,7 +21,12 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
     return (
       <div
         data-theme-switcher="segmented-system"
-        className={cn('inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all', className)}
+        className={cn(
+          variant === 'sidebar'
+            ? 'inline-flex items-center p-0.5 bg-transparent border-0 shadow-none'
+            : 'inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all',
+          className,
+        )}
       >
         <button
           type="button"
@@ -29,7 +35,8 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
           aria-pressed={appearance === 'system'}
           onClick={() => onChange('system')}
           className={cn(
-            'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-all cursor-pointer',
+            'flex size-6 items-center justify-center text-muted-foreground transition-all cursor-pointer',
+            variant === 'sidebar' ? 'rounded-md' : 'rounded-full',
             appearance === 'system' ? 'bg-background text-foreground shadow-xs font-semibold' : 'hover:text-foreground',
           )}
         >
@@ -42,7 +49,8 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
           aria-pressed={appearance === 'light'}
           onClick={() => onChange('light')}
           className={cn(
-            'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-all cursor-pointer',
+            'flex size-6 items-center justify-center text-muted-foreground transition-all cursor-pointer',
+            variant === 'sidebar' ? 'rounded-md' : 'rounded-full',
             appearance === 'light' ? 'bg-background text-foreground shadow-xs font-semibold' : 'hover:text-foreground',
           )}
         >
@@ -55,7 +63,8 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
           aria-pressed={appearance === 'dark'}
           onClick={() => onChange('dark')}
           className={cn(
-            'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-all cursor-pointer',
+            'flex size-6 items-center justify-center text-muted-foreground transition-all cursor-pointer',
+            variant === 'sidebar' ? 'rounded-md' : 'rounded-full',
             appearance === 'dark' ? 'bg-background text-foreground shadow-xs font-semibold' : 'hover:text-foreground',
           )}
         >
@@ -70,7 +79,12 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
     return (
       <div
         data-theme-switcher="segmented-light-dark"
-        className={cn('inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all', className)}
+        className={cn(
+          variant === 'sidebar'
+            ? 'inline-flex items-center p-0.5 bg-transparent border-0 shadow-none'
+            : 'inline-flex items-center rounded-full border border-border/70 p-0.5 bg-muted/40 shadow-2xs transition-all',
+          className,
+        )}
       >
         <button
           type="button"
@@ -79,7 +93,8 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
           aria-pressed={appearance === 'light'}
           onClick={() => onChange('light')}
           className={cn(
-            'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-all cursor-pointer',
+            'flex size-6 items-center justify-center text-muted-foreground transition-all cursor-pointer',
+            variant === 'sidebar' ? 'rounded-md' : 'rounded-full',
             appearance === 'light' ? 'bg-background text-foreground shadow-xs font-semibold' : 'hover:text-foreground',
           )}
         >
@@ -92,7 +107,8 @@ export function ThemeSwitcher({ mode = 'light-dark', appearance, onChange, enabl
           aria-pressed={appearance === 'dark'}
           onClick={() => onChange('dark')}
           className={cn(
-            'flex size-6 items-center justify-center rounded-full text-muted-foreground transition-all cursor-pointer',
+            'flex size-6 items-center justify-center text-muted-foreground transition-all cursor-pointer',
+            variant === 'sidebar' ? 'rounded-md' : 'rounded-full',
             appearance === 'dark' ? 'bg-background text-foreground shadow-xs font-semibold' : 'hover:text-foreground',
           )}
         >

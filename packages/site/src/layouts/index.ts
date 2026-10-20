@@ -7,7 +7,7 @@ import { SpaciousLayoutTemplate } from './spacious-layout';
 import type { DocsLayoutTemplate } from './types';
 
 export { DocsStandardLayoutTemplate } from './docs-layout';
-export { FluxLayoutTemplate } from './flux-layout';
+export { FluxLayoutTemplate, FluxTabDropdown } from './flux-layout';
 export { GlassLayoutTemplate } from './glass-layout';
 export { NotebookLayoutTemplate } from './notebook-layout';
 export * from './shared';

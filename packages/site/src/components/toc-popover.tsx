@@ -94,14 +94,14 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
     })
     .filter((heading) => heading.depth <= depth);
 
-  const [activeId, setActiveId] = useState<string>(() => items[0]?.id ?? '');
+  const [activeIds, setActiveIds] = useState<string[]>(() => (items[0]?.id ? [items[0].id] : []));
 
-  // Keep activeId in sync if items list updates
+  // Keep activeIds in sync if items list updates
   useEffect(() => {
-    if (items.length > 0 && !items.some((i) => i.id === activeId)) {
-      setActiveId(items[0]?.id ?? '');
+    if (items.length > 0 && !items.some((i) => activeIds.includes(i.id))) {
+      setActiveIds([items[0]?.id ?? '']);
     }
-  }, [items, activeId]);
+  }, [items, activeIds]);
 
   const key = items.map((i) => i.id).join('|');
 
@@ -117,7 +117,7 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
     return () => window.removeEventListener('click', handleClickOutside);
   }, [open]);
 
-  // Reading-line scroll spy detection matching desktop TOC
+  // Viewport scroll spy detection matching desktop TOC
   // biome-ignore lint/correctness/useExhaustiveDependencies: key is the stable signature of items.
   useEffect(() => {
     if (typeof window === 'undefined' || items.length === 0) {
@@ -139,34 +139,43 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
+        const firstId = elements[0]?.id;
+        if (!firstId) return;
+
+        const viewportTop = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
+        const viewportBottom = scrollParent ? viewportTop + scrollParent.clientHeight : window.innerHeight;
+
         const isAtBottom = scrollParent
           ? scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight < 30
           : window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 30;
 
         if (isAtBottom && elements.length > 0) {
-          const lastId = elements[elements.length - 1]?.id;
-          if (lastId) {
-            setActiveId(lastId);
-            return;
-          }
+          const visibleBottomIds = elements
+            .filter(({ element }) => {
+              const rect = element.getBoundingClientRect();
+              return rect.bottom > viewportTop && rect.top < viewportBottom;
+            })
+            .map((e) => e.id);
+          const lastId = elements[elements.length - 1]?.id ?? firstId;
+          const result: string[] = visibleBottomIds.length > 0 ? visibleBottomIds : [lastId];
+          setActiveIds(result);
+          return;
         }
 
-        const containerTop = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
-        const readingLine = containerTop + 80;
+        const visibleIds: string[] = [];
+        let closestAboveId = firstId;
 
-        let currentId = elements[0]?.id ?? '';
         for (const { id, element } of elements) {
-          const top = element.getBoundingClientRect().top;
-          if (top <= readingLine) {
-            currentId = id;
-          } else {
-            break;
+          const rect = element.getBoundingClientRect();
+          if (rect.bottom > viewportTop && rect.top < viewportBottom) {
+            visibleIds.push(id);
+          } else if (rect.bottom <= viewportTop) {
+            closestAboveId = id;
           }
         }
 
-        if (currentId) {
-          setActiveId(currentId);
-        }
+        const nextActiveIds: string[] = visibleIds.length > 0 ? visibleIds : [closestAboveId];
+        setActiveIds(nextActiveIds);
       });
     };
 
@@ -183,7 +192,8 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
     return null;
   }
 
-  const activeIndex = items.findIndex((item) => item.id === activeId);
+  const primaryActiveId = activeIds[0] ?? items[0]?.id;
+  const activeIndex = items.findIndex((item) => item.id === primaryActiveId);
   const activeHeading = activeIndex !== -1 ? items[activeIndex] : items[0];
   const progressRatio = items.length > 0 ? (Math.max(0, activeIndex) + 1) / items.length : 0;
 
@@ -191,7 +201,10 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
     <div
       ref={popoverRef}
       data-toc-popover=""
-      className={cn('sticky top-[var(--fd-docs-row-2,0px)] z-20 [grid-area:toc-popover] h-[var(--fd-toc-popover-height,2.5rem)] xl:hidden w-full', className)}
+      className={cn(
+        'sticky top-[var(--fd-docs-row-2,0px)] z-20 [grid-area:toc-popover] h-[var(--fd-toc-popover-height,2.5rem)] xl:hidden w-full',
+        className,
+      )}
     >
       <header className={cn('border-b border-border/70 backdrop-blur-md transition-colors bg-background/85', open && 'shadow-lg bg-background')}>
         <button
@@ -224,10 +237,10 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
               label={label}
               style={style}
               depth={depth}
-              activeId={activeId}
-              onActiveChange={setActiveId}
+              activeIds={activeIds}
+              onActiveIdsChange={setActiveIds}
               onSelect={(id) => {
-                setActiveId(id);
+                setActiveIds([id]);
                 setOpen(false);
               }}
               className="static max-h-none overflow-visible"
