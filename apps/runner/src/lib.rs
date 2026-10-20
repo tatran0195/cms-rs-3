@@ -1430,7 +1430,7 @@ pub async fn execute_search(
         builder.push_bind(lang.to_string());
     }
 
-    builder.push(" ORDER BY f.rank ASC, p.sort_order ASC, p.id ASC LIMIT ");
+    builder.push(" ORDER BY f.rank ASC LIMIT ");
     builder.push_bind(limit as i64);
 
     let rows = builder.build().fetch_all(pool).await?;
