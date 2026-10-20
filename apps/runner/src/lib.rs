@@ -325,6 +325,10 @@ impl TantivySiteSearch {
             .reload_policy(ReloadPolicy::Manual)
             .try_into()?;
 
+        // Pre-warm searcher
+        let searcher = reader.searcher();
+        let _ = searcher.num_docs();
+
         Ok(Self {
             reader,
             fields,
@@ -484,125 +488,15 @@ pub fn resolve_runner_paths(args: &Args) -> anyhow::Result<(PathBuf, Option<Path
     Ok((db_file, idx_dir))
 }
 
-#[derive(Clone)]
-pub struct AppState {
-    inner: Arc<tokio::sync::RwLock<InnerState>>,
-    pub db_path: Option<PathBuf>,
-    pub idx_dir: Option<PathBuf>,
-}
-
-#[derive(Clone)]
-pub struct InnerState {
-    pub db: SqlitePool,
-    pub search: Option<Arc<TantivySiteSearch>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ReloadStats {
-    pub project_name: String,
-    pub page_count: i64,
-    pub schema_version: i32,
-}
-
-impl AppState {
-    pub fn new(db: SqlitePool, search: Option<Arc<TantivySiteSearch>>) -> Self {
-        Self {
-            inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, search })),
-            db_path: None,
-            idx_dir: None,
-        }
-    }
-
-    pub fn with_paths(
-        db: SqlitePool,
-        search: Option<Arc<TantivySiteSearch>>,
-        db_path: PathBuf,
-        idx_dir: Option<PathBuf>,
-    ) -> Self {
-        Self {
-            inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, search })),
-            db_path: Some(db_path),
-            idx_dir,
-        }
-    }
-
-    pub async fn get_db(&self) -> SqlitePool {
-        self.inner.read().await.db.clone()
-    }
-
-    pub async fn get_search(&self) -> Option<Arc<TantivySiteSearch>> {
-        self.inner.read().await.search.clone()
-    }
-
-    pub async fn reload(&self) -> anyhow::Result<ReloadStats> {
-        let db_path = self.db_path.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("Cannot reload: no database path was configured for this server instance")
-        })?;
-
-        if !db_path.exists() {
-            anyhow::bail!("Cannot reload: database file not found at {}", db_path.display());
-        }
-
-        let opts = sqlx::sqlite::SqliteConnectOptions::new()
-            .filename(db_path)
-            .read_only(true);
-
-        let new_pool = sqlx::sqlite::SqlitePoolOptions::new()
-            .max_connections(10)
-            .connect_with(opts)
-            .await?;
-
-        let meta_row = sqlx::query("SELECT schema_version, project_name FROM export_meta LIMIT 1")
-            .fetch_one(&new_pool)
-            .await?;
-        let schema_ver: i32 = meta_row.try_get(0)?;
-        if schema_ver != 1 {
-            anyhow::bail!("Unsupported schema_version {} (expected 1)", schema_ver);
-        }
-        let project_name: String = meta_row.try_get(1).unwrap_or_else(|_| "Documentation".into());
-
-        let page_count: i64 = sqlx::query("SELECT COUNT(*) FROM pages")
-            .fetch_one(&new_pool)
-            .await
-            .and_then(|r| r.try_get(0))
-            .unwrap_or(0);
-
-        let new_search = if let Some(ref idx_path) = self.idx_dir {
-            match TantivySiteSearch::open(idx_path) {
-                Ok(s) => Some(Arc::new(s)),
-                Err(e) => {
-                    tracing::warn!(
-                        "Failed to reload Tantivy index at {}: {}. Using SQLite FTS5.",
-                        idx_path.display(),
-                        e
-                    );
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
-        {
-            let mut write = self.inner.write().await;
-            write.db = new_pool;
-            write.search = new_search;
-        }
-
-        tracing::info!(
-            "Hot reload complete: reloaded '{}' ({} pages) from {}",
-            project_name,
-            page_count,
-            db_path.display()
-        );
-
-        Ok(ReloadStats {
-            project_name,
-            page_count,
-            schema_version: schema_ver,
-        })
-    }
+pub fn build_optimized_sqlite_options(db_path: &std::path::Path) -> sqlx::sqlite::SqliteConnectOptions {
+    sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(db_path)
+        .read_only(true)
+        .pragma("query_only", "ON")
+        .pragma("mmap_size", "268435456")
+        .pragma("cache_size", "-64000")
+        .pragma("synchronous", "OFF")
+        .pragma("temp_store", "MEMORY")
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -765,119 +659,411 @@ struct SearchQuery {
     limit: Option<usize>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PageRouteNode {
+    pub id: String,
+    pub custom_id: Option<String>,
+    pub version_id: String,
+    pub parent_id: Option<String>,
+    pub kind: String,
+    pub slug: String,
+    pub path: String,
+    pub title: String,
+    pub icon: Option<String>,
+    pub sort_order: i32,
+}
+
+#[derive(Clone, Debug)]
+pub struct SiteInstance {
+    pub project: ProjectMetadata,
+    pub languages: Vec<LanguageItem>,
+    pub default_language: String,
+    pub versions: Vec<VersionItem>,
+    pub default_version_id: String,
+    pub default_version_slug: String,
+    pub generated_at: String,
+
+    pub nav_trees: HashMap<String, Vec<NavNode>>,
+    pub routes: HashMap<(String, String), PageRouteNode>,
+    pub pages_by_id: HashMap<String, PageRouteNode>,
+    pub pages_by_custom_id: HashMap<String, String>,
+    pub version_pages: HashMap<String, Vec<AdjacentPage>>,
+    pub first_page_by_version: HashMap<String, PageRouteNode>,
+    pub children_by_parent: HashMap<String, Vec<PageRouteNode>>,
+}
+
+impl SiteInstance {
+    pub async fn load(pool: &SqlitePool) -> anyhow::Result<Self> {
+        let meta_row = sqlx::query(
+            "SELECT project_id, project_name, project_slug, exported_at, schema_version FROM export_meta LIMIT 1",
+        )
+        .fetch_one(pool)
+        .await?;
+        let project_id: String = meta_row.try_get(0)?;
+        let project_name: String = meta_row.try_get(1)?;
+        let project_slug: String = meta_row.try_get(2)?;
+        let exported_at: String = meta_row.try_get(3)?;
+        let schema_ver: i32 = meta_row.try_get(4).unwrap_or(1);
+        if schema_ver != 1 {
+            anyhow::bail!("Unsupported schema_version {} (expected 1)", schema_ver);
+        }
+
+        let mut project_config = serde_json::Map::new();
+        let config_rows = sqlx::query("SELECT key, value FROM project_config")
+            .fetch_all(pool)
+            .await?;
+        for r in config_rows {
+            let k: String = r.try_get(0)?;
+            let v: String = r.try_get(1)?;
+            if let Ok(json_val) = serde_json::from_str(&v) {
+                project_config.insert(k, json_val);
+            } else {
+                project_config.insert(k, serde_json::Value::String(v));
+            }
+        }
+
+        let description = project_config
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let project = ProjectMetadata {
+            id: project_id,
+            name: project_name,
+            slug: project_slug,
+            description,
+            config: Some(serde_json::Value::Object(project_config)),
+            primary_domain: None,
+        };
+
+        let mut languages = Vec::new();
+        let mut default_language = "en".to_string();
+        let lang_rows = sqlx::query("SELECT code, label, is_default, is_rtl FROM languages")
+            .fetch_all(pool)
+            .await?;
+        for r in lang_rows {
+            let code: String = r.try_get(0)?;
+            let label: String = r.try_get(1)?;
+            let is_default: i32 = r.try_get(2)?;
+            let is_rtl: i32 = r.try_get(3)?;
+            let is_default_bool = is_default == 1;
+            if is_default_bool {
+                default_language = code.clone();
+            }
+            languages.push(LanguageItem {
+                code,
+                label,
+                direction: if is_rtl == 1 { "RTL".into() } else { "LTR".into() },
+                is_default: is_default_bool,
+                enabled: true,
+            });
+        }
+
+        let mut versions = Vec::new();
+        let mut default_version_id = String::new();
+        let mut default_version_slug = String::new();
+        let ver_rows = sqlx::query("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")
+            .fetch_all(pool)
+            .await?;
+        for (idx, r) in ver_rows.into_iter().enumerate() {
+            let id: String = r.try_get(0)?;
+            let slug: String = r.try_get(1)?;
+            let name: String = r.try_get(2)?;
+            let is_default: i32 = r.try_get(3)?;
+            let is_default_bool = is_default == 1;
+            if is_default_bool || (idx == 0 && default_version_id.is_empty()) {
+                default_version_id = id.clone();
+                default_version_slug = slug.clone();
+            }
+            versions.push(VersionItem {
+                id,
+                name,
+                slug,
+                is_default: is_default_bool,
+            });
+        }
+
+        let page_rows = match sqlx::query(
+            "SELECT id, version_id, parent_id, kind, slug, title, path, icon, sort_order, custom_id FROM pages ORDER BY sort_order ASC, path ASC"
+        )
+        .fetch_all(pool)
+        .await {
+            Ok(rows) => rows,
+            Err(_) => {
+                sqlx::query(
+                    "SELECT id, version_id, parent_id, kind, slug, title, path, icon, sort_order, NULL as custom_id FROM pages ORDER BY sort_order ASC, path ASC"
+                )
+                .fetch_all(pool)
+                .await?
+            }
+        };
+
+        let mut routes = HashMap::new();
+        let mut pages_by_id = HashMap::new();
+        let mut pages_by_custom_id = HashMap::new();
+        let mut children_by_parent: HashMap<String, Vec<PageRouteNode>> = HashMap::new();
+        let mut version_raw_pages: HashMap<String, Vec<PageRouteNode>> = HashMap::new();
+        let mut version_pages: HashMap<String, Vec<AdjacentPage>> = HashMap::new();
+        let mut first_page_by_version = HashMap::new();
+
+        for r in page_rows {
+            let id: String = r.try_get(0)?;
+            let version_id: String = r.try_get(1)?;
+            let parent_id: Option<String> = r
+                .try_get::<Option<String>, _>(2)
+                .ok()
+                .flatten()
+                .filter(|s| !s.trim().is_empty());
+            let kind: String = r.try_get(3)?;
+            let slug: String = r.try_get(4)?;
+            let title: String = r.try_get(5)?;
+            let path: String = r.try_get(6)?;
+            let icon: Option<String> = r
+                .try_get::<Option<String>, _>(7)
+                .ok()
+                .flatten()
+                .filter(|s| !s.trim().is_empty());
+            let sort_order: i32 = r.try_get(8)?;
+            let custom_id: Option<String> = r
+                .try_get::<Option<String>, _>(9)
+                .ok()
+                .flatten()
+                .filter(|s| !s.trim().is_empty());
+
+            let node = PageRouteNode {
+                id: id.clone(),
+                custom_id: custom_id.clone(),
+                version_id: version_id.clone(),
+                parent_id: parent_id.clone(),
+                kind: kind.clone(),
+                slug: slug.clone(),
+                path: path.clone(),
+                title: title.clone(),
+                icon,
+                sort_order,
+            };
+
+            let clean_p = path.trim().trim_matches('/').to_string();
+            routes.insert((version_id.clone(), format!("/{}", clean_p)), node.clone());
+            routes.insert((version_id.clone(), clean_p.clone()), node.clone());
+
+            if let Some(ref cid) = custom_id {
+                let clean_cid = cid.trim().trim_matches('/').to_string();
+                pages_by_custom_id.insert(clean_cid, id.clone());
+            }
+
+            if let Some(ref pid) = parent_id {
+                children_by_parent.entry(pid.clone()).or_default().push(node.clone());
+            }
+
+            if kind.eq_ignore_ascii_case("page") || kind.eq_ignore_ascii_case("document") {
+                version_pages.entry(version_id.clone()).or_default().push(AdjacentPage {
+                    title: title.clone(),
+                    path: path.clone(),
+                });
+                if kind.eq_ignore_ascii_case("page") {
+                    first_page_by_version.entry(version_id.clone()).or_insert_with(|| node.clone());
+                }
+            }
+
+            pages_by_id.insert(id.clone(), node.clone());
+            version_raw_pages.entry(version_id).or_default().push(node);
+        }
+
+        let mut nav_trees = HashMap::new();
+        for (ver_id, raw_pages) in version_raw_pages {
+            let mut children_map: HashMap<Option<String>, Vec<PageRouteNode>> = HashMap::new();
+            for p in raw_pages {
+                children_map.entry(p.parent_id.clone()).or_default().push(p);
+            }
+
+            fn assemble_nodes(
+                parent_id: Option<String>,
+                map: &mut HashMap<Option<String>, Vec<PageRouteNode>>,
+            ) -> Vec<NavNode> {
+                let mut list = map.remove(&parent_id).unwrap_or_default();
+                list.sort_by_key(|n| n.sort_order);
+                list.into_iter()
+                    .map(|node| {
+                        let node_id = node.id.clone();
+                        let children = assemble_nodes(Some(node_id), map);
+                        NavNode {
+                            id: node.id,
+                            kind: node.kind,
+                            title: node.title,
+                            path: node.path,
+                            icon: node.icon,
+                            tag: None,
+                            children,
+                        }
+                    })
+                    .collect()
+            }
+
+            let tree = assemble_nodes(None, &mut children_map);
+            nav_trees.insert(ver_id, tree);
+        }
+
+        Ok(Self {
+            project,
+            languages,
+            default_language,
+            versions,
+            default_version_id,
+            default_version_slug,
+            generated_at: exported_at,
+            nav_trees,
+            routes,
+            pages_by_id,
+            pages_by_custom_id,
+            version_pages,
+            first_page_by_version,
+            children_by_parent,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct AppState {
+    inner: Arc<tokio::sync::RwLock<InnerState>>,
+    pub db_path: Option<PathBuf>,
+    pub idx_dir: Option<PathBuf>,
+}
+
+#[derive(Clone)]
+pub struct InnerState {
+    pub db: SqlitePool,
+    pub instance: Arc<SiteInstance>,
+    pub search: Option<Arc<TantivySiteSearch>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReloadStats {
+    pub project_name: String,
+    pub page_count: i64,
+    pub schema_version: i32,
+}
+
+impl AppState {
+    pub fn new(db: SqlitePool, instance: Arc<SiteInstance>, search: Option<Arc<TantivySiteSearch>>) -> Self {
+        Self {
+            inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, instance, search })),
+            db_path: None,
+            idx_dir: None,
+        }
+    }
+
+    pub async fn from_pool(db: SqlitePool, search: Option<Arc<TantivySiteSearch>>) -> anyhow::Result<Self> {
+        let instance = Arc::new(SiteInstance::load(&db).await?);
+        Ok(Self::new(db, instance, search))
+    }
+
+    pub fn with_paths(
+        db: SqlitePool,
+        instance: Arc<SiteInstance>,
+        search: Option<Arc<TantivySiteSearch>>,
+        db_path: PathBuf,
+        idx_dir: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, instance, search })),
+            db_path: Some(db_path),
+            idx_dir,
+        }
+    }
+
+    pub async fn get_db(&self) -> SqlitePool {
+        self.inner.read().await.db.clone()
+    }
+
+    pub async fn get_instance(&self) -> Arc<SiteInstance> {
+        self.inner.read().await.instance.clone()
+    }
+
+    pub async fn get_search(&self) -> Option<Arc<TantivySiteSearch>> {
+        self.inner.read().await.search.clone()
+    }
+
+    pub async fn reload(&self) -> anyhow::Result<ReloadStats> {
+        let db_path = self.db_path.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Cannot reload: no database path was configured for this server instance")
+        })?;
+
+        if !db_path.exists() {
+            anyhow::bail!("Cannot reload: database file not found at {}", db_path.display());
+        }
+
+        let opts = build_optimized_sqlite_options(db_path);
+
+        let new_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(10)
+            .connect_with(opts)
+            .await?;
+
+        let new_instance = Arc::new(SiteInstance::load(&new_pool).await?);
+        let project_name = new_instance.project.name.clone();
+        let page_count = new_instance.pages_by_id.len() as i64;
+
+        let new_search = if let Some(ref idx_path) = self.idx_dir {
+            match TantivySiteSearch::open(idx_path) {
+                Ok(s) => Some(Arc::new(s)),
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to reload Tantivy index at {}: {}. Using SQLite FTS5.",
+                        idx_path.display(),
+                        e
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        {
+            let mut write = self.inner.write().await;
+            write.db = new_pool;
+            write.instance = new_instance;
+            write.search = new_search;
+        }
+
+        tracing::info!(
+            "Hot reload complete: reloaded '{}' ({} pages) from {}",
+            project_name,
+            page_count,
+            db_path.display()
+        );
+
+        Ok(ReloadStats {
+            project_name,
+            page_count,
+            schema_version: 1,
+        })
+    }
+}
+
 // ── Database Queries ─────────────────────────────────────────────────────────
 
-pub async fn query_bootstrap(
-    pool: &SqlitePool,
+pub fn query_bootstrap_fast(
+    instance: &SiteInstance,
     target_lang: Option<&str>,
     target_version: Option<&str>,
 ) -> anyhow::Result<SiteShell> {
-    // 1. Project metadata
-    let meta_row = sqlx::query(
-        "SELECT project_id, project_name, project_slug, exported_at FROM export_meta LIMIT 1",
-    )
-    .fetch_one(pool)
-    .await?;
-    let project_id: String = meta_row.try_get(0)?;
-    let project_name: String = meta_row.try_get(1)?;
-    let project_slug: String = meta_row.try_get(2)?;
-    let exported_at: String = meta_row.try_get(3)?;
-
-    let mut project_config = serde_json::Map::new();
-    let config_rows = sqlx::query("SELECT key, value FROM project_config")
-        .fetch_all(pool)
-        .await?;
-    for r in config_rows {
-        let k: String = r.try_get(0)?;
-        let v: String = r.try_get(1)?;
-        if let Ok(json_val) = serde_json::from_str(&v) {
-            project_config.insert(k, json_val);
-        } else {
-            project_config.insert(k, serde_json::Value::String(v));
-        }
-    }
-
-    let description = project_config
-        .get("description")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let project = ProjectMetadata {
-        id: project_id,
-        name: project_name,
-        slug: project_slug,
-        description,
-        config: Some(serde_json::Value::Object(project_config)),
-        primary_domain: None,
-    };
-
-    // 2. Languages
-    let mut languages = Vec::new();
-    let mut default_lang = "en".to_string();
-    let lang_rows = sqlx::query("SELECT code, label, is_default, is_rtl FROM languages")
-        .fetch_all(pool)
-        .await?;
-    for r in lang_rows {
-        let code: String = r.try_get(0)?;
-        let label: String = r.try_get(1)?;
-        let is_default: i32 = r.try_get(2)?;
-        let is_rtl: i32 = r.try_get(3)?;
-        let is_default_bool = is_default == 1;
-        if is_default_bool {
-            default_lang = code.clone();
-        }
-        languages.push(LanguageItem {
-            code,
-            label,
-            direction: if is_rtl == 1 {
-                "RTL".to_string()
-            } else {
-                "LTR".to_string()
-            },
-            is_default: is_default_bool,
-            enabled: true,
-        });
-    }
-
-    let active_language = if let Some(req_lang) = target_lang {
-        if languages.iter().any(|l| l.code == req_lang) {
+    let active_language = if let Some(req_lang) = target_lang.filter(|s| !s.trim().is_empty()) {
+        if instance.languages.iter().any(|l| l.code == req_lang) {
             req_lang.to_string()
         } else {
-            default_lang.clone()
+            instance.default_language.clone()
         }
     } else {
-        default_lang.clone()
+        instance.default_language.clone()
     };
-
-    // 3. Versions
-    let mut versions = Vec::new();
-    let mut default_version_id = String::new();
-    let mut default_version_slug = String::new();
-    let ver_rows =
-        sqlx::query("SELECT id, slug, label, is_default FROM versions ORDER BY sort_order ASC")
-            .fetch_all(pool)
-            .await?;
-    for (idx, r) in ver_rows.into_iter().enumerate() {
-        let id: String = r.try_get(0)?;
-        let slug: String = r.try_get(1)?;
-        let name: String = r.try_get(2)?;
-        let is_default: i32 = r.try_get(3)?;
-        let is_default_bool = is_default == 1;
-        if is_default_bool || (idx == 0 && default_version_id.is_empty()) {
-            default_version_id = id.clone();
-            default_version_slug = slug.clone();
-        }
-        versions.push(VersionItem {
-            id,
-            name,
-            slug,
-            is_default: is_default_bool,
-        });
-    }
 
     let (active_version_id, active_version_slug) =
         if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
-            if let Some(v) = versions
+            if let Some(v) = instance
+                .versions
                 .iter()
                 .find(|v| v.slug == req_ver || v.id == req_ver)
             {
@@ -886,83 +1072,38 @@ pub async fn query_bootstrap(
                 anyhow::bail!("Version '{}' not found", req_ver);
             }
         } else {
-            (default_version_id, default_version_slug)
+            (
+                instance.default_version_id.clone(),
+                instance.default_version_slug.clone(),
+            )
         };
 
-    // 4. Navigation tree for active version
-    struct RawPageNode {
-        id: String,
-        parent_id: Option<String>,
-        kind: String,
-        title: String,
-        path: String,
-        icon: Option<String>,
-        sort_order: i32,
-    }
-
-    let mut raw_pages = Vec::new();
-    let page_rows = sqlx::query(
-        "SELECT id, parent_id, kind, title, path, icon, sort_order FROM pages WHERE version_id = \
-         ?1 ORDER BY sort_order ASC",
-    )
-    .bind(&active_version_id)
-    .fetch_all(pool)
-    .await?;
-
-    for r in page_rows {
-        raw_pages.push(RawPageNode {
-            id: r.try_get(0)?,
-            parent_id: r.try_get(1)?,
-            kind: r.try_get(2)?,
-            title: r.try_get(3)?,
-            path: r.try_get(4)?,
-            icon: r.try_get(5)?,
-            sort_order: r.try_get(6)?,
-        });
-    }
-
-    // Assemble tree
-    let mut children_map: HashMap<Option<String>, Vec<RawPageNode>> = HashMap::new();
-    for p in raw_pages {
-        children_map.entry(p.parent_id.clone()).or_default().push(p);
-    }
-
-    fn build_nodes(
-        parent_id: Option<String>,
-        map: &mut HashMap<Option<String>, Vec<RawPageNode>>,
-    ) -> Vec<NavNode> {
-        let mut list = map.remove(&parent_id).unwrap_or_default();
-        list.sort_by_key(|n| n.sort_order);
-        list.into_iter()
-            .map(|node| {
-                let node_id = node.id.clone();
-                let children = build_nodes(Some(node_id), map);
-                NavNode {
-                    id: node.id,
-                    kind: node.kind,
-                    title: node.title,
-                    path: node.path,
-                    icon: node.icon,
-                    tag: None,
-                    children,
-                }
-            })
-            .collect()
-    }
-
-    let nav = build_nodes(None, &mut children_map);
+    let nav = instance
+        .nav_trees
+        .get(&active_version_id)
+        .cloned()
+        .unwrap_or_default();
 
     Ok(SiteShell {
-        project,
+        project: instance.project.clone(),
         nav,
-        languages,
-        versions,
+        languages: instance.languages.clone(),
+        versions: instance.versions.clone(),
         active_language,
         active_version: active_version_slug,
         language_config: None,
         version: 1,
-        generated_at: exported_at,
+        generated_at: instance.generated_at.clone(),
     })
+}
+
+pub async fn query_bootstrap(
+    pool: &SqlitePool,
+    target_lang: Option<&str>,
+    target_version: Option<&str>,
+) -> anyhow::Result<SiteShell> {
+    let instance = SiteInstance::load(pool).await?;
+    query_bootstrap_fast(&instance, target_lang, target_version)
 }
 
 fn extract_headings(markdown: &str) -> Vec<HeadingItem> {
@@ -995,60 +1136,44 @@ fn extract_headings(markdown: &str) -> Vec<HeadingItem> {
     headings
 }
 
-pub async fn query_page(
+pub async fn query_page_fast(
     pool: &SqlitePool,
+    instance: &SiteInstance,
     target_path: &str,
     target_lang: Option<&str>,
     target_version: Option<&str>,
 ) -> anyhow::Result<Option<SitePageResponse>> {
-    let bootstrap = match query_bootstrap(pool, target_lang, target_version).await {
-        Ok(b) => b,
-        Err(_) => return Ok(None),
+    let active_lang = if let Some(req_lang) = target_lang.filter(|s| !s.trim().is_empty()) {
+        if !instance.languages.iter().any(|l| l.code == req_lang) {
+            return Ok(None);
+        }
+        req_lang.to_string()
+    } else {
+        instance.default_language.clone()
     };
 
-    if let Some(req_lang) = target_lang.filter(|s| !s.trim().is_empty()) {
-        if !bootstrap.languages.iter().any(|l| l.code == req_lang) {
-            return Ok(None);
+    let active_version_item = if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
+        match instance.versions.iter().find(|v| v.slug == req_ver || v.id == req_ver) {
+            Some(v) => v,
+            None => return Ok(None),
         }
-    }
-
-    if let Some(req_ver) = target_version.filter(|s| !s.trim().is_empty()) {
-        if !bootstrap
-            .versions
-            .iter()
-            .any(|v| v.slug == req_ver || v.id == req_ver)
-        {
-            return Ok(None);
+    } else {
+        match instance.versions.iter().find(|v| v.id == instance.default_version_id) {
+            Some(v) => v,
+            None => return Ok(None),
         }
-    }
-
-    let active_lang = bootstrap.active_language.clone();
-
-    let active_version_item = match bootstrap
-        .versions
-        .iter()
-        .find(|v| v.slug == bootstrap.active_version || v.id == bootstrap.active_version)
-    {
-        Some(v) => v,
-        None => return Ok(None),
     };
     let active_version_id = &active_version_item.id;
     let active_version_slug = &active_version_item.slug;
 
-    // Normalize path
     let mut normalized = target_path.trim().trim_matches('/');
-
-    // Strip sites/<project_id>/ if present
     if let Some(stripped) = normalized.strip_prefix("sites/") {
         if let Some((_, rest)) = stripped.split_once('/') {
             normalized = rest.trim_matches('/');
         }
     }
-
-    // Strip active_version_slug if path is prefixed with it
     if !active_version_item.is_default
-        && (normalized == active_version_slug
-            || normalized.starts_with(&format!("{}/", active_version_slug)))
+        && (normalized == active_version_slug || normalized.starts_with(&format!("{}/", active_version_slug)))
     {
         normalized = normalized
             .strip_prefix(active_version_slug.as_str())
@@ -1056,143 +1181,74 @@ pub async fn query_page(
             .trim_matches('/');
     }
 
-    let path_candidates = if normalized.is_empty() {
-        vec!["/".to_string(), "".to_string()]
+    let found_node: Option<&PageRouteNode> = if normalized.is_empty() {
+        instance
+            .routes
+            .get(&(active_version_id.clone(), "/".into()))
+            .or_else(|| instance.routes.get(&(active_version_id.clone(), "".into())))
+            .or_else(|| {
+                instance
+                    .first_page_by_version
+                    .get(active_version_id)
+                    .filter(|n| n.kind.eq_ignore_ascii_case("page"))
+            })
     } else {
-        vec![format!("/{}", normalized), normalized.to_string()]
+        instance
+            .routes
+            .get(&(active_version_id.clone(), format!("/{}", normalized)))
+            .or_else(|| instance.routes.get(&(active_version_id.clone(), normalized.into())))
     };
 
-    // Find page record scoped strictly to active_version_id
-    struct PageRow {
-        id: String,
-        version_id: String,
-        parent_id: Option<String>,
-        path: String,
-        title: String,
-        icon: Option<String>,
-        kind: String,
-    }
+    let mut target_node = match found_node {
+        Some(n) => n.clone(),
+        None => return Ok(None),
+    };
 
-    let mut found_page: Option<PageRow> = None;
-    for cand in &path_candidates {
-        let row_opt = sqlx::query(
-            "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
-             ?1 AND path = ?2 LIMIT 1",
-        )
-        .bind(active_version_id)
-        .bind(cand)
-        .fetch_optional(pool)
-        .await?;
+    if target_node.kind.eq_ignore_ascii_case("group") {
+        if let Some(children) = instance.children_by_parent.get(&target_node.id) {
+            fn find_first_leaf<'a>(
+                children: &'a [PageRouteNode],
+                children_by_parent: &'a HashMap<String, Vec<PageRouteNode>>,
+            ) -> Option<&'a PageRouteNode> {
+                for c in children {
+                    if !c.kind.eq_ignore_ascii_case("group") {
+                        return Some(c);
+                    }
+                    if let Some(sub_children) = children_by_parent.get(&c.id) {
+                        if let Some(leaf) = find_first_leaf(sub_children, children_by_parent) {
+                            return Some(leaf);
+                        }
+                    }
+                }
+                None
+            }
 
-        if let Some(r) = row_opt {
-            found_page = Some(PageRow {
-                id: r.try_get(0)?,
-                version_id: r.try_get(1)?,
-                parent_id: r.try_get(2)?,
-                path: r.try_get(3)?,
-                title: r.try_get(4)?,
-                icon: r.try_get(5)?,
-                kind: r.try_get(6)?,
-            });
-            break;
+            if let Some(leaf) = find_first_leaf(children, &instance.children_by_parent) {
+                target_node = leaf.clone();
+            }
         }
-    }
-
-    // If empty path had no exact "/" entry, resolve to first page of the version
-    if found_page.is_none() && normalized.is_empty() {
-        let first_row = sqlx::query(
-            "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
-             ?1 AND LOWER(kind) = 'page' ORDER BY sort_order ASC, path ASC LIMIT 1",
-        )
-        .bind(active_version_id)
-        .fetch_optional(pool)
-        .await?;
-
-        if let Some(r) = first_row {
-            found_page = Some(PageRow {
-                id: r.try_get(0)?,
-                version_id: r.try_get(1)?,
-                parent_id: r.try_get(2)?,
-                path: r.try_get(3)?,
-                title: r.try_get(4)?,
-                icon: r.try_get(5)?,
-                kind: r.try_get(6)?,
-            });
-        }
-    }
-
-
-    // If the matched entry is a group, resolve to its first child page
-    if let Some(ref p) = found_page {
-        if p.kind.eq_ignore_ascii_case("group") {
-            let child_opt = sqlx::query(
-                "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
-                 ?1 AND parent_id = ?2 AND LOWER(kind) != 'group' ORDER BY sort_order ASC, path ASC LIMIT 1",
-            )
-            .bind(active_version_id)
-            .bind(&p.id)
-            .fetch_optional(pool)
-            .await?;
-
-            if let Some(r) = child_opt {
-                found_page = Some(PageRow {
-                    id: r.try_get(0)?,
-                    version_id: r.try_get(1)?,
-                    parent_id: r.try_get(2)?,
-                    path: r.try_get(3)?,
-                    title: r.try_get(4)?,
-                    icon: r.try_get(5)?,
-                    kind: r.try_get(6)?,
-                });
-            } else {
-                let prefix = format!("{}/%", p.path.trim_matches('/'));
-                let prefix_cand = format!("/{}%", p.path.trim_matches('/'));
-                let child_by_prefix = sqlx::query(
-                    "SELECT id, version_id, parent_id, path, title, icon, kind FROM pages WHERE version_id = \
-                     ?1 AND (path LIKE ?2 OR path LIKE ?3) AND LOWER(kind) != 'group' ORDER BY sort_order ASC, path ASC LIMIT 1",
-                )
-                .bind(active_version_id)
-                .bind(&prefix)
-                .bind(&prefix_cand)
-                .fetch_optional(pool)
-                .await?;
-
-                if let Some(r) = child_by_prefix {
-                    found_page = Some(PageRow {
-                        id: r.try_get(0)?,
-                        version_id: r.try_get(1)?,
-                        parent_id: r.try_get(2)?,
-                        path: r.try_get(3)?,
-                        title: r.try_get(4)?,
-                        icon: r.try_get(5)?,
-                        kind: r.try_get(6)?,
-                    });
+        if target_node.kind.eq_ignore_ascii_case("group") {
+            let prefix = format!("{}/", target_node.path.trim_matches('/'));
+            if let Some(siblings) = instance.version_pages.get(active_version_id) {
+                if let Some(sibling) = siblings.iter().find(|s| s.path.trim_matches('/').starts_with(&prefix)) {
+                    if let Some(found) = instance.routes.get(&(active_version_id.clone(), sibling.path.clone())) {
+                        target_node = found.clone();
+                    }
                 }
             }
         }
     }
 
-    let page_row = match found_page {
-        Some(p) => p,
-        None => return Ok(None),
-    };
-
-    // Query content for the page specifically for active_lang (no cross-language fallback)
     let content_opt = sqlx::query(
-        "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 AND \
-         language = ?2 LIMIT 1",
+        "SELECT markdown, description, updated_at FROM page_content WHERE page_id = ?1 AND language = ?2 LIMIT 1",
     )
-    .bind(&page_row.id)
+    .bind(&target_node.id)
     .bind(&active_lang)
     .fetch_optional(pool)
     .await?;
 
     let (markdown, description, updated_at): (String, Option<String>, String) = match content_opt {
-        Some(r) => (
-            r.try_get(0)?,
-            r.try_get(1)?,
-            r.try_get(2)?,
-        ),
+        Some(r) => (r.try_get(0)?, r.try_get(1)?, r.try_get(2)?),
         None => return Ok(None),
     };
 
@@ -1207,92 +1263,82 @@ pub async fn query_page(
         })
         .unwrap_or_default();
 
-    // Query breadcrumbs
     let mut breadcrumbs = Vec::new();
-    let mut curr_parent = page_row.parent_id.clone();
-    while let Some(parent_id) = curr_parent {
-        let row_opt =
-            sqlx::query("SELECT title, path, parent_id FROM pages WHERE id = ?1 LIMIT 1")
-                .bind(&parent_id)
-                .fetch_optional(pool)
-                .await?;
-        if let Some(r) = row_opt {
+    let mut curr_parent = target_node.parent_id.clone();
+    while let Some(ref parent_id) = curr_parent {
+        if let Some(p_node) = instance.pages_by_id.get(parent_id) {
             breadcrumbs.push(BreadcrumbItem {
-                title: r.try_get(0)?,
-                path: r.try_get(1)?,
+                title: p_node.title.clone(),
+                path: p_node.path.clone(),
             });
-            curr_parent = r.try_get(2)?;
+            curr_parent = p_node.parent_id.clone();
         } else {
             break;
         }
     }
     breadcrumbs.reverse();
     breadcrumbs.push(BreadcrumbItem {
-        title: page_row.title.clone(),
-        path: page_row.path.clone(),
+        title: target_node.title.clone(),
+        path: target_node.path.clone(),
     });
-
-    // Query prev & next siblings in version
-    let mut siblings = Vec::new();
-    let sib_rows = sqlx::query(
-        "SELECT title, path FROM pages WHERE version_id = ?1 ORDER BY sort_order ASC",
-    )
-    .bind(&page_row.version_id)
-    .fetch_all(pool)
-    .await?;
-
-    for r in sib_rows {
-        siblings.push(AdjacentPage {
-            title: r.try_get(0)?,
-            path: r.try_get(1)?,
-        });
-    }
 
     let mut prev = None;
     let mut next = None;
-    if let Some(idx) = siblings.iter().position(|s| s.path == page_row.path) {
-        if idx > 0 {
-            prev = Some(siblings[idx - 1].clone());
-        }
-        if idx + 1 < siblings.len() {
-            next = Some(siblings[idx + 1].clone());
+    if let Some(siblings) = instance.version_pages.get(active_version_id) {
+        if let Some(idx) = siblings.iter().position(|s| s.path == target_node.path) {
+            if idx > 0 {
+                prev = Some(siblings[idx - 1].clone());
+            }
+            if idx + 1 < siblings.len() {
+                next = Some(siblings[idx + 1].clone());
+            }
         }
     }
 
-    let page_languages = bootstrap
+    let page_languages = instance
         .languages
         .iter()
         .map(|l| PageLanguageItem {
             code: l.code.clone(),
             is_default: l.is_default,
-            path: Some(page_row.path.clone()),
+            path: Some(target_node.path.clone()),
         })
         .collect();
 
     Ok(Some(SitePageResponse {
-        project: bootstrap.project,
+        project: instance.project.clone(),
         page: PageDetails {
-            id: page_row.id,
-            created_at: bootstrap.generated_at.clone(),
+            id: target_node.id,
+            created_at: instance.generated_at.clone(),
             updated_at,
-            title: page_row.title,
+            title: target_node.title,
             description,
             excerpt,
-            icon: page_row.icon,
-            path: page_row.path,
+            icon: target_node.icon,
+            path: target_node.path,
             content: markdown,
             headings,
             config: None,
         },
         active_language: active_lang,
         active_version: active_version_slug.clone(),
-        versions: bootstrap.versions,
+        versions: instance.versions.clone(),
         language_config: None,
         languages: page_languages,
         breadcrumbs,
         prev,
         next,
     }))
+}
+
+pub async fn query_page(
+    pool: &SqlitePool,
+    target_path: &str,
+    target_lang: Option<&str>,
+    target_version: Option<&str>,
+) -> anyhow::Result<Option<SitePageResponse>> {
+    let instance = SiteInstance::load(pool).await?;
+    query_page_fast(pool, &instance, target_path, target_lang, target_version).await
 }
 
 
@@ -1437,11 +1483,11 @@ async fn api_bootstrap(
     State(state): State<AppState>,
     Query(query): Query<BootstrapQuery>,
 ) -> Response {
-    let db = state.get_db().await;
+    let instance = state.get_instance().await;
     let lang = query.lang;
     let version = query.version;
 
-    match query_bootstrap(&db, lang.as_deref(), version.as_deref()).await {
+    match query_bootstrap_fast(&instance, lang.as_deref(), version.as_deref()) {
         Ok(shell) => Json(shell).into_response(),
         Err(e) => {
             tracing::warn!("Failed to query bootstrap: {}", e);
@@ -1456,11 +1502,12 @@ async fn api_bootstrap(
 
 async fn api_page(State(state): State<AppState>, Query(query): Query<PageQuery>) -> Response {
     let db = state.get_db().await;
+    let instance = state.get_instance().await;
     let path = query.path.unwrap_or_else(|| "/".to_string());
     let lang = query.lang;
     let version = query.version;
 
-    match query_page(&db, &path, lang.as_deref(), version.as_deref()).await {
+    match query_page_fast(&db, &instance, &path, lang.as_deref(), version.as_deref()).await {
         Ok(Some(page)) => Json(page).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Page not found").into_response(),
         Err(e) => {
@@ -1469,6 +1516,7 @@ async fn api_page(State(state): State<AppState>, Query(query): Query<PageQuery>)
         }
     }
 }
+
 
 async fn api_changelog(State(state): State<AppState>) -> Response {
     let db = state.get_db().await;
@@ -1565,82 +1613,84 @@ async fn fast_path_redirect(
         return (StatusCode::BAD_REQUEST, "Missing identifier or path").into_response();
     }
 
-    let db = state.get_db().await;
+    let instance = state.get_instance().await;
 
-    // Try lookup: 1. by id, 2. by custom_id, 3. by path or slug
-    let row_opt = sqlx::query(
-        "SELECT id, kind, path FROM pages WHERE id = ?1 OR custom_id = ?1 OR path = ?1 OR path = ?2 OR slug = ?1 LIMIT 1",
-    )
-    .bind(clean_id)
-    .bind(format!("/{}", clean_id))
-    .fetch_optional(&db)
-    .await;
-
-    let (page_id, kind, mut target_path) = match row_opt {
-        Ok(Some(row)) => {
-            let id: String = row.try_get(0).unwrap_or_default();
-            let kind: String = row.try_get(1).unwrap_or_default();
-            let path: String = row.try_get(2).unwrap_or_default();
-            (id, kind, path)
-        }
-        Ok(None) => {
-            return (StatusCode::NOT_FOUND, "Document or group not found").into_response();
-        }
-        Err(e) => {
-            tracing::error!("Failed to resolve fast-path ID '{}': {}", clean_id, e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
-        }
+    // 1. Try fast in-memory resolution:
+    // a. By id
+    // b. By custom_id
+    // c. By route path
+    // d. By slug
+    let found_node: Option<PageRouteNode> = if let Some(node) = instance.pages_by_id.get(clean_id) {
+        Some(node.clone())
+    } else if let Some(target_id) = instance.pages_by_custom_id.get(clean_id) {
+        instance.pages_by_id.get(target_id).cloned()
+    } else if let Some(node) = instance.routes.get(&(instance.default_version_id.clone(), format!("/{}", clean_id))) {
+        Some(node.clone())
+    } else if let Some(node) = instance.routes.get(&(instance.default_version_id.clone(), clean_id.to_string())) {
+        Some(node.clone())
+    } else {
+        instance.pages_by_id.values().find(|n| n.slug == clean_id).cloned()
     };
 
-    // If target node is a GROUP, resolve to its first child leaf page
-    if kind.eq_ignore_ascii_case("GROUP") {
-        let child_opt = sqlx::query(
-            "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
+    let (mut target_path, is_group, target_id, target_version) = if let Some(node) = found_node {
+        (node.path, node.kind.eq_ignore_ascii_case("group"), node.id, node.version_id)
+    } else {
+        // Fallback to SQLite query if not yet loaded in memory
+        let db = state.get_db().await;
+        let row_opt = sqlx::query(
+            "SELECT id, kind, path, version_id FROM pages WHERE id = ?1 OR custom_id = ?1 OR path = ?1 OR path = ?2 OR slug = ?1 LIMIT 1",
         )
-        .bind(&page_id)
+        .bind(clean_id)
+        .bind(format!("/{}", clean_id))
         .fetch_optional(&db)
         .await;
 
-        match child_opt {
-            Ok(Some(child_row)) => {
-                if let Ok(child_path) = child_row.try_get::<String, _>(0) {
-                    target_path = child_path;
-                }
+        match row_opt {
+            Ok(Some(row)) => {
+                let id: String = row.try_get(0).unwrap_or_default();
+                let kind: String = row.try_get(1).unwrap_or_default();
+                let path: String = row.try_get(2).unwrap_or_default();
+                let ver: String = row.try_get(3).unwrap_or_default();
+                (path, kind.eq_ignore_ascii_case("group"), id, ver)
             }
-            Ok(None) => {
-                // If no direct child with kind='PAGE', try any first child (could be sub-group or document)
-                if let Ok(Some(any_child)) = sqlx::query(
-                    "SELECT id, kind, path FROM pages WHERE parent_id = ?1 ORDER BY sort_order ASC, id ASC LIMIT 1",
-                )
-                .bind(&page_id)
-                .fetch_optional(&db)
-                .await {
-                    let child_id: String = any_child.try_get(0).unwrap_or_default();
-                    let child_kind: String = any_child.try_get(1).unwrap_or_default();
-                    let child_p: String = any_child.try_get(2).unwrap_or_default();
-                    if child_kind.eq_ignore_ascii_case("GROUP") {
-                        if let Ok(Some(leaf)) = sqlx::query(
-                            "SELECT path FROM pages WHERE parent_id = ?1 AND kind = 'PAGE' ORDER BY sort_order ASC, id ASC LIMIT 1",
-                        )
-                        .bind(&child_id)
-                        .fetch_optional(&db)
-                        .await {
-                            target_path = leaf.try_get(0).unwrap_or(child_p);
-                        } else {
-                            target_path = child_p;
-                        }
-                    } else {
-                        target_path = child_p;
+            Ok(None) => return (StatusCode::NOT_FOUND, "Document or group not found").into_response(),
+            Err(e) => {
+                tracing::error!("Failed to resolve fast-path ID '{}': {}", clean_id, e);
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
+            }
+        }
+    };
+
+    if is_group {
+        fn find_leaf<'a>(
+            children: &'a [PageRouteNode],
+            children_map: &'a HashMap<String, Vec<PageRouteNode>>,
+        ) -> Option<&'a PageRouteNode> {
+            for c in children {
+                if !c.kind.eq_ignore_ascii_case("group") {
+                    return Some(c);
+                }
+                if let Some(sub) = children_map.get(&c.id) {
+                    if let Some(leaf) = find_leaf(sub, children_map) {
+                        return Some(leaf);
                     }
                 }
             }
-            Err(e) => {
-                tracing::warn!("Failed to unwrap group child for '{}': {}", page_id, e);
+            None
+        }
+
+        if let Some(children) = instance.children_by_parent.get(&target_id) {
+            if let Some(leaf) = find_leaf(children, &instance.children_by_parent) {
+                target_path = leaf.path.clone();
+            }
+        } else if let Some(siblings) = instance.version_pages.get(&target_version) {
+            let prefix = format!("{}/", target_path.trim_matches('/'));
+            if let Some(sibling) = siblings.iter().find(|s| s.path.trim_matches('/').starts_with(&prefix)) {
+                target_path = sibling.path.clone();
             }
         }
     }
 
-    // Preserve query parameters if present (e.g. ?lang=ja&version=v2)
     let redirect_url = if let Some(query) = uri.query() {
         format!("{}?{}", target_path, query)
     } else {
@@ -1723,8 +1773,8 @@ async fn serve_spa(State(state): State<AppState>, uri: axum::http::Uri) -> Respo
     };
 
     // Fast Bootstrap Injection into index.html
-    let db = state.get_db().await;
-    let shell = query_bootstrap(&db, None, None).await.ok();
+    let instance = state.get_instance().await;
+    let shell = query_bootstrap_fast(&instance, None, None).ok();
 
     let injected_html = inject_bootstrap_and_meta(raw_html, shell.as_ref());
     Html(injected_html).into_response()
@@ -2022,9 +2072,7 @@ pub async fn run_mcp(args: McpCliArgs) -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    let opts = sqlx::sqlite::SqliteConnectOptions::new()
-        .filename(&db_path)
-        .read_only(true);
+    let opts = build_optimized_sqlite_options(&db_path);
 
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(10)
@@ -2063,10 +2111,8 @@ pub async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    // Open SQLite connection pool in read-only mode
-    let opts = sqlx::sqlite::SqliteConnectOptions::new()
-        .filename(&db_path)
-        .read_only(true);
+    // Open SQLite connection pool in read-only mode with zero-copy mmap
+    let opts = build_optimized_sqlite_options(&db_path);
 
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(10)
@@ -2132,7 +2178,8 @@ pub async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
         None
     };
 
-    let state = AppState::with_paths(pool, search, db_path, idx_dir_opt);
+    let instance = Arc::new(SiteInstance::load(&pool).await?);
+    let state = AppState::with_paths(pool, instance, search, db_path, idx_dir_opt);
 
     let bind_host = resolve_bind_host(&args.bind, args.network);
     let maybe_cors = build_cors_layer(&bind_host, args.cors_origin.as_deref())?;
@@ -2599,10 +2646,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_site_instance_load_builds_memory_index() {
+        let pool = setup_test_db().await;
+        let instance = SiteInstance::load(&pool).await.unwrap();
+
+        assert_eq!(instance.project.name, "Test Project");
+        assert_eq!(instance.default_language, "en");
+        assert_eq!(instance.versions.len(), 2);
+        assert_eq!(instance.nav_trees.get("v1").unwrap().len(), 2);
+        assert!(instance.routes.contains_key(&("v1".into(), "getting-started".into())));
+        assert!(instance.routes.contains_key(&("v1".into(), "/getting-started".into())));
+        assert_eq!(instance.version_pages.get("v1").unwrap().len(), 2);
+    }
+
+    #[tokio::test]
     async fn test_same_origin_policy_on_loopback() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
 
         // Loopback binding with no cors
         let cors = build_cors_layer("127.0.0.1", None).unwrap();
@@ -2630,7 +2691,7 @@ mod tests {
     async fn test_cors_allowed_origin_on_network_binding() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
 
         // Network binding with explicit origin
         let cors = build_cors_layer("0.0.0.0", Some("https://docs.company.com")).unwrap();
@@ -2656,7 +2717,7 @@ mod tests {
     async fn test_spawn_blocking_handlers_work_with_db() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
 
         let app = create_runner_router(state, None);
 
@@ -2728,7 +2789,7 @@ mod tests {
     async fn test_version_scoping_duplicate_path() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
         let app = create_runner_router(state, None);
 
         // 1. Querying version latest / v1 returns Getting Started v1
@@ -2800,7 +2861,7 @@ mod tests {
     async fn test_language_scoping_no_cross_language_fallback() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
         let app = create_runner_router(state, None);
 
         // 1. Language 'fr' exists in languages table, but page1 has no content for 'fr'
@@ -2829,7 +2890,7 @@ mod tests {
     async fn test_root_path_no_cross_version_fallback() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
         let app = create_runner_router(state, None);
 
         // When no page has path="/" or "", root request must return 404, not pick first page across all versions
@@ -2849,7 +2910,7 @@ mod tests {
     async fn test_search_version_and_language_scoping_and_ranking() {
         use tower::ServiceExt;
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
         let app = create_runner_router(state, None);
 
         // 1. Scoped to v1
@@ -3029,7 +3090,7 @@ mod tests {
             .await
             .unwrap();
 
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
         let app = create_runner_router(state, None);
 
         // 1. Direct redirect by custom_id
@@ -3241,7 +3302,8 @@ mod tests {
             .await
             .unwrap();
 
-        let state = AppState::with_paths(ro_pool, None, db_path.clone(), None);
+        let instance = Arc::new(SiteInstance::load(&ro_pool).await.unwrap());
+        let state = AppState::with_paths(ro_pool, instance, None, db_path.clone(), None);
         let app = create_runner_router(state, None);
 
         // 2. Query initial page
@@ -3309,7 +3371,7 @@ mod tests {
         use tower::ServiceExt;
 
         let pool = setup_test_db().await;
-        let state = AppState::new(pool, None);
+        let state = AppState::from_pool(pool, None).await.unwrap();
         let app = create_runner_router(state, None);
 
         // Call from external non-loopback host must receive 403 Forbidden
