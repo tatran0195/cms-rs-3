@@ -7,12 +7,14 @@ import { useSiteAnalytics } from '../context/site-analytics-provider';
 import { localeTag } from '../lib/format';
 import { siteHref } from '../lib/site-paths';
 import { resolveSiteFeatures, type SiteFeatures, type SitePage } from '../types';
-import { DocumentationPageLayout, useDocumentationTheme } from './documentation-theme-provider';
+import { useDocumentationTheme } from './documentation-theme-provider';
 import { Markdown } from './markdown';
 import { useSitePageAlternates } from './page-alternates-context';
 import { SitePageFooter } from './site-page-footer';
 import { TableOfContents } from './toc';
 import { TOCPopover } from './toc-popover';
+import { FluxTOC } from '../layouts/flux';
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from '../layouts/page';
 
 const applyUrlTemplate = (template: string | undefined, path: string, fallbackUrl: string): string | null => {
   const trimmed = template?.trim();
@@ -167,112 +169,132 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
   const updatedLabel = new Intl.DateTimeFormat(localeTag(language || 'en'), {
     dateStyle: 'medium',
   }).format(new Date(page.updatedAt));
-  const article = (
-    <article className={cn('w-full min-w-0', mode === 'wide' ? '' : 'mx-auto max-w-[46rem]')} data-theme-region="article">
-      {/* Eyebrow: the page's section trail, accent-colored (Mintlify-style). */}
-      {ancestors.length > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5 font-semibold text-primary text-sm">
-          {ancestors.map((crumb, index) => (
-            <span key={crumb.path} className="flex items-center gap-1.5">
-              {index > 0 ? (
-                <span className="text-muted-foreground/60" aria-hidden>
-                  /
-                </span>
-              ) : null}
-              <a
-                href={siteHref(projectId, crumb.path, {
-                  lang: navigationLanguage,
-                  version: versionPrefix,
-                })}
-                className="transition-opacity hover:opacity-80"
-              >
-                {crumb.title}
-              </a>
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <h1 className="font-semibold text-3xl tracking-tight md:text-4xl">{page.title}</h1>
-      {page.description ? <p className="mt-3 text-lg text-muted-foreground">{page.description}</p> : null}
-      <ul className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground text-xs" aria-label={tArticle('articleDetails')}>
-        <li className="inline-flex items-center gap-1.5">
-          <Clock3 className="size-3.5" aria-hidden /> {readingMinutes} {tArticle('minRead')}
-        </li>
-        {imageCount > 0 ? (
-          <li className="inline-flex items-center gap-1.5">
-            <Image className="size-3.5" aria-hidden /> {imageCount} {tArticle(imageCount === 1 ? 'screenshot' : 'screenshots')}
-          </li>
-        ) : null}
-        <li className="inline-flex items-center gap-1.5">
-          <CalendarClock className="size-3.5" aria-hidden /> {tArticle('updated')} {updatedLabel}
-        </li>
-      </ul>
-      {page.config?.tags?.length ? (
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label={tArticle('tags')}>
-          {page.config.tags.map((tag) => (
-            <li className="rounded-full border border-border bg-muted/45 px-2.5 py-1 font-medium text-muted-foreground text-xs" key={tag}>
-              {tag}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <div className="mt-8">
-        <Markdown
-          content={page.content}
-          site={{
-            projectId,
-            lang: language,
-            defaultLanguage,
-            version: versionPrefix,
-          }}
-        />
-      </div>
-
-      {readerActionsAfterNavigation ? null : <ReaderActions projectId={projectId} path={page.path} language={language} features={features} />}
-
-      {prev || next ? (
-        <SitePageFooter
-          previous={
-            prev
-              ? {
-                  title: prev.title,
-                  href: siteHref(projectId, prev.path, {
-                    lang: navigationLanguage,
-                    version: versionPrefix,
-                  }),
-                }
-              : null
-          }
-          next={
-            next
-              ? {
-                  title: next.title,
-                  href: siteHref(projectId, next.path, {
-                    lang: navigationLanguage,
-                    version: versionPrefix,
-                  }),
-                }
-              : null
-          }
-        />
-      ) : null}
-      {readerActionsAfterNavigation ? <ReaderActions projectId={projectId} path={page.path} language={language} features={features} /> : null}
-    </article>
-  );
-
   const currentTheme = useDocumentationTheme();
   const tocStyle = currentTheme?.layout?.tocStyle ?? 'clerk';
   const tocDepth = currentTheme?.layout?.tocDepth ?? 3;
+  const isFlux = currentTheme?.layout?.docsLayout === 'flux';
 
-  if (mode === 'center') {
-    return <DocumentationPageLayout article={<div className="mx-auto min-w-0 max-w-[42rem]">{article}</div>} tableOfContents={null} />;
-  }
+  const breadcrumbsElement =
+    ancestors.length > 0 ? (
+      <div className="mb-3 flex flex-wrap items-center gap-1.5 font-semibold text-primary text-sm">
+        {ancestors.map((crumb, index) => (
+          <span key={crumb.path} className="flex items-center gap-1.5">
+            {index > 0 ? (
+              <span className="text-muted-foreground/60" aria-hidden>
+                /
+              </span>
+            ) : null}
+            <a
+              href={siteHref(projectId, crumb.path, {
+                lang: navigationLanguage,
+                version: versionPrefix,
+              })}
+              className="transition-opacity hover:opacity-80"
+            >
+              {crumb.title}
+            </a>
+          </span>
+        ))}
+      </div>
+    ) : null;
+
+  const tableOfContentsElement =
+    mode !== 'center' && showToc && !isFlux ? (
+      <TableOfContents headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} />
+    ) : null;
+
+  const tocPopoverElement =
+    mode !== 'center' && showToc ? (
+      isFlux ? (
+        <FluxTOC
+          headings={page.headings.map((h) => ({
+            id: h.id,
+            title: h.text,
+            url: `#${h.id}`,
+            depth: h.depth ?? 2,
+          }))}
+          style={tocStyle}
+        />
+      ) : (
+        <TOCPopover headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} />
+      )
+    ) : null;
 
   return (
-    <DocumentationPageLayout
-      article={article}
-      tableOfContents={showToc ? <TableOfContents headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} /> : null}
-      tocPopover={showToc ? <TOCPopover headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} /> : null}
-    />
+    <DocsPage
+      breadcrumb={breadcrumbsElement}
+      tableOfContents={tableOfContentsElement}
+      tocPopover={tocPopoverElement}
+      full={mode === 'wide' || currentTheme?.layout?.contentWidth === 'wide'}
+      className={cn(mode === 'center' && 'mx-auto max-w-[42rem]', (mode === 'wide' || currentTheme?.layout?.contentWidth === 'wide') && 'max-w-none')}
+    >
+      <DocsTitle>{page.title}</DocsTitle>
+      {page.description ? <DocsDescription>{page.description}</DocsDescription> : null}
+      <DocsBody>
+        <ul className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground text-xs" aria-label={tArticle('articleDetails')}>
+          <li className="inline-flex items-center gap-1.5">
+            <Clock3 className="size-3.5" aria-hidden /> {readingMinutes} {tArticle('minRead')}
+          </li>
+          {imageCount > 0 ? (
+            <li className="inline-flex items-center gap-1.5">
+              <Image className="size-3.5" aria-hidden /> {imageCount} {tArticle(imageCount === 1 ? 'screenshot' : 'screenshots')}
+            </li>
+          ) : null}
+          <li className="inline-flex items-center gap-1.5">
+            <CalendarClock className="size-3.5" aria-hidden /> {tArticle('updated')} {updatedLabel}
+          </li>
+        </ul>
+        {page.config?.tags?.length ? (
+          <ul className="mt-4 flex flex-wrap gap-2" aria-label={tArticle('tags')}>
+            {page.config.tags.map((tag) => (
+              <li className="rounded-full border border-border bg-muted/45 px-2.5 py-1 font-medium text-muted-foreground text-xs" key={tag}>
+                {tag}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mt-8">
+          <Markdown
+            content={page.content}
+            site={{
+              projectId,
+              lang: language,
+              defaultLanguage,
+              version: versionPrefix,
+            }}
+          />
+        </div>
+
+        {readerActionsAfterNavigation ? null : <ReaderActions projectId={projectId} path={page.path} language={language} features={features} />}
+
+        {prev || next ? (
+          <SitePageFooter
+            previous={
+              prev
+                ? {
+                    title: prev.title,
+                    href: siteHref(projectId, prev.path, {
+                      lang: navigationLanguage,
+                      version: versionPrefix,
+                    }),
+                  }
+                : null
+            }
+            next={
+              next
+                ? {
+                    title: next.title,
+                    href: siteHref(projectId, next.path, {
+                      lang: navigationLanguage,
+                      version: versionPrefix,
+                    }),
+                  }
+                : null
+            }
+          />
+        ) : null}
+        {readerActionsAfterNavigation ? <ReaderActions projectId={projectId} path={page.path} language={language} features={features} /> : null}
+      </DocsBody>
+    </DocsPage>
   );
 }

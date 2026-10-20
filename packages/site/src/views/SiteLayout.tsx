@@ -505,13 +505,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     navTabs.length > 0 ? (
       <FluxTabDropdown navTabs={navTabsNode} />
     ) : versions && versions.length > 0 ? (
-      <VersionSwitcher
-        versions={versions}
-        activeSlug={activeVersion}
-        onChange={changeVersion}
-        lang={activeLanguage?.code}
-        variant="tab"
-      />
+      <VersionSwitcher versions={versions} activeSlug={activeVersion} onChange={changeVersion} lang={activeLanguage?.code} variant="tab" />
     ) : null;
 
   const navAnchorsNode =
@@ -572,7 +566,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       data-header-transparent={isHeaderTransparent ? 'true' : 'false'}
     >
       <header
-        className="mx-auto flex min-h-16 max-w-[90rem] flex-wrap items-center gap-2 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0"
+        className="mx-auto flex min-h-16 w-full max-w-[var(--theme-content-max,100%)] flex-wrap items-center gap-2 px-4 py-3 sm:h-16 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-0"
         data-theme-region="header"
       >
         {mobileNavNode}
@@ -588,7 +582,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       </header>
       {navTabsNode && (
         <div className="border-border/60 border-t py-1">
-          <div className="mx-auto flex max-w-[90rem] items-center px-4 sm:px-6">{navTabsNode}</div>
+          <div className="mx-auto flex w-full max-w-[var(--theme-content-max,100%)] items-center px-4 sm:px-6">{navTabsNode}</div>
         </div>
       )}
     </div>
@@ -634,7 +628,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
               footer={
                 hasFooterContent || showBadge ? (
                   <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
-                    <div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
+                    <div className="mx-auto flex w-full max-w-[var(--theme-content-max,100%)] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
                       <div>{footer?.copyright || `© ${new Date().getFullYear()} ${siteName ?? 'Documentation'}`}</div>
                       <div className="flex items-center gap-3">
                         {footer?.github && (

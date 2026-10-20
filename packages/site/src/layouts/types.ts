@@ -44,11 +44,13 @@ export interface StudioPreviewSlots {
 }
 
 export interface DocsPageSlots {
-  article: ReactNode;
-  tableOfContents: ReactNode;
+  article?: ReactNode;
+  children?: ReactNode;
+  tableOfContents?: ReactNode;
   breadcrumb?: ReactNode;
   footer?: ReactNode;
   tocPopover?: ReactNode;
+  full?: boolean;
 }
 
 export interface DocsLayoutTemplate {

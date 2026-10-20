@@ -10,6 +10,7 @@ export { DocsStandardLayoutTemplate } from './docs-layout';
 export { FluxLayoutTemplate, FluxTabDropdown } from './flux-layout';
 export { GlassLayoutTemplate } from './glass-layout';
 export { NotebookLayoutTemplate } from './notebook-layout';
+export * from './page';
 export * from './shared';
 export { SpaciousLayoutTemplate } from './spacious-layout';
 export * from './types';

@@ -37,7 +37,7 @@ const HarborTemplate: DocumentationThemeTemplate = {
     readerFrame(
       slots,
       <div
-        className="mx-auto grid w-full max-w-[90rem] flex-1 grid-cols-1 px-4 sm:px-6 lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:gap-12"
+        className="mx-auto grid w-full max-w-[var(--theme-content-max,100%)] flex-1 grid-cols-1 px-4 sm:px-6 lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:gap-12"
         data-documentation-layout="harbor-reference"
         data-theme-region="content-shell"
       >
@@ -84,13 +84,19 @@ const HarborTemplate: DocumentationThemeTemplate = {
       </div>
     </>
   ),
-  PageLayout: ({ article, tableOfContents }) => (
+  PageLayout: ({ article, children, breadcrumb, footer, tableOfContents }) => (
     <div
-      className="grid min-w-0 grid-cols-1 gap-12 py-9 lg:py-12 xl:grid-cols-[minmax(0,1fr)_13rem]"
+      className="grid min-w-0 grid-cols-1 gap-12 py-9 lg:py-12 xl:grid-cols-[minmax(0,1fr)_var(--fd-toc-width,16.75rem)]"
       data-documentation-layout="harbor-reference-page"
       data-theme-region="page-shell"
     >
-      {article}
+      {article ?? (
+        <article id="nd-page" data-layout-content="" data-theme-region="article" className="w-full min-w-0">
+          {breadcrumb}
+          {children}
+          {footer}
+        </article>
+      )}
       <aside className="hidden xl:block" data-theme-region="toc">
         {tableOfContents}
       </aside>
@@ -112,7 +118,10 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
         data-documentation-layout="manuscript-editorial"
       >
         {slots.header}
-        <div className="mx-auto flex w-full max-w-[82rem] flex-1 flex-col px-4 pb-10 sm:px-6" data-theme-region="content-shell">
+        <div
+          className="mx-auto flex w-full max-w-[var(--theme-content-max,100%)] flex-1 flex-col px-4 pb-10 sm:px-6"
+          data-theme-region="content-shell"
+        >
           <aside className="documentation-manuscript-reader-navigation hidden lg:block" data-theme-region="sidebar">
             <div className="documentation-manuscript-navigation py-6" data-theme-region="sidebar-content">
               {slots.navigation}
@@ -141,7 +150,7 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
         >
           {navigation}
         </aside>
-        <div className="mx-auto min-h-0 w-full max-w-[60rem] flex-1 overflow-y-auto border border-border bg-(--theme-surface) shadow-lg">
+        <div className="mx-auto min-h-0 w-full max-w-[var(--theme-content-max,60rem)] flex-1 overflow-y-auto border border-border bg-(--theme-surface) shadow-lg">
           {content}
         </div>
       </div>
@@ -149,7 +158,7 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
   ),
   StudioPreviewLayout: ({ header, navigation, content }) => (
     <div className="bg-(--theme-muted)/60 p-3" data-documentation-layout="manuscript-editorial-studio" data-theme-region="preview-shell">
-      <div className="mx-auto max-w-[44rem] border border-border bg-(--theme-surface) shadow-lg">
+      <div className="mx-auto max-w-[var(--theme-content-max,44rem)] border border-border bg-(--theme-surface) shadow-lg">
         {header}
         <div className="documentation-manuscript-studio-navigation border-border border-y px-3 py-2 text-xs" data-theme-region="sidebar">
           {navigation}
@@ -158,16 +167,22 @@ const ManuscriptTemplate: DocumentationThemeTemplate = {
       </div>
     </div>
   ),
-  PageLayout: ({ article, tableOfContents }) => (
+  PageLayout: ({ article, children, breadcrumb, footer, tableOfContents }) => (
     <div
-      className="grid min-w-0 justify-center gap-10 px-5 py-10 sm:px-8 lg:py-14 xl:grid-cols-[11rem_minmax(0,44rem)] xl:gap-14"
+      className="grid min-w-0 justify-center gap-10 px-5 py-10 sm:px-8 lg:py-14 xl:grid-cols-[var(--fd-toc-width,14rem)_minmax(0,var(--theme-content-max,48rem))] xl:gap-14"
       data-documentation-layout="manuscript-editorial-page"
       data-theme-region="page-shell"
     >
       <aside className="hidden xl:block" data-theme-region="toc">
         {tableOfContents}
       </aside>
-      {article}
+      {article ?? (
+        <article id="nd-page" data-layout-content="" data-theme-region="article" className="w-full min-w-0">
+          {breadcrumb}
+          {children}
+          {footer}
+        </article>
+      )}
     </div>
   ),
 };
@@ -183,7 +198,7 @@ const SignalTemplate: DocumentationThemeTemplate = {
       <section className="documentation-signal-reader flex flex-1 flex-col p-0 lg:p-3" data-documentation-layout="signal-console">
         {slots.header}
         <div
-          className="mx-auto grid w-full max-w-[100rem] flex-1 grid-cols-1 bg-(--theme-canvas) lg:grid-cols-[15rem_minmax(0,1fr)] lg:overflow-hidden lg:border lg:border-(--theme-border) lg:border-t-0"
+          className="mx-auto grid w-full max-w-[var(--theme-content-max,100%)] flex-1 grid-cols-1 bg-(--theme-canvas) lg:grid-cols-[15rem_minmax(0,1fr)] lg:overflow-hidden lg:border lg:border-(--theme-border) lg:border-t-0"
           data-theme-region="content-shell"
         >
           <aside
@@ -235,7 +250,7 @@ const SignalTemplate: DocumentationThemeTemplate = {
       </div>
     </div>
   ),
-  PageLayout: ({ article, tableOfContents }) => (
+  PageLayout: ({ article, children, breadcrumb, footer, tableOfContents }) => (
     <div
       className="flex min-w-0 flex-col gap-5 px-4 py-6 sm:px-6 lg:p-8"
       data-documentation-layout="signal-console-page"
@@ -248,7 +263,13 @@ const SignalTemplate: DocumentationThemeTemplate = {
         {tableOfContents}
       </aside>
       <div className="documentation-signal-article min-w-0 lg:border lg:border-(--theme-border) lg:bg-(--theme-surface) lg:px-10 lg:py-9">
-        {article}
+        {article ?? (
+          <article id="nd-page" data-layout-content="" data-theme-region="article" className="w-full min-w-0">
+            {breadcrumb}
+            {children}
+            {footer}
+          </article>
+        )}
       </div>
     </div>
   ),

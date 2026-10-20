@@ -67,3 +67,5 @@ previews/
 playwright-report/
 test-results/
 crates/**/data/
+*.db
+cms.db

@@ -58,7 +58,7 @@ export function SiteChangelogView({ entries, lang }: { entries: ChangelogEntry[]
   const groups = groupByMonth(entries, lang);
 
   return (
-    <div className="mx-auto min-h-[560px] max-w-[820px] py-9 lg:py-12">
+    <div className="mx-auto min-h-[560px] w-full max-w-[var(--theme-content-max,820px)] px-4 sm:px-6 py-9 lg:py-12">
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
           <Sparkles className="size-4" />

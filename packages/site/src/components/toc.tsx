@@ -1,32 +1,379 @@
+'use client';
+
 import { cn } from '@cms/design-system/lib/utils';
 import { Text } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  createContext,
+  type ReactNode,
+  type RefObject,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 export type TocHeading = { id: string; text: string; depth?: number; level?: number };
 
-const slugify = (text: string) =>
+export interface TOCItemType {
+  title: ReactNode;
+  url: string;
+  depth: number;
+  _step?: number;
+}
+
+export type TableOfContentsType = TOCItemType[];
+
+export interface TOCItemInfo {
+  id: string;
+  active: boolean;
+  t: number;
+  fallback: boolean;
+  original: TOCItemType;
+}
+
+export function isEqualShallow(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return b.length === a.length && a.every((v, i) => isEqualShallow(v, b[i]));
+  }
+  return false;
+}
+
+export function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]) {
+  return (node: T | null) => {
+    for (const ref of refs) {
+      if (!ref) continue;
+      if (typeof ref === 'function') ref(node);
+      else (ref as React.MutableRefObject<T | null>).current = node;
+    }
+  };
+}
+
+export const slugify = (text: string) =>
   text
     .toLowerCase()
     .replace(/[^\w\s-]/g, '')
     .replace(/\s+/g, '-');
 
-export interface TableOfContentsProps {
-  headings: TocHeading[];
-  label: string;
-  style?: 'normal' | 'clerk' | 'block';
-  depth?: number;
-  className?: string;
+function getItemId(url: string) {
+  if (url.startsWith('#')) return url.slice(1);
+  return null;
+}
+
+type ChangeListener = (items: TOCItemInfo[]) => void;
+
+/**
+ * Ported 1:1 from Fumadocs Core Observer (packages/core/src/toc.tsx)
+ * Uses browser IntersectionObserver with threshold: 0.9 and closest-top fallback
+ */
+export class Observer {
+  items: TOCItemInfo[];
+  activeAnchors: string[] = [];
+  activeAnchor: string | undefined;
+  private observer: IntersectionObserver | null = null;
+  private listeners = new Set<ChangeListener>();
+
+  constructor(
+    toc: TOCItemType[],
+    readonly single: boolean = false,
+  ) {
+    this.items = [];
+    for (const item of toc) {
+      const id = getItemId(item.url);
+      if (id) this.items.push({ id, active: false, fallback: false, t: 0, original: item });
+    }
+  }
+
+  listen(listener: ChangeListener) {
+    this.listeners.add(listener);
+  }
+
+  unlisten(listener: ChangeListener) {
+    this.listeners.delete(listener);
+  }
+
+  subscribe = (listener: ChangeListener) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  watch(options?: IntersectionObserverInit) {
+    if (this.observer || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return;
+
+    this.observer = new IntersectionObserver(this.callback.bind(this), options);
+    for (const item of this.items) {
+      const element = document.getElementById(item.id) || document.getElementById(slugify(item.id));
+      if (!element) continue;
+      this.observer.observe(element);
+    }
+  }
+
+  unwatch() {
+    this.observer?.disconnect();
+    this.observer = null;
+  }
+
+  private callback(entries: IntersectionObserverEntry[]) {
+    if (entries.length === 0) return;
+
+    let hasActive = false;
+    const updated = this.items.map((item) => {
+      const entry = entries.find((e) => e.target.id === item.id || e.target.id === slugify(item.id));
+      let active = entry ? entry.isIntersecting : item.active && !item.fallback;
+      if (this.single && hasActive) active = false;
+
+      if (item.active !== active) {
+        item = {
+          ...item,
+          t: Date.now(),
+          active,
+          fallback: false,
+        };
+      }
+
+      if (active) hasActive = true;
+      return item;
+    });
+
+    if (!hasActive && entries[0]?.rootBounds) {
+      const viewTop = entries[0].rootBounds.top;
+      let min = Number.MAX_VALUE;
+      let fallbackIdx = -1;
+
+      for (let i = 0; i < updated.length; i++) {
+        const item = updated[i];
+        if (!item) continue;
+        const element = document.getElementById(item.id) || document.getElementById(slugify(item.id));
+        if (!element) continue;
+
+        const d = Math.abs(viewTop - element.getBoundingClientRect().top);
+        if (d < min) {
+          fallbackIdx = i;
+          min = d;
+        }
+      }
+
+      const target = fallbackIdx !== -1 ? updated[fallbackIdx] : undefined;
+      if (target) {
+        updated[fallbackIdx] = {
+          ...target,
+          active: true,
+          fallback: true,
+          t: Date.now(),
+        };
+      }
+    }
+
+    this.update(updated);
+  }
+
+  update(next: TOCItemInfo[]) {
+    let latest: TOCItemInfo | undefined;
+    const activeAnchors: string[] = [];
+    for (const item of next) {
+      if (!item.active) continue;
+
+      activeAnchors.push(item.id);
+      if (!latest || item.t > latest.t) latest = item;
+    }
+
+    this.items = next;
+    this.activeAnchors = activeAnchors;
+    this.activeAnchor = latest?.id;
+    for (const listener of this.listeners) listener(next);
+  }
+
+  setActive(activeIds: string[]) {
+    const updated = this.items.map((item) => ({
+      ...item,
+      active: activeIds.includes(item.id),
+      fallback: false,
+      t: Date.now(),
+    }));
+    this.update(updated);
+  }
+}
+
+const ObserverContext = createContext<Observer | null>(null);
+const ScrollContext = createContext<RefObject<HTMLElement | null> | null>(null);
+const TOCContext = createContext<TOCItemType[]>([]);
+
+export interface AnchorProviderProps {
+  toc: TOCItemType[];
   single?: boolean;
-  activeId?: string;
-  activeIds?: string[];
-  onActiveChange?: (id: string) => void;
-  onActiveIdsChange?: (ids: string[]) => void;
+  children?: ReactNode;
+}
+
+export function AnchorProvider({ toc, single = false, children }: AnchorProviderProps) {
+  const observer = useMemo(() => new Observer(toc, single), [toc, single]);
+
+  useEffect(() => {
+    observer.watch({
+      threshold: 0.9,
+    });
+
+    return () => observer.unwatch();
+  }, [observer]);
+
+  return <ObserverContext.Provider value={observer}>{children}</ObserverContext.Provider>;
+}
+
+export function TOCProvider({ toc, children, ...props }: AnchorProviderProps) {
+  return (
+    <TOCContext.Provider value={toc}>
+      <AnchorProvider toc={toc} {...props}>
+        {children}
+      </AnchorProvider>
+    </TOCContext.Provider>
+  );
+}
+
+export function useObserver() {
+  const observer = use(ObserverContext);
+  if (!observer) throw new Error('Component must be used under the <AnchorProvider /> component.');
+  return observer;
+}
+
+export function useObserverValue<T>(get: (observer: Observer) => T): T {
+  const observer = useObserver();
+  const getSnapshot = () => get(observer);
+  return useSyncExternalStore(observer.subscribe, getSnapshot, getSnapshot);
+}
+
+export function useTOC() {
+  const observer = useObserver();
+  return useMemo(
+    () => ({
+      get() {
+        return observer.items;
+      },
+      listen: observer.listen.bind(observer),
+      unlisten: observer.unlisten.bind(observer),
+    }),
+    [observer],
+  );
+}
+
+export function useTOCListener(listener: ChangeListener) {
+  const observer = useObserver();
+  const listenerRef = useRef(listener);
+  listenerRef.current = listener;
+
+  useEffect(() => {
+    const callback = (items: TOCItemInfo[]) => listenerRef.current(items);
+    return observer.subscribe(callback);
+  }, [observer]);
+}
+
+export function useActiveAnchor(): string | undefined {
+  return useObserverValue((observer) => observer.activeAnchor);
+}
+
+export function useActiveAnchors(): string[] {
+  return useObserverValue((observer) => observer.activeAnchors);
+}
+
+export function useItems(): TOCItemInfo[] {
+  return useObserverValue((observer) => observer.items);
+}
+
+export function useTOCItems(): TOCItemType[] {
+  return use(TOCContext);
+}
+
+export interface PrimitiveTOCItemProps extends Omit<ComponentProps<'a'>, 'onSelect'> {
+  autoScroll?: boolean;
+  onActiveChange?: (v: boolean) => void;
   onSelect?: (id: string) => void;
 }
+
+export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSelect, ...props }: PrimitiveTOCItemProps) {
+  const id = props.href ? getItemId(props.href) : null;
+  const containerRef = use(ScrollContext);
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+  const isMountedRef = useRef(false);
+  const observer = useObserver();
+  const active = useObserverValue((obs) => id !== null && obs.activeAnchors.includes(id));
+  const prevActiveRef = useRef(active);
+
+  if (prevActiveRef.current !== active) {
+    prevActiveRef.current = active;
+    onActiveChange?.(active);
+  }
+
+  useEffect(() => {
+    if (id === null) return;
+    const callback = () => {
+      const anchor = anchorRef.current;
+      const container = containerRef?.current;
+      if (autoScroll && observer.activeAnchor === id && anchor && container) {
+        if (typeof anchor.scrollIntoView === 'function') {
+          anchor.scrollIntoView({
+            behavior: isMountedRef.current ? 'smooth' : 'instant',
+            block: 'center',
+          });
+        }
+      }
+    };
+    callback();
+    isMountedRef.current = true;
+    return observer.subscribe(callback);
+  }, [autoScroll, id, observer, containerRef]);
+
+  return (
+    <a
+      ref={mergeRefs(anchorRef, ref)}
+      data-active={String(active)}
+      aria-current={active ? 'location' : undefined}
+      onClick={(e) => {
+        if (id) {
+          e.preventDefault();
+          onSelect?.(id);
+          const el = document.getElementById(id) || document.getElementById(slugify(id));
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (typeof window !== 'undefined' && window.history) {
+              window.history.replaceState(null, '', `#${id}`);
+            }
+          }
+        }
+      }}
+      {...props}
+    />
+  );
+}
+
+export function TOCScrollArea({ ref, className, children, ...props }: ComponentProps<'div'>) {
+  const viewRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={mergeRefs(viewRef, ref)}
+      className={cn(
+        'relative min-h-0 text-sm ms-px overflow-auto overscroll-contain [scrollbar-width:none] [mask-image:linear-gradient(to_bottom,transparent,white_16px,white_calc(100%-16px),transparent)] py-3',
+        className,
+      )}
+      {...props}
+    >
+      <ScrollContext.Provider value={viewRef}>{children}</ScrollContext.Provider>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 CLERK STYLE                                */
+/* -------------------------------------------------------------------------- */
 
 interface ComputedSVG {
   width: number;
   height: number;
+  content: ReactNode;
   d: string;
   positions: [top: number, bottom: number, x: number][];
 }
@@ -44,209 +391,28 @@ function getClerkLineOffset(depth: number): number {
   return 24 + CLERK_BASE;
 }
 
-const NORMAL_BASE = 8;
-function getNormalItemOffset(depth: number): number {
-  if (depth <= 2) return 12 + NORMAL_BASE;
-  if (depth === 3) return 24 + NORMAL_BASE;
-  return 36 + NORMAL_BASE;
-}
-
-function getNormalLineOffset(depth: number): number {
-  if (depth <= 2) return NORMAL_BASE;
-  if (depth === 3) return 8 + NORMAL_BASE;
-  return 16 + NORMAL_BASE;
-}
-
-function getBlockItemOffset(depth: number): number {
-  if (depth <= 2) return 8;
-  if (depth === 3) return 20;
-  return 32;
-}
-
-/**
- * 100% Fumadocs-parity TableOfContents component:
- * - 'clerk': dynamic continuous SVG track with angled level-transitions & single active polygon clip-path
- * - 'block': sliding active highlight block with dynamic round inset clip-path
- * - 'normal': cubic bezier track curves with traveling SVG thumb dot along path
- * - Top & bottom fade gradient mask matching Fumadocs TOCScrollArea
- * - Single-active item tracking by default to ensure diagonal tree edges are never highlighted
- * - Robust reading-line scroll-spy & click locking to eliminate smooth scroll jitter
- */
-export function TableOfContents({
-  headings,
-  label,
-  style = 'clerk',
-  depth = 3,
-  className,
-  single,
-  activeId: controlledActiveId,
-  activeIds: controlledActiveIds,
-  onActiveChange,
-  onActiveIdsChange,
-  onSelect,
-}: TableOfContentsProps) {
-  const items = useMemo(
-    () =>
-      headings
-        .map((h) => {
-          const d = h.depth ?? h.level ?? 1;
-          const id = h.id && !/^h\d+-\d+$/.test(h.id) ? h.id : slugify(h.text) || h.id;
-          return { ...h, depth: d, id };
-        })
-        .filter((heading) => heading.depth <= depth),
-    [headings, depth],
-  );
-
-  const [internalActiveIds, setInternalActiveIds] = useState<string[]>(() => {
-    if (controlledActiveIds && controlledActiveIds.length > 0) return controlledActiveIds;
-    if (controlledActiveId) return [controlledActiveId];
-    return items[0]?.id ? [items[0].id] : [];
-  });
-
-  const isControlled = (controlledActiveIds && controlledActiveIds.length > 0) || controlledActiveId !== undefined;
-
-  const activeIds = useMemo(() => {
-    if (controlledActiveIds && controlledActiveIds.length > 0) return controlledActiveIds;
-    if (controlledActiveId) return [controlledActiveId];
-    return internalActiveIds;
-  }, [controlledActiveIds, controlledActiveId, internalActiveIds]);
-
-  const setActiveId = useCallback(
-    (id: string) => {
-      setInternalActiveIds([id]);
-      onActiveChange?.(id);
-      onActiveIdsChange?.([id]);
-    },
-    [onActiveChange, onActiveIdsChange],
-  );
-
+export function ClerkTOCItems({ ref, className, children, ...props }: ComponentProps<'div'>) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const blockRef = useRef<HTMLDivElement>(null);
-  const [clerkSvg, setClerkSvg] = useState<ComputedSVG | null>(null);
-  const [normalSvg, setNormalSvg] = useState<ComputedSVG | null>(null);
-  const isClickScrollingRef = useRef(false);
-  const clickScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const items = useTOCItems();
+  const [svg, setSvg] = useState<ComputedSVG | null>(null);
 
-  // Sync default active heading when uncontrolled and items list changes
-  useEffect(() => {
-    if (!isControlled && items.length > 0) {
-      setInternalActiveIds((prev) => {
-        if (prev.length > 0 && items.some((i) => prev.includes(i.id))) {
-          return prev;
-        }
-        return [items[0]?.id ?? ''];
-      });
-    }
-  }, [isControlled, items]);
-
-  // Viewport scroll spy detection matching Fumadocs active item tracking
-  const key = items.map((heading) => heading.id).join('|');
-  // biome-ignore lint/correctness/useExhaustiveDependencies: key is the stable signature of items
-  useEffect(() => {
-    if (typeof window === 'undefined' || items.length === 0 || isControlled) {
-      return;
-    }
-    const itemElements = items
-      .map((item) => ({
-        id: item.id,
-        element: document.getElementById(item.id) || document.getElementById(slugify(item.text)),
-      }))
-      .filter((entry): entry is { id: string; element: HTMLElement } => Boolean(entry.element));
-
-    if (itemElements.length === 0) {
-      return;
-    }
-
-    const firstElement = itemElements[0]?.element;
-    if (!firstElement) {
-      return;
-    }
-
-    const scrollParent = firstElement.closest('[data-spacious-scroll-container], .overflow-y-auto') ?? null;
-    const scrollTarget: EventTarget = scrollParent ?? window;
-
-    let rafId: number | null = null;
-    const updateActive = () => {
-      if (isClickScrollingRef.current) return;
-
-      const firstId = itemElements[0]?.id;
-      if (!firstId) return;
-
-      const viewportTop = scrollParent ? scrollParent.getBoundingClientRect().top : 0;
-      const viewportBottom = scrollParent ? viewportTop + scrollParent.clientHeight : window.innerHeight;
-
-      const isAtBottom = scrollParent
-        ? scrollParent.scrollHeight - scrollParent.scrollTop - scrollParent.clientHeight < 30
-        : window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 30;
-
-      if (isAtBottom && itemElements.length > 0) {
-        const visibleBottomIds = itemElements
-          .filter(({ element }) => {
-            const rect = element.getBoundingClientRect();
-            return rect.bottom > viewportTop && rect.top < viewportBottom;
-          })
-          .map((e) => e.id);
-        const lastId = itemElements[itemElements.length - 1]?.id ?? firstId;
-        const result: string[] = visibleBottomIds.length > 0 ? visibleBottomIds : [lastId];
-        setInternalActiveIds(result);
-        if (result[0]) onActiveChange?.(result[0]);
-        onActiveIdsChange?.(result);
-        return;
-      }
-
-      const visibleIds: string[] = [];
-      let closestAboveId = firstId;
-
-      for (const { id, element } of itemElements) {
-        const rect = element.getBoundingClientRect();
-        if (rect.bottom > viewportTop && rect.top < viewportBottom) {
-          visibleIds.push(id);
-        } else if (rect.bottom <= viewportTop) {
-          closestAboveId = id;
-        }
-      }
-
-      const nextActiveIds: string[] = visibleIds.length > 0 ? visibleIds : [closestAboveId];
-
-      setInternalActiveIds(nextActiveIds);
-      if (nextActiveIds[0]) onActiveChange?.(nextActiveIds[0]);
-      onActiveIdsChange?.(nextActiveIds);
-    };
-
-    const onScroll = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        updateActive();
-      });
-    };
-
-    scrollTarget.addEventListener('scroll', onScroll, { passive: true });
-    updateActive();
-
-    return () => {
-      scrollTarget.removeEventListener('scroll', onScroll);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      if (clickScrollTimeoutRef.current) clearTimeout(clickScrollTimeoutRef.current);
-    };
-  }, [key, isControlled, onActiveChange, onActiveIdsChange]);
-
-  // Compute Clerk SVG geometry strictly matching Fumadocs upstream clerk.tsx
-  const computeClerkSvg = useCallback(() => {
+  const onPrint = useCallback(() => {
     const container = containerRef.current;
-    if (!container || container.clientHeight === 0 || items.length === 0) {
-      setClerkSvg(null);
+    if (!container || container.clientHeight === 0) return;
+    if (items.length === 0) {
+      setSvg(null);
       return;
     }
     let w = 0;
     let h = 0;
     let d = '';
     const positions: [top: number, bottom: number, x: number][] = [];
+    const output: ReactNode[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item) continue;
-      const element: HTMLElement | null = container.querySelector(`a[href="#${item.id}"]`);
+      const element: HTMLElement | null = container.querySelector(`a[href="${item.url}"]`);
       if (!element) continue;
 
       const styles = getComputedStyle(element);
@@ -260,31 +426,284 @@ export function TableOfContents({
       if (i === 0) {
         d += ` M${x} ${top} L${x} ${bottom}`;
       } else {
-        const [, upperBottom, upperX] = positions[i - 1] ?? [0, 0, 0];
+        const [, upperBottom, upperX] = i > 0 ? (positions[i - 1] ?? [0, 0, 0]) : [0, 0, 0];
         d += ` L ${upperX} ${upperBottom} ${x} ${top} L${x} ${bottom}`;
       }
+
       positions.push([top, bottom, x]);
     }
 
-    setClerkSvg({ width: w, height: h, d, positions });
+    output.unshift(<path key="path" d={d} className="stroke-primary" strokeWidth="1" fill="none" />);
+
+    setSvg({
+      content: output,
+      width: w,
+      height: h,
+      d,
+      positions,
+    });
   }, [items]);
 
-  // Compute Normal SVG geometry strictly matching Fumadocs upstream default.tsx
-  const computeNormalSvg = useCallback(() => {
+  useEffect(() => {
     const container = containerRef.current;
-    if (!container || container.clientHeight === 0 || items.length === 0) {
-      setNormalSvg(null);
+    if (!container) return;
+
+    if (typeof ResizeObserver === 'undefined') {
+      onPrint();
+      return;
+    }
+
+    const observer = new ResizeObserver(onPrint);
+    observer.observe(container);
+    onPrint();
+    return () => {
+      observer.unobserve(container);
+    };
+  }, [onPrint]);
+
+  return (
+    <div ref={mergeRefs(containerRef, ref)} className={cn('relative flex flex-col', className)} {...props}>
+      {svg && <ClerkThumbTrack computed={svg} />}
+      {children}
+    </div>
+  );
+}
+
+function ClerkThumbTrack({ computed }: { computed: ComputedSVG }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const tocInfo = useTOC();
+
+  function calculate(items: TOCItemInfo[]) {
+    const out: Record<string, string> = {};
+    const startIdx = items.findIndex((item) => item.active);
+    if (startIdx === -1) return out;
+
+    const endIdx = items.findLastIndex((item) => item.active);
+    const startPos = computed.positions[startIdx];
+    const endPos = computed.positions[endIdx];
+    if (startPos && endPos) {
+      out['--track-top'] = `${startPos[0]}px`;
+      out['--track-bottom'] = `${endPos[1]}px`;
+    }
+    return out;
+  }
+
+  useTOCListener((items) => {
+    const element = ref.current;
+    if (!element) return;
+
+    for (const [k, v] of Object.entries(calculate(items))) {
+      element.style.setProperty(k, v);
+    }
+  });
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-0 inset-s-0 origin-center rtl:-scale-x-100 pointer-events-none"
+      style={{
+        width: computed.width,
+        height: computed.height,
+        ...calculate(tocInfo.get()),
+      }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 ${computed.width} ${computed.height}`}
+        className="absolute transition-[clip-path]"
+        style={{
+          width: computed.width,
+          height: computed.height,
+          clipPath: 'polygon(0 var(--track-top,0), 100% var(--track-top,0), 100% var(--track-bottom,0), 0 var(--track-bottom,0))',
+        }}
+      >
+        {computed.content}
+      </svg>
+    </div>
+  );
+}
+
+export function ClerkTOCItem({ item, onSelect, ...props }: PrimitiveTOCItemProps & { item: TOCItemType; onSelect?: (id: string) => void }) {
+  const items = useTOCItems();
+  const index = items.indexOf(item);
+  const isFirst = index === 0;
+  const isLast = index === items.length - 1;
+
+  const l1 = getClerkLineOffset(item.depth);
+  const l0 = isFirst ? l1 : getClerkLineOffset(items[index - 1]?.depth ?? item.depth);
+  const l2 = isLast ? l1 : getClerkLineOffset(items[index + 1]?.depth ?? item.depth);
+
+  const id = getItemId(item.url) ?? '';
+
+  return (
+    <PrimitiveTOCItem
+      href={item.url}
+      onClick={() => {
+        onSelect?.(id);
+      }}
+      className={cn(
+        'prose prose-sm relative py-1.5 scroll-m-4 text-xs text-muted-foreground hover:text-foreground transition-colors wrap-anywhere data-[active=true]:text-primary select-none cursor-pointer',
+        isFirst && 'pt-0',
+        isLast && 'pb-0',
+        props.className,
+      )}
+      style={{
+        paddingInlineStart: getClerkItemOffset(item.depth),
+        ...props.style,
+      }}
+      {...props}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={cn(
+          'absolute -top-1.5 inset-s-0 bottom-0 h-[calc(100%+0.375rem)] -z-1 rtl:-scale-x-100 pointer-events-none',
+          l1 !== l2 && 'h-full bottom-1.5',
+        )}
+        style={{
+          width: Math.max(l0, l1) + 9,
+        }}
+      >
+        {l0 !== l1 && <path d={`M ${l0 + 0.5} 0 L ${l0 + 0.5} 0 ${l1 + 0.5} 12`} strokeWidth="1" fill="none" className="stroke-foreground/10" />}
+        <line x1={l1 + 0.5} y1={l0 === l1 ? '6' : '12'} x2={l1 + 0.5} y2="100%" strokeWidth="1" className="stroke-foreground/10" />
+      </svg>
+      {item.title}
+    </PrimitiveTOCItem>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 BLOCK STYLE                                */
+/* -------------------------------------------------------------------------- */
+
+function getBlockItemOffset(depth: number): number {
+  if (depth <= 2) return 8;
+  if (depth === 3) return 20;
+  return 32;
+}
+
+export function BlockTOCItems({ ref, className, children, ...props }: ComponentProps<'div'>) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const blockRef = useRef<HTMLDivElement>(null);
+  const tocInfo = useTOC();
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const block = blockRef.current;
+    if (!container || !block) return;
+    const positions = new Map<string, [top: number, bottom: number]>();
+    let height = 0;
+
+    const update = (items: TOCItemInfo[]) => {
+      let top = -1;
+      let bottom = -1;
+      for (const item of items) {
+        if (!item.active) continue;
+        const pos = positions.get(item.original.url);
+        if (!pos) continue;
+        if (top === -1) top = pos[0];
+        bottom = pos[1];
+      }
+
+      if (top !== -1) block.style.clipPath = `inset(${top}px 0 ${height - bottom}px round 8px)`;
+      else block.style.clipPath = 'inset(0 0 100% round 8px)';
+    };
+
+    if (typeof ResizeObserver === 'undefined') {
+      update(tocInfo.get());
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      positions.clear();
+      for (const anchor of container.getElementsByTagName('a')) {
+        const href = anchor.getAttribute('href');
+        if (href) positions.set(href, [anchor.offsetTop, anchor.offsetTop + anchor.offsetHeight]);
+      }
+      height = container.clientHeight;
+      update(tocInfo.get());
+    });
+
+    observer.observe(container);
+    tocInfo.listen(update);
+    return () => {
+      observer.disconnect();
+      tocInfo.unlisten(update);
+    };
+  }, [tocInfo]);
+
+  return (
+    <div ref={mergeRefs(containerRef, ref)} className={cn('relative flex flex-col', className)} {...props}>
+      <div
+        ref={blockRef}
+        className="absolute inset-0 bg-primary/10 rounded-lg pointer-events-none transition-[clip-path] duration-300 ease-out"
+        style={{ clipPath: 'inset(0 0 100% round 8px)' }}
+      />
+      {children}
+    </div>
+  );
+}
+
+export function BlockTOCItem({ item, onSelect, ...props }: PrimitiveTOCItemProps & { item: TOCItemType; onSelect?: (id: string) => void }) {
+  const id = getItemId(item.url) ?? '';
+  return (
+    <PrimitiveTOCItem
+      href={item.url}
+      data-toc-item="block"
+      onClick={() => onSelect?.(id)}
+      className={cn(
+        'group prose relative py-1 px-2.5 rounded-md leading-snug transition-colors text-xs cursor-pointer block select-none text-muted-foreground hover:text-foreground data-[active=true]:text-primary data-[active=true]:font-medium',
+        props.className,
+      )}
+      style={{
+        paddingInlineStart: getBlockItemOffset(item.depth),
+        ...props.style,
+      }}
+      {...props}
+    >
+      {item.title}
+    </PrimitiveTOCItem>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                NORMAL STYLE                                */
+/* -------------------------------------------------------------------------- */
+
+const NORMAL_BASE = 8;
+function getNormalItemOffset(depth: number): number {
+  if (depth <= 2) return 12 + NORMAL_BASE;
+  if (depth === 3) return 24 + NORMAL_BASE;
+  return 36 + NORMAL_BASE;
+}
+
+function getNormalLineOffset(depth: number): number {
+  if (depth <= 2) return NORMAL_BASE;
+  if (depth === 3) return 8 + NORMAL_BASE;
+  return 16 + NORMAL_BASE;
+}
+
+export function NormalTOCItems({ ref, className, children, ...props }: ComponentProps<'div'>) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const items = useTOCItems();
+  const [svg, setSvg] = useState<ComputedSVG | null>(null);
+
+  const onPrint = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || container.clientHeight === 0) return;
+    if (items.length === 0) {
+      setSvg(null);
       return;
     }
     let w = 0;
     let h = 0;
     let d = '';
     const positions: [top: number, bottom: number, x: number][] = [];
+    const output: ReactNode[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (!item) continue;
-      const element: HTMLElement | null = container.querySelector(`a[href="#${item.id}"]`);
+      const element: HTMLElement | null = container.querySelector(`a[href="${item.url}"]`);
       if (!element) continue;
 
       const styles = getComputedStyle(element);
@@ -298,107 +717,191 @@ export function TableOfContents({
       if (i === 0) {
         d += ` M${x} ${top} L${x} ${bottom}`;
       } else {
-        const [, upperBottom, upperX] = positions[i - 1] ?? [0, 0, 0];
+        const [, upperBottom, upperX] = i > 0 ? (positions[i - 1] ?? [0, 0, 0]) : [0, 0, 0];
         d += ` C ${upperX} ${top - 4} ${x} ${upperBottom + 4} ${x} ${top} L${x} ${bottom}`;
       }
+
       positions.push([top, bottom, x]);
     }
 
-    setNormalSvg({ width: w, height: h, d, positions });
+    output.unshift(<path key="path" d={d} className="stroke-primary" strokeWidth="1" fill="none" />);
+
+    setSvg({
+      content: output,
+      width: w,
+      height: h,
+      d,
+      positions,
+    });
   }, [items]);
 
-  const activeIndices = useMemo(() => {
-    const indices: number[] = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item && activeIds.includes(item.id)) {
-        indices.push(i);
-      }
-    }
-    return indices;
-  }, [items, activeIds]);
-
-  const startIdx = activeIndices.length > 0 ? (activeIndices[0] ?? -1) : -1;
-  const endIdx = activeIndices.length > 0 ? (activeIndices[activeIndices.length - 1] ?? -1) : -1;
-
-  // ResizeObserver for dynamic SVG track & block updates
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const onResize = () => {
-      if (style === 'clerk') computeClerkSvg();
-      else if (style === 'normal') computeNormalSvg();
-      else if (style === 'block' && blockRef.current) {
-        const startItem = startIdx >= 0 ? items[startIdx] : undefined;
-        const endItem = endIdx >= 0 ? items[endIdx] : undefined;
-        const startAnchor: HTMLElement | null = startItem ? container.querySelector(`a[href="#${startItem.id}"]`) : null;
-        const endAnchor: HTMLElement | null = endItem ? container.querySelector(`a[href="#${endItem.id}"]`) : null;
-        if (startAnchor && endAnchor) {
-          const top = startAnchor.offsetTop;
-          const bottom = endAnchor.offsetTop + endAnchor.offsetHeight;
-          blockRef.current.style.clipPath = `inset(${top}px 0 ${container.clientHeight - bottom}px round 8px)`;
-        } else {
-          blockRef.current.style.clipPath = 'inset(0 0 100% round 8px)';
-        }
-      }
-    };
-
     if (typeof ResizeObserver === 'undefined') {
-      onResize();
+      onPrint();
       return;
     }
 
-    const observer = new ResizeObserver(onResize);
+    const observer = new ResizeObserver(onPrint);
     observer.observe(container);
-    onResize();
-
+    onPrint();
     return () => {
-      observer.disconnect();
+      observer.unobserve(container);
     };
-  }, [style, computeClerkSvg, computeNormalSvg, startIdx, endIdx, items]);
+  }, [onPrint]);
 
-  // Update block pill clip-path on activeId change
-  useEffect(() => {
-    if (style !== 'block' || !blockRef.current || !containerRef.current) return;
-    const container = containerRef.current;
-    const startItem = startIdx >= 0 ? items[startIdx] : undefined;
-    const endItem = endIdx >= 0 ? items[endIdx] : undefined;
-    const startAnchor: HTMLElement | null = startItem ? container.querySelector(`a[href="#${startItem.id}"]`) : null;
-    const endAnchor: HTMLElement | null = endItem ? container.querySelector(`a[href="#${endItem.id}"]`) : null;
-    if (startAnchor && endAnchor) {
-      const top = startAnchor.offsetTop;
-      const bottom = endAnchor.offsetTop + endAnchor.offsetHeight;
-      blockRef.current.style.clipPath = `inset(${top}px 0 ${container.clientHeight - bottom}px round 8px)`;
-    } else {
-      blockRef.current.style.clipPath = 'inset(0 0 100% round 8px)';
+  return (
+    <div ref={mergeRefs(containerRef, ref)} className={cn('relative flex flex-col', className)} {...props}>
+      {svg && <NormalThumbTrack computed={svg} />}
+      {children}
+    </div>
+  );
+}
+
+function NormalThumbTrack({ computed }: { computed: ComputedSVG }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const tocInfo = useTOC();
+
+  function calculate(items: TOCItemInfo[]) {
+    const out: Record<string, string> = {};
+    const activeItem = items.find((item) => item.active);
+    if (!activeItem) return out;
+    const index = items.indexOf(activeItem);
+    const pos = computed.positions[index];
+    if (pos) {
+      out['--thumb-x'] = `${pos[2]}px`;
+      out['--thumb-y'] = `${(pos[0] + pos[1]) / 2}px`;
     }
-  }, [style, startIdx, endIdx, items]);
-
-  if (items.length === 0) {
-    return null;
+    return out;
   }
 
-  const handleHeadingClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-    e.preventDefault();
-    isClickScrollingRef.current = true;
-    if (clickScrollTimeoutRef.current) {
-      clearTimeout(clickScrollTimeoutRef.current);
-    }
-    clickScrollTimeoutRef.current = setTimeout(() => {
-      isClickScrollingRef.current = false;
-    }, 800);
+  useTOCListener((items) => {
+    const element = ref.current;
+    if (!element) return;
 
-    setActiveId(id);
-    onSelect?.(id);
-    const el = document.getElementById(id) || document.getElementById(slugify(id));
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (typeof window !== 'undefined' && window.history) {
-        window.history.replaceState(null, '', `#${id}`);
-      }
+    for (const [k, v] of Object.entries(calculate(items))) {
+      element.style.setProperty(k, v);
     }
-  };
+  });
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-0 inset-s-0 origin-center rtl:-scale-x-100 pointer-events-none"
+      style={{
+        width: computed.width,
+        height: computed.height,
+        ...calculate(tocInfo.get()),
+      }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 ${computed.width} ${computed.height}`}
+        className="absolute"
+        style={{
+          width: computed.width,
+          height: computed.height,
+        }}
+      >
+        <path d={computed.d} className="stroke-foreground/10" strokeWidth="1" fill="none" />
+        <circle
+          cx="0"
+          cy="0"
+          r="2.5"
+          className="fill-primary transition-transform duration-200"
+          style={{
+            transform: 'translate(var(--thumb-x, -10px), var(--thumb-y, -10px))',
+          }}
+        />
+      </svg>
+    </div>
+  );
+}
+
+export function NormalTOCItem({ item, onSelect, ...props }: PrimitiveTOCItemProps & { item: TOCItemType; onSelect?: (id: string) => void }) {
+  const id = getItemId(item.url) ?? '';
+  return (
+    <PrimitiveTOCItem
+      href={item.url}
+      data-toc-item="normal"
+      onClick={() => onSelect?.(id)}
+      className={cn(
+        'prose prose-sm relative py-1.5 scroll-m-4 text-xs text-muted-foreground hover:text-foreground transition-colors wrap-anywhere data-[active=true]:text-primary select-none cursor-pointer',
+        props.className,
+      )}
+      style={{
+        paddingInlineStart: getNormalItemOffset(item.depth),
+        ...props.style,
+      }}
+      {...props}
+    >
+      {item.title}
+    </PrimitiveTOCItem>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         MAIN TableOfContents                               */
+/* -------------------------------------------------------------------------- */
+
+export interface TableOfContentsProps {
+  headings: TocHeading[];
+  label?: string;
+  style?: 'normal' | 'clerk' | 'block';
+  depth?: number;
+  className?: string;
+  single?: boolean;
+  activeId?: string;
+  activeIds?: string[];
+  onActiveChange?: (id: string) => void;
+  onActiveIdsChange?: (ids: string[]) => void;
+  onSelect?: (id: string) => void;
+}
+
+export function TableOfContentsInner({
+  label,
+  style = 'clerk',
+  className,
+  controlledActiveId,
+  controlledActiveIds,
+  onActiveChange,
+  onActiveIdsChange,
+  onSelect,
+}: {
+  label?: string;
+  style?: 'normal' | 'clerk' | 'block';
+  className?: string;
+  controlledActiveId?: string;
+  controlledActiveIds?: string[];
+  onActiveChange?: (id: string) => void;
+  onActiveIdsChange?: (ids: string[]) => void;
+  onSelect?: (id: string) => void;
+}) {
+  const items = useTOCItems();
+  const observer = useObserver();
+
+  // If controlled, sync to observer
+  useEffect(() => {
+    if (controlledActiveIds && controlledActiveIds.length > 0) {
+      observer.setActive(controlledActiveIds);
+    } else if (controlledActiveId) {
+      observer.setActive([controlledActiveId]);
+    } else if (observer.activeAnchors.length === 0 && items.length > 0 && items[0]?.url) {
+      const firstId = getItemId(items[0].url);
+      if (firstId) observer.setActive([firstId]);
+    }
+  }, [controlledActiveIds, controlledActiveId, observer, items]);
+
+  useTOCListener((updatedItems) => {
+    const active = updatedItems.filter((i) => i.active).map((i) => i.id);
+    if (active.length > 0) {
+      onActiveIdsChange?.(active);
+      const latest = observer.activeAnchor;
+      if (latest) onActiveChange?.(latest);
+    }
+  });
 
   return (
     <div
@@ -415,227 +918,72 @@ export function TableOfContents({
         </h3>
       )}
 
-      {/* Masked scroll container matching Fumadocs TOCScrollArea */}
-      <div className="relative min-h-0 text-sm ms-px overflow-auto overscroll-contain [scrollbar-width:none] [mask-image:linear-gradient(to_bottom,transparent,white_16px,white_calc(100%-16px),transparent)] py-3">
-        <div ref={containerRef} className="relative flex flex-col">
-          {/* Clerk style: authentic SVG track + animated active clipped stroke matching Fumadocs clerk.tsx */}
-          {style === 'clerk' &&
-            (() => {
-              const clerkStartPos = startIdx >= 0 && clerkSvg ? clerkSvg.positions[startIdx] : undefined;
-              const clerkEndPos = endIdx >= 0 && clerkSvg ? clerkSvg.positions[endIdx] : undefined;
-              return (
-                <>
-                  {clerkSvg && (
-                    <div
-                      className="absolute top-0 start-0 origin-center rtl:-scale-x-100 pointer-events-none"
-                      style={
-                        {
-                          width: clerkSvg.width,
-                          height: clerkSvg.height,
-                          '--track-top': clerkStartPos ? `${clerkStartPos[0]}px` : '0px',
-                          '--track-bottom': clerkEndPos ? `${clerkEndPos[1]}px` : '0px',
-                        } as React.CSSProperties
-                      }
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox={`0 0 ${clerkSvg.width} ${clerkSvg.height}`}
-                        className="absolute transition-[clip-path] duration-200 ease-out"
-                        style={{
-                          width: clerkSvg.width,
-                          height: clerkSvg.height,
-                          clipPath:
-                            clerkStartPos && clerkEndPos
-                              ? 'polygon(0 var(--track-top, 0px), 100% var(--track-top, 0px), 100% var(--track-bottom, 0px), 0 var(--track-bottom, 0px))'
-                              : 'polygon(0 0, 100% 0, 100% 0, 0 0)',
-                        }}
-                      >
-                        <path d={clerkSvg.d} className="stroke-primary" strokeWidth="1" fill="none" />
-                      </svg>
-                    </div>
-                  )}
-
-                  {items.map((item, index) => {
-                    const isFirst = index === 0;
-                    const isLast = index === items.length - 1;
-                    const active = activeIds.includes(item.id);
-                    const prevItem = index > 0 ? items[index - 1] : undefined;
-                    const nextItem = index < items.length - 1 ? items[index + 1] : undefined;
-                    const l1 = getClerkLineOffset(item.depth);
-                    const l0 = prevItem ? getClerkLineOffset(prevItem.depth) : l1;
-                    const l2 = nextItem ? getClerkLineOffset(nextItem.depth) : l1;
-
-                    return (
-                      <a
-                        key={item.id}
-                        href={`#${item.id}`}
-                        data-active={active ? 'true' : 'false'}
-                        aria-current={active ? 'location' : undefined}
-                        onClick={(e) => handleHeadingClick(e, item.id)}
-                        className={cn(
-                          'prose prose-sm relative py-1.5 scroll-m-4 text-xs transition-colors wrap-anywhere block cursor-pointer select-none isolate',
-                          active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                          isFirst && 'pt-0',
-                          isLast && 'pb-0',
-                        )}
-                        style={{
-                          paddingInlineStart: getClerkItemOffset(item.depth),
-                        }}
-                      >
-                        {/* Background SVG track line */}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={cn(
-                            'absolute -top-1.5 start-0 bottom-0 h-[calc(100%+0.375rem)] -z-1 rtl:-scale-x-100 pointer-events-none',
-                            l1 !== l2 && 'h-full bottom-1.5',
-                          )}
-                          style={{ width: Math.max(l0, l1) + 9 }}
-                        >
-                          {l0 !== l1 && (
-                            <path d={`M ${l0 + 0.5} 0 L ${l0 + 0.5} 0 ${l1 + 0.5} 12`} strokeWidth="1" fill="none" className="stroke-foreground/10" />
-                          )}
-                          <line x1={l1 + 0.5} y1={l0 === l1 ? '6' : '12'} x2={l1 + 0.5} y2="100%" strokeWidth="1" className="stroke-foreground/10" />
-                        </svg>
-
-                        {item.text}
-                      </a>
-                    );
-                  })}
-                </>
-              );
-            })()}
-
-          {/* Block style: sliding rounded highlight card matching Fumadocs block.tsx */}
-          {style === 'block' && (
-            <>
-              <div
-                ref={blockRef}
-                className="absolute inset-0 bg-primary/10 rounded-lg pointer-events-none transition-[clip-path] duration-300 ease-out"
-                style={{ clipPath: 'inset(0 0 100% round 8px)' }}
-              />
-              {items.map((item, index) => {
-                const isFirst = index === 0;
-                const isLast = index === items.length - 1;
-                const active = activeIds.includes(item.id);
-                return (
-                  <a
-                    key={item.id}
-                    href={`#${item.id}`}
-                    data-toc-item="block"
-                    data-active={active ? 'true' : 'false'}
-                    aria-current={active ? 'location' : undefined}
-                    onClick={(e) => handleHeadingClick(e, item.id)}
-                    className={cn(
-                      'group prose relative py-1 px-2.5 rounded-md leading-snug transition-colors text-xs cursor-pointer block select-none',
-                      active ? 'text-primary' : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground',
-                      isFirst && 'pt-0',
-                      isLast && 'pb-0',
-                    )}
-                    style={{
-                      paddingInlineStart: getBlockItemOffset(item.depth),
-                    }}
-                  >
-                    {item.text}
-                  </a>
-                );
-              })}
-            </>
-          )}
-
-          {/* Normal style: cubic bezier curves & traveling thumb dot matching Fumadocs default.tsx */}
-          {style === 'normal' &&
-            (() => {
-              const normalStartPos = startIdx >= 0 && normalSvg ? normalSvg.positions[startIdx] : undefined;
-              const normalEndPos = endIdx >= 0 && normalSvg ? normalSvg.positions[endIdx] : undefined;
-              return (
-                <>
-                  {normalSvg && (
-                    <div
-                      className="absolute top-0 start-0 origin-center rtl:-scale-x-100 pointer-events-none"
-                      style={
-                        {
-                          width: normalSvg.width,
-                          height: normalSvg.height,
-                          '--track-top': normalStartPos ? `${normalStartPos[0]}px` : '0px',
-                          '--track-bottom': normalEndPos ? `${normalEndPos[1]}px` : '0px',
-                        } as React.CSSProperties
-                      }
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox={`0 0 ${normalSvg.width} ${normalSvg.height}`}
-                        className="absolute transition-[clip-path] duration-200 ease-out"
-                        style={{
-                          width: normalSvg.width,
-                          height: normalSvg.height,
-                          clipPath:
-                            normalStartPos && normalEndPos
-                              ? 'polygon(0 var(--track-top, 0px), 100% var(--track-top, 0px), 100% var(--track-bottom, 0px), 0 var(--track-bottom, 0px))'
-                              : 'polygon(0 0, 100% 0, 100% 0, 0 0)',
-                        }}
-                      >
-                        <path d={normalSvg.d} className="stroke-primary" strokeWidth="1" fill="none" />
-                      </svg>
-                    </div>
-                  )}
-
-                  {items.map((item, index) => {
-                    const isFirst = index === 0;
-                    const isLast = index === items.length - 1;
-                    const active = activeIds.includes(item.id);
-                    const prevItem = index > 0 ? items[index - 1] : undefined;
-                    const nextItem = index < items.length - 1 ? items[index + 1] : undefined;
-                    const l1 = getNormalLineOffset(item.depth);
-                    const l0 = prevItem ? getNormalLineOffset(prevItem.depth) : l1;
-                    const l2 = nextItem ? getNormalLineOffset(nextItem.depth) : l1;
-
-                    return (
-                      <a
-                        key={item.id}
-                        href={`#${item.id}`}
-                        data-toc-item="normal"
-                        data-active={active ? 'true' : 'false'}
-                        aria-current={active ? 'location' : undefined}
-                        onClick={(e) => handleHeadingClick(e, item.id)}
-                        className={cn(
-                          'prose prose-sm relative py-1.5 scroll-m-4 text-xs transition-colors wrap-anywhere block cursor-pointer select-none isolate',
-                          active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                          isFirst && 'pt-0',
-                          isLast && 'pb-0',
-                        )}
-                        style={{
-                          paddingInlineStart: getNormalItemOffset(item.depth),
-                        }}
-                      >
-                        {/* Curved background SVG */}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={cn(
-                            'absolute -top-1.5 start-0 bottom-0 h-[calc(100%+0.375rem)] -z-1 rtl:-scale-x-100 pointer-events-none',
-                            l1 !== l2 && 'h-full bottom-1.5',
-                          )}
-                          style={{ width: Math.max(l0, l1) + 9 }}
-                        >
-                          {l0 !== l1 && (
-                            <path
-                              d={`M ${l0 + 0.5} 0 C ${l0 + 0.5} 8 ${l1 + 0.5} 4 ${l1 + 0.5} 12`}
-                              strokeWidth="1"
-                              fill="none"
-                              className="stroke-foreground/10"
-                            />
-                          )}
-                          <line x1={l1 + 0.5} y1={l0 === l1 ? '6' : '12'} x2={l1 + 0.5} y2="100%" strokeWidth="1" className="stroke-foreground/10" />
-                        </svg>
-
-                        {item.text}
-                      </a>
-                    );
-                  })}
-                </>
-              );
-            })()}
-        </div>
-      </div>
+      <TOCScrollArea>
+        {style === 'clerk' && (
+          <ClerkTOCItems>
+            {items.map((item) => (
+              <ClerkTOCItem key={item.url} item={item} onSelect={onSelect} />
+            ))}
+          </ClerkTOCItems>
+        )}
+        {style === 'block' && (
+          <BlockTOCItems>
+            {items.map((item) => (
+              <BlockTOCItem key={item.url} item={item} onSelect={onSelect} />
+            ))}
+          </BlockTOCItems>
+        )}
+        {style === 'normal' && (
+          <NormalTOCItems>
+            {items.map((item) => (
+              <NormalTOCItem key={item.url} item={item} onSelect={onSelect} />
+            ))}
+          </NormalTOCItems>
+        )}
+      </TOCScrollArea>
     </div>
+  );
+}
+
+export function TableOfContents({
+  headings,
+  label,
+  style = 'clerk',
+  depth = 3,
+  className,
+  single = false,
+  activeId: controlledActiveId,
+  activeIds: controlledActiveIds,
+  onActiveChange,
+  onActiveIdsChange,
+  onSelect,
+}: TableOfContentsProps) {
+  const toc: TOCItemType[] = useMemo(
+    () =>
+      headings
+        .map((h) => {
+          const d = h.depth ?? h.level ?? 1;
+          const id = h.id && !/^h\d+-\d+$/.test(h.id) ? h.id : slugify(h.text) || h.id;
+          return { title: h.text, url: `#${id}`, depth: d };
+        })
+        .filter((heading) => heading.depth <= depth),
+    [headings, depth],
+  );
+
+  if (toc.length === 0) return null;
+
+  return (
+    <TOCProvider toc={toc} single={single}>
+      <TableOfContentsInner
+        label={label}
+        style={style}
+        className={className}
+        controlledActiveId={controlledActiveId}
+        controlledActiveIds={controlledActiveIds}
+        onActiveChange={onActiveChange}
+        onActiveIdsChange={onActiveIdsChange}
+        onSelect={onSelect}
+      />
+    </TOCProvider>
   );
 }
