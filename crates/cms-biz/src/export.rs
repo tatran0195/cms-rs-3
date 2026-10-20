@@ -1128,7 +1128,11 @@ pub async fn build_sqlite_export_database(
         CREATE INDEX idx_pages_version ON pages(version_id);
         CREATE INDEX idx_pages_path ON pages(path);
         CREATE INDEX idx_pages_custom_id ON pages(custom_id);
+        CREATE INDEX idx_pages_version_path ON pages(version_id, path);
+        CREATE INDEX idx_pages_version_sort ON pages(version_id, sort_order, path);
+        CREATE INDEX idx_pages_parent_sort ON pages(parent_id, sort_order);
         CREATE INDEX idx_content_lang ON page_content(language);
+        CREATE INDEX idx_content_page_lang ON page_content(page_id, language);
         CREATE INDEX idx_changelog_ver ON changelog(version_id, published_at DESC);
 
         -- Full-text search (FTS5)
@@ -1877,4 +1881,42 @@ mod tests {
         assert!(found_sqlite, "docs.sqlite must be in tar.gz");
         assert!(found_meta, "search_index/meta.json must be in tar.gz");
     }
+
+    #[tokio::test]
+    async fn test_export_schema_contains_composite_performance_indexes() {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE pages (
+                id TEXT PRIMARY KEY,
+                custom_id TEXT,
+                version_id TEXT NOT NULL,
+                parent_id TEXT,
+                kind TEXT NOT NULL DEFAULT 'PAGE',
+                slug TEXT NOT NULL,
+                path TEXT NOT NULL,
+                title TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE page_content (
+                page_id TEXT NOT NULL,
+                language TEXT NOT NULL,
+                markdown TEXT NOT NULL,
+                PRIMARY KEY (page_id, language)
+            );
+            CREATE INDEX idx_pages_version_path ON pages(version_id, path);
+            CREATE INDEX idx_pages_version_sort ON pages(version_id, sort_order, path);
+            CREATE INDEX idx_pages_parent_sort ON pages(parent_id, sort_order);
+            CREATE INDEX idx_content_page_lang ON page_content(page_id, language);
+            "#
+        )
+        .execute(&pool)
+        .await
+        .expect("composite indexes must be valid sqlite syntax");
+    }
 }
+
