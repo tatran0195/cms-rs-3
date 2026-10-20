@@ -30,7 +30,7 @@ export const isVersionIndependentNavNode = (node: Pick<NavNode, 'id'>): boolean 
 function NavLink({ node, projectId, currentPath, lang, version, depth, rail, basePath }: NavItemProps & { node: NavNode; rail?: boolean }) {
   const active = currentPath === node.path;
   return (
-    <li>
+    <li className="[content-visibility:auto] [contain-intrinsic-size:36px]">
       <a
         href={siteHref(projectId, node.path, {
           lang,

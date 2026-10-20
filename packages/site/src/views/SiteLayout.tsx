@@ -170,6 +170,44 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
 
   const pageAlternatesContext = useMemo(() => ({ alternates: pageAlternates, setAlternates: setPageAlternates }), [pageAlternates]);
 
+  const navigateToHref = useCallback(
+    (href: string) => {
+      const [path, query] = href.split('?');
+      const search = query ? Object.fromEntries(new URLSearchParams(query)) : {};
+      navigate({ to: path, search } as never);
+    },
+    [navigate],
+  );
+
+  const handleInternalLinkClick = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+        return;
+      }
+      const target = (e.target as HTMLElement).closest('a');
+      if (!target) return;
+      if (target.target && target.target !== '_self') return;
+      const href = target.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+      if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(href)) {
+        try {
+          const url = new URL(href, window.location.href);
+          if (url.origin !== window.location.origin) return;
+          if (basePrefix && url.pathname.startsWith(basePrefix)) {
+            e.preventDefault();
+            navigateToHref(`${url.pathname}${url.search}${url.hash}`);
+          }
+        } catch {
+          // ignore malformed URLs and fall back to native browser navigation
+        }
+      } else if (href.startsWith('/') && basePrefix && href.startsWith(basePrefix)) {
+        e.preventDefault();
+        navigateToHref(href);
+      }
+    },
+    [basePrefix, navigateToHref],
+  );
+
   if (!site) {
     return (
       <div className="grid min-h-screen place-items-center bg-background px-6 text-center">
@@ -228,7 +266,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     const targetLanguage = siteLanguageParam(code, defaultLanguage);
     const alternate = pageAlternates.find((item) => item.code === code && item.path);
     if (!isChangelog && alternate?.path) {
-      window.location.assign(
+      navigateToHref(
         siteHref(projectId, alternate.path, {
           lang: targetLanguage,
           version: activeVersionPrefix,
@@ -244,7 +282,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     const defaultVersion = versions.find((item) => item.isDefault);
     const targetPrefix = defaultVersion?.slug === slug ? '' : slug;
     const targetPath = [targetPrefix, isChangelog ? '' : contentPath].filter(Boolean).join('/');
-    window.location.assign(siteHref(projectId, targetPath, { lang: navigationLanguage, basePath: basePrefix }));
+    navigateToHref(siteHref(projectId, targetPath, { lang: navigationLanguage, basePath: basePrefix }));
   };
 
   const activeVersion = site?.activeVersion ?? versions.find((item) => item.isDefault)?.slug ?? '';
@@ -505,68 +543,69 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
           style={chromeStyle}
           theme={resolvedTheme}
         >
-          <DocumentationReaderLayout
-            banner={<SiteBanner projectId={projectId} banner={config?.banner} lang={activeLanguage?.code} />}
-            header={headerNode}
-            navigation={
-              <>
-                {navAnchorsNode}
-                {sidebarTreeNode}
-              </>
-            }
-            content={
-              <SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>
-            }
-            brand={brandNode}
-            searchFull={searchFullNode}
-            searchButton={searchButtonNode}
-            tools={toolsNode}
-            navLinks={navLinksNode}
-            navTabs={navTabsNode}
-            navAnchors={navAnchorsNode}
-            sidebarTree={sidebarTreeNode}
-            mobileNav={mobileNavNode}
-            footer={
-              hasFooterContent || showBadge ? (
-                <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
-                  <div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
-                    <div>{footer?.copyright || `© ${new Date().getFullYear()} ${siteName ?? 'Documentation'}`}</div>
-                    <div className="flex items-center gap-3">
-                      {footer?.github && (
-                        <a href={footer.github} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-                          <GithubIcon className="size-4" />
-                        </a>
-                      )}
-                      {footer?.x && (
-                        <a href={footer.x} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-                          <XIcon className="size-4" />
-                        </a>
-                      )}
-                      {footer?.linkedin && (
-                        <a href={footer.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
-                          <LinkedinIcon className="size-4" />
-                        </a>
-                      )}
-                      {showBadge && <MadeWithBadge />}
+          <div onClickCapture={handleInternalLinkClick} className="flex min-h-screen flex-1 flex-col">
+            <DocumentationReaderLayout
+              banner={<SiteBanner projectId={projectId} banner={config?.banner} lang={activeLanguage?.code} />}
+              header={headerNode}
+              navigation={
+                <>
+                  {navAnchorsNode}
+                  {sidebarTreeNode}
+                </>
+              }
+              content={<SitePageAlternatesContext value={pageAlternatesContext}>{children ?? <Outlet />}</SitePageAlternatesContext>}
+              brand={brandNode}
+              searchFull={searchFullNode}
+              searchButton={searchButtonNode}
+              tools={toolsNode}
+              navLinks={navLinksNode}
+              navTabs={navTabsNode}
+              navAnchors={navAnchorsNode}
+              sidebarTree={sidebarTreeNode}
+              mobileNav={mobileNavNode}
+              footer={
+                hasFooterContent || showBadge ? (
+                  <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
+                    <div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
+                      <div>{footer?.copyright || `© ${new Date().getFullYear()} ${siteName ?? 'Documentation'}`}</div>
+                      <div className="flex items-center gap-3">
+                        {footer?.github && (
+                          <a href={footer.github} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                            <GithubIcon className="size-4" />
+                          </a>
+                        )}
+                        {footer?.x && (
+                          <a href={footer.x} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                            <XIcon className="size-4" />
+                          </a>
+                        )}
+                        {footer?.linkedin && (
+                          <a href={footer.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+                            <LinkedinIcon className="size-4" />
+                          </a>
+                        )}
+                        {showBadge && <MadeWithBadge />}
+                      </div>
                     </div>
-                  </div>
-                </footer>
-              ) : null
-            }
-            overlays={
-              showSearch && (
-                <SiteSearch
-                  open={searchOpen}
-                  onOpenChange={setSearchOpen}
-                  projectId={projectId}
-                  lang={navigationLanguage}
-                  version={activeVersionPrefix}
-                  hotkey={searchHotkey}
-                  direction={isRtl ? 'rtl' : 'ltr'}
-                />
-              )
-            }
-          />
+                  </footer>
+                ) : null
+              }
+              overlays={
+                showSearch && (
+                  <SiteSearch
+                    open={searchOpen}
+                    onOpenChange={setSearchOpen}
+                    projectId={projectId}
+                    lang={navigationLanguage}
+                    version={activeVersionPrefix}
+                    basePath={basePrefix}
+                    hotkey={searchHotkey}
+                    direction={isRtl ? 'rtl' : 'ltr'}
+                  />
+                )
+              }
+            />
+          </div>
         </DocumentationThemeProvider>
       </SidebarProvider>
     </SiteAnalyticsProvider>

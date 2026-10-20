@@ -1,7 +1,7 @@
 import { SiteApiProvider, SiteLayout, type SiteShell, siteHead } from '@cms/site';
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';
-import { cmsClient, QueryProvider } from '@/shared';
+import { cmsClient, QueryProvider, queryClient } from '@/shared';
 
 export const Route = createFileRoute('/sites/$projectId')({
   component: SiteRoute,
@@ -9,13 +9,32 @@ export const Route = createFileRoute('/sites/$projectId')({
   // The active language lives in the URL so it survives reloads and is shareable.
   validateSearch: (search) => z.object({ lang: z.string().min(1).optional().catch(undefined) }).parse(search),
   loaderDeps: ({ search }) => ({ lang: search.lang }),
+  shouldReload: () => true,
   loader: async ({ params, deps, location }) => {
     try {
       const rest = location.pathname.replace(new RegExp(`^/sites/${params.projectId}/?`), '').replace(/\/+$/, '');
-      const candidate = rest && rest !== 'changelog' ? decodeURIComponent(rest).split('/')[0] : undefined;
-      const site = await cmsClient.sites.getSite<SiteShell>(params.projectId, {
-        language: deps.lang,
-        version: candidate,
+      const rawCandidate = rest && rest !== 'changelog' ? decodeURIComponent(rest).split('/')[0] : undefined;
+
+      // Check if any cached query for this project already knows the valid version slugs
+      const cached = queryClient.getQueriesData<SiteShell>({ queryKey: ['site', params.projectId] });
+      const knownVersions = cached.find(([, data]) => Boolean(data?.versions))?.[1]?.versions;
+      const isKnownVersion = knownVersions && rawCandidate ? knownVersions.some((v) => v.slug === rawCandidate || v.id === rawCandidate) : undefined;
+
+      const candidate = isKnownVersion === false ? undefined : rawCandidate;
+
+      const site = await queryClient.query({
+        queryKey: ['site', params.projectId, { language: deps.lang, version: candidate }],
+        queryFn: async () => {
+          const res = await cmsClient.sites.getSite<SiteShell>(params.projectId, {
+            language: deps.lang,
+            version: candidate,
+          });
+          if (candidate && !res.versions.some((v) => v.slug === candidate || v.id === candidate)) {
+            queryClient.setQueryData(['site', params.projectId, { language: deps.lang, version: undefined }], res);
+          }
+          return res;
+        },
+        staleTime: 'static',
       });
       return { site };
     } catch {

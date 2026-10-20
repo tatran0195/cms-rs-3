@@ -2,7 +2,7 @@ import { CmsApiError } from '@cms/sdk';
 import { pageHead, redirectIfConfigured, resolveLanguagePathRedirect, type SitePage, SitePageView, type SiteShell } from '@cms/site';
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { lazy, Suspense } from 'react';
-import { cmsClient } from '@/shared';
+import { cmsClient, queryClient } from '@/shared';
 
 const OpenApiReferenceView = lazy(() => import('@cms/site').then((module) => ({ default: module.OpenApiReferenceView })));
 
@@ -12,10 +12,18 @@ export const Route = createFileRoute('/sites/$projectId/$')({
   // Server-fetch the page so its content + per-page SEO tags are in the HTML.
   loader: async ({ params, deps, location }) => {
     const path = params._splat ?? '';
-    const version = path ? path.split('/')[0] : undefined;
+    const rawCandidate = path ? path.split('/')[0] : undefined;
+    const cached = queryClient.getQueriesData<SiteShell>({ queryKey: ['site', params.projectId] });
+    const knownVersions = cached.find(([, data]) => Boolean(data?.versions))?.[1]?.versions;
+    const isKnownVersion = knownVersions && rawCandidate ? knownVersions.some((v) => v.slug === rawCandidate || v.id === rawCandidate) : undefined;
+    const version = isKnownVersion === false ? undefined : rawCandidate;
     let page: SitePage;
     try {
-      page = await cmsClient.sites.getPage<SitePage>(params.projectId, path, { language: deps.lang, version });
+      page = await queryClient.query({
+        queryKey: ['site-page', params.projectId, path, { language: deps.lang, version }],
+        queryFn: () => cmsClient.sites.getPage<SitePage>(params.projectId, path, { language: deps.lang, version }),
+        staleTime: 'static',
+      });
     } catch (error) {
       if (!(error instanceof CmsApiError) || error.status !== 404) {
         throw error;
@@ -26,7 +34,11 @@ export const Route = createFileRoute('/sites/$projectId/$')({
       const requested = (params._splat ?? '').replace(/^\/+|\/+$/g, '');
       let languageRedirect: string | null = null;
       try {
-        const site = await cmsClient.sites.getSite<SiteShell>(params.projectId, { language: deps.lang });
+        const site = await queryClient.query({
+          queryKey: ['site', params.projectId, { language: deps.lang }],
+          queryFn: () => cmsClient.sites.getSite<SiteShell>(params.projectId, { language: deps.lang }),
+          staleTime: 'static',
+        });
         if (site.openapi && requested === site.openapi.path) {
           return { kind: 'openapi' as const, openapi: site.openapi, site, lang: deps.lang };
         }

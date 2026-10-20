@@ -558,6 +558,28 @@ impl DeploymentQueries {
             .collect()
     }
 
+    /// Load immutable page metadata without markdown bodies for site shell navigation,
+    /// prev/next links, and breadcrumbs.
+    pub async fn get_snapshot_nav_pages(
+        pool: &PgPool,
+        deployment_id: &str,
+        language_id: Option<&str>,
+    ) -> Result<Vec<cms_entity::page::Page>, AppError> {
+        let rows = sqlx::query_scalar::<_, serde_json::Value>(
+            r#"SELECT jsonb_set(page_content, '{content}', '""') AS page_content
+               FROM "DeploymentSnapshotPageIndex"
+               WHERE deployment_id = $1 AND ($2::TEXT IS NULL OR language_id = $2)
+               ORDER BY language_id NULLS FIRST, path"#,
+        )
+        .bind(deployment_id)
+        .bind(language_id)
+        .fetch_all(pool)
+        .await?;
+        rows.into_iter()
+            .map(|row| serde_json::from_value(row).map_err(AppError::Serialization))
+            .collect()
+    }
+
     /// Read one retained immutable page by ID.
     pub async fn get_snapshot_page(
         pool: &PgPool,
@@ -617,6 +639,34 @@ impl DeploymentQueries {
                ORDER BY language_id NULLS FIRST, path"#,
         )
         .bind(deployment_id)
+        .fetch_all(pool)
+        .await?)
+    }
+
+    /// Read alternate language entries for a single page by translation key or path,
+    /// avoiding loading all snapshot page summaries for the entire release.
+    pub async fn get_snapshot_page_alternates(
+        pool: &PgPool,
+        deployment_id: &str,
+        translation_key: Option<&str>,
+        path: &str,
+    ) -> Result<Vec<DeploymentSnapshotPageSummary>, AppError> {
+        let clean_path = path.trim_matches('/');
+        let leading_slash_path = format!("/{clean_path}");
+        Ok(sqlx::query_as::<_, DeploymentSnapshotPageSummary>(
+            r#"SELECT page_id, language_id, path,
+                      page_content->>'translation_key' AS translation_key
+               FROM "DeploymentSnapshotPageIndex"
+               WHERE deployment_id = $1
+                 AND (
+                     ($2::TEXT IS NOT NULL AND page_content->>'translation_key' = $2)
+                     OR path = $3 OR path = $4
+                 )"#,
+        )
+        .bind(deployment_id)
+        .bind(translation_key)
+        .bind(&leading_slash_path)
+        .bind(clean_path)
         .fetch_all(pool)
         .await?)
     }

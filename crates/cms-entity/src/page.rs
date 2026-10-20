@@ -62,6 +62,7 @@ pub struct Page {
     pub title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(default)]
     pub content: String, // Markdown/MDX content
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,

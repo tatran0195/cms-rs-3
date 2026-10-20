@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@cms/desi
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { siteT } from '@cms/i18n/site';
 import { useDebouncedValue } from '@tanstack/react-pacer';
+import { useNavigate } from '@tanstack/react-router';
 import { ChevronRight, FileText, Loader2, Search, TrendingUp, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSiteAnalytics } from '../context/site-analytics-provider';
@@ -64,6 +65,7 @@ export function SiteSearch({
   onOpenChange,
   lang,
   version,
+  basePath,
   placeholder,
   hotkey,
   maxResults,
@@ -77,6 +79,7 @@ export function SiteSearch({
   onOpenChange: (open: boolean) => void;
   lang?: string;
   version?: string;
+  basePath?: string;
   placeholder?: string;
   hotkey?: 'cmdk' | 'slash';
   maxResults?: number;
@@ -85,6 +88,7 @@ export function SiteSearch({
   popularSearches?: Array<string | { label: string; icon?: string }> | null;
   direction?: 'ltr' | 'rtl';
 }) {
+  const navigate = useNavigate();
   const { track } = useSiteAnalytics();
   const t = siteT(lang);
 
@@ -270,7 +274,14 @@ export function SiteSearch({
                             language: hit.language,
                           });
                           onOpenChange(false);
-                          window.location.href = siteHref(projectId, hit.path, { lang: hit.language, version: selectedVersion });
+                          const href = siteHref(projectId, hit.path, {
+                            lang: hit.language,
+                            version: selectedVersion,
+                            basePath,
+                          });
+                          const [path, query] = href.split('?');
+                          const search = query ? Object.fromEntries(new URLSearchParams(query)) : {};
+                          navigate({ to: path, search } as never);
                         }}
                         className="group flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-colors aria-selected:bg-muted/70 hover:bg-muted/60"
                       >

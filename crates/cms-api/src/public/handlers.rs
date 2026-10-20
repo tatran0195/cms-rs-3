@@ -3,7 +3,8 @@
 //! This module contains the actual implementation of public-facing handlers.
 //! These handlers are for unauthenticated readers accessing published content.
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, RwLock};
 
 use axum::{
     extract::{Path, Query, State},
@@ -382,6 +383,16 @@ fn page_nav(
     }
 }
 
+#[derive(Clone)]
+struct CachedSiteNav {
+    nav: Vec<serde_json::Value>,
+    pages: Vec<cms_entity::page::Page>,
+    language: cms_entity::language::Language,
+}
+
+static NAV_CACHE: LazyLock<RwLock<HashMap<(String, String), CachedSiteNav>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
 struct ResolvedPublicSite {
     project: cms_entity::project::Project,
     branch: cms_entity::branch::Branch,
@@ -390,7 +401,7 @@ struct ResolvedPublicSite {
     languages: Vec<cms_entity::language::Language>,
     language: cms_entity::language::Language,
     pages: Vec<cms_entity::page::Page>,
-    all_pages: Vec<cms_db::deployment::DeploymentSnapshotPageSummary>,
+    nav: Vec<serde_json::Value>,
     language_config: Option<serde_json::Value>,
     primary_domain: Option<String>,
     version_number: u64,
@@ -472,18 +483,56 @@ async fn resolve_public_site(
                 .find(|language| language.code.eq_ignore_ascii_case(code))
                 .cloned()
         })
-        .unwrap_or(default_language);
-    let all_pages = cms_db::deployment::DeploymentQueries::get_snapshot_page_summaries(
-        &state.pool,
-        &deployment_id,
-    )
-    .await?;
-    let pages = cms_db::deployment::DeploymentQueries::get_snapshot_pages(
-        &state.pool,
-        &deployment_id,
-        Some(&language.id),
-    )
-    .await?;
+        .unwrap_or_else(|| default_language.clone());
+    let (nav, pages, language) = {
+        let cache_key = (deployment_id.clone(), language.id.clone());
+        let cached = NAV_CACHE
+            .read()
+            .ok()
+            .and_then(|c| c.get(&cache_key).cloned());
+        match cached {
+            Some(data) => (data.nav, data.pages, data.language),
+            None => {
+                let mut pages = cms_db::deployment::DeploymentQueries::get_snapshot_nav_pages(
+                    &state.pool,
+                    &deployment_id,
+                    Some(&language.id),
+                )
+                .await?;
+                let effective_language = if pages.is_empty() && language.id != default_language.id {
+                    let fallback = cms_db::deployment::DeploymentQueries::get_snapshot_nav_pages(
+                        &state.pool,
+                        &deployment_id,
+                        Some(&default_language.id),
+                    )
+                    .await?;
+                    if !fallback.is_empty() {
+                        pages = fallback;
+                        default_language.clone()
+                    } else {
+                        language
+                    }
+                } else {
+                    language
+                };
+                let nav = build_nav(&pages);
+                if let Ok(mut c) = NAV_CACHE.write() {
+                    if c.len() > 100 {
+                        c.clear();
+                    }
+                    c.insert(
+                        cache_key,
+                        CachedSiteNav {
+                            nav: nav.clone(),
+                            pages: pages.clone(),
+                            language: effective_language.clone(),
+                        },
+                    );
+                }
+                (nav, pages, effective_language)
+            }
+        }
+    };
 
     let translation = snapshot
         .translations
@@ -551,7 +600,7 @@ async fn resolve_public_site(
         languages,
         language,
         pages,
-        all_pages,
+        nav,
         language_config,
         primary_domain,
         version_number: saved_snapshot.version.max(0) as u64,
@@ -592,14 +641,27 @@ fn public_versions(
         .collect()
 }
 
-fn snapshot_language_alternates(
-    site: &ResolvedPublicSite,
+async fn snapshot_language_alternates(
+    pool: &cms_db::PgPool,
+    deployment_id: &str,
+    languages: &[cms_entity::language::Language],
     current: &cms_entity::page::Page,
-) -> Vec<serde_json::Value> {
-    site.languages
+) -> Result<Vec<serde_json::Value>, AppError> {
+    if languages.len() <= 1 {
+        return Ok(Vec::new());
+    }
+    let alternates = cms_db::deployment::DeploymentQueries::get_snapshot_page_alternates(
+        pool,
+        deployment_id,
+        current.translation_key.as_deref(),
+        &current.path,
+    )
+    .await?;
+
+    Ok(languages
         .iter()
         .filter_map(|language| {
-            let alternate = site.all_pages.iter().find(|candidate| {
+            let alternate = alternates.iter().find(|candidate| {
                 if candidate.language_id.as_deref() != Some(language.id.as_str()) {
                     return false;
                 }
@@ -625,7 +687,7 @@ fn snapshot_language_alternates(
                 "path": alternate.path.trim_matches('/'),
             }))
         })
-        .collect()
+        .collect())
 }
 
 fn page_breadcrumbs(
@@ -682,7 +744,7 @@ pub async fn get_public_site_handler(
     let requested_language = query.get("lang").and_then(serde_json::Value::as_str);
     let requested_version = query.get("version").and_then(serde_json::Value::as_str);
     let site = resolve_public_site(&state, &id, requested_language, requested_version).await?;
-    let nav = build_nav(&site.pages);
+    let nav = site.nav;
     let languages: Vec<serde_json::Value> = site
         .languages
         .iter()
@@ -749,7 +811,7 @@ pub async fn get_public_site_page_handler(
         raw_path
     };
 
-    let page = if path.is_empty() {
+    let target_meta = if path.is_empty() {
         site.pages
             .iter()
             .filter(|page| page.kind.eq_ignore_ascii_case("PAGE"))
@@ -758,13 +820,11 @@ pub async fn get_public_site_page_handler(
                     .cmp(&right.position)
                     .then(left.path.cmp(&right.path))
             })
-            .cloned()
     } else {
         site.pages
             .iter()
             .find(|page| page.path.trim_matches('/') == path)
-            .cloned()
-            .map(|candidate| {
+            .and_then(|candidate| {
                 if candidate.kind.eq_ignore_ascii_case("GROUP") {
                     let prefix = format!("{}/", candidate.path.trim_matches('/'));
                     site.pages
@@ -778,18 +838,52 @@ pub async fn get_public_site_page_handler(
                                 .cmp(&right.position)
                                 .then(left.path.cmp(&right.path))
                         })
-                        .cloned()
-                        .unwrap_or(candidate)
+                        .or(Some(candidate))
                 } else {
-                    candidate
+                    Some(candidate)
                 }
+            })
+            .or_else(|| {
+                site.pages
+                    .iter()
+                    .filter(|page| page.kind.eq_ignore_ascii_case("PAGE"))
+                    .min_by(|left, right| {
+                        left.position
+                            .cmp(&right.position)
+                            .then(left.path.cmp(&right.path))
+                    })
             })
     }
     .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
 
+    let page = if let Some(p) = cms_db::deployment::DeploymentQueries::get_snapshot_page(
+        &state.pool,
+        &site.deployment_id,
+        &target_meta.id,
+    )
+    .await?
+    {
+        p
+    } else {
+        cms_db::deployment::DeploymentQueries::get_snapshot_page_by_path(
+            &state.pool,
+            &site.deployment_id,
+            &site.language.id,
+            &target_meta.path,
+        )
+        .await?
+        .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?
+    };
+
     let clean_path = page.path.trim_matches('/').to_string();
     let (prev, next) = page_nav(&site.pages, &clean_path);
-    let lang_alternates = snapshot_language_alternates(&site, &page);
+    let lang_alternates = snapshot_language_alternates(
+        &state.pool,
+        &site.deployment_id,
+        &site.languages,
+        &page,
+    )
+    .await?;
     let breadcrumbs = page_breadcrumbs(&site.pages, &page);
     let headings = headings_from_markdown(&page.content);
 
@@ -874,15 +968,17 @@ pub async fn get_public_pages_handler(
         Some(&snapshot.branch.id),
     )
     .await?;
-    let page = site
-        .pages
-        .iter()
-        .find(|page| page.id == requested_page.id)
-        .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+    let page = requested_page;
     let clean_path = page.path.trim_matches('/').to_string();
     let (prev, next) = page_nav(&site.pages, &clean_path);
-    let languages = snapshot_language_alternates(&site, page);
-    let breadcrumbs = page_breadcrumbs(&site.pages, page);
+    let languages = snapshot_language_alternates(
+        &state.pool,
+        &site.deployment_id,
+        &site.languages,
+        &page,
+    )
+    .await?;
+    let breadcrumbs = page_breadcrumbs(&site.pages, &page);
     let headings = headings_from_markdown(&page.content);
 
     Ok(Json(serde_json::json!({
