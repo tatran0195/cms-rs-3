@@ -18,20 +18,16 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
         id="nd-notebook-layout"
         data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         data-documentation-layout="notebook"
-        className="relative grid overflow-x-clip min-h-(--fd-docs-height) flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:260px] [--fd-toc-col:268px] transition-[--fd-sidebar-col]"
+        className="relative grid overflow-x-clip min-h-[var(--fd-docs-height,100dvh)] flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:0px] max-xl:[--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:0px] md:[--fd-sidebar-width:260px] [--fd-toc-col:0px] xl:[--fd-toc-col:268px] transition-[--fd-sidebar-col]"
         style={
           {
             gridTemplate: `"sidebar sidebar header header ."
 "sidebar sidebar toc-popover toc-popover ."
 "sidebar sidebar main toc ." 1fr / minmax(min-content, 1fr) var(--fd-sidebar-col) minmax(0, calc(var(--fd-layout-width,97rem) - var(--fd-sidebar-col) - var(--fd-toc-col))) var(--fd-toc-col) minmax(min-content, 1fr)`,
             '--fd-docs-row-1': 'var(--fd-banner-height, 0px)',
-            '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height))',
-            '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height))',
+            '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height, 3.5rem))',
+            '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height, 0px))',
             '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
-            '--fd-sidebar-width': '260px',
-            '--fd-toc-col': '268px',
-            '--fd-header-height': '3.5rem',
-            '--fd-toc-popover-height': '2.5rem',
           } as CSSProperties
         }
         data-theme-region="content-shell"
@@ -41,7 +37,7 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
           id="nd-sidebar"
           data-collapsed={collapsed ? 'true' : 'false'}
           className={cn(
-            'sticky top-(--fd-docs-row-1) z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/60 border-e bg-card/60 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
+            'sticky top-[var(--fd-docs-row-1,0px)] z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/60 border-e bg-card/60 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
             collapsed ? 'w-0 overflow-hidden border-none opacity-0 pointer-events-none' : 'w-[260px]',
           )}
           data-theme-region="sidebar"
@@ -80,7 +76,7 @@ function NotebookReaderShell(slots: DocsLayoutSlots) {
         {/* Top Header [grid-area:header] */}
         <header
           className={cn(
-            'sticky top-(--fd-docs-row-1) z-30 flex items-center justify-between px-6 h-14 border-b border-border/50 bg-background/80 backdrop-blur-md [grid-area:header]',
+            'sticky top-[var(--fd-docs-row-1,0px)] z-30 flex items-center justify-between px-6 h-14 border-b border-border/50 bg-background/80 backdrop-blur-md [grid-area:header]',
           )}
         >
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -156,7 +152,7 @@ export const NotebookLayoutTemplate: DocsLayoutTemplate = {
   PageLayout: ({ article, tableOfContents, breadcrumb, footer, tocPopover }) => (
     <div className="contents" data-documentation-layout="notebook-page" data-theme-region="page-shell">
       {/* Mobile & Tablet TOC Popover in [grid-area:toc-popover] */}
-      {tocPopover && <div className="[grid-area:toc-popover] sticky top-(--fd-docs-row-2) z-10 xl:hidden w-full">{tocPopover}</div>}
+      {tocPopover && <div className="[grid-area:toc-popover] sticky top-[var(--fd-docs-row-2,0px)] z-10 xl:hidden w-full">{tocPopover}</div>}
 
       {/* Main Container in [grid-area:main] with Notebook Card Paper styling */}
       <main className="grid [grid-area:main] p-4 sm:p-6 lg:p-8" data-layout-main="">
@@ -175,7 +171,7 @@ export const NotebookLayoutTemplate: DocsLayoutTemplate = {
       {tableOfContents && (
         <aside
           id="nd-toc"
-          className="sticky top-(--fd-docs-row-1) h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-[268px] pt-12 pe-4 pb-2 max-xl:hidden self-start"
+          className="sticky top-[var(--fd-docs-row-1,0px)] h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-[268px] pt-12 pe-4 pb-2 max-xl:hidden self-start"
           data-theme-region="toc"
         >
           {tableOfContents}

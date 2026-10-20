@@ -399,10 +399,12 @@ export function TableOfContents({
         className,
       )}
     >
-      <h3 id="toc-title" className="mb-2 flex items-center gap-1.5 font-medium text-muted-foreground text-sm">
-        <Text className="size-4 shrink-0 rtl:-scale-x-100" aria-hidden />
-        {label}
-      </h3>
+      {Boolean(label) && (
+        <h3 id="toc-title" className="mb-2 flex items-center gap-1.5 font-medium text-muted-foreground text-sm">
+          <Text className="size-4 shrink-0 rtl:-scale-x-100" aria-hidden />
+          {label}
+        </h3>
+      )}
 
       {/* Masked scroll container matching Fumadocs TOCScrollArea */}
       <div className="relative min-h-0 text-sm ms-px overflow-auto overscroll-contain [scrollbar-width:none] [mask-image:linear-gradient(to_bottom,transparent,white_16px,white_calc(100%-16px),transparent)] py-3">

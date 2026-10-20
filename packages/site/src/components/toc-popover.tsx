@@ -191,7 +191,7 @@ export function TOCPopover({ headings = [], label = 'On this page', style = 'cle
     <div
       ref={popoverRef}
       data-toc-popover=""
-      className={cn('sticky top-(--fd-docs-row-2) z-20 [grid-area:toc-popover] h-(--fd-toc-popover-height,2.5rem) xl:hidden w-full', className)}
+      className={cn('sticky top-[var(--fd-docs-row-2,0px)] z-20 [grid-area:toc-popover] h-[var(--fd-toc-popover-height,2.5rem)] xl:hidden w-full', className)}
     >
       <header className={cn('border-b border-border/70 backdrop-blur-md transition-colors bg-background/85', open && 'shadow-lg bg-background')}>
         <button

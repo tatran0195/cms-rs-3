@@ -62,6 +62,44 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--card-foreground);
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--popover-foreground);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-secondary-foreground: var(--secondary-foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  --color-fd-border: var(--border);
+  --color-fd-ring: var(--ring);
+
+  --spacing-fd-container: 1400px;
+  --fd-page-width: 1200px;
+  --fd-sidebar-width: 268px;
+  --fd-toc-width: 268px;
+  --fd-layout-width: 97rem;
+  --fd-banner-height: 0px;
+  --fd-header-height: 3.5rem;
+  --fd-toc-popover-height: 2.5rem;
+  --fd-docs-height: 100dvh;
+}
+
+@property --fd-sidebar-col {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+@property --fd-toc-col {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
 }
 
 /* cms palette — monochrome "ink & paper" on a TRUE neutral grey (no blue/green
@@ -69,6 +107,19 @@
    links, focus ring, active states, one chart series). Everything else stays grey;
    semantic status colors are reserved for actionable product feedback. */
 :root {
+  /* Fumadocs layout & geometry defaults mapped to design system tokens */
+  --fd-banner-height: 0px;
+  --fd-header-height: 3.5rem;
+  --fd-toc-popover-height: 2.5rem;
+  --fd-sidebar-width: 268px;
+  --fd-toc-width: 268px;
+  --fd-page-width: 1200px;
+  --fd-layout-width: 97rem;
+  --fd-docs-height: 100dvh;
+  --fd-docs-row-1: var(--fd-banner-height, 0px);
+  --fd-docs-row-2: calc(var(--fd-docs-row-1) + var(--fd-header-height, 3.5rem));
+  --fd-docs-row-3: calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height, 2.5rem));
+
   /* Outer border-box control sizes shared by app and admin. */
   --control-size-default: 2.25rem;
   --control-size-compact: 2rem;
@@ -190,3 +241,29 @@
     --control-tabs-inset: 0px;
   }
 }
+
+/* Fumadocs sidebar and scroll-container integration */
+#nd-sidebar {
+  --color-fd-accent: var(--sidebar-accent);
+  --color-fd-accent-foreground: var(--sidebar-accent-foreground);
+  --color-fd-ring: var(--sidebar-ring);
+  --color-fd-primary-foreground: var(--sidebar-primary-foreground);
+}
+
+.fd-scroll-container {
+  &::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+    background: var(--color-fd-border, var(--border));
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-corner {
+    display: none;
+  }
+}
+

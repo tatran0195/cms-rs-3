@@ -18,7 +18,7 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
         id="nd-docs-layout"
         data-sidebar-collapsed={collapsed ? 'true' : 'false'}
         data-documentation-layout="docs"
-        className="relative grid overflow-x-clip min-h-(--fd-docs-height) flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:268px] [--fd-toc-width:268px] transition-[--fd-sidebar-col]"
+        className="relative grid overflow-x-clip min-h-[var(--fd-docs-height,100dvh)] flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:0px] max-md:[--fd-header-height:3.5rem] [--fd-toc-popover-height:0px] max-xl:[--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:0px] md:[--fd-sidebar-width:268px] [--fd-toc-width:0px] xl:[--fd-toc-width:268px] transition-[--fd-sidebar-col]"
         style={
           {
             gridTemplate: `"sidebar sidebar header toc toc"
@@ -26,13 +26,9 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
 "sidebar sidebar tabs toc toc"
 "sidebar sidebar main toc toc" 1fr / minmax(min-content, 1fr) var(--fd-sidebar-col) minmax(0, calc(var(--fd-layout-width,97rem) - var(--fd-sidebar-width) - var(--fd-toc-width))) var(--fd-toc-width) minmax(min-content, 1fr)`,
             '--fd-docs-row-1': 'var(--fd-banner-height, 0px)',
-            '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height))',
-            '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height))',
+            '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height, 0px))',
+            '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height, 0px))',
             '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
-            '--fd-sidebar-width': '268px',
-            '--fd-toc-width': '268px',
-            '--fd-header-height': '3.5rem',
-            '--fd-toc-popover-height': '2.5rem',
           } as CSSProperties
         }
         data-theme-region="content-shell"
@@ -42,7 +38,7 @@ function DocsStandardReaderShell(slots: DocsLayoutSlots) {
           id="nd-sidebar"
           data-collapsed={collapsed ? 'true' : 'false'}
           className={cn(
-            'sticky top-(--fd-docs-row-1) z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/70 border-e bg-card/50 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
+            'sticky top-[var(--fd-docs-row-1,0px)] z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/70 border-e bg-card/50 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
             collapsed ? 'w-0 overflow-hidden border-none opacity-0 pointer-events-none' : 'w-[268px]',
           )}
           data-theme-region="sidebar"
@@ -170,7 +166,7 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
   PageLayout: ({ article, tableOfContents, breadcrumb, footer, tocPopover }) => (
     <div className="contents" data-documentation-layout="docs-page" data-theme-region="page-shell">
       {/* Mobile & Tablet TOC Popover in [grid-area:toc-popover] */}
-      {tocPopover && <div className="[grid-area:toc-popover] sticky top-(--fd-docs-row-2) z-10 xl:hidden w-full">{tocPopover}</div>}
+      {tocPopover && <div className="[grid-area:toc-popover] sticky top-[var(--fd-docs-row-2,0px)] z-10 xl:hidden w-full">{tocPopover}</div>}
 
       {/* Main Container in [grid-area:main] matching Fumadocs slots/container.tsx */}
       <main className="grid [grid-area:main] justify-items-center w-full min-w-0" data-layout-main="">
@@ -189,7 +185,7 @@ export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
       {tableOfContents && (
         <aside
           id="nd-toc"
-          className="sticky top-(--fd-docs-row-1) h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-(--fd-toc-width,268px) pt-12 pe-4 pb-2 max-xl:hidden self-start"
+          className="sticky top-[var(--fd-docs-row-1,0px)] h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-[var(--fd-toc-width,268px)] pt-12 pe-4 pb-2 max-xl:hidden self-start"
           data-theme-region="toc"
         >
           {tableOfContents}

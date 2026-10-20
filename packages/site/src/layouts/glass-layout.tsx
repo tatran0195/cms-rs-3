@@ -33,7 +33,7 @@ function GlassReaderShell(slots: DocsLayoutSlots) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {slots.searchFull && <div className={cn(pillButtonClasses, 'px-3 py-1 text-xs text-muted-foreground')}>{slots.searchFull}</div>}
+            {slots.searchFull && <div className="max-w-md w-full">{slots.searchFull}</div>}
             {slots.tools && <div className={cn(pillButtonClasses, 'px-3 py-1')}>{slots.tools}</div>}
           </div>
         </header>
@@ -46,7 +46,7 @@ function GlassReaderShell(slots: DocsLayoutSlots) {
           data-collapsed={collapsed ? 'true' : 'false'}
           className={cn(
             'glass-sidebar sticky top-4 hidden h-[calc(100dvh-2rem)] shrink-0 flex-col rounded-2xl border border-border/70 bg-card/65 shadow-sm backdrop-blur-md md:flex transition-all duration-200',
-            collapsed ? 'w-0 p-0 m-0 border-none overflow-hidden opacity-0 pointer-events-none' : 'w-68 p-3.5',
+            collapsed ? 'w-0 p-0 m-0 border-none overflow-hidden opacity-0 pointer-events-none' : 'w-[268px] p-3.5',
           )}
           data-theme-region="sidebar"
         >
@@ -156,7 +156,7 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
       </div>
 
       {tableOfContents && (
-        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
+        <aside className="sticky top-20 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
           {tableOfContents}
         </aside>
       )}

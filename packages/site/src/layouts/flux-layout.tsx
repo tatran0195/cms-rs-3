@@ -114,7 +114,6 @@ export function FluxTOCPopover({
   const items = headings && headings.length > 0 ? headings : DEFAULT_FLUX_TOC;
   const [activeId, setActiveId] = useState<string>(items[0]?.id ?? '');
   const containerRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLElement>(null);
 
   // Synchronize activeId when items list changes
   useEffect(() => {
@@ -123,11 +122,11 @@ export function FluxTOCPopover({
     }
   }, [items, activeId]);
 
-  // Close when clicking outside headerRef
+  // Close when clicking outside containerRef
   useEffect(() => {
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
@@ -166,25 +165,39 @@ export function FluxTOCPopover({
 
   return (
     <div ref={containerRef} className="relative h-9 min-w-0 flex-1" data-toc-popover="" data-toc-style={style}>
-      <header
-        ref={headerRef}
-        className={cn(
-          'absolute w-full bottom-0 border rounded-xl transition-all duration-200 bg-secondary text-secondary-foreground backdrop-blur-sm z-50',
-          open && 'shadow-2xl bg-popover text-popover-foreground border-border',
-        )}
-      >
-        {/* Upward expanding TOC content */}
-        {open && (
-          <div
-            data-toc-popover-content=""
-            className="flex flex-col px-2.5 max-h-[50vh] overflow-y-auto py-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
-          >
+      {/* Upward floating TOC popover card */}
+      {open && (
+        <div
+          data-toc-popover-content=""
+          className="fixed inset-x-2.5 bottom-24 sm:fixed-none sm:absolute sm:inset-x-auto sm:bottom-full sm:mb-2.5 sm:end-0 sm:w-[440px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border/80 bg-popover/98 text-popover-foreground shadow-2xl backdrop-blur-xl z-50 overflow-hidden ring-1 ring-border/50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+        >
+          {/* Card Header with Progress, Title & Dismiss button */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border/60 bg-muted/40 select-none">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <ProgressCircle value={progressRatio} max={1} size={15} className="text-primary shrink-0" />
+              <span>On this page</span>
+              <span className="text-[11px] text-muted-foreground font-normal">
+                ({items.length} {items.length === 1 ? 'heading' : 'headings'})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="grid size-6 place-items-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Close Table of Contents"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+
+          {/* Card Content with scrollable TableOfContents */}
+          <div className="flex flex-col p-3 max-h-[55vh] overflow-y-auto [scrollbar-width:thin] scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
             {fallbackContent ? (
               <div className="text-xs">{fallbackContent}</div>
             ) : (
               <TableOfContents
                 headings={items.map((item) => ({ id: item.id, text: item.title, depth: item.depth }))}
-                label="On this page"
+                label=""
                 style={style}
                 depth={3}
                 activeId={activeId}
@@ -192,37 +205,44 @@ export function FluxTOCPopover({
                   setActiveId(id);
                   setOpen(false);
                 }}
-                className="static max-h-none overflow-visible"
+                className="static max-h-none overflow-visible w-full text-xs"
               />
             )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Trigger at the bottom */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpen((v) => !v);
-          }}
-          aria-expanded={open}
-          aria-label="Table of Contents"
-          data-toc-popover-trigger=""
+      {/* Dock Trigger Button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        aria-expanded={open}
+        aria-label="Table of Contents"
+        data-toc-popover-trigger=""
+        className={cn(
+          'flex w-full h-8.5 items-center text-xs gap-2 px-3 text-start focus-visible:outline-none cursor-pointer select-none rounded-xl border border-border/60 bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-all duration-150 shadow-2xs',
+          open && 'bg-accent border-primary/40 text-accent-foreground ring-1 ring-primary/20',
+        )}
+      >
+        <ProgressCircle
+          value={progressRatio}
+          max={1}
+          size={16}
+          className={cn('shrink-0 transition-colors', open ? 'text-primary' : 'text-primary/75')}
+        />
+        <span className="truncate font-medium flex-1 text-xs">
+          {activeHeading?.title ?? defaultTitle ?? 'On this page'}
+        </span>
+        <ChevronDown
           className={cn(
-            'flex w-full h-8.5 items-center text-xs text-muted-foreground gap-2 px-2.5 text-start focus-visible:outline-none cursor-pointer select-none transition-colors hover:text-foreground',
-            open && 'text-popover-foreground',
+            'ms-auto shrink-0 size-3.5 text-muted-foreground transition-transform duration-200',
+            open && 'rotate-180 text-foreground',
           )}
-        >
-          <ProgressCircle
-            value={progressRatio}
-            max={1}
-            size={16}
-            className={cn('shrink-0 transition-colors', open ? 'text-primary' : 'text-primary/70')}
-          />
-          <span className="truncate font-medium flex-1">{activeHeading?.title ?? defaultTitle ?? 'On this page'}</span>
-          <ChevronDown className={cn('ms-auto shrink-0 size-3.5 transition-transform duration-200', open && 'rotate-180')} />
-        </button>
-      </header>
+        />
+      </button>
     </div>
   );
 }
@@ -402,24 +422,28 @@ function FluxReaderLayoutComponent(slots: Parameters<DocsLayoutTemplate['ReaderL
         {/* Floating Bottom Navigation Dock (Fumadocs NavigationPanel) */}
         <aside
           data-flux-nav-panel="true"
-          className="fixed left-1/2 -translate-x-1/2 bottom-0 z-40 w-full sm:w-[380px] sm:max-w-[380px] sm:bottom-6 sm:rounded-2xl border-t sm:border border-border/80 bg-popover/95 text-popover-foreground shadow-2xl backdrop-blur-md transition-all duration-200"
+          className="fixed left-1/2 -translate-x-1/2 bottom-0 z-40 w-full sm:w-[580px] md:w-[640px] max-w-[calc(100vw-1.5rem)] sm:bottom-6 sm:rounded-2xl border-t sm:border border-border/80 bg-background/92 dark:bg-card/92 text-popover-foreground shadow-[0_20px_50px_rgba(0,0,0,0.22)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-200 ring-1 ring-border/40"
           data-theme-region="navigation-panel"
         >
           {/* Row 1: Head / Brand + TOC Popover Portal Slot */}
-          <div className="flex flex-row items-center ps-2.5 p-1 gap-2 min-h-11">
-            <div className="flex min-w-0 items-center gap-2 shrink-0">{slots.brand ?? defaultBrand}</div>
+          <div className="flex flex-row items-center justify-between ps-3 pe-2 py-1.5 gap-2.5 min-h-11">
+            <div className="flex min-w-0 max-w-[200px] sm:max-w-[260px] items-center gap-2 shrink-0 truncate [&_a]:truncate [&_span]:truncate">
+              {slots.brand ?? defaultBrand}
+            </div>
             <div id="flux-layout-slot" className="flex-1 min-w-0">
               {!hasPageTOC && <FluxTOCPopover />}
             </div>
           </div>
 
           {/* Row 2: TabDropdown + Link + Tools (Search/Sidebar/ThemeSwitch) */}
-          <div className="flex flex-row gap-1.5 overflow-x-auto overflow-y-hidden p-2 sm:p-1 border-t sm:border-t-0 border-border/40">
-            <div className="flex flex-row items-center gap-2 min-w-0 flex-1">
-              <FluxTabDropdown navTabs={slots.navTabs} />
-            </div>
+          <div className="flex flex-row items-center gap-2 px-3 py-1.5 border-t border-border/40 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {slots.navTabs && (
+              <div className="flex flex-row items-center gap-2 min-w-0 max-w-[200px]">
+                <FluxTabDropdown navTabs={slots.navTabs} />
+              </div>
+            )}
 
-            <div className="flex flex-row items-center text-muted-foreground border-x border-border/50 px-0.5 empty:hidden">
+            <div className="flex flex-row items-center text-muted-foreground border-x border-border/50 px-1 empty:hidden">
               <a
                 href="https://github.com"
                 target="_blank"
@@ -431,7 +455,7 @@ function FluxReaderLayoutComponent(slots: Parameters<DocsLayoutTemplate['ReaderL
               </a>
             </div>
 
-            <div className="flex flex-row items-center text-muted-foreground gap-1 empty:hidden">
+            <div className="flex flex-row items-center text-muted-foreground gap-1.5 ms-auto shrink-0">
               {slots.searchButton ?? (
                 <button
                   type="button"
@@ -519,18 +543,18 @@ export const FluxLayoutTemplate: DocsLayoutTemplate = {
         <div className="min-w-0 flex-1 overflow-y-auto pb-20">{content}</div>
         <aside
           data-flux-nav-panel="true"
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[340px] flex flex-col rounded-2xl border border-border/80 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-md p-1"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[480px] flex flex-col rounded-2xl border border-border/80 bg-popover/95 text-popover-foreground shadow-xl backdrop-blur-md p-1.5 ring-1 ring-border/40"
         >
-          <div className="flex items-center justify-between px-2 py-1 min-h-8">
-            <span className="text-xs font-semibold">{brand ?? 'My Docs'}</span>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/60 bg-muted/40 text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between px-2.5 py-1 min-h-8">
+            <span className="text-xs font-semibold truncate max-w-[180px]">{brand ?? 'My Docs'}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border border-border/60 bg-muted/40 text-[11px] text-muted-foreground">
               <span className="size-2 rounded-full bg-primary" />
               <span>Overview</span>
             </div>
           </div>
-          <div className="flex items-center justify-between px-2 py-1 border-t border-border/40 text-xs text-muted-foreground">
-            <span className="text-[11px]">Framework</span>
-            <div className="flex items-center gap-1">{tools}</div>
+          <div className="flex items-center justify-between px-2.5 py-1 border-t border-border/40 text-xs text-muted-foreground">
+            <span className="text-[11px]">Navigation</span>
+            <div className="flex items-center gap-1.5">{tools}</div>
           </div>
         </aside>
       </div>
@@ -549,7 +573,7 @@ export const FluxLayoutTemplate: DocsLayoutTemplate = {
       </div>
       <div
         data-flux-nav-panel="true"
-        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[280px] flex items-center justify-between rounded-xl border border-border/80 bg-popover/95 px-3 py-1.5 shadow-lg backdrop-blur-md"
+        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[360px] flex items-center justify-between rounded-xl border border-border/80 bg-popover/95 px-3 py-1.5 shadow-lg backdrop-blur-md ring-1 ring-border/40"
       >
         <div className="flex items-center gap-2">
           <span className="size-2 rounded-full bg-primary" />

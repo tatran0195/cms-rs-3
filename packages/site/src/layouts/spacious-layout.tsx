@@ -14,15 +14,13 @@ function SpaciousReaderShell(slots: DocsLayoutSlots) {
       id="fd-spacious-layout"
       data-sidebar-collapsed={collapsed ? 'true' : 'false'}
       data-documentation-layout="spacious"
-      className="relative grid min-h-screen bg-card/40 dark:bg-card/20 md:h-screen md:min-h-0 md:overflow-clip [--fd-header-height:3.5rem] [--fd-sidebar-width:268px] [--fd-page-width:760px] [--fd-toc-width:240px] transition-[grid-template-columns] duration-300 print:h-auto print:overflow-visible"
+      className="relative grid min-h-screen bg-card/40 dark:bg-card/20 md:h-screen md:min-h-0 md:overflow-clip [--fd-header-height:3.5rem] [--fd-sidebar-width:0px] md:[--fd-sidebar-width:268px] [--fd-sidebar-col:var(--fd-sidebar-width)] [--fd-page-width:760px] [--fd-toc-width:0px] xl:[--fd-toc-width:240px] transition-[grid-template-columns] duration-300 print:h-auto print:overflow-visible"
       style={
         {
           gridTemplate: `"sidebar header right" auto
 "sidebar toc-popover right" var(--fd-toc-popover-height, 0px)
-"sidebar main right" 1fr / ${collapsed ? '0px' : '268px'} minmax(0, 1fr) auto`,
-          '--fd-sidebar-col': collapsed ? '0px' : '268px',
-          '--fd-sidebar-width': '268px',
-          '--fd-header-height': '3.5rem',
+"sidebar main right" 1fr / var(--fd-sidebar-col) minmax(0, 1fr) auto`,
+          '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
           '--fd-page-width': '760px',
         } as CSSProperties
       }
@@ -175,7 +173,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
       </div>
 
       {tableOfContents && (
-        <aside className="sticky top-6 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
+        <aside className="sticky top-20 hidden xl:block w-[240px] shrink-0 self-start" data-theme-region="toc">
           {tableOfContents}
         </aside>
       )}
