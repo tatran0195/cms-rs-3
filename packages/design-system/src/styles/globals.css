@@ -80,10 +80,10 @@
   --color-fd-ring: var(--ring);
 
   --spacing-fd-container: 1400px;
-  --fd-page-width: 1200px;
+  --fd-page-width: 900px;
   --fd-sidebar-width: 268px;
   --fd-toc-width: 268px;
-  --fd-layout-width: 100%;
+  --fd-layout-width: 1600px;
   --fd-banner-height: 0px;
   --fd-header-height: 3.5rem;
   --fd-toc-popover-height: 2.5rem;
@@ -113,8 +113,8 @@
   --fd-toc-popover-height: 2.5rem;
   --fd-sidebar-width: 268px;
   --fd-toc-width: 268px;
-  --fd-page-width: 1200px;
-  --fd-layout-width: 100%;
+  --fd-page-width: 900px;
+  --fd-layout-width: 1600px;
   --fd-docs-height: 100dvh;
   --fd-docs-row-1: var(--fd-banner-height, 0px);
   --fd-docs-row-2: calc(var(--fd-docs-row-1) + var(--fd-header-height, 3.5rem));
