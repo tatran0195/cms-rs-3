@@ -9,7 +9,7 @@ export function NotebookReaderShell(slots: DocsLayoutSlots) {
   const hasGranular = Boolean(slots.brand);
 
   return (
-    <div className="flex min-h-screen flex-col bg-card/40 dark:bg-card/20">
+    <div className="flex min-h-screen flex-col bg-background">
       {slots.banner}
 
       <Container>

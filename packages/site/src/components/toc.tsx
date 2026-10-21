@@ -15,6 +15,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import scrollIntoView from 'scroll-into-view-if-needed';
 
 export type TocHeading = { id: string; text: string; depth?: number; level?: number };
 
@@ -323,10 +324,13 @@ export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSel
     const callback = () => {
       const anchor = anchorRef.current;
       const container = containerRef?.current;
-      if (autoScroll && observer.activeAnchor === id && anchor && container && typeof anchor.scrollIntoView === 'function') {
-        anchor.scrollIntoView({
+      if (autoScroll && observer.activeAnchor === id && anchor && container) {
+        scrollIntoView(anchor, {
           behavior: isMountedRef.current ? 'smooth' : 'instant',
           block: 'center',
+          inline: 'center',
+          scrollMode: 'always',
+          boundary: container,
         });
       }
     };

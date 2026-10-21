@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react';
 
 export function Container({ className, children, full, ...props }: ComponentProps<'article'> & { full?: boolean }) {
   return (
-    <main className="grid [grid-area:main] p-4 sm:p-6 lg:p-8" data-layout-main="">
+    <main className="grid [grid-area:main]" data-layout-main="">
       <article
         id="nd-page"
         data-layout-content=""
@@ -13,7 +13,7 @@ export function Container({ className, children, full, ...props }: ComponentProp
         data-full={full}
         {...props}
         className={cn(
-          'flex flex-col min-w-0 px-6 py-6 gap-4 md:px-8 md:pt-8 xl:px-10 xl:pt-10 notebook-paper bg-background rounded-2xl border border-border/80 shadow-xs',
+          'flex flex-col min-w-0 px-4 py-6 gap-4 md:px-6 md:pt-8 xl:px-8 xl:pt-14 *:max-w-[var(--fd-page-width,900px)]',
           full ? '*:max-w-none' : '*:max-w-[var(--fd-page-width,900px)]',
           className,
         )}
