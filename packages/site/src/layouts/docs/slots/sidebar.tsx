@@ -71,8 +71,8 @@ export function Sidebar({
         </>
       ) : (
         <ScrollArea className="h-full">
-          <div className="pt-6 pb-16 pe-4" data-theme-region="sidebar-content">
-            {navigation}
+          <div className="pt-6 pb-16 px-3" data-theme-region="sidebar-content">
+            {sidebarTree ?? navigation}
           </div>
         </ScrollArea>
       )}

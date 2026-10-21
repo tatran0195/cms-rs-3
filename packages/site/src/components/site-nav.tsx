@@ -38,9 +38,12 @@ function NavLink({ node, projectId, currentPath, lang, version, depth, rail, bas
           basePath,
         })}
         aria-current={active ? 'page' : undefined}
+        data-active={active ? 'true' : 'false'}
         className={cn(
-          'relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
-          active ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+          'relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors wrap-anywhere',
+          active
+            ? 'bg-primary/10 font-medium text-primary data-[active=true]:bg-primary/10 data-[active=true]:text-primary'
+            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
           // Entries in a railed list recolor their segment of the rail when active.
           rail && active && 'before:absolute before:-start-[13px] before:inset-y-1 before:w-[1.5px] before:rounded-full before:bg-primary',
         )}
