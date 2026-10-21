@@ -50,6 +50,7 @@ import { CommentsPanel } from '@/features/editor/components/comments-panel';
 import { isDirty, nextHydration, type ServerSnapshot, shouldAutosave } from '@/features/editor/components/editor-draft';
 import { resolveEditorLayout } from '@/features/editor/components/editor-layout';
 import { LanguageSettingsDialog } from '@/features/editor/components/language-settings-dialog';
+import { LocaleSelector } from '@/features/editor/components/locale-selector';
 import { MarkdownSourceEditor } from '@/features/editor/components/markdown-source-editor';
 import { PageSettingsDialog } from '@/features/editor/components/page-settings-dialog';
 import { SaveStatusIndicator } from '@/features/editor/components/save-status-indicator';
@@ -116,6 +117,13 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
     [languages],
   );
   const defaultLanguageId = orderedLanguages[0]?.id ?? null;
+  const [activeLanguageId, setActiveLanguageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeLanguageId && defaultLanguageId) {
+      setActiveLanguageId(defaultLanguageId);
+    }
+  }, [defaultLanguageId, activeLanguageId]);
   const pagesByLanguage = useMemo(() => {
     const map = new Map<string, PageNode[]>();
     for (const page of allPages ?? []) {
@@ -179,6 +187,18 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const activeTreeId = selectedId ?? activeId;
 
   const { data: page } = usePage(projectId, activeId ?? undefined);
+
+  useEffect(() => {
+    if (page?.languageId && page.languageId !== activeLanguageId) {
+      setActiveLanguageId(page.languageId);
+    }
+  }, [page?.languageId, activeLanguageId]);
+
+  const activeLanguage = useMemo(
+    () => orderedLanguages.find((l) => l.id === (activeLanguageId ?? page?.languageId)) ?? orderedLanguages[0],
+    [orderedLanguages, activeLanguageId, page?.languageId],
+  );
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   // The comments rail starts closed (an empty "No comments yet" panel would
@@ -262,48 +282,6 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   // of permanently consuming the editor canvas.
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Which per-language sections are collapsed in the page tree. Persisted.
-  const [collapsedLangs, setCollapsedLangs] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') {
-      return new Set();
-    }
-    try {
-      const raw = window.localStorage.getItem('cms.editor.collapsedLangs');
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-  const persistLangs = (set: Set<string>) => {
-    try {
-      window.localStorage.setItem('cms.editor.collapsedLangs', JSON.stringify([...set]));
-    } catch {
-      // ignore storage failures
-    }
-  };
-  const toggleLang = (id: string) => {
-    const next = new Set(collapsedLangs);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    setCollapsedLangs(next);
-    persistLangs(next);
-  };
-  // Adding a page/group to a collapsed language auto-expands it so the new node shows.
-  const expandLang = (id: string) => {
-    if (!collapsedLangs.has(id)) {
-      return;
-    }
-    const next = new Set(collapsedLangs);
-    next.delete(id);
-    setCollapsedLangs(next);
-    persistLangs(next);
-  };
-
-  // The active page's language drives the editor/preview text direction.
-  const activeLanguage = useMemo(() => languages?.find((l) => l.id === page?.languageId), [languages, page?.languageId]);
   const activeLangDir: 'ltr' | 'rtl' = activeLanguage?.direction === 'RTL' ? 'rtl' : 'ltr';
 
   // Load the selected page into the local draft. Re-seed when switching pages, OR
@@ -644,6 +622,24 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
             </Button>
           </div>
 
+          {/* Active Locale Selector dropdown — collects languages to avoid vertical overflow */}
+          {view === 'content' && orderedLanguages.length > 0 && (
+            <LocaleSelector
+              languages={orderedLanguages}
+              activeLanguageId={activeLanguageId ?? defaultLanguageId}
+              onSelect={(id) => {
+                setActiveLanguageId(id);
+                const firstInLang = (allPages ?? []).find((p) => p.languageId === id && p.kind === 'PAGE');
+                if (firstInLang) setSelectedId(firstInLang.id);
+              }}
+              onAddLanguage={() => setAddLangOpen(true)}
+              onLanguageSettings={(lang) => setLangSettings(lang)}
+              onAddPage={(langId) => addPage(null, langId)}
+              onAddGroup={(langId) => addGroup(langId)}
+              disabled={createPage.isPending}
+            />
+          )}
+
           {/* Quick filter input for large documentation trees (100+ to 1,000+ docs) */}
           {view === 'content' && (allPages?.length ?? 0) > 0 ? (
             <div className="border-border border-b px-2 py-1.5">
@@ -671,8 +667,8 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
           ) : null}
 
           <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
-            <div className="space-y-1 px-2 py-2 overflow-y-auto overflow-x-hidden flex-shrink-0 [scrollbar-gutter:stable]">
-              {view === 'config' ? (
+            {view === 'config' ? (
+              <div className="overflow-y-auto px-2 py-2">
                 <ConfigSectionList
                   active={configSection}
                   onSelect={(section) => {
@@ -680,126 +676,49 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                     setMobileSidebarOpen(false);
                   }}
                 />
-              ) : isPending ? (
-                <p className="px-2 text-muted-foreground text-sm">{t('common.loading')}</p>
-              ) : (
-                <>
-                  {orderedLanguages.map((lang) => {
-                    const dir = lang.direction === 'RTL' ? 'rtl' : 'ltr';
-                    const langPages = filteredPagesByLanguage.get(lang.id) ?? [];
-                    const langCollapsed = collapsedLangs.has(lang.id);
-                    return (
-                      <div key={lang.id} className="mb-2" data-testid="language-section" data-language-code={lang.code}>
-                        {/* Language section header — click the label to collapse/expand */}
-                        <div className="group flex items-center justify-between rounded-md px-1 py-1.5 hover:bg-muted/40">
-                          <button
-                            type="button"
-                            onClick={() => toggleLang(lang.id)}
-                            aria-expanded={!langCollapsed}
-                            title={langCollapsed ? t('editor.expand') : t('editor.collapse')}
-                            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 font-semibold text-[12.5px] text-foreground"
-                            dir={dir}
-                          >
-                            <ChevronRight
-                              className={cn(
-                                'size-3.5 shrink-0 text-muted-foreground transition-transform',
-                                langCollapsed ? 'rtl:rotate-180' : 'rotate-90',
-                              )}
-                            />
-                            <Languages className="size-3.5 shrink-0 text-muted-foreground" />
-                            {/* The label owns the row's flexible space: the code lives in its
-                              tooltip and the badge never shrinks, so "English" only truncates
-                              when the sidebar is genuinely too narrow for it. */}
-                            <span className="min-w-0 truncate" title={`${lang.label} (${lang.code})`}>
-                              {lang.label}
-                            </span>
-                            {lang.isDefault ? (
-                              <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 font-medium text-[9px] text-accent-foreground">
-                                {t('editor.default')}
-                              </span>
-                            ) : null}
-                          </button>
-                          <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              className="cursor-pointer"
-                              onClick={() => setLangSettings(lang)}
-                              aria-label={t('editor.langSettings.settings')}
-                              title={t('editor.langSettings.settings')}
-                            >
-                              <Settings2 className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              className="cursor-pointer"
-                              onClick={() => {
-                                expandLang(lang.id);
-                                addGroup(lang.id);
-                              }}
-                              aria-label={t('editor.newGroup')}
-                              title={t('editor.newGroup')}
-                              disabled={createPage.isPending}
-                            >
-                              <FolderPlus className="size-3" />
-                            </Button>
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              className="cursor-pointer"
-                              onClick={() => {
-                                expandLang(lang.id);
-                                addPage(null, lang.id);
-                              }}
-                              aria-label={t('editor.newPage')}
-                              title={t('editor.newPage')}
-                              disabled={createPage.isPending}
-                            >
-                              <Plus className="size-3" />
-                            </Button>
-                          </div>
-                        </div>
+              </div>
+            ) : isPending ? (
+              <p className="px-3 py-3 text-muted-foreground text-sm">{t('common.loading')}</p>
+            ) : (
+              (() => {
+                const currentLangId = activeLanguageId ?? defaultLanguageId;
+                const langPages = currentLangId ? (filteredPagesByLanguage.get(currentLangId) ?? []) : [];
+                const activeLangObj = orderedLanguages.find((l) => l.id === currentLangId);
+                const dir = activeLangObj?.direction === 'RTL' ? 'rtl' : 'ltr';
 
-                        {/* This language's page tree — rendered outside any scroll viewport so
-                            dnd-kit's PointerSensor is not blocked. The tree has its own
-                            overflow-y-auto scroll container inside SortablePageTree. */}
-                        {langCollapsed ? null : (
-                          <div className="space-y-0.5" dir={dir}>
-                            {langPages.length === 0 ? (
-                              <p className="px-2 py-1 text-[12px] text-muted-foreground/70">{t('editor.noPagesYet')}</p>
-                            ) : (
-                              <SortablePageTree
-                                pages={langPages}
-                                activeId={activeTreeId}
-                                treeKey={lang.id}
-                                onSelect={(id) => {
-                                  setSelectedId(id);
-                                  setMobileSidebarOpen(false);
-                                  setFocusedTreeOpen(false);
-                                }}
-                                onAddChild={(parentId) => addPage(parentId, lang.id)}
-                                onSettings={(id) => setSettingsForId(id)}
-                                onMove={(items) => reorderPages.mutate({ items })}
-                              />
-                            )}
-                          </div>
-                        )}
+                return (
+                  <div className="flex-1 min-h-0 flex flex-col" dir={dir}>
+                    {langPages.length === 0 ? (
+                      <div className="p-4 text-center">
+                        <p className="text-xs text-muted-foreground/70">{t('editor.noPagesYet')}</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 cursor-pointer text-xs"
+                          onClick={() => currentLangId && addPage(null, currentLangId)}
+                        >
+                          <Plus className="size-3 mr-1" /> {t('editor.newPage')}
+                        </Button>
                       </div>
-                    );
-                  })}
-
-                  {/* Add a language */}
-                  <button
-                    type="button"
-                    onClick={() => setAddLangOpen(true)}
-                    className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground text-sm hover:bg-muted hover:text-foreground"
-                  >
-                    <Plus className="size-3.5" /> {t('editor.addLanguage')}
-                  </button>
-                </>
-              )}
-            </div>
+                    ) : (
+                      <SortablePageTree
+                        pages={langPages}
+                        activeId={activeTreeId}
+                        treeKey={currentLangId ?? 'default'}
+                        onSelect={(id) => {
+                          setSelectedId(id);
+                          setMobileSidebarOpen(false);
+                          setFocusedTreeOpen(false);
+                        }}
+                        onAddChild={(parentId) => currentLangId && addPage(parentId, currentLangId)}
+                        onSettings={(id) => setSettingsForId(id)}
+                        onMove={(items) => reorderPages.mutate({ items })}
+                      />
+                    )}
+                  </div>
+                );
+              })()
+            )}
           </div>
           <AddLanguageDialog projectId={projectId} open={addLangOpen} onOpenChange={setAddLangOpen} onCreated={() => setAddLangOpen(false)} />
           {langSettings ? (

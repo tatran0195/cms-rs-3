@@ -18,8 +18,6 @@ const mockLanguages: Language[] = [
     direction: 'LTR',
     isDefault: true,
     position: 0,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'lang-es',
@@ -29,8 +27,6 @@ const mockLanguages: Language[] = [
     direction: 'LTR',
     isDefault: false,
     position: 1,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
   },
 ];
 
