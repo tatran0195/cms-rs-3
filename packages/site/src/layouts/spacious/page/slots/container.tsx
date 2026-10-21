@@ -11,7 +11,7 @@ export function Container({ className, children, full, ...props }: ComponentProp
       data-theme-region="article"
       data-full={full}
       {...props}
-      className={cn('flex flex-col gap-4 w-full min-w-0 pt-4 pb-12', full && 'max-w-none', className)}
+      className={cn('flex flex-col gap-4 w-full min-w-0 pt-4 pb-12', full ? 'max-w-none' : 'max-w-[var(--fd-page-width,900px)]', className)}
     >
       {children}
     </article>

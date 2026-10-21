@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
-  DOCUMENTATION_THEME_TEMPLATES,
   DocumentationPageLayout,
   DocumentationProjectPreviewLayout,
   DocumentationReaderLayout,
@@ -60,11 +59,7 @@ describe('published theme projection', () => {
     expect(css).not.toContain('--background:#f8fafc');
   });
 
-  it.each([
-    ['harbor', 'reference', 'harbor-reference'],
-    ['manuscript', 'editorial', 'manuscript-editorial'],
-    ['signal', 'console', 'signal-console'],
-  ] as const)('renders the %s preset with its own reader and page templates', (preset, shell, layout) => {
+  it.each(['harbor', 'manuscript', 'signal'] as const)('renders the %s preset without altering system layout defaults', (preset) => {
     const theme = resolveProjectTheme({ theme: { preset } });
     const markup = renderToStaticMarkup(
       <DocumentationThemeProvider className="flex" context="reader" direction="ltr" theme={theme}>
@@ -90,17 +85,20 @@ describe('published theme projection', () => {
       </DocumentationThemeProvider>,
     );
 
-    expect(theme.layout.shell).toBe(shell);
-    expect(markup).toContain(`data-documentation-template="${preset}"`);
-    expect(markup).toContain(`data-documentation-layout="${layout}"`);
-    expect(markup).toContain(`data-documentation-layout="${layout}-page"`);
-    expect(markup).toContain(`data-documentation-layout="${layout}-preview"`);
-    expect(markup).toContain(`data-documentation-layout="${layout}-studio"`);
+    // Preset only changes colors and components; layout remains default docs layout
+    expect(theme.id).toBe(preset);
+    expect(theme.layout.docsLayout).toBe('docs');
+    expect(theme.layout.shell).toBe('reference');
+    expect(markup).toContain(`data-theme-id="${preset}"`);
+    expect(markup).toContain('data-documentation-layout="docs"');
+    expect(markup).toContain('data-documentation-template="docs"');
+    expect(markup).toContain('data-documentation-layout="docs-preview"');
+    expect(markup).toContain('data-documentation-layout="docs-studio"');
   });
 
-  it('selects templates by the customizable shell contract without changing preset metadata', () => {
+  it('allows customizing docsLayout independently of the color preset', () => {
     const theme = resolveProjectTheme({
-      theme: { preset: 'harbor', layout: { shell: 'console' } },
+      theme: { preset: 'manuscript', layout: { docsLayout: 'flux' } },
     });
     const markup = renderToStaticMarkup(
       <DocumentationThemeProvider context="reader" direction="rtl" theme={theme}>
@@ -108,11 +106,10 @@ describe('published theme projection', () => {
       </DocumentationThemeProvider>,
     );
 
-    expect(Object.keys(DOCUMENTATION_THEME_TEMPLATES)).toEqual(['reference', 'editorial', 'console']);
-    expect(markup).toContain('data-theme-id="harbor"');
-    expect(markup).toContain('data-theme-shell="console"');
-    expect(markup).toContain('data-documentation-template="signal"');
-    expect(markup).toContain('data-documentation-layout="signal-console"');
+    expect(theme.id).toBe('manuscript');
+    expect(markup).toContain('data-theme-id="manuscript"');
+    expect(markup).toContain('data-documentation-layout="flux"');
+    expect(markup).toContain('data-documentation-template="flux"');
     expect(markup).toContain('dir="rtl"');
   });
 });

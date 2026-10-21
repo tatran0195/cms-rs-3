@@ -505,6 +505,7 @@ export const MESSAGE_IDS = {
   'settings.theme.layoutHint': 'settings_theme_layouthint',
   'settings.theme.shell': 'settings_theme_shell',
   'settings.theme.density': 'settings_theme_density',
+  'settings.theme.pageWidth': 'settings_theme_pagewidth',
   'settings.theme.contentWidth': 'settings_theme_contentwidth',
   'settings.theme.header': 'settings_theme_header',
   'settings.theme.sidebar': 'settings_theme_sidebar',

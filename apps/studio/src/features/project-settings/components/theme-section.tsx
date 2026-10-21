@@ -27,7 +27,7 @@ interface ThemeDraft {
   appearance: Appearance;
 }
 
-const fullPresetTheme = (preset: ThemePresetId): cmsThemeConfig => {
+const fullPresetTheme = (preset: ThemePresetId, currentLayout?: cmsThemeConfig['layout']): cmsThemeConfig => {
   const definition = THEME_PRESETS[preset];
   return {
     version: THEME_SCHEMA_VERSION,
@@ -37,28 +37,20 @@ const fullPresetTheme = (preset: ThemePresetId): cmsThemeConfig => {
       light: { ...definition.colors.light },
       dark: { ...definition.colors.dark },
     },
-    layout: { ...definition.layout },
+    // Preserve the user's current layout — preset does not own layout.
+    ...(currentLayout ? { layout: { ...currentLayout } } : {}),
     components: { ...definition.components },
   };
 };
 
 const initialDraft = (project: Project): ThemeDraft => {
-  const resolved = resolveTheme(project.config as ThemeOwnedProjectConfig | null);
   return {
-    theme: project.config?.theme
-      ? {
-          ...project.config.theme,
-          layout: {
-            ...resolved.layout,
-            ...(project.config.theme.layout ?? {}),
-          },
-        }
-      : {
-          version: THEME_SCHEMA_VERSION,
-          preset: resolved.id,
-          metadata: resolved.metadata,
-          layout: resolved.layout,
-        },
+    // Store only what the project actually saved — no default inflation.
+    // resolveTheme will supply SYSTEM_LAYOUT_DEFAULTS at render time for any missing field.
+    theme: project.config?.theme ?? {
+      version: THEME_SCHEMA_VERSION,
+      preset: 'harbor',
+    },
     appearance: project.config?.styling?.theme ?? 'light',
   };
 };
@@ -187,7 +179,7 @@ export function ThemeSection({ project }: { project: Project }) {
         }
         onReset={() => {
           change({
-            theme: fullPresetTheme(resolved.id),
+            theme: fullPresetTheme(resolved.id, draft.theme.layout),
             appearance: draft.appearance,
           });
         }}
@@ -240,7 +232,7 @@ export function ThemeSection({ project }: { project: Project }) {
         <Button
           onClick={() => {
             change({
-              theme: fullPresetTheme(resolved.id),
+              theme: fullPresetTheme(resolved.id, draft.theme.layout),
               appearance: draft.appearance,
             });
           }}
@@ -258,14 +250,8 @@ export function ThemeSection({ project }: { project: Project }) {
         onSelectPreset={(presetId) =>
           change((curr) => ({
             ...curr,
-            theme: {
-              ...fullPresetTheme(presetId),
-              layout: {
-                ...fullPresetTheme(presetId).layout,
-                ...(curr.theme.layout?.docsLayout ? { docsLayout: curr.theme.layout.docsLayout } : {}),
-              },
-            },
-            appearance: curr.appearance,
+            // Pass current layout so switching preset only swaps colors + components.
+            theme: fullPresetTheme(presetId, curr.theme.layout),
           }))
         }
         onApplyTheme={(importedTheme, importedAppearance) => {

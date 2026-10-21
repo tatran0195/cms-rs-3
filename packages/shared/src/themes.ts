@@ -95,7 +95,8 @@ export interface ThemeLayout {
   docsLayout?: DocsLayoutId;
   density: 'compact' | 'comfortable' | 'relaxed';
   radius: 'sharp' | 'rounded' | 'pill';
-  contentWidth: 'focused' | 'balanced' | 'wide';
+  contentWidth: 'focused' | 'balanced' | 'wide' | 'full';
+  pageWidth?: 'focused' | 'balanced' | 'wide' | 'full';
   header: 'inline' | 'stacked' | 'floating';
   headerTransparentMode?: 'none' | 'top' | 'always';
   sidebar: 'bordered' | 'soft' | 'rail';
@@ -166,9 +167,36 @@ export interface ResolvedTheme {
   components: ThemeComponents;
 }
 
-export interface ThemePreset extends ResolvedTheme {
+/** A preset owns only its colour palette, component defaults, and metadata.
+ * Layout is a separate, user-controlled concern that never blends with presets. */
+export interface ThemePreset {
+  id: ThemePresetId;
+  metadata: ThemeMetadata;
   rationale: string;
+  colors: { light: ThemeColorTokens; dark: ThemeColorTokens };
+  components: ThemeComponents;
 }
+
+/** System-level layout defaults applied when no user override exists.
+ * These are not owned by any preset and never change when a preset is switched. */
+export const SYSTEM_LAYOUT_DEFAULTS: ThemeLayout = {
+  shell: 'reference',
+  docsLayout: 'docs',
+  density: 'comfortable',
+  radius: 'rounded',
+  contentWidth: 'balanced',
+  pageWidth: 'balanced',
+  header: 'inline',
+  headerTransparentMode: 'none',
+  sidebar: 'bordered',
+  sidebarCollapsible: true,
+  sidebarDefaultOpenLevel: 0,
+  navigation: 'sectioned',
+  themeSwitchMode: 'light-dark',
+  themeSwitchEnabled: true,
+  tocStyle: 'clerk',
+  tocDepth: 3,
+};
 
 // Palette notes: every preset keeps a dark code surface in both modes so the
 // code chrome (copy button, language label) never has to flip, surfaces layer
@@ -299,16 +327,6 @@ export const THEME_PRESETS: Record<ThemePresetId, ThemePreset> = {
     },
     rationale: 'For mixed guide/reference libraries that benefit from dependable three-column wayfinding.',
     colors: { light: HARBOR_LIGHT, dark: HARBOR_DARK },
-    layout: {
-      shell: 'reference',
-      density: 'comfortable',
-      radius: 'rounded',
-      contentWidth: 'balanced',
-      header: 'stacked',
-      sidebar: 'bordered',
-      navigation: 'sectioned',
-      tocStyle: 'clerk',
-    },
     components: { codeBlocks: 'system', callouts: 'soft', cards: 'bordered', tabs: 'underline', tables: 'lines' },
   },
   manuscript: {
@@ -320,16 +338,6 @@ export const THEME_PRESETS: Record<ThemePresetId, ThemePreset> = {
     },
     rationale: 'For handbooks and knowledge bases where chapters frame a focused, long-form reading experience.',
     colors: { light: MANUSCRIPT_LIGHT, dark: MANUSCRIPT_DARK },
-    layout: {
-      shell: 'editorial',
-      density: 'relaxed',
-      radius: 'rounded',
-      contentWidth: 'focused',
-      header: 'inline',
-      sidebar: 'soft',
-      navigation: 'tree',
-      tocStyle: 'clerk',
-    },
     components: { codeBlocks: 'dim', callouts: 'outline', cards: 'flat', tabs: 'pills', tables: 'rows' },
   },
   signal: {
@@ -341,16 +349,6 @@ export const THEME_PRESETS: Record<ThemePresetId, ThemePreset> = {
     },
     rationale: 'For API references where a dense rail, wide code surfaces, and fast section scanning matter most.',
     colors: { light: SIGNAL_LIGHT, dark: SIGNAL_DARK },
-    layout: {
-      shell: 'console',
-      density: 'compact',
-      radius: 'sharp',
-      contentWidth: 'wide',
-      header: 'floating',
-      sidebar: 'rail',
-      navigation: 'compact',
-      tocStyle: 'clerk',
-    },
     components: { codeBlocks: 'vivid', callouts: 'solid', cards: 'lifted', tabs: 'boxed', tables: 'cards' },
   },
 };
@@ -444,22 +442,18 @@ export const resolveTheme = (config?: ThemeOwnedProjectConfig | null): ResolvedT
       dark.focus = dark.accent;
     }
   }
+  // Layout is resolved from system defaults then user overrides — never from the preset.
+  // Preset switches must not disturb user layout choices (docsLayout, density, etc.).
+  const userLayout = config?.theme?.layout ?? {};
   return {
     id,
     metadata: { ...preset.metadata, ...config?.theme?.metadata },
     colors: { light, dark },
     layout: {
-      ...preset.layout,
-      headerTransparentMode: config?.theme?.layout?.headerTransparentMode ?? 'none',
-      sidebarCollapsible: config?.theme?.layout?.sidebarCollapsible ?? true,
-      sidebarDefaultOpenLevel: config?.theme?.layout?.sidebarDefaultOpenLevel ?? 0,
-      themeSwitchMode: config?.theme?.layout?.themeSwitchMode ?? 'light-dark',
-      themeSwitchEnabled: config?.theme?.layout?.themeSwitchEnabled ?? true,
-      tocStyle: config?.theme?.layout?.tocStyle ?? preset.layout.tocStyle ?? 'clerk',
-      tocDepth: config?.theme?.layout?.tocDepth ?? 3,
-      ...config?.theme?.layout,
-      ...(config?.theme?.layout?.docsLayout ? { docsLayout: config.theme.layout.docsLayout } : {}),
-      ...(config?.styling?.radius ? { radius: config.styling.radius } : {}),
+      ...SYSTEM_LAYOUT_DEFAULTS,
+      ...userLayout,
+      // Legacy: styling.radius is honoured only when no explicit theme layout radius exists.
+      ...(config?.styling?.radius && !userLayout.radius ? { radius: config.styling.radius } : {}),
     },
     components: { ...preset.components, ...config?.theme?.components },
   };

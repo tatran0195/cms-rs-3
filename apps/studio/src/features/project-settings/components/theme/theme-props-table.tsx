@@ -126,7 +126,13 @@ export function ThemePropsTable({
             <NavRow
               id="layout"
               name="layout"
-              summary={formatPropSummary({ docsLayout: resolvedLayout.docsLayout, density: resolvedLayout.density, radius: resolvedLayout.radius })}
+              summary={formatPropSummary({
+                docsLayout: resolvedLayout.docsLayout,
+                pageWidth: resolvedLayout.pageWidth,
+                contentWidth: resolvedLayout.contentWidth,
+                density: resolvedLayout.density,
+                radius: resolvedLayout.radius,
+              })}
               type="object"
               onNavigate={() => onNavigate(['layout'])}
             />
@@ -200,9 +206,15 @@ export function ThemePropsTable({
               onChange={(v) => setLayoutPart('density', v as ThemeLayout['density'])}
             />
             <EnumRow
+              name="pageWidth"
+              value={resolvedLayout.pageWidth ?? 'balanced'}
+              options={['focused', 'balanced', 'wide', 'full']}
+              onChange={(v) => setLayoutPart('pageWidth', v as NonNullable<ThemeLayout['pageWidth']>)}
+            />
+            <EnumRow
               name="contentWidth"
               value={resolvedLayout.contentWidth}
-              options={['focused', 'balanced', 'wide']}
+              options={['focused', 'balanced', 'wide', 'full']}
               onChange={(v) => setLayoutPart('contentWidth', v as ThemeLayout['contentWidth'])}
             />
             <EnumRow

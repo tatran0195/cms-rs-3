@@ -97,4 +97,31 @@ describe('theme template schema', () => {
     });
     expect(invalid.success).toBe(false);
   });
+
+  it('validates contentWidth and pageWidth including full', () => {
+    const valid = themeConfigSchema.safeParse({
+      preset: 'harbor',
+      layout: {
+        contentWidth: 'full',
+        pageWidth: 'wide',
+      },
+    });
+    expect(valid.success).toBe(true);
+
+    const invalidContent = themeConfigSchema.safeParse({
+      preset: 'harbor',
+      layout: {
+        contentWidth: 'super-wide',
+      },
+    });
+    expect(invalidContent.success).toBe(false);
+
+    const invalidPage = themeConfigSchema.safeParse({
+      preset: 'harbor',
+      layout: {
+        pageWidth: 'ultra',
+      },
+    });
+    expect(invalidPage.success).toBe(false);
+  });
 });

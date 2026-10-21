@@ -529,6 +529,7 @@
   "settings_theme_layouthint": "ガードされたオプションを使用して、密度、読み取り幅、ヘッダー、サイドバー、ナビゲーション動作、および半径を制御します。",
   "settings_theme_shell": "構造シェル",
   "settings_theme_density": "密度",
+  "settings_theme_pagewidth": "ページの幅",
   "settings_theme_contentwidth": "コンテンツの幅",
   "settings_theme_header": "ヘッダ",
   "settings_theme_sidebar": "サイドバー",

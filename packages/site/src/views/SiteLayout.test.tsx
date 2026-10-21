@@ -116,7 +116,9 @@ describe('SiteLayout structure', () => {
     await act(async () => {
       root.render(
         <QueryClientProvider client={queryClient}>
-          <SiteLayout site={mockSite} projectId="proj1" />
+          <SiteLayout site={mockSite} projectId="proj1">
+            <main className="min-w-0">content</main>
+          </SiteLayout>
         </QueryClientProvider>,
       );
     });

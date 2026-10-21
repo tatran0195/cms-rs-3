@@ -185,7 +185,7 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
     await act(async () => signalBtn.click());
 
     expect(preview()?.dataset.preset).toBe('signal');
-    expect(preview()?.dataset.shell).toBe(THEME_PRESETS.signal.layout.shell);
+    expect(preview()?.dataset.cards).toBe(THEME_PRESETS.signal.components.cards);
   });
 
   it('saves the updated theme draft when save is clicked', async () => {

@@ -529,6 +529,7 @@
   "settings_theme_layouthint": "Control density, reading width, header, sidebar, navigation behavior, and radii with guarded options.",
   "settings_theme_shell": "Structural shell",
   "settings_theme_density": "Density",
+  "settings_theme_pagewidth": "Page width",
   "settings_theme_contentwidth": "Content width",
   "settings_theme_header": "Header",
   "settings_theme_sidebar": "Sidebar",

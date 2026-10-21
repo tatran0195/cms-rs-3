@@ -44,7 +44,6 @@ export function Container({
 "sidebar toc-popover right" var(--fd-toc-popover-height, 0px)
 "sidebar main right" 1fr / var(--fd-sidebar-col) minmax(0, 1fr) auto`,
           '--fd-sidebar-col': collapsed ? '0px' : 'var(--fd-sidebar-width)',
-          '--fd-page-width': 'var(--theme-content-max, 1200px)',
           ...style,
         } as CSSProperties
       }
@@ -77,7 +76,7 @@ export function Container({
         {/* Internal Scroll Container for Desktop Viewport */}
         <div
           data-spacious-scroll-container="true"
-          className="flex flex-1 flex-col items-start px-4 md:min-h-0 pt-6 md:pt-14 md:px-[max(1.5rem,calc((100%-var(--fd-page-width,1200px)-var(--fd-toc-width,268px))/2))] md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
+          className="flex flex-1 flex-col items-start px-4 md:min-h-0 pt-6 md:pt-14 md:px-[max(1.5rem,calc((100%-var(--fd-page-width,900px)-var(--fd-toc-width,268px))/2))] md:overflow-y-auto md:overscroll-y-contain md:scrollbar-thin"
         >
           <div className="min-w-0 flex-1 w-full">{content}</div>
           {footer && <div className="w-full mt-auto pt-8">{footer}</div>}

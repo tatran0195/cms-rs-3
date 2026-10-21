@@ -17,10 +17,18 @@ import {
 describe('documentation themes', () => {
   it('ships three distinct, contrast-guarded presets', () => {
     expect(Object.keys(THEME_PRESETS)).toEqual(['harbor', 'manuscript', 'signal']);
-    expect(new Set(Object.values(THEME_PRESETS).map((theme) => theme.layout.shell))).toEqual(new Set(['reference', 'editorial', 'console']));
-    expect(new Set(Object.values(THEME_PRESETS).map((theme) => theme.layout.contentWidth)).size).toBe(3);
+    // Presets own only color palette + components, never layout.
     for (const preset of Object.values(THEME_PRESETS)) {
-      expect(themeContrastIssues(preset)).toEqual([]);
+      expect((preset as Record<string, unknown>).layout).toBeUndefined();
+    }
+    // Each preset has a unique canvas colour in both modes.
+    const lightCanvases = new Set(Object.values(THEME_PRESETS).map((p) => p.colors.light.canvas));
+    const darkCanvases = new Set(Object.values(THEME_PRESETS).map((p) => p.colors.dark.canvas));
+    expect(lightCanvases.size).toBe(3);
+    expect(darkCanvases.size).toBe(3);
+    // Contrast is verified via resolveTheme (colors are unchanged when no overrides supplied).
+    for (const preset of Object.values(THEME_PRESETS)) {
+      expect(themeContrastIssues(resolveTheme({ theme: { preset: preset.id } }))).toEqual([]);
     }
   });
 
@@ -90,5 +98,19 @@ describe('documentation themes', () => {
     expect(resolveDocsLayout('glass')).toBe('glass');
     expect(resolveDocsLayout('spacious')).toBe('spacious');
     expect(resolveDocsLayout(undefined)).toBe('docs');
+  });
+
+  it('resolves pageWidth and contentWidth separately with full fallback support', () => {
+    const customized = resolveTheme({ theme: { layout: { contentWidth: 'focused', pageWidth: 'wide' } } });
+    expect(customized.layout.contentWidth).toBe('focused');
+    expect(customized.layout.pageWidth).toBe('wide');
+
+    const fullLayout = resolveTheme({ theme: { layout: { contentWidth: 'full', pageWidth: 'full' } } });
+    expect(fullLayout.layout.contentWidth).toBe('full');
+    expect(fullLayout.layout.pageWidth).toBe('full');
+
+    const defaultLayout = resolveTheme({});
+    expect(defaultLayout.layout.contentWidth).toBe('balanced');
+    expect(defaultLayout.layout.pageWidth).toBe('balanced');
   });
 });

@@ -141,16 +141,20 @@ export const projectThemeStyle = (config?: ProjectConfig | null): CSSProperties 
   const theme = resolveProjectTheme(config);
   const typography = config?.typography;
   const densityScale = theme.layout.density === 'compact' ? '0.86' : theme.layout.density === 'relaxed' ? '1.14' : '1';
-  const isWide = theme.layout.contentWidth === 'wide';
-  const isFocused = theme.layout.contentWidth === 'focused';
-  const contentMax = isFocused ? '72rem' : isWide ? '100%' : '1600px';
-  const layoutWidth = isFocused ? '72rem' : isWide ? '100%' : '1600px';
-  const pageWidth = isWide ? '1168px' : isFocused ? '760px' : '900px';
+  // Page layout width (overall documentation layout / shell)
+  const pageW = theme.layout.pageWidth ?? 'balanced';
+  const layoutWidth = pageW === 'full' ? '100%' : pageW === 'wide' ? '1800px' : pageW === 'focused' ? '1400px' : '1600px';
+
+  // Content width (applied strictly to documentation body / article only, no sidebar or TOC)
+  const contentW = theme.layout.contentWidth ?? 'balanced';
+  const bodyWidth = contentW === 'full' ? '100%' : contentW === 'wide' ? '1168px' : contentW === 'focused' ? '760px' : '900px';
+
   const style = {
     '--theme-density': densityScale,
-    '--theme-content-max': contentMax,
+    '--theme-content-max': layoutWidth,
     '--fd-layout-width': layoutWidth,
-    '--fd-page-width': pageWidth,
+    '--fd-page-width': bodyWidth,
+    '--fd-content-width': bodyWidth,
     '--typeset-leading': typography?.leading ?? (theme.layout.density === 'compact' ? '1.6' : theme.layout.density === 'relaxed' ? '1.9' : '1.75'),
     '--typeset-flow': `${typography?.flow ?? (theme.layout.density === 'compact' ? '1' : theme.layout.density === 'relaxed' ? '1.5' : '1.25')}em`,
   } as Record<string, string>;

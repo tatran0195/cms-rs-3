@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { THEME_PRESETS } from '@cms/shared/themes';
+import { resolveTheme } from '@cms/shared/themes';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,7 +12,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 describe('ThemePropsTable', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
-  const harbor = THEME_PRESETS.harbor;
+  const harbor = resolveTheme({ theme: { preset: 'harbor' } });
 
   beforeEach(() => {
     container = document.createElement('div');

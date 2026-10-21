@@ -512,6 +512,7 @@
   "settings_theme_layouthint": "使用受保护的选项控制密度、阅读宽度、标题、侧边栏、导航行为和半径。",
   "settings_theme_shell": "页面结构",
   "settings_theme_density": "密度",
+  "settings_theme_pagewidth": "页面宽度",
   "settings_theme_contentwidth": "内容宽度",
   "settings_theme_header": "标头",
   "settings_theme_sidebar": "侧边栏",

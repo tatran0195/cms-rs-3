@@ -305,10 +305,8 @@ export function DocumentationThemeProvider({
   css?: string;
   children: ReactNode;
 }) {
-  const isCustomDocsLayout = Boolean(theme.layout.docsLayout);
-  const template = isCustomDocsLayout
-    ? getDocsLayoutTemplate(theme.layout.docsLayout!)
-    : (DOCUMENTATION_THEME_TEMPLATES[theme.layout.shell] ?? HarborTemplate);
+  const docsLayout = theme.layout.docsLayout ?? 'docs';
+  const template = getDocsLayoutTemplate(docsLayout);
 
   const isPreview = context === 'studio-preview' || context === 'project-preview';
 
@@ -317,7 +315,7 @@ export function DocumentationThemeProvider({
       <DocumentationTemplateContext.Provider value={template}>
         <div
           className={cn('cms-site-chrome', className, appearance === 'dark' && 'dark', isPreview && '[transform:translateZ(0)]')}
-          data-documentation-layout={isCustomDocsLayout ? theme.layout.docsLayout : undefined}
+          data-documentation-layout={docsLayout}
           data-documentation-template={template.id}
           data-theme-callouts={theme.components.callouts}
           data-theme-context={context}
@@ -332,8 +330,9 @@ export function DocumentationThemeProvider({
           data-theme-shell={theme.layout.shell}
           data-theme-sidebar={theme.layout.sidebar}
           data-theme-tables={theme.components.tables}
-          data-theme-tabs={theme.components.tabs}
-          data-theme-width={theme.layout.contentWidth}
+          data-theme-width={theme.layout.pageWidth ?? 'balanced'}
+          data-theme-page-width={theme.layout.pageWidth ?? 'balanced'}
+          data-theme-content-width={theme.layout.contentWidth ?? 'balanced'}
           dir={direction}
           style={{
             ...(isPreview ? { transform: 'translateZ(0)' } : {}),

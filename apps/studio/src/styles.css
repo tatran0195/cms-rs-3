@@ -680,15 +680,21 @@
  * generated max-width, color, transition, and animation utilities on the same
  * nodes (the code block's hardcoded panel colour, the deck's list margins). */
 @layer utilities {
-  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="header"],
+  .cms-site-chrome:not([data-documentation-layout])
+    [data-theme-region="header"],
   .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="tabs"],
-  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="content-shell"],
-  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="footer"] {
+  .cms-site-chrome:not([data-documentation-layout])
+    [data-theme-region="content-shell"],
+  .cms-site-chrome:not([data-documentation-layout])
+    [data-theme-region="footer"] {
     max-width: var(--theme-content-max);
   }
 
-  .cms-site-chrome [data-theme-region="content-shell"][data-documentation-layout],
-  .cms-site-chrome [data-documentation-layout] [data-theme-region="content-shell"],
+  .cms-site-chrome
+    [data-theme-region="content-shell"][data-documentation-layout],
+  .cms-site-chrome
+    [data-documentation-layout]
+    [data-theme-region="content-shell"],
   #nd-docs-layout,
   #nd-notebook-layout,
   #nd-spacious-layout,
@@ -699,8 +705,39 @@
     width: 100%;
   }
 
+  /* Content width applies ONLY to the documentation body / article, NO sidebar or TOC */
+  .cms-site-chrome [data-theme-region="article"],
+  .cms-site-chrome #nd-page {
+    max-width: var(--fd-page-width, 900px);
+  }
+
+  .cms-site-chrome[data-theme-content-width="focused"]
+    [data-theme-region="article"],
+  .cms-site-chrome[data-theme-content-width="focused"] #nd-page {
+    max-width: 42rem;
+  }
+
+  .cms-site-chrome[data-theme-content-width="balanced"]
+    [data-theme-region="article"],
+  .cms-site-chrome[data-theme-content-width="balanced"] #nd-page {
+    max-width: 46rem;
+  }
+
+  .cms-site-chrome[data-theme-content-width="wide"]
+    [data-theme-region="article"],
+  .cms-site-chrome[data-theme-content-width="wide"] #nd-page {
+    max-width: 54rem;
+  }
+
+  .cms-site-chrome[data-theme-content-width="full"]
+    [data-theme-region="article"],
+  .cms-site-chrome[data-theme-content-width="full"] #nd-page {
+    max-width: none;
+  }
+
+  /* Legacy width fallback for custom shells without a docsLayout */
   .cms-site-chrome:not([data-documentation-layout])[data-theme-width="focused"]
-    [data-theme-region="article"] {
+  [data-theme-region="article"] {
     max-width: 42rem;
   }
 
