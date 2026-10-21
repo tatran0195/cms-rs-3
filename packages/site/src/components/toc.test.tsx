@@ -52,9 +52,7 @@ describe('TableOfContents', () => {
   });
 
   it('supports single controlled activeId prop', () => {
-    const markup = renderToStaticMarkup(
-      <TableOfContents headings={headings} label="On this page" style="clerk" depth={3} activeId="install" />,
-    );
+    const markup = renderToStaticMarkup(<TableOfContents headings={headings} label="On this page" style="clerk" depth={3} activeId="install" />);
 
     expect(markup).toContain('data-active="true"');
     expect(markup).toContain('Installation');

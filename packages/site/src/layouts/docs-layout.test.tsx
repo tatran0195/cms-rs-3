@@ -35,4 +35,3 @@ describe('DocsStandardLayoutTemplate', () => {
     expect(markup).toContain('TOC');
   });
 });
-

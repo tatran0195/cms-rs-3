@@ -33,5 +33,3 @@ describe('DocsLayout registry', () => {
     expect(markup).toContain('<div class="prose max-w-none flex-1 min-w-0 w-full"><p>Welcome to our developer platform.</p></div>');
   });
 });
-
-

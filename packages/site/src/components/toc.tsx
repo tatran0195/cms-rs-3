@@ -222,10 +222,7 @@ export interface AnchorProviderProps {
 
 export function AnchorProvider({ toc, single = false, activeIds = [], children }: AnchorProviderProps) {
   const activeIdsKey = activeIds.join(',');
-  const observer = useMemo(
-    () => new Observer(toc, single, activeIdsKey ? activeIdsKey.split(',') : []),
-    [toc, single, activeIdsKey],
-  );
+  const observer = useMemo(() => new Observer(toc, single, activeIdsKey ? activeIdsKey.split(',') : []), [toc, single, activeIdsKey]);
 
   useEffect(() => {
     observer.watch({
@@ -918,10 +915,7 @@ export function TableOfContentsInner({
   });
 
   return (
-    <div
-      data-toc-style={style}
-      className={cn('w-full select-none', className)}
-    >
+    <div data-toc-style={style} className={cn('w-full select-none', className)}>
       {Boolean(label) && (
         <h3 id="toc-title" className="mb-2 flex items-center gap-1.5 font-medium text-muted-foreground text-sm">
           <Text className="size-4 shrink-0 rtl:-scale-x-100" aria-hidden />

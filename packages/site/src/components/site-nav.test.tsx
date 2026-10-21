@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { NavNode } from '../types';
-import { SiteNav, isVersionIndependentNavNode } from './site-nav';
+import { isVersionIndependentNavNode, SiteNav } from './site-nav';
 
 describe('SiteNav', () => {
   it('keeps synthetic OpenAPI navigation outside branch URL prefixes', () => {
@@ -31,9 +31,7 @@ describe('SiteNav', () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(
-      <SiteNav nodes={nodes} projectId="proj-1" currentPath="getting-started" />
-    );
+    const markup = renderToStaticMarkup(<SiteNav nodes={nodes} projectId="proj-1" currentPath="getting-started" />);
 
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain('data-active="true"');
@@ -65,9 +63,7 @@ describe('SiteNav', () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(
-      <SiteNav nodes={nodes} projectId="proj-1" currentPath="guide/overview" />
-    );
+    const markup = renderToStaticMarkup(<SiteNav nodes={nodes} projectId="proj-1" currentPath="guide/overview" />);
 
     expect(markup).toContain('User Guide');
     expect(markup).toContain('Overview');
