@@ -27,7 +27,7 @@ export function Container({ className, style, children, ...props }: ComponentPro
         } as CSSProperties
       }
       className={cn(
-        'relative grid overflow-x-clip min-h-[var(--fd-docs-height,100dvh)] flex-1 min-w-0 [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:0px] max-xl:[--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:0px] md:[--fd-sidebar-width:268px] [--fd-toc-col:0px] xl:[--fd-toc-col:268px] transition-[--fd-sidebar-col]',
+        'relative grid overflow-x-clip min-h-[var(--fd-docs-height,100dvh)] flex-1 min-w-0 w-full max-w-none [--fd-docs-height:100dvh] [--fd-header-height:3.5rem] [--fd-toc-popover-height:0px] max-xl:[--fd-toc-popover-height:2.5rem] [--fd-sidebar-width:0px] md:[--fd-sidebar-width:268px] [--fd-toc-col:0px] xl:[--fd-toc-col:268px] transition-[--fd-sidebar-col]',
         className,
       )}
     >

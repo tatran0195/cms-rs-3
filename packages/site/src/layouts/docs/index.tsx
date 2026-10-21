@@ -9,7 +9,7 @@ export function DocsStandardReaderShell(slots: DocsLayoutSlots) {
   const hasGranular = Boolean(slots.brand);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background w-full">
       {slots.banner}
 
       <Container>

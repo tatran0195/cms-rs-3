@@ -680,11 +680,23 @@
  * generated max-width, color, transition, and animation utilities on the same
  * nodes (the code block's hardcoded panel colour, the deck's list margins). */
 @layer utilities {
-  .cms-site-chrome [data-theme-region="header"],
-  .cms-site-chrome [data-theme-region="tabs"],
-  .cms-site-chrome [data-theme-region="content-shell"],
-  .cms-site-chrome [data-theme-region="footer"] {
+  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="header"],
+  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="tabs"],
+  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="content-shell"],
+  .cms-site-chrome:not([data-documentation-layout]) [data-theme-region="footer"] {
     max-width: var(--theme-content-max);
+  }
+
+  .cms-site-chrome [data-theme-region="content-shell"][data-documentation-layout],
+  .cms-site-chrome [data-documentation-layout] [data-theme-region="content-shell"],
+  #nd-docs-layout,
+  #nd-notebook-layout,
+  #nd-spacious-layout,
+  [data-documentation-layout="docs"],
+  [data-documentation-layout="notebook"],
+  [data-documentation-layout="spacious"] {
+    max-width: none;
+    width: 100%;
   }
 
   .cms-site-chrome:not([data-documentation-layout])[data-theme-width="focused"]

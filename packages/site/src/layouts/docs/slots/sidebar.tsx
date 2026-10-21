@@ -41,7 +41,7 @@ export function Sidebar({
       {...props}
       className={cn(
         'sticky top-[var(--fd-docs-row-1,0px)] z-20 hidden h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] shrink-0 flex-col border-border/70 border-e bg-card/50 backdrop-blur-xs md:flex [grid-area:sidebar] transition-all duration-200',
-        collapsed ? 'w-0 overflow-hidden border-none opacity-0 pointer-events-none' : 'w-[var(--fd-sidebar-width,268px)]',
+        collapsed ? 'w-0 overflow-hidden border-none opacity-0 pointer-events-none' : 'w-full items-end *:w-[var(--fd-sidebar-width,268px)]',
         className,
       )}
     >
