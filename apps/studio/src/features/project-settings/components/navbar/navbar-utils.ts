@@ -16,7 +16,7 @@ export const cleanAnchorRows = (rows: AnchorRow[]): Array<{ label: string; href:
     .map((row) => ({
       label: row.label,
       href: row.href,
-      icon: row.icon.trim() || undefined,
+      icon: row.icon ? row.icon.trim() || undefined : undefined,
       external: row.external,
     }));
 

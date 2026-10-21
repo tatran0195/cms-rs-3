@@ -7,7 +7,7 @@ export interface NavRow {
 }
 
 export interface AnchorRow extends NavRow {
-  icon: string;
+  icon?: string;
 }
 
 /** Prevent TanStack Form DeepKeys infinite recursion by breaking the cycle in the form state type: */
@@ -23,6 +23,9 @@ export interface NavbarValues {
   tabs: FormNavTabItem[];
   anchors: AnchorRow[];
 }
+
+// biome-ignore lint/suspicious/noExplicitAny: Tanstack Form React hook instance
+export type NavbarFormApi = any;
 
 export interface GlobalNavbarPreview {
   ctaUrl: string;

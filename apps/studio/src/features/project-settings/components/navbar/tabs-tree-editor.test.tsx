@@ -34,8 +34,8 @@ describe('TabsTreeEditor', () => {
     });
 
     const inputs = container.querySelectorAll('input');
-    expect(inputs[0].value).toBe('Docs');
-    expect(inputs[1].value).toBe('/docs');
+    expect(inputs[0]?.value).toBe('Docs');
+    expect(inputs[1]?.value).toBe('/docs');
 
     const addBtn = [...container.querySelectorAll('button')].find((btn) => btn.textContent?.includes('settings.navbar.tabs.add'));
     expect(addBtn).toBeDefined();
