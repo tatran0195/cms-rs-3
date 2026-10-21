@@ -30,6 +30,8 @@ describe('DocsLayout registry', () => {
     expect(markup).toContain('id="nd-page"');
     expect(markup).toContain('<h1 class="text-[1.75em] font-semibold tracking-tight md:text-4xl">Quickstart Guide</h1>');
     expect(markup).toContain('<p class="mb-8 text-lg text-fd-muted-foreground">Learn how to get started in 5 minutes.</p>');
-    expect(markup).toContain('<div class="prose flex-1 min-w-0 w-full"><p>Welcome to our developer platform.</p></div>');
+    expect(markup).toContain('<div class="prose max-w-none flex-1 min-w-0 w-full"><p>Welcome to our developer platform.</p></div>');
   });
 });
+
+

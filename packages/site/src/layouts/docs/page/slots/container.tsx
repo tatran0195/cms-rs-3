@@ -14,7 +14,7 @@ export function Container({ className, children, full, ...props }: ComponentProp
         {...props}
         className={cn(
           'flex flex-col min-w-0 w-full max-w-[var(--fd-page-width,900px)] px-4 py-6 gap-4 md:px-6 md:pt-8 xl:px-8 xl:pt-14',
-          full && 'max-w-none',
+          full && 'max-w-[1168px]',
           className,
         )}
       >

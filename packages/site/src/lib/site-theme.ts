@@ -143,13 +143,14 @@ export const projectThemeStyle = (config?: ProjectConfig | null): CSSProperties 
   const densityScale = theme.layout.density === 'compact' ? '0.86' : theme.layout.density === 'relaxed' ? '1.14' : '1';
   const isWide = theme.layout.contentWidth === 'wide';
   const isFocused = theme.layout.contentWidth === 'focused';
-  const contentMax = isFocused ? '72rem' : isWide ? '100%' : '100%';
-  const layoutWidth = isFocused ? '72rem' : '100%';
+  const contentMax = isFocused ? '72rem' : isWide ? '100%' : '1600px';
+  const layoutWidth = isFocused ? '72rem' : isWide ? '100%' : '1600px';
+  const pageWidth = isWide ? '1168px' : isFocused ? '760px' : '900px';
   const style = {
     '--theme-density': densityScale,
     '--theme-content-max': contentMax,
     '--fd-layout-width': layoutWidth,
-    '--fd-page-width': isWide ? '100%' : isFocused ? '900px' : '1200px',
+    '--fd-page-width': pageWidth,
     '--typeset-leading': typography?.leading ?? (theme.layout.density === 'compact' ? '1.6' : theme.layout.density === 'relaxed' ? '1.9' : '1.75'),
     '--typeset-flow': `${typography?.flow ?? (theme.layout.density === 'compact' ? '1' : theme.layout.density === 'relaxed' ? '1.5' : '1.25')}em`,
   } as Record<string, string>;

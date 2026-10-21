@@ -52,7 +52,7 @@ export const DocsPage = FluxPage;
  */
 export function DocsBody({ children, className, ...props }: ComponentProps<'div'>) {
   return (
-    <div {...props} className={cn('prose flex-1 min-w-0 w-full', className)}>
+    <div {...props} className={cn('prose max-w-none flex-1 min-w-0 w-full', className)}>
       {children}
     </div>
   );

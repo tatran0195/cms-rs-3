@@ -687,15 +687,15 @@
     max-width: var(--theme-content-max);
   }
 
-  .cms-site-chrome[data-theme-width="focused"] [data-theme-region="article"] {
+  .cms-site-chrome:not([data-documentation-layout])[data-theme-width="focused"] [data-theme-region="article"] {
     max-width: 42rem;
   }
 
-  .cms-site-chrome[data-theme-width="balanced"] [data-theme-region="article"] {
+  .cms-site-chrome:not([data-documentation-layout])[data-theme-width="balanced"] [data-theme-region="article"] {
     max-width: 46rem;
   }
 
-  .cms-site-chrome[data-theme-width="wide"] [data-theme-region="article"] {
+  .cms-site-chrome:not([data-documentation-layout])[data-theme-width="wide"] [data-theme-region="article"] {
     max-width: 54rem;
   }
 
