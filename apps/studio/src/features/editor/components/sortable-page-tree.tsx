@@ -416,7 +416,7 @@ export function SortablePageTree({
       onDragCancel={reset}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div ref={parentRef} className="relative max-h-[calc(100vh-14rem)] w-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
+        <div ref={parentRef} className="relative h-full flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-1 py-1">
           <div
             style={{
               height: `${virtualizer.getTotalSize() || flat.length * 32}px`,
