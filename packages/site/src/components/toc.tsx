@@ -80,11 +80,19 @@ export class Observer {
   constructor(
     toc: TOCItemType[],
     readonly single: boolean = false,
+    initialActiveIds: string[] = [],
   ) {
     this.items = [];
     for (const item of toc) {
       const id = getItemId(item.url);
-      if (id) this.items.push({ id, active: false, fallback: false, t: 0, original: item });
+      if (id) {
+        const isActive = initialActiveIds.includes(id);
+        this.items.push({ id, active: isActive, fallback: false, t: 0, original: item });
+        if (isActive) this.activeAnchors.push(id);
+      }
+    }
+    if (this.activeAnchors.length > 0) {
+      this.activeAnchor = this.activeAnchors[0];
     }
   }
 
@@ -208,11 +216,16 @@ const TOCContext = createContext<TOCItemType[]>([]);
 export interface AnchorProviderProps {
   toc: TOCItemType[];
   single?: boolean;
+  activeIds?: string[];
   children?: ReactNode;
 }
 
-export function AnchorProvider({ toc, single = false, children }: AnchorProviderProps) {
-  const observer = useMemo(() => new Observer(toc, single), [toc, single]);
+export function AnchorProvider({ toc, single = false, activeIds = [], children }: AnchorProviderProps) {
+  const activeIdsKey = activeIds.join(',');
+  const observer = useMemo(
+    () => new Observer(toc, single, activeIdsKey ? activeIdsKey.split(',') : []),
+    [toc, single, activeIdsKey],
+  );
 
   useEffect(() => {
     observer.watch({
@@ -225,10 +238,10 @@ export function AnchorProvider({ toc, single = false, children }: AnchorProvider
   return <ObserverContext.Provider value={observer}>{children}</ObserverContext.Provider>;
 }
 
-export function TOCProvider({ toc, children, ...props }: AnchorProviderProps) {
+export function TOCProvider({ toc, activeIds, children, ...props }: AnchorProviderProps) {
   return (
     <TOCContext.Provider value={toc}>
-      <AnchorProvider toc={toc} {...props}>
+      <AnchorProvider toc={toc} activeIds={activeIds} {...props}>
         {children}
       </AnchorProvider>
     </TOCContext.Provider>
@@ -538,6 +551,7 @@ export function ClerkTOCItem({ item, onSelect, ...props }: PrimitiveTOCItemProps
   return (
     <PrimitiveTOCItem
       href={item.url}
+      data-toc-item="clerk"
       onClick={() => {
         onSelect?.(id);
       }}
@@ -906,10 +920,7 @@ export function TableOfContentsInner({
   return (
     <div
       data-toc-style={style}
-      className={cn(
-        'sticky top-[calc(var(--site-header-h,4rem)+3rem)] max-h-[calc(100vh-var(--site-header-h,4rem)-4rem)] overflow-y-auto select-none',
-        className,
-      )}
+      className={cn('w-full select-none', className)}
     >
       {Boolean(label) && (
         <h3 id="toc-title" className="mb-2 flex items-center gap-1.5 font-medium text-muted-foreground text-sm">
@@ -970,10 +981,14 @@ export function TableOfContents({
     [headings, depth],
   );
 
-  if (toc.length === 0) return null;
+  const initialActiveIds = useMemo(() => {
+    if (controlledActiveIds && controlledActiveIds.length > 0) return controlledActiveIds;
+    if (controlledActiveId) return [controlledActiveId];
+    return [];
+  }, [controlledActiveIds, controlledActiveId]);
 
   return (
-    <TOCProvider toc={toc} single={single}>
+    <TOCProvider toc={toc} single={single} activeIds={initialActiveIds}>
       <TableOfContentsInner
         label={label}
         style={style}

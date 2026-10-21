@@ -593,7 +593,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       <SidebarProvider collapsible={resolvedTheme.layout.sidebarCollapsible !== false}>
         <DocumentationThemeProvider
           appearance={siteTheme}
-          className="flex min-h-screen flex-col bg-background [&_code]:[direction:ltr] [&_pre]:[direction:ltr]"
+          className="flex min-h-screen flex-col bg-background scroll-smooth [&_code]:[direction:ltr] [&_pre]:[direction:ltr]"
           context="reader"
           css={themeCss}
           direction={isRtl ? 'rtl' : 'ltr'}
