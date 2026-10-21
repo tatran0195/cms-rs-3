@@ -6,20 +6,13 @@ import { Plus, X } from 'lucide-react';
 import { FIELD_COMPACT, FIELD_COMPACT_MONO, GroupLabel } from '../shared';
 import type { NavbarFormApi } from './types';
 
-export function NavbarLinksField({
-  form,
-  direction,
-}: {
-  form: NavbarFormApi;
-  direction?: 'ltr' | 'rtl';
-}) {
+export function NavbarLinksField({ form, direction }: { form: NavbarFormApi; direction?: 'ltr' | 'rtl' }) {
   const t = useT();
 
   return (
     <>
       <GroupLabel className="mb-2.5">{t('settings.navbar.links.label')}</GroupLabel>
       <form.Field mode="array" name="links">
-        {/* biome-ignore lint/suspicious/noExplicitAny: Tanstack Form array field callback */}
         {(field: any) => (
           <>
             {field.state.value.length > 0 ? (
@@ -28,7 +21,6 @@ export function NavbarLinksField({
                   // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
                   <div className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0" key={index}>
                     <form.Field name={`links[${index}].label`}>
-                      {/* biome-ignore lint/suspicious/noExplicitAny: subfield */}
                       {(sub: any) => (
                         <Input
                           className={cn(FIELD_COMPACT, 'flex-1')}
@@ -40,7 +32,6 @@ export function NavbarLinksField({
                       )}
                     </form.Field>
                     <form.Field name={`links[${index}].href`}>
-                      {/* biome-ignore lint/suspicious/noExplicitAny: subfield */}
                       {(sub: any) => (
                         <Input
                           className={cn(FIELD_COMPACT_MONO, 'flex-1')}

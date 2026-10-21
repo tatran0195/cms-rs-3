@@ -3,7 +3,7 @@ import type { Project } from '@cms/sdk';
 import { useUpdateProjectConfig } from '@cms/sdk/react';
 import type { NavTabItem } from '@cms/validators';
 import { useState } from 'react';
-import { ToggleRow, saveConfigSection } from '../shared';
+import { saveConfigSection, ToggleRow } from '../shared';
 import { cleanTabItems } from '../tabs-tree-utils';
 import { NavbarScopeForm } from './navbar-scope-form';
 import { cleanAnchorRows, cleanRows, normalizeTabs } from './navbar-utils';

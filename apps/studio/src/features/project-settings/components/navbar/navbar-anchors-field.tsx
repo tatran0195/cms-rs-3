@@ -6,13 +6,7 @@ import { Plus, X } from 'lucide-react';
 import { FIELD_COMPACT, FIELD_COMPACT_MONO, GroupLabel } from '../shared';
 import type { NavbarFormApi } from './types';
 
-export function NavbarAnchorsField({
-  form,
-  direction,
-}: {
-  form: NavbarFormApi;
-  direction?: 'ltr' | 'rtl';
-}) {
+export function NavbarAnchorsField({ form, direction }: { form: NavbarFormApi; direction?: 'ltr' | 'rtl' }) {
   const t = useT();
 
   return (
@@ -20,7 +14,6 @@ export function NavbarAnchorsField({
       <GroupLabel className="mt-6 mb-1">{t('settings.navbar.anchors.label')}</GroupLabel>
       <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">{t('settings.navbar.anchors.hint')}</p>
       <form.Field mode="array" name="anchors">
-        {/* biome-ignore lint/suspicious/noExplicitAny: Tanstack Form array field callback */}
         {(field: any) => (
           <>
             {field.state.value.length > 0 ? (
@@ -29,7 +22,6 @@ export function NavbarAnchorsField({
                   // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
                   <div className="flex items-center gap-2.5 border-border border-b p-3 last:border-b-0" key={index}>
                     <form.Field name={`anchors[${index}].label`}>
-                      {/* biome-ignore lint/suspicious/noExplicitAny: subfield */}
                       {(sub: any) => (
                         <Input
                           className={cn(FIELD_COMPACT, 'flex-1')}
@@ -41,7 +33,6 @@ export function NavbarAnchorsField({
                       )}
                     </form.Field>
                     <form.Field name={`anchors[${index}].href`}>
-                      {/* biome-ignore lint/suspicious/noExplicitAny: subfield */}
                       {(sub: any) => (
                         <Input
                           className={cn(FIELD_COMPACT_MONO, 'flex-1')}
@@ -53,7 +44,6 @@ export function NavbarAnchorsField({
                       )}
                     </form.Field>
                     <form.Field name={`anchors[${index}].icon`}>
-                      {/* biome-ignore lint/suspicious/noExplicitAny: subfield */}
                       {(sub: any) => (
                         <Input
                           className={cn(FIELD_COMPACT, 'w-[104px] shrink-0')}

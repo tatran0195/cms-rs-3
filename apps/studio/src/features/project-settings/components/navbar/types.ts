@@ -24,7 +24,6 @@ export interface NavbarValues {
   anchors: AnchorRow[];
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: Tanstack Form React hook instance
 export type NavbarFormApi = any;
 
 export interface GlobalNavbarPreview {

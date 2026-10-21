@@ -4,6 +4,8 @@ import { protectMarkdownCode } from '@cms/shared/markdown-code';
 import { CalendarClock, Check, CircleAlert, Clock3, Image, PencilLine, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSiteAnalytics } from '../context/site-analytics-provider';
+import { FluxTOC } from '../layouts/flux';
+import { DocsBody, DocsDescription, DocsPage, DocsTitle } from '../layouts/page';
 import { localeTag } from '../lib/format';
 import { siteHref } from '../lib/site-paths';
 import { resolveSiteFeatures, type SiteFeatures, type SitePage } from '../types';
@@ -13,8 +15,6 @@ import { useSitePageAlternates } from './page-alternates-context';
 import { SitePageFooter } from './site-page-footer';
 import { TableOfContents } from './toc';
 import { TOCPopover } from './toc-popover';
-import { FluxTOC } from '../layouts/flux';
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from '../layouts/page';
 
 const applyUrlTemplate = (template: string | undefined, path: string, fallbackUrl: string): string | null => {
   const trimmed = template?.trim();

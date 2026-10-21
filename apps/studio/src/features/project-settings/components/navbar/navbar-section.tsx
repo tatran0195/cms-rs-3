@@ -3,12 +3,7 @@ import type { Project } from '@cms/sdk';
 import { useLanguages } from '@cms/sdk/react';
 import { PanelTop } from 'lucide-react';
 import { useState } from 'react';
-import {
-  LanguageScopePicker,
-  SectionHeader,
-  sortLanguagesDefaultFirst,
-  useScopeDirtyGuard,
-} from '../shared';
+import { LanguageScopePicker, SectionHeader, sortLanguagesDefaultFirst, useScopeDirtyGuard } from '../shared';
 import { LanguageNavbarForm } from './language-navbar-form';
 import { ProjectNavbarForm } from './project-navbar-form';
 

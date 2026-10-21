@@ -75,7 +75,7 @@ export class Observer {
   activeAnchors: string[] = [];
   activeAnchor: string | undefined;
   private observer: IntersectionObserver | null = null;
-  private listeners = new Set<ChangeListener>();
+  private readonly listeners = new Set<ChangeListener>();
 
   constructor(
     toc: TOCItemType[],
@@ -128,17 +128,18 @@ export class Observer {
       let active = entry ? entry.isIntersecting : item.active && !item.fallback;
       if (this.single && hasActive) active = false;
 
-      if (item.active !== active) {
-        item = {
-          ...item,
-          t: Date.now(),
-          active,
-          fallback: false,
-        };
-      }
+      const currentItem =
+        item.active !== active
+          ? {
+              ...item,
+              t: Date.now(),
+              active,
+              fallback: false,
+            }
+          : item;
 
       if (active) hasActive = true;
-      return item;
+      return currentItem;
     });
 
     if (!hasActive && entries[0]?.rootBounds) {
@@ -293,8 +294,8 @@ export interface PrimitiveTOCItemProps extends Omit<ComponentProps<'a'>, 'onSele
   onSelect?: (id: string) => void;
 }
 
-export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSelect, ...props }: PrimitiveTOCItemProps) {
-  const id = props.href ? getItemId(props.href) : null;
+export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSelect, href, ...props }: PrimitiveTOCItemProps) {
+  const id = href ? getItemId(href) : null;
   const containerRef = use(ScrollContext);
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const isMountedRef = useRef(false);
@@ -312,13 +313,11 @@ export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSel
     const callback = () => {
       const anchor = anchorRef.current;
       const container = containerRef?.current;
-      if (autoScroll && observer.activeAnchor === id && anchor && container) {
-        if (typeof anchor.scrollIntoView === 'function') {
-          anchor.scrollIntoView({
-            behavior: isMountedRef.current ? 'smooth' : 'instant',
-            block: 'center',
-          });
-        }
+      if (autoScroll && observer.activeAnchor === id && anchor && container && typeof anchor.scrollIntoView === 'function') {
+        anchor.scrollIntoView({
+          behavior: isMountedRef.current ? 'smooth' : 'instant',
+          block: 'center',
+        });
       }
     };
     callback();
@@ -329,6 +328,7 @@ export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSel
   return (
     <a
       ref={mergeRefs(anchorRef, ref)}
+      href={href}
       data-active={String(active)}
       aria-current={active ? 'location' : undefined}
       onClick={(e) => {
