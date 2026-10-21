@@ -125,6 +125,7 @@ struct PageListItemRow {
     icon: Option<String>,
     config: Option<serde_json::Value>,
     translation_key: Option<String>,
+    #[sqlx(default)]
     custom_id: Option<String>,
     position: i32,
     is_published: bool,
@@ -400,7 +401,7 @@ impl PageQueries {
         offset: Option<i64>,
     ) -> Result<Vec<PageListItem>, AppError> {
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-            r#"SELECT id, project_id, branch_id, language_id, parent_id, kind, path, slug, title, description, icon, config, translation_key, position, is_published, created_at, updated_at FROM "Page" WHERE project_id = "#,
+            r#"SELECT id, project_id, branch_id, language_id, parent_id, kind, path, slug, title, description, icon, config, translation_key, custom_id, position, is_published, created_at, updated_at FROM "Page" WHERE project_id = "#,
         );
         query_builder.push_bind(project_id);
         query_builder.push(" AND branch_id = ");

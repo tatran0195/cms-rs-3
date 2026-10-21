@@ -89,7 +89,7 @@ pub async fn list_project_pages_handler(
     };
 
     let mut result =
-        cms_biz::page::PageService::list_pages(&state.biz_context(), &auth.user.id, query, 1, 100)
+        cms_biz::page::PageService::list_pages(&state.biz_context(), &auth.user.id, query, 1, 10_000)
             .await?;
 
     if let Some(ref default_lang) = default_lang_id {
