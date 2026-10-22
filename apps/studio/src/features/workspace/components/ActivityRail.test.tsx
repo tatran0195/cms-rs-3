@@ -38,6 +38,10 @@ vi.mock('@/features/auth', () => ({
   useSignOut: () => ({ mutateAsync: vi.fn() }),
 }));
 
+vi.mock('@cms/sdk/react', () => ({
+  useProjects: () => ({ data: [{ id: 'test-project', name: 'Test Project', slug: 'test-project' }] }),
+}));
+
 vi.mock('@cms/design-system/theme', () => ({
   useTheme: () => ({ setTheme: vi.fn(), resolvedTheme: 'light' }),
 }));
