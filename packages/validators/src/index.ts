@@ -99,6 +99,7 @@ const navLink = z
   })
   .strict();
 export type NavLinkChild = z.infer<typeof navLinkChild>;
+export type NavLink = z.infer<typeof navLink>;
 const navAnchor = z.object({ label: z.string().max(80), href: url, icon: z.string().max(40).optional(), external: z.boolean().optional() }).strict();
 
 export type NavTabItem = {
