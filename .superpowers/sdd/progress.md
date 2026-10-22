@@ -10,3 +10,4 @@
 - [x] Task 3: Implement AnchorSettingsDialog & LinkSettingsDialog (commits 79942de..f55d7a4, review clean)
 - [x] Task 4: Implement Unified Creation Menu & Root Tab Sections in EditorSidebarPanel (commits f55d7a4..9edafe2, review clean)
 - [x] Task 5: Monorepo Verification & Biome Check (commits 9edafe2..e8bf6e2, typecheck + 280 tests passed)
+- [x] Task 6: Sidebar Virtualization & Instant Load Performance (commit 021ff3a, restored TanStack Virtual single container, 22 DOM nodes, <50ms load, 280 tests passed)
