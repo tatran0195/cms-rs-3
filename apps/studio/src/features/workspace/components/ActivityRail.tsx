@@ -8,13 +8,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@cms/design-system/components/ui/dropdown-menu';
+import { Separator } from '@cms/design-system/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@cms/design-system/components/ui/tooltip';
-import { useTheme } from '@cms/design-system/theme';
 import { cn } from '@cms/design-system/lib/utils';
+import { useTheme } from '@cms/design-system/theme';
 import { INTERFACE_LOCALES } from '@cms/i18n';
 import { useLocale } from '@cms/i18n/react';
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BarChart3, Languages, LayoutDashboard, LogOut, Moon, Rocket, Search, Settings, Sun } from 'lucide-react';
+import { BarChart3, Languages, LayoutDashboard, LogOut, Moon, PenLine, Rocket, Search, Settings, Sun } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { useSession, useSignOut } from '@/features/auth';
 import { InterfaceLanguageDialog } from '@/shared';
@@ -47,6 +48,7 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
   const [languageOpen, setLanguageOpen] = useState(false);
 
   const isHome = pathname === `/app/projects/${projectId}`;
+  const isEditor = pathname.startsWith(`/app/projects/${projectId}/editor`);
   const isAnalytics = pathname.startsWith(`/app/projects/${projectId}/analytics`);
   const isSettings = pathname.startsWith(`/app/projects/${projectId}/settings`);
 
@@ -64,16 +66,23 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
         aria-label="Activity Rail"
       >
         {/* Top: Brand Logo & Navigation */}
-        <div className="flex flex-col items-center gap-4">
-          <Link
-            to="/app"
-            className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
-            title={t('nav.overview')}
-          >
-            <svg className="size-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z" />
-            </svg>
-          </Link>
+        <div className="flex flex-col items-center gap-3">
+          <Tooltip>
+            <TooltipTrigger render={<span />}>
+              <Link
+                to="/app"
+                className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                aria-label={t('nav.overview')}
+              >
+                <svg className="size-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z" />
+                </svg>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t('nav.overview')}</TooltipContent>
+          </Tooltip>
+
+          <Separator className="w-5 opacity-50" />
 
           {/* Navigation Items */}
           <nav className="flex flex-col items-center gap-1.5">
@@ -92,6 +101,23 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">{t('project.overview')}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                <Link
+                  to="/app/projects/$projectId/editor"
+                  params={{ projectId }}
+                  aria-label={t('project.editor')}
+                  className={cn(
+                    'flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                    isEditor && 'bg-muted text-foreground font-medium',
+                  )}
+                >
+                  <PenLine className="size-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{t('project.editor')}</TooltipContent>
             </Tooltip>
 
             {onOpenSearch ? (
@@ -118,13 +144,13 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
                     variant="ghost"
                     size="icon-xs"
                     onClick={onOpenDeploy}
-                    aria-label={t('project.deployments')}
+                    aria-label={t('project.publish')}
                     className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <Rocket className="size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">{t('project.deployments')}</TooltipContent>
+                <TooltipContent side="right">{t('project.publish')}</TooltipContent>
               </Tooltip>
             ) : null}
 
@@ -150,6 +176,7 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
                 <Link
                   to="/app/projects/$projectId/settings"
                   params={{ projectId }}
+                  search={{ section: 'general' }}
                   aria-label={t('project.settings')}
                   className={cn(
                     'flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
@@ -168,32 +195,24 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
         <div className="flex flex-col items-center gap-2">
           <NotificationsPopover />
 
+          <Separator className="w-5 opacity-50" />
+
           <DropdownMenu>
             <DropdownMenuTrigger
-              nativeButton={false}
-              render={
-                <button
-                  type="button"
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-full outline-none ring-offset-background transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  aria-label={t('nav.account')}
-                >
-                  <Avatar className="size-7 rounded-full">
-                    {visibleSession?.user?.image ? (
-                      <AvatarImage alt={visibleSession.user.name ?? undefined} src={visibleSession.user.image} />
-                    ) : null}
-                    <AvatarFallback className="rounded-full bg-gradient-to-br from-primary to-primary/60 font-semibold text-primary-foreground text-[10px]">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              }
-            />
+              className="flex size-8 cursor-pointer items-center justify-center rounded-full outline-none ring-offset-background transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label={t('nav.account')}
+            >
+              <Avatar className="size-7 rounded-full">
+                {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name ?? undefined} src={visibleSession.user.image} /> : null}
+                <AvatarFallback className="rounded-full bg-gradient-to-br from-primary to-primary/60 font-semibold text-primary-foreground text-[10px]">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56" side="right">
               <DropdownMenuLabel className="flex items-center gap-2.5 py-2">
                 <Avatar className="size-8 rounded-full">
-                  {visibleSession?.user?.image ? (
-                    <AvatarImage alt={visibleSession.user.name ?? undefined} src={visibleSession.user.image} />
-                  ) : null}
+                  {visibleSession?.user?.image ? <AvatarImage alt={visibleSession.user.name ?? undefined} src={visibleSession.user.image} /> : null}
                   <AvatarFallback className="rounded-full">{initials}</AvatarFallback>
                 </Avatar>
                 <span className="min-w-0">

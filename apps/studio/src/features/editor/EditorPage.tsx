@@ -1,6 +1,14 @@
-import { Button } from '@cms/design-system/components/ui/button';
+import { Button, buttonVariants } from '@cms/design-system/components/ui/button';
 import { useConfirm } from '@cms/design-system/components/ui/confirm';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@cms/design-system/components/ui/dropdown-menu';
 import { SegmentedControl, SegmentedControlItem } from '@cms/design-system/components/ui/segmented-control';
+import { Separator } from '@cms/design-system/components/ui/separator';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
@@ -27,13 +35,14 @@ import {
   FolderPlus,
   Loader2,
   MessageSquare,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRight,
   Pencil,
   Plus,
+  Search,
   Settings2,
-  SlidersHorizontal,
   Trash2,
   TriangleAlert,
   Type as TypeIcon,
@@ -519,52 +528,145 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
 
   return (
     <div className="flex h-screen flex-col">
-      {/* Top bar — workspace controls (Mintlify-style): back + branch on the left,
-          configure / preview / publish on the right. No breadcrumb. */}
-      <header className="flex h-14 shrink-0 items-center gap-1.5 border-border border-b bg-background px-2 sm:gap-2.5 sm:px-3">
-        <Link
-          to="/app/projects/$projectId"
-          params={{ projectId }}
-          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title={t('editor.backToDashboard')}
-        >
-          <ChevronLeft className="size-4 rtl:-scale-x-100" />
-          {project?.name ? <span className="hidden max-w-[200px] truncate font-medium text-foreground text-sm sm:inline">{project.name}</span> : null}
-        </Link>
-        {/* Divider only once the project name is loaded — otherwise it dangles next to the chevron. */}
-        {project?.name ? <span className="hidden h-5 w-px bg-border sm:block" /> : null}
-        <BranchSwitcher
-          projectId={projectId}
-          branches={branches ?? []}
-          activeBranchId={activeBranchId}
-          onSwitch={(id) => {
-            setActiveBranchId(id);
-            setSelectedId(null);
-            setSynced(null);
-          }}
-        />
-        <SaveStatusIndicator />
-        <div className="ms-auto flex items-center gap-1 sm:gap-2">
-          <Button
-            aria-label={t('editor.mode.configuration')}
-            size="sm"
-            variant={view === 'config' ? 'secondary' : 'ghost'}
-            className="cursor-pointer"
-            onClick={() => {
-              const nextView = view === 'config' ? 'content' : 'config';
-              setView(nextView);
-              if (nextView === 'config') {
-                setSidebarCollapsed(false);
-                setMobileSidebarOpen(true);
-              }
-            }}
+      {/* Top bar — consolidated workspace & document controls (Mintlify-style) */}
+      <header className="flex h-12 shrink-0 items-center justify-between border-border border-b bg-background/95 px-3 backdrop-blur z-20">
+        {/* Left: Sidebar Toggle + Project Link + Search + Branch Switcher */}
+        <div className="flex items-center gap-2">
+          {(navigationCollapsed || treeOverlay) && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="cursor-pointer"
+              onClick={() => {
+                if (treeOverlay) {
+                  setFocusedTreeOpen(true);
+                } else if (window.matchMedia('(max-width: 1023px)').matches) {
+                  setMobileSidebarOpen(true);
+                } else {
+                  setSidebarCollapsed(false);
+                }
+              }}
+              aria-label={t('editor.showSidebar')}
+              title={t('editor.showSidebar')}
+            >
+              <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
+            </Button>
+          )}
+
+          <Link
+            to="/app/projects/$projectId"
+            params={{ projectId }}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title={t('editor.backToDashboard')}
           >
-            <SlidersHorizontal className="size-3.5" /> <span className="hidden md:inline">{t('editor.mode.configuration')}</span>
+            <ChevronLeft className="size-4 rtl:-scale-x-100" />
+            {project?.name ? (
+              <span className="hidden max-w-[180px] truncate font-medium text-foreground text-xs sm:inline">{project.name}</span>
+            ) : null}
+          </Link>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.dispatchEvent(new CustomEvent('cms:open-search'))}
+            className="hidden h-7 items-center gap-2 rounded-lg px-2 text-muted-foreground text-xs font-normal hover:bg-muted/60 sm:flex"
+            aria-label={t('dashboard.search.placeholder')}
+          >
+            <Search className="size-3.5" />
+            <span>{t('dashboard.search.placeholder')}</span>
+            <kbd className="rounded border border-border bg-muted/60 px-1 py-0.2 font-mono text-[10px]">Ctrl+K</kbd>
           </Button>
-          <Button aria-label={t('project.preview')} onClick={() => void openDraftPreview()} size="sm" variant="outline" className="cursor-pointer">
-            <Eye className="size-3.5" /> <span className="hidden md:inline">{t('project.preview')}</span>
+
+          <Separator orientation="vertical" className="hidden h-4 sm:block" />
+
+          <BranchSwitcher
+            projectId={projectId}
+            branches={branches ?? []}
+            activeBranchId={activeBranchId}
+            onSwitch={(id) => {
+              setActiveBranchId(id);
+              setSelectedId(null);
+              setSynced(null);
+            }}
+          />
+        </div>
+
+        {/* Right: Save Status + Mode Switcher + Preview + Publish + Page Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <SaveStatusIndicator />
+
+          <SegmentedControl density="compact">
+            <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3" />}>
+              <span className="hidden md:inline">{t('editor.mode.visual')}</span>
+            </SegButton>
+            <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3" />}>
+              <span className="hidden md:inline">{t('editor.mode.wysiwyg')}</span>
+            </SegButton>
+            <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3" />}>
+              <span className="hidden md:inline">{t('editor.mode.markdown')}</span>
+            </SegButton>
+          </SegmentedControl>
+
+          <Button
+            aria-label={t('project.preview')}
+            onClick={() => void openDraftPreview()}
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 text-xs font-normal"
+          >
+            <Eye className="size-3.5" />
+            <span className="hidden md:inline">{t('project.preview')}</span>
           </Button>
+
           {project ? <PublishControl project={project} initialPublishOpen={publishParam} /> : null}
+
+          {activeId && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'size-7 cursor-pointer')}
+                aria-label="Page actions"
+              >
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setSettingsForId(activeId)} className="gap-2 text-xs">
+                  <Settings2 className="size-3.5" />
+                  <span>{t('editor.pageSettings.title')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleCommentMode} className="gap-2 text-xs">
+                  <MessageSquare className="size-3.5" />
+                  <span>{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
+                </DropdownMenuItem>
+                {!markdownFocused && (
+                  <DropdownMenuItem onClick={() => setRailOpen((v) => !v)} className="gap-2 text-xs">
+                    <PanelRight className="size-3.5" />
+                    <span>{railOpen ? t('editor.hideRail') : t('editor.showRail')}</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: t('editor.deletePage'),
+                      description: t('editor.deletePageConfirm'),
+                      confirmLabel: t('editor.deletePage'),
+                      destructive: true,
+                    });
+                    if (ok && page) {
+                      const toDelete = page.id;
+                      setSelectedId(null);
+                      await deletePage.mutateAsync(toDelete);
+                    }
+                  }}
+                  variant="destructive"
+                  className="gap-2 text-xs"
+                >
+                  <Trash2 className="size-3.5" />
+                  <span>{t('editor.deletePage')}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </header>
 
@@ -761,109 +863,8 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </section>
         ) : activeId && page ? (
-          /* Main area: page editor */
+          /* Main area: page editor — borderless distraction-free canvas */
           <section className="flex min-h-0 min-w-0 flex-col">
-            {/* Editor toolbar: re-expand affordance (when the sidebar is collapsed) + the
-              document mode/view controls. */}
-            <div className="flex min-h-12 flex-wrap items-center gap-1 border-border border-b px-2 py-1.5 sm:gap-2 sm:px-4 sm:py-0">
-              {markdownFocused ? (
-                // The focused layout hides the tree; this floats it over the canvas so
-                // the author can still switch pages without leaving Markdown mode.
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="cursor-pointer"
-                  onClick={() => setFocusedTreeOpen(true)}
-                  aria-expanded={treeOverlay}
-                  aria-label={t('editor.showPages')}
-                  title={t('editor.showPages')}
-                >
-                  <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
-                </Button>
-              ) : !mobileSidebarOpen ? (
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className={cn('cursor-pointer', !sidebarCollapsed && 'lg:hidden')}
-                  onClick={() => {
-                    setSidebarCollapsed(false);
-                    setMobileSidebarOpen(true);
-                  }}
-                  aria-label={t('editor.showSidebar')}
-                  title={t('editor.showSidebar')}
-                >
-                  <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
-                </Button>
-              ) : null}
-              <SegmentedControl density="compact" className="ms-auto">
-                <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3.5" />}>
-                  {t('editor.mode.visual')}
-                </SegButton>
-                <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3.5" />}>
-                  {t('editor.mode.wysiwyg')}
-                </SegButton>
-                <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3.5" />}>
-                  {t('editor.mode.markdown')}
-                </SegButton>
-              </SegmentedControl>
-              <Button
-                size="sm"
-                variant={commentMode ? 'secondary' : 'ghost'}
-                aria-pressed={commentMode}
-                className={cn('cursor-pointer', commentMode && 'bg-amber-500/15 text-amber-800 ring-1 ring-amber-500/35 dark:text-amber-300')}
-                onClick={toggleCommentMode}
-                title={t('editor.comments.mode')}
-              >
-                <MessageSquare className="size-4" />
-                <span className="hidden md:inline">{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="cursor-pointer"
-                onClick={() => activeId && setSettingsForId(activeId)}
-                aria-label={t('editor.pageSettings.title')}
-                title={t('editor.pageSettings.title')}
-              >
-                <Settings2 className="size-4" />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="cursor-pointer"
-                aria-label={t('editor.deletePage')}
-                title={t('editor.deletePage')}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: t('editor.deletePage'),
-                    description: t('editor.deletePageConfirm'),
-                    confirmLabel: t('editor.deletePage'),
-                    destructive: true,
-                  });
-                  if (ok && page) {
-                    const toDelete = page.id;
-                    setSelectedId(null);
-                    await deletePage.mutateAsync(toDelete);
-                  }
-                }}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-              {!markdownFocused ? (
-                <Button
-                  aria-label={railOpen ? t('editor.hideRail') : t('editor.showRail')}
-                  aria-pressed={railOpen}
-                  className="hidden cursor-pointer xl:inline-flex"
-                  onClick={() => setRailOpen((v) => !v)}
-                  size="icon-sm"
-                  title={railOpen ? t('editor.hideRail') : t('editor.showRail')}
-                  variant={railOpen ? 'secondary' : 'ghost'}
-                >
-                  <PanelRight className="size-4" />
-                </Button>
-              ) : null}
-            </div>
-
             <div
               className={cn(
                 'min-h-0 flex-1',

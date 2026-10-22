@@ -1,4 +1,4 @@
-import { Button } from '@cms/design-system/components/ui/button';
+import { Button, buttonVariants } from '@cms/design-system/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,6 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@cms/design-system/components/ui/dropdown-menu';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@cms/design-system/components/ui/input-group';
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
@@ -371,26 +372,25 @@ export function EditorSidebarPanel({
       {/* Filter pages search bar */}
       {(allPages?.length ?? 0) > 0 && (
         <div className="border-border border-b px-2 py-1.5">
-          <div className="relative flex items-center">
-            <Search className="pointer-events-none absolute start-2 size-3.5 text-muted-foreground/60" />
-            <input
+          <InputGroup density="compact" className="h-7 bg-background/50 text-xs">
+            <InputGroupAddon align="inline-start">
+              <Search className="size-3.5 text-muted-foreground/60" />
+            </InputGroupAddon>
+            <InputGroupInput
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter pages..."
-              className="h-7 w-full rounded-md border border-input bg-background/50 ps-7 pe-6 text-xs placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              className="text-xs placeholder:text-muted-foreground/50"
             />
             {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute end-1.5 flex size-4 items-center justify-center text-muted-foreground hover:text-foreground"
-                aria-label="Clear filter"
-              >
-                <X className="size-3" />
-              </button>
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton size="icon-xs" onClick={() => setSearchQuery('')} aria-label="Clear filter">
+                  <X className="size-3" />
+                </InputGroupButton>
+              </InputGroupAddon>
             ) : null}
-          </div>
+          </InputGroup>
         </div>
       )}
 
@@ -576,13 +576,12 @@ export function EditorSidebarPanel({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={
-              <Button size="sm" className="w-full justify-center gap-1.5 text-xs font-medium h-8" aria-label="New page">
-                <Plus className="size-3.5" />
-                <span>New page</span>
-              </Button>
-            }
-          />
+            className={cn(buttonVariants({ size: 'sm' }), 'w-full justify-center gap-1.5 text-xs font-medium h-8 cursor-pointer')}
+            aria-label="New page"
+          >
+            <Plus className="size-3.5" />
+            <span>New page</span>
+          </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52" side="top">
             <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
               Content

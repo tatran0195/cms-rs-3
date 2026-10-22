@@ -2,7 +2,7 @@
 
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   pathname: '/app/projects/test-project/editor',
@@ -26,7 +26,11 @@ vi.mock('@cms/i18n/react', () => ({
 }));
 
 vi.mock('./NotificationsPopover', () => ({
-  NotificationsPopover: () => <button type="button" aria-label="notifications">Notifications</button>,
+  NotificationsPopover: () => (
+    <button type="button" aria-label="notifications">
+      Notifications
+    </button>
+  ),
 }));
 
 vi.mock('@/features/auth', () => ({
@@ -63,17 +67,14 @@ describe('ActivityRail', () => {
     roots.push(root);
 
     await act(async () => {
-      root.render(
-        <ActivityRail
-          projectId="test-project"
-          onOpenSearch={onOpenSearch}
-          onOpenDeploy={onOpenDeploy}
-        />,
-      );
+      root.render(<ActivityRail projectId="test-project" onOpenSearch={onOpenSearch} onOpenDeploy={onOpenDeploy} />);
     });
 
     const overviewLink = container.querySelector('a[aria-label="project.overview"]');
     expect(overviewLink).not.toBeNull();
+
+    const editorLink = container.querySelector('a[aria-label="project.editor"]');
+    expect(editorLink).not.toBeNull();
 
     const analyticsLink = container.querySelector('a[aria-label="project.analytics"]');
     expect(analyticsLink).not.toBeNull();
@@ -86,7 +87,7 @@ describe('ActivityRail', () => {
     searchBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(onOpenSearch).toHaveBeenCalledTimes(1);
 
-    const deployBtn = container.querySelector('button[aria-label="project.deployments"]');
+    const deployBtn = container.querySelector('button[aria-label="project.publish"]');
     expect(deployBtn).not.toBeNull();
     deployBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(onOpenDeploy).toHaveBeenCalledTimes(1);

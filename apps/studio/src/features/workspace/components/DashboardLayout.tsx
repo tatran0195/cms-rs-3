@@ -1,4 +1,5 @@
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@cms/design-system/components/ui/breadcrumb';
+import { Button } from '@cms/design-system/components/ui/button';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@cms/design-system/components/ui/sidebar';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
@@ -52,17 +53,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <button
-            className="ms-auto flex h-8 w-56 items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-muted-foreground text-sm shadow-xs outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          <Button
+            variant="outline"
+            size="sm"
+            className="ms-auto flex h-8 w-56 items-center gap-2 rounded-lg border-input bg-transparent px-3 text-muted-foreground text-sm shadow-xs font-normal hover:bg-muted/50 dark:bg-input/30"
             onClick={() => setPaletteOpen(true)}
-            type="button"
+            aria-label={t('dashboard.search.placeholder')}
           >
             <Search className="size-3.5" />
-            <span className="flex-1 text-start">{t('dashboard.search.placeholder')}</span>
+            <span className="flex-1 text-start truncate">{t('dashboard.search.placeholder')}</span>
             <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px]" dir="ltr">
               {searchShortcut}
             </kbd>
-          </button>
+          </Button>
           <NotificationsPopover />
         </header>
         <main className="w-full flex-1 px-6 py-8">{children}</main>
