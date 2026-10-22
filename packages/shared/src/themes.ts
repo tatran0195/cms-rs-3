@@ -117,7 +117,7 @@ export interface ThemeComponents {
   tables: 'lines' | 'rows' | 'cards';
 }
 
-export interface cmsThemeConfig {
+export interface ThemeConfig {
   version?: typeof THEME_SCHEMA_VERSION;
   preset?: ThemePresetId;
   metadata?: ThemeMetadata;
@@ -129,8 +129,10 @@ export interface cmsThemeConfig {
   components?: Partial<ThemeComponents>;
 }
 
+export type cmsThemeConfig = ThemeConfig;
+
 export interface ThemeOwnedProjectConfig {
-  theme?: cmsThemeConfig;
+  theme?: ThemeConfig;
   styling?: {
     primaryColor?: string;
     theme?: 'light' | 'dark' | 'system';

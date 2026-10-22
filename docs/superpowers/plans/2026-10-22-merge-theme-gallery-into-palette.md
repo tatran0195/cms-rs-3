@@ -105,7 +105,7 @@ git commit -m "feat(studio): add preset selector to ThemePaletteEditor"
   - `Button` from `@cms/design-system/components/ui/button`
   - `Textarea` from `@cms/design-system/components/ui/textarea`
   - `useImportProjectTheme` from `@cms/sdk/react`
-  - `MAX_THEME_TEMPLATE_BYTES`, `cmsThemeConfig` from `@cms/shared/themes`
+  - `MAX_THEME_TEMPLATE_BYTES`, `ThemeConfig` from `@cms/shared/themes`
 - Produces:
   - `export function ThemeImportDialog(props: ThemeImportDialogProps): ReactElement`
 
@@ -194,7 +194,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { ProjectThemeImportResult } from '@cms/sdk';
 import { useImportProjectTheme } from '@cms/sdk/react';
-import { type cmsThemeConfig, MAX_THEME_TEMPLATE_BYTES } from '@cms/shared/themes';
+import { type ThemeConfig, MAX_THEME_TEMPLATE_BYTES } from '@cms/shared/themes';
 import { AlertCircle, CheckCircle2, FileJson, Upload } from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -203,7 +203,7 @@ export interface ThemeImportDialogProps {
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplyTheme: (theme: cmsThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
+  onApplyTheme: (theme: ThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
 }
 
 export function ThemeImportDialog({ projectId, open, onOpenChange, onApplyTheme }: ThemeImportDialogProps) {
@@ -471,7 +471,7 @@ In `apps/studio/src/features/project-settings/components/theme/theme-props-table
    activePreset?: ThemePresetId;
    onSelectPreset?: (preset: ThemePresetId) => void;
    onExport?: () => void;
-   onImportTheme?: (theme: cmsThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
+   onImportTheme?: (theme: ThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
    projectId?: string;
    isExporting?: boolean;
    ```
@@ -578,7 +578,7 @@ Expected: FAIL (preset button not found or gallery still present)
      activePreset?: ThemePresetId;
      onSelectPreset?: (presetId: ThemePresetId) => void;
      onExport?: () => void;
-     onImportTheme?: (theme: cmsThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
+     onImportTheme?: (theme: ThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
      isExporting?: boolean;
      ```
    - Forward these props to `<ThemePropsTable>`.

@@ -27,9 +27,9 @@ import type { PropsTablePath } from "./types";
 
 export interface ThemePlaygroundStoryProps {
   config: ProjectConfig;
-  themeConfig: cmsThemeConfig;
+  themeConfig: ThemeConfig;
   onThemeConfigChange: (
-    config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig),
+    config: ThemeConfig | ((prev: ThemeConfig) => ThemeConfig),
   ) => void;
   resolvedTheme: ResolvedTheme;
   resolvedColors: {
@@ -45,7 +45,7 @@ export interface ThemePlaygroundStoryProps {
   activePreset?: ThemePresetId;
   onSelectPreset?: (presetId: ThemePresetId) => void;
   onExport?: () => void;
-  onImportTheme?: (theme: cmsThemeConfig, appearance?: "light" | "dark" | "system") => void;
+  onImportTheme?: (theme: ThemeConfig, appearance?: "light" | "dark" | "system") => void;
   isExporting?: boolean;
   className?: string;
 }
@@ -173,7 +173,7 @@ export function ThemePlaygroundStory({
               value={activeLayout}
               onValueChange={(val) => {
                 if (!val) return;
-                onThemeConfigChange((prev) => ({
+                onThemeConfigChange((prev: ThemeConfig) => ({
                   ...prev,
                   layout: {
                     ...(prev.layout ?? {}),

@@ -70,7 +70,7 @@ export interface ThemeImportDialogProps {
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplyTheme: (theme: cmsThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
+  onApplyTheme: (theme: ThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
 }
 ```
 Encapsulates `useImportProjectTheme(projectId)`, file upload handling, JSON textarea input, validation errors, and preview diffing.
@@ -82,8 +82,8 @@ export interface ThemePropsTableProps {
   // Existing props
   path: PropsTablePath;
   onNavigate: (path: PropsTablePath) => void;
-  themeConfig: cmsThemeConfig;
-  onThemeConfigChange: (config: cmsThemeConfig | ((prev: cmsThemeConfig) => cmsThemeConfig)) => void;
+  themeConfig: ThemeConfig;
+  onThemeConfigChange: (config: ThemeConfig | ((prev: ThemeConfig) => ThemeConfig)) => void;
   resolvedColors: { light: ThemeColorTokens; dark: ThemeColorTokens };
   resolvedLayout: ThemeLayout;
   resolvedComponents: ThemeComponents;
@@ -94,7 +94,7 @@ export interface ThemePropsTableProps {
   activePreset?: ThemePresetId;
   onSelectPreset?: (preset: ThemePresetId) => void;
   onExport?: () => void;
-  onImportTheme?: (theme: cmsThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
+  onImportTheme?: (theme: ThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
   isExporting?: boolean;
 }
 ```

@@ -74,7 +74,7 @@ export function ThemeImportDialog({
           toast.error(
             err instanceof Error
               ? err.message
-              : t("settings.theme.import.failed"),
+              : t("settings.theme.import.previewError"),
           );
         },
       },
@@ -107,8 +107,11 @@ export function ThemeImportDialog({
       { template: importTemplate, mode: importMode, apply: true },
       {
         onSuccess: (result) => {
-          if (result.theme) {
-            onApplyTheme(result.theme, result.appearance);
+          if (result.template) {
+            onApplyTheme(
+              result.template.config.theme ?? {},
+              result.template.config.styling?.theme,
+            );
             toast.success(t("settings.theme.import.applied"));
             onOpenChange(false);
             setImportText("");
@@ -120,7 +123,7 @@ export function ThemeImportDialog({
           toast.error(
             err instanceof Error
               ? err.message
-              : t("settings.theme.import.failed"),
+              : t("settings.theme.import.applyError"),
           );
         },
       },
@@ -165,7 +168,7 @@ export function ThemeImportDialog({
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
-                {t("settings.theme.importMode")}:
+                Mode:
               </span>
               <div className="flex rounded-md border border-border bg-background p-0.5 text-xs">
                 <button
@@ -181,7 +184,7 @@ export function ThemeImportDialog({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t("settings.theme.importMerge")}
+                  {t("settings.theme.merge")}
                 </button>
                 <button
                   type="button"
@@ -197,7 +200,7 @@ export function ThemeImportDialog({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t("settings.theme.importReplace")}
+                  {t("settings.theme.replace")}
                 </button>
               </div>
             </div>
@@ -218,10 +221,14 @@ export function ThemeImportDialog({
                 <CheckCircle2 className="size-4 text-emerald-500" />
                 <span>
                   Valid Theme Template:{" "}
-                  {importPreview.metadata?.name || "Untitled Theme"}
+                  {importPreview.template?.metadata?.name || "Untitled Theme"}
                 </span>
               </div>
-              <p className="text-muted-foreground">{importPreview.summary}</p>
+              <p className="text-muted-foreground">
+                {importPreview.changes && importPreview.changes.length > 0
+                  ? t("settings.theme.importChanges", { count: importPreview.changes.length })
+                  : t("settings.theme.noChanges")}
+              </p>
             </div>
           )}
         </div>
@@ -242,7 +249,7 @@ export function ThemeImportDialog({
           >
             {importProjectTheme.isPending
               ? t("common.saving")
-              : t("settings.theme.applyTheme")}
+              : t("settings.theme.applyImport")}
           </Button>
         </DialogFooter>
       </DialogContent>
