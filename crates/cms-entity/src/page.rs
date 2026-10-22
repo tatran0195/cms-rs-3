@@ -452,6 +452,10 @@ pub struct ListPagesQuery {
     pub is_published: Option<bool>,
     #[serde(default = "default_tree")]
     pub tree: bool,
+    #[serde(default)]
+    pub page: Option<u64>,
+    #[serde(alias = "pageSize", alias = "page_size", default)]
+    pub limit: Option<u64>,
 }
 
 fn default_tree() -> bool {

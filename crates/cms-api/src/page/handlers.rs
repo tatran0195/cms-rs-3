@@ -63,7 +63,11 @@ pub async fn list_pages_handler(
     )
     .await?;
 
-    let result = PageService::list_pages(&state.biz_context(), &auth.user.id, query, 1, 20).await?;
+    let page = query.page.or(Some(1));
+    let page_size = query.limit.or(Some(20));
+    let result =
+        PageService::list_pages(&state.biz_context(), &auth.user.id, query, page, page_size)
+            .await?;
 
     Ok(Json(result))
 }

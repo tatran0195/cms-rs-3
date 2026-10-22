@@ -29,6 +29,8 @@ use crate::{auth::AuthExtractor, validation::ValidatedJson};
         ("parent_id", Query, description = "Filter by parent page ID"),
         ("search", Query, description = "Search query for title or content"),
         ("is_published", Query, description = "Filter by publication status"),
+        ("page", Query, description = "Page number for pagination"),
+        ("limit", Query, description = "Number of items per page. If omitted, returns all pages without pagination"),
     ),
     responses(
         (status = 200, description = "List of project pages", body = ApiResponse<Vec<PageListItem>>),
@@ -88,8 +90,11 @@ pub async fn list_project_pages_handler(
         None
     };
 
+    let page = query.page;
+    let limit = query.limit;
+
     let mut result =
-        cms_biz::page::PageService::list_pages(&state.biz_context(), &auth.user.id, query, 1, 10_000)
+        cms_biz::page::PageService::list_pages(&state.biz_context(), &auth.user.id, query, page, limit)
             .await?;
 
     if let Some(ref default_lang) = default_lang_id {

@@ -316,8 +316,8 @@ impl PageService {
         ctx: &BizContext,
         _user_id: &str,
         query: ListPagesQuery,
-        page: u64,
-        page_size: u64,
+        page: Option<u64>,
+        page_size: Option<u64>,
     ) -> Result<ListPagesResponse, AppError> {
         // Verify project and branch exist
         let _project = ProjectQueries::get_by_id(&ctx.pool, &query.project_id)
@@ -333,7 +333,24 @@ impl PageService {
             ));
         }
 
-        let offset = page.saturating_sub(1) * page_size;
+        let req_page = page.or(query.page);
+        let req_page_size = page_size.or(query.limit);
+
+        let (db_limit, db_offset, resp_page, resp_page_size) = match (req_page, req_page_size) {
+            (Some(p), Some(ps)) => {
+                let p = p.max(1);
+                let offset = p.saturating_sub(1) * ps;
+                (Some(ps as i64), Some(offset as i64), p, ps)
+            }
+            (None, Some(ps)) => (Some(ps as i64), Some(0), 1, ps),
+            (Some(p), None) if p > 1 => {
+                let default_ps = 20u64;
+                let offset = p.saturating_sub(1) * default_ps;
+                (Some(default_ps as i64), Some(offset as i64), p, default_ps)
+            }
+            _ => (None, None, 1, 0),
+        };
+
         let pages = PageQueries::get_by_project_branch_and_language(
             &ctx.pool,
             &query.project_id,
@@ -342,23 +359,38 @@ impl PageService {
             query.parent_id.as_deref(),
             query.is_published,
             query.search.as_deref(),
-            Some(page_size as i64),
-            Some(offset as i64),
+            db_limit,
+            db_offset,
         )
         .await?;
 
-        let total = PageQueries::count_by_project_branch_and_language(
-            &ctx.pool,
-            &query.project_id,
-            &query.branch_id,
-            query.language_id.as_deref(),
-            query.parent_id.as_deref(),
-            query.is_published,
-            query.search.as_deref(),
-        )
-        .await?;
+        let total = if db_limit.is_none() && db_offset.unwrap_or(0) == 0 {
+            pages.len() as u64
+        } else {
+            PageQueries::count_by_project_branch_and_language(
+                &ctx.pool,
+                &query.project_id,
+                &query.branch_id,
+                query.language_id.as_deref(),
+                query.parent_id.as_deref(),
+                query.is_published,
+                query.search.as_deref(),
+            )
+            .await? as u64
+        };
 
-        Ok(PaginatedResponse::new(pages, total as u64, page, page_size))
+        let effective_page_size = if resp_page_size == 0 {
+            total
+        } else {
+            resp_page_size
+        };
+
+        Ok(PaginatedResponse::new(
+            pages,
+            total,
+            resp_page,
+            effective_page_size,
+        ))
     }
 
     /// Get the full page tree for a project and branch
