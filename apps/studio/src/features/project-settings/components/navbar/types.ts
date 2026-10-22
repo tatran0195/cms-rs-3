@@ -30,7 +30,6 @@ export interface NavbarValues {
   ctaLabel: string;
   ctaUrl: string;
   links: NavRow[];
-  tabs: FormNavTabItem[];
   anchors: AnchorRow[];
 }
 

@@ -1,11 +1,10 @@
 import { useT } from '@cms/i18n/react';
 import type { Language, Project } from '@cms/sdk';
 import { useUpdateLanguage } from '@cms/sdk/react';
-import type { LanguageConfig, NavTabItem } from '@cms/validators';
+import type { LanguageConfig } from '@cms/validators';
 import { toast } from 'sonner';
-import { cleanTabItems } from '../tabs-tree-utils';
 import { NavbarScopeForm } from './navbar-scope-form';
-import { cleanAnchorRows, cleanRows, normalizeLinks, normalizeTabs } from './navbar-utils';
+import { cleanAnchorRows, cleanRows, normalizeLinks } from './navbar-utils';
 
 export function LanguageNavbarForm({
   project,
@@ -33,7 +32,6 @@ export function LanguageNavbarForm({
         ctaLabel: override.ctaLabel ?? '',
         ctaUrl: '',
         links: normalizeLinks(override.links),
-        tabs: normalizeTabs(override.tabs),
         anchors: (override.anchors ?? []).map((anchor) => ({
           label: anchor.label,
           href: anchor.href,
@@ -51,9 +49,8 @@ export function LanguageNavbarForm({
         if (links.length > 0) {
           navbar.links = links;
         }
-        const tabs = cleanTabItems(value.tabs as NavTabItem[]);
-        if (tabs.length > 0) {
-          navbar.tabs = tabs;
+        if (override.tabs && override.tabs.length > 0) {
+          navbar.tabs = override.tabs;
         }
         const anchors = cleanAnchorRows(value.anchors);
         if (anchors.length > 0) {

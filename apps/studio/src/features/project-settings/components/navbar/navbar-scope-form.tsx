@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 import { DirtyStateReporter, FIELD_INPUT, Field, GroupLabel, SaveBar, ToggleRow } from '../shared';
 import { NavbarAnchorsField } from './navbar-anchors-field';
 import { NavbarLinksField } from './navbar-links-field';
-import { TabsTreeEditor } from './tabs-tree-editor';
 import type { GlobalNavbarPreview, NavbarValues } from './types';
 
 export function NavbarScopeForm({
@@ -80,12 +79,6 @@ export function NavbarScopeForm({
       ) : null}
 
       <NavbarLinksField direction={direction} form={form} />
-
-      <GroupLabel className="mt-6 mb-1">{t('settings.navbar.tabs.label')}</GroupLabel>
-      <p className="mb-2.5 text-[12px] text-muted-foreground leading-snug">{t('settings.navbar.tabs.hint')}</p>
-      <form.Field name="tabs">
-        {(field) => <TabsTreeEditor direction={direction} onChange={(next) => field.handleChange(next)} value={field.state.value as NavTabItem[]} />}
-      </form.Field>
 
       <NavbarAnchorsField direction={direction} form={form} />
 

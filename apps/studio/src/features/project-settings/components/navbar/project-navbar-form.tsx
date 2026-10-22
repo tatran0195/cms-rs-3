@@ -1,12 +1,10 @@
 import { useT } from '@cms/i18n/react';
 import type { Project } from '@cms/sdk';
 import { useUpdateProjectConfig } from '@cms/sdk/react';
-import type { NavTabItem } from '@cms/validators';
 import { useState } from 'react';
 import { saveConfigSection, ToggleRow } from '../shared';
-import { cleanTabItems } from '../tabs-tree-utils';
 import { NavbarScopeForm } from './navbar-scope-form';
-import { cleanAnchorRows, cleanRows, normalizeLinks, normalizeTabs } from './navbar-utils';
+import { cleanAnchorRows, cleanRows, normalizeLinks } from './navbar-utils';
 
 export function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
   const t = useT();
@@ -38,7 +36,6 @@ export function ProjectNavbarForm({ project, onDirtyChange }: { project: Project
         ctaLabel: navbar.ctaLabel ?? '',
         ctaUrl: navbar.ctaUrl ?? '',
         links: normalizeLinks(navbar.links),
-        tabs: normalizeTabs(navbar.tabs),
         anchors: (navbar.anchors ?? []).map((anchor) => ({
           label: anchor.label,
           href: anchor.href,
@@ -53,7 +50,7 @@ export function ProjectNavbarForm({ project, onDirtyChange }: { project: Project
             ctaLabel: value.ctaLabel.trim() || undefined,
             ctaUrl: value.ctaUrl.trim() || undefined,
             links: cleanRows(value.links),
-            tabs: cleanTabItems(value.tabs as NavTabItem[]),
+            tabs: navbar.tabs,
             anchors: cleanAnchorRows(value.anchors),
             showSearch,
             changelog: showChangelog,
