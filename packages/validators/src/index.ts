@@ -79,7 +79,26 @@ const url = z
   .string()
   .max(500)
   .refine((v) => !/^\s*(?:javascript|data|vbscript):/i.test(v), { message: 'Unsupported URL scheme.' });
-const navLink = z.object({ label: z.string().max(80), href: url, external: z.boolean().optional() }).strict();
+const navLinkChild = z
+  .object({
+    label: z.string().max(80),
+    href: url,
+    external: z.boolean().optional(),
+    icon: z.string().max(40).optional(),
+    description: z.string().max(200).optional(),
+  })
+  .strict();
+const navLink = z
+  .object({
+    label: z.string().max(80),
+    // Optional so a link can act as a non-clickable dropdown group header.
+    href: url.optional().or(z.literal('')),
+    external: z.boolean().optional(),
+    // When present, the link renders as a hover+click dropdown in the navbar.
+    items: z.array(navLinkChild).max(10).optional(),
+  })
+  .strict();
+export type NavLinkChild = z.infer<typeof navLinkChild>;
 const navAnchor = z.object({ label: z.string().max(80), href: url, icon: z.string().max(40).optional(), external: z.boolean().optional() }).strict();
 
 export type NavTabItem = {

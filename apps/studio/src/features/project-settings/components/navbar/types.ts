@@ -1,12 +1,22 @@
 import type { NavTabItem } from '@cms/validators';
 
-export interface NavRow {
+export interface NavLinkChild {
   label: string;
   href: string;
   external?: boolean;
+  icon?: string;
+  description?: string;
 }
 
-export interface AnchorRow extends NavRow {
+export interface NavRow {
+  label: string;
+  href?: string;
+  external?: boolean;
+  items?: NavLinkChild[];
+}
+
+export interface AnchorRow extends Omit<NavRow, 'href' | 'items'> {
+  href: string;
   icon?: string;
 }
 

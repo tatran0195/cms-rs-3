@@ -10,9 +10,17 @@ import { SiteNav } from './site-nav';
 
 export interface MobileNavLink {
   label: string;
-  href: string;
+  href?: string;
   active: boolean;
   external: boolean;
+  items?: Array<{
+    label: string;
+    href: string;
+    active: boolean;
+    external: boolean;
+    icon?: string;
+    description?: string;
+  }>;
 }
 
 function MobileTabTreeItem({
@@ -108,6 +116,68 @@ function MobileTabTreeItem({
 }
 
 /**
+ * Mobile accordion for a navbar link that has dropdown children.
+ */
+function MobileDropdownLink({ link }: { link: MobileNavLink }) {
+  const hasActiveChild = link.items?.some((c) => c.active) ?? false;
+  const [open, setOpen] = useState(hasActiveChild);
+
+  return (
+    <li>
+      <div
+        className={cn(
+          'flex items-center justify-between rounded-lg px-2 py-1.5 font-medium text-sm transition-colors',
+          hasActiveChild ? 'text-primary' : 'text-muted-foreground',
+        )}
+      >
+        {link.href ? (
+          <a href={link.href} className="flex-1 truncate hover:text-foreground">
+            {link.label}
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="flex-1 cursor-pointer truncate text-left bg-transparent border-0 p-0 font-medium text-sm"
+            onClick={() => setOpen(!open)}
+          >
+            {link.label}
+          </button>
+        )}
+        <button
+          aria-label={open ? 'Collapse section' : 'Expand section'}
+          className="p-1 text-muted-foreground hover:text-foreground"
+          onClick={() => setOpen(!open)}
+          type="button"
+        >
+          {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        </button>
+      </div>
+      {open && (
+        <ul className="ms-3 space-y-0.5 border-border/50 border-s ps-2 pt-0.5">
+          {link.items?.map((child, i) => (
+            <li key={`${child.label}-${child.href}-${i}`}>
+              <a
+                href={child.href}
+                target={child.external ? '_blank' : undefined}
+                rel={child.external ? 'noreferrer' : undefined}
+                aria-current={child.active ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors',
+                  child.active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {child.label}
+                {child.external && <ExternalLink className="size-3 shrink-0" />}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/**
  * Hamburger + slide-in drawer that exposes the full page tree below `lg`, where
  * the desktop sidebar is hidden. Without it, multi-page sites are unnavigable on
  * phones (only search + the prev/next pager survive). The header's section links
@@ -159,22 +229,36 @@ export function MobileNav({
           <div className="px-4 pt-12 pb-8">
             {links.length > 0 ? (
               <ul className="mb-4 space-y-0.5 border-border/60 border-b pb-4">
-                {links.map((link) => (
-                  <li key={`${link.label}-${link.href}`}>
-                    <a
-                      href={link.href}
-                      target={link.external ? '_blank' : undefined}
-                      rel={link.external ? 'noreferrer' : undefined}
-                      aria-current={link.active ? 'page' : undefined}
-                      className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-medium text-sm transition-colors ${
-                        link.active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }`}
-                    >
-                      {link.label}
-                      {link.external ? <ExternalLink className="size-3" /> : null}
-                    </a>
-                  </li>
-                ))}
+                {links.map((link, li) => {
+                  const isDropdown = link.items && link.items.length > 0;
+                  const hasActiveChild = isDropdown && link.items!.some((c) => c.active);
+
+                  if (isDropdown) {
+                    return (
+                      <MobileDropdownLink
+                        key={`${link.label}-${li}`}
+                        link={link}
+                      />
+                    );
+                  }
+
+                  return (
+                    <li key={`${link.label}-${link.href}-${li}`}>
+                      <a
+                        href={link.href}
+                        target={link.external ? '_blank' : undefined}
+                        rel={link.external ? 'noreferrer' : undefined}
+                        aria-current={link.active ? 'page' : undefined}
+                        className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-medium text-sm transition-colors ${
+                          link.active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                      >
+                        {link.label}
+                        {link.external ? <ExternalLink className="size-3" /> : null}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
 

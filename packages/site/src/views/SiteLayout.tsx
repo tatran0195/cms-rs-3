@@ -2,8 +2,8 @@ import { cn } from '@cms/design-system/lib/utils';
 import { THEME_STORAGE_KEY } from '@cms/design-system/theme';
 import { siteT } from '@cms/i18n/site';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BookOpen, ExternalLink, Link2, Search } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { BookOpen, ChevronDown, ExternalLink, Link2, Search } from 'lucide-react';
+import React, { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DocumentationReaderLayout, DocumentationThemeProvider } from '../components/documentation-theme-provider';
 import { LanguageSwitcher } from '../components/language-switcher';
 import { MadeWithBadge } from '../components/made-with-badge';
@@ -347,11 +347,19 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
           },
         ]
       : []),
-    ...navLinks.map((link: { label: string; href: string; external?: boolean }) => ({
+    ...navLinks.map((link: { label: string; href?: string; external?: boolean; items?: Array<{ label: string; href: string; external?: boolean; icon?: string; description?: string }> }) => ({
       label: link.label,
-      href: resolveNavHref(link.href),
-      active: !link.external && isNavActive(link.href),
+      href: link.href ? resolveNavHref(link.href) : undefined,
+      active: link.href && !link.external ? isNavActive(link.href) : false,
       external: Boolean(link.external),
+      items: (link.items ?? []).map((child) => ({
+        label: child.label,
+        href: resolveNavHref(child.href),
+        external: Boolean(child.external),
+        icon: child.icon,
+        description: child.description,
+        active: !child.external && isNavActive(child.href),
+      })),
     })),
   ];
 
@@ -470,22 +478,26 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const navLinksNode =
     headerLinks.length > 0 ? (
       <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
-        {headerLinks.map((link) => (
-          <a
-            key={`${link.label}-${link.href}`}
-            href={link.href}
-            target={link.external ? '_blank' : undefined}
-            rel={link.external ? 'noopener noreferrer' : undefined}
-            aria-current={link.active ? 'page' : undefined}
-            className={cn(
-              'inline-flex items-center gap-1 transition-colors',
-              link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {link.label}
-            {link.external && <ExternalLink className="size-3" />}
-          </a>
-        ))}
+        {headerLinks.map((link) =>
+          link.items && link.items.length > 0 ? (
+            <NavLinkDropdown key={`${link.label}-${link.href ?? 'group'}`} link={link} />
+          ) : (
+            <a
+              key={`${link.label}-${link.href}`}
+              href={link.href}
+              target={link.external ? '_blank' : undefined}
+              rel={link.external ? 'noopener noreferrer' : undefined}
+              aria-current={link.active ? 'page' : undefined}
+              className={cn(
+                'inline-flex items-center gap-1 transition-colors',
+                link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {link.label}
+              {link.external && <ExternalLink className="size-3" />}
+            </a>
+          ),
+        )}
       </nav>
     ) : null;
 
@@ -671,5 +683,135 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
         </DocumentationThemeProvider>
       </SidebarProvider>
     </SiteAnalyticsProvider>
+  );
+}
+
+// ─── NavLinkDropdown ─────────────────────────────────────────────────────────
+// Hover + click popover for navbar links with children.
+// Mirrors the fumadocs notebook NavbarLinkItemMenu pattern.
+
+interface NavLinkDropdownItem {
+  label: string;
+  href: string;
+  external: boolean;
+  icon?: string;
+  description?: string;
+  active: boolean;
+}
+
+interface NavLinkDropdownProps {
+  link: {
+    label: string;
+    href?: string;
+    external: boolean;
+    active: boolean;
+    items: NavLinkDropdownItem[];
+  };
+}
+
+function NavLinkDropdown({ link }: NavLinkDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<number>(null);
+  const freezeUntil = useRef<number>(null);
+
+  const delaySetOpen = (value: boolean, delay = 50) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setOpen(value);
+      freezeUntil.current = Date.now() + 300;
+    }, delay);
+  };
+
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    delaySetOpen(true);
+  };
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    delaySetOpen(false);
+  };
+
+  const hasActiveChild = link.items.some((item) => item.active);
+
+  return (
+    <div className="relative" onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
+      {/* Trigger */}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => {
+          if (freezeUntil.current === null || Date.now() >= freezeUntil.current) {
+            setOpen((prev) => !prev);
+          }
+        }}
+        className={cn(
+          'inline-flex items-center gap-1 transition-colors focus-visible:outline-none',
+          hasActiveChild || link.active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        {link.href ? (
+          <a
+            href={link.href}
+            target={link.external ? '_blank' : undefined}
+            rel={link.external ? 'noopener noreferrer' : undefined}
+            aria-current={link.active ? 'page' : undefined}
+            className="hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {link.label}
+          </a>
+        ) : (
+          link.label
+        )}
+        <ChevronDown
+          className={cn('size-3 transition-transform duration-200 text-muted-foreground', open && 'rotate-180')}
+        />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div
+          role="listbox"
+          className={cn(
+            'absolute start-0 top-full mt-2 z-50 min-w-[200px] max-w-[340px] rounded-xl border border-border bg-popover p-1.5 shadow-lg',
+            'animate-in fade-in-0 zoom-in-95 slide-in-from-top-2',
+          )}
+        >
+          {link.items.map((item) => (
+            <a
+              key={`${item.label}-${item.href}`}
+              href={item.href}
+              target={item.external ? '_blank' : undefined}
+              rel={item.external ? 'noopener noreferrer' : undefined}
+              aria-current={item.active ? 'page' : undefined}
+              role="option"
+              aria-selected={item.active}
+              onClick={() => setOpen(false)}
+              className={cn(
+                'flex items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
+                item.active ? 'bg-primary/8 text-primary' : 'text-muted-foreground',
+              )}
+            >
+              {item.icon && (
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs">
+                  <PageIcon name={item.icon} className="size-3.5" />
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-foreground leading-tight">{item.label}</span>
+                {item.description && (
+                  <span className="block mt-0.5 text-xs text-muted-foreground leading-snug">{item.description}</span>
+                )}
+              </span>
+              {item.external && <ExternalLink className="mt-0.5 size-3 shrink-0 opacity-50" />}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

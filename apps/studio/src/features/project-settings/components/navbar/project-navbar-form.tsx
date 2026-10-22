@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { saveConfigSection, ToggleRow } from '../shared';
 import { cleanTabItems } from '../tabs-tree-utils';
 import { NavbarScopeForm } from './navbar-scope-form';
-import { cleanAnchorRows, cleanRows, normalizeTabs } from './navbar-utils';
+import { cleanAnchorRows, cleanRows, normalizeLinks, normalizeTabs } from './navbar-utils';
 
 export function ProjectNavbarForm({ project, onDirtyChange }: { project: Project; onDirtyChange?: (dirty: boolean) => void }) {
   const t = useT();
@@ -37,11 +37,7 @@ export function ProjectNavbarForm({ project, onDirtyChange }: { project: Project
       initial={{
         ctaLabel: navbar.ctaLabel ?? '',
         ctaUrl: navbar.ctaUrl ?? '',
-        links: (navbar.links ?? []).map((link) => ({
-          label: link.label,
-          href: link.href,
-          external: link.external,
-        })),
+        links: normalizeLinks(navbar.links),
         tabs: normalizeTabs(navbar.tabs),
         anchors: (navbar.anchors ?? []).map((anchor) => ({
           label: anchor.label,

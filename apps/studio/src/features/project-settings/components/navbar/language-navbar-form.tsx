@@ -5,7 +5,7 @@ import type { LanguageConfig, NavTabItem } from '@cms/validators';
 import { toast } from 'sonner';
 import { cleanTabItems } from '../tabs-tree-utils';
 import { NavbarScopeForm } from './navbar-scope-form';
-import { cleanAnchorRows, cleanRows, normalizeTabs } from './navbar-utils';
+import { cleanAnchorRows, cleanRows, normalizeLinks, normalizeTabs } from './navbar-utils';
 
 export function LanguageNavbarForm({
   project,
@@ -32,11 +32,7 @@ export function LanguageNavbarForm({
       initial={{
         ctaLabel: override.ctaLabel ?? '',
         ctaUrl: '',
-        links: (override.links ?? []).map((link) => ({
-          label: link.label,
-          href: link.href,
-          external: link.external,
-        })),
+        links: normalizeLinks(override.links),
         tabs: normalizeTabs(override.tabs),
         anchors: (override.anchors ?? []).map((anchor) => ({
           label: anchor.label,

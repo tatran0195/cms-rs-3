@@ -16,12 +16,23 @@ export interface SnapshotPageConfig {
   hideToc?: boolean;
 }
 
-export interface SnapshotNavLink {
+export interface SnapshotNavLinkChild {
   label: string;
   href: string;
   external?: boolean;
+  icon?: string;
+  description?: string;
 }
-export interface SnapshotNavAnchor extends SnapshotNavLink {
+export interface SnapshotNavLink {
+  label: string;
+  href?: string;       // optional when acting as a non-clickable dropdown group header
+  external?: boolean;
+  items?: SnapshotNavLinkChild[];  // when present, renders as a dropdown
+}
+export interface SnapshotNavAnchor {
+  label: string;
+  href: string;
+  external?: boolean;
   icon?: string;
 }
 
