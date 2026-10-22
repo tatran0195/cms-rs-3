@@ -77,4 +77,31 @@ describe('ThemePaletteEditor', () => {
 
     expect(handleColorChange).toHaveBeenCalledWith('light', 'accent', '#ff0055');
   });
+
+  it('renders preset buttons and triggers onSelectPreset when clicked', async () => {
+    const handleSelectPreset = vi.fn();
+    await act(async () => {
+      root.render(
+        <ThemePaletteEditor
+          colors={harbor.colors}
+          activePreset="harbor"
+          onSelectPreset={handleSelectPreset}
+          mode="light"
+          onColorChange={vi.fn()}
+        />,
+      );
+    });
+
+    const signalBtn = container.querySelector('button[data-preset-id="signal"]');
+    expect(signalBtn).toBeDefined();
+    expect(container.textContent).toContain('Harbor');
+    expect(container.textContent).toContain('Manuscript');
+    expect(container.textContent).toContain('Signal');
+
+    await act(async () => {
+      (signalBtn as HTMLElement)?.click();
+    });
+
+    expect(handleSelectPreset).toHaveBeenCalledWith('signal');
+  });
 });

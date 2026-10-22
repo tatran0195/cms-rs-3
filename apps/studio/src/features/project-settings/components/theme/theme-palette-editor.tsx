@@ -1,6 +1,14 @@
 import { Input } from '@cms/design-system/components/ui/input';
 import { cn } from '@cms/design-system/lib/utils';
-import { THEME_COLOR_KEYS, type ThemeColorKey, type ThemeColorTokens, themeContrastIssues } from '@cms/shared/themes';
+import {
+  THEME_COLOR_KEYS,
+  THEME_PRESET_IDS,
+  THEME_PRESETS,
+  type ThemeColorKey,
+  type ThemeColorTokens,
+  themeContrastIssues,
+  type ThemePresetId,
+} from '@cms/shared/themes';
 import { AlertCircle, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 
@@ -9,13 +17,23 @@ export interface ThemePaletteEditorProps {
     light: ThemeColorTokens;
     dark: ThemeColorTokens;
   };
+  activePreset?: ThemePresetId;
+  onSelectPreset?: (preset: ThemePresetId) => void;
   mode?: 'light' | 'dark';
   onModeChange?: (mode: 'light' | 'dark') => void;
   onColorChange: (mode: 'light' | 'dark', key: ThemeColorKey, value: string) => void;
   className?: string;
 }
 
-export function ThemePaletteEditor({ colors, mode: controlledMode, onModeChange, onColorChange, className }: ThemePaletteEditorProps) {
+export function ThemePaletteEditor({
+  colors,
+  activePreset,
+  onSelectPreset,
+  mode: controlledMode,
+  onModeChange,
+  onColorChange,
+  className,
+}: ThemePaletteEditorProps) {
   const [internalMode, setInternalMode] = useState<'light' | 'dark'>('light');
   const activeMode = controlledMode ?? internalMode;
 
@@ -35,34 +53,70 @@ export function ThemePaletteEditor({ colors, mode: controlledMode, onModeChange,
 
   return (
     <div className={cn('flex flex-col text-[0.8125rem]', className)}>
-      {/* Mode Switcher Header */}
-      <div className="flex h-10 items-center justify-between border-b border-border/70 px-4 bg-muted/20">
-        <span className="font-mono text-xs text-muted-foreground">Mode</span>
-        <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 p-0.5">
-          <button
-            type="button"
-            aria-pressed={activeMode === 'light'}
-            onClick={() => setMode('light')}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
-              activeMode === 'light' ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Sun className="size-3" />
-            <span>Light</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeMode === 'dark'}
-            onClick={() => setMode('dark')}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
-              activeMode === 'dark' ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Moon className="size-3" />
-            <span>Dark</span>
-          </button>
+      {/* Header with Preset Selector and Mode Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-4 py-2 bg-muted/20">
+        {/* Preset Selector */}
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-xs text-muted-foreground">Preset</span>
+          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 p-0.5">
+            {THEME_PRESET_IDS.map((id) => {
+              const active = activePreset === id;
+              const presetColors = THEME_PRESETS[id].colors.light;
+              const label = id.charAt(0).toUpperCase() + id.slice(1);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  data-preset-id={id}
+                  aria-pressed={active}
+                  onClick={() => onSelectPreset?.(id)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
+                    active
+                      ? 'bg-primary text-primary-foreground font-medium shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <span className="flex items-center gap-0.5" aria-hidden>
+                    <span className="size-1.5 rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: presetColors.canvas }} />
+                    <span className="size-1.5 rounded-full" style={{ backgroundColor: presetColors.accent }} />
+                  </span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Mode Switcher */}
+        <div className="flex items-center gap-1.5 ms-auto">
+          <span className="font-mono text-xs text-muted-foreground">Mode</span>
+          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 p-0.5">
+            <button
+              type="button"
+              aria-pressed={activeMode === 'light'}
+              onClick={() => setMode('light')}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
+                activeMode === 'light' ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Sun className="size-3" />
+              <span>Light</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeMode === 'dark'}
+              onClick={() => setMode('dark')}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
+                activeMode === 'dark' ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Moon className="size-3" />
+              <span>Dark</span>
+            </button>
+          </div>
         </div>
       </div>
 
