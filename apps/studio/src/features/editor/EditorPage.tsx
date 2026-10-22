@@ -53,7 +53,7 @@ import { SaveStatusIndicator } from '@/features/editor/components/save-status-in
 import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/features/editor/components/site-config-panel';
 import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
-import { PublishControl } from '@/features/publishing';
+import { PublishControl, useChangeDetectionWorker } from '@/features/publishing';
 import { typographyVars } from '@/shared/lib/typography';
 import { type EditorSyncStatus, editorStore } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';
@@ -152,6 +152,15 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+
+  const activeDraft = useMemo(() => (activeId ? { id: activeId, title, content } : null), [activeId, title, content]);
+
+  // Background Web Worker change detection: auto-runs on page/draft updates and pre-warms cache
+  useChangeDetectionWorker({
+    projectId,
+    pages: allPages,
+    activeDraft,
+  });
   // The comments rail starts closed (an empty "No comments yet" panel would
   // otherwise claim 300px on the first visit); the author's toggle is persisted.
   const [railOpen, setRailOpen] = useState(false);

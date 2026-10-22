@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogTitle } from '@cms/design-system/component
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { DeploymentStatus, Project } from '@cms/sdk';
-import { useDeployments, useRollback } from '@cms/sdk/react';
+import { queryKeys, useDeployments, useRollback } from '@cms/sdk/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Check, ExternalLink, Loader2, RotateCcw, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ type StepState = 'done' | 'active' | 'failed' | 'pending';
 
 /** Live deploy progress. Polls the deployments list while building. Faithful to design lines 2143-2178. */
 export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentId }: DeployPipelineProps) {
+  const qc = useQueryClient();
   const rollback = useRollback(project.id);
   const confirm = useConfirm();
   const t = useT();
@@ -72,6 +74,8 @@ export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentI
   useEffect(() => {
     if (open && done && deployment && announced.current !== deployment.id) {
       announced.current = deployment.id;
+      qc.invalidateQueries({ queryKey: queryKeys.deployments.baseline(project.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(project.id) });
       toast.success(t('deploy.published'), {
         action: {
           label: t('deploy.viewSiteArrow'),
@@ -79,7 +83,7 @@ export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentI
         },
       });
     }
-  }, [open, done, deployment, project.id, t]);
+  }, [open, done, deployment, project.id, t, qc]);
 
   const viewSite = () => window.location.assign(siteHref(project.id));
 
@@ -101,6 +105,8 @@ export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentI
     }
     rollback.mutate(previousReady.id, {
       onSuccess: () => {
+        qc.invalidateQueries({ queryKey: queryKeys.deployments.baseline(project.id) });
+        qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(project.id) });
         toast.success(t('deploy.rollback.success', { version: previousReady.version }));
         onOpenChange(false);
       },

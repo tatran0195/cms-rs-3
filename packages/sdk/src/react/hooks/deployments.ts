@@ -32,12 +32,15 @@ export const useBaselineSnapshot = <T = DeploymentBaselineResponse>(projectId: s
   });
 };
 
-export const usePendingChanges = <T = PendingChangesResponse>(projectId: string | undefined, options?: { enabled?: boolean }) => {
+export const usePendingChanges = <T = PendingChangesResponse>(
+  projectId: string | undefined,
+  options?: { enabled?: boolean; staleTime?: number },
+) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.deployments.changes(projectId ?? ''),
     enabled: Boolean(projectId) && (options?.enabled ?? true),
-    staleTime: 0,
+    staleTime: options?.staleTime ?? 60_000,
     queryFn: async () => {
       if (!projectId) throw new Error('projectId is required');
       return (await client.deployments.getChanges(projectId)) as unknown as T;
