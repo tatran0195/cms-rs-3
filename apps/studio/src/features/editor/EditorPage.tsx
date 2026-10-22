@@ -26,9 +26,7 @@ import {
   useUploadAsset,
 } from '@cms/sdk/react';
 import { useDebouncedCallback } from '@tanstack/react-pacer';
-import { Link } from '@tanstack/react-router';
 import {
-  ChevronLeft,
   Code2,
   Eye,
   FileText,
@@ -527,442 +525,421 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   );
 
   return (
-    <div className="flex h-screen flex-col">
-      {/* Top bar — consolidated workspace & document controls (Mintlify-style) */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-border border-b bg-background/95 px-3 backdrop-blur z-20">
-        {/* Left: Sidebar Toggle + Project Link + Search + Branch Switcher */}
-        <div className="flex items-center gap-2">
-          {(navigationCollapsed || treeOverlay) && (
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="cursor-pointer"
-              onClick={() => {
-                if (treeOverlay) {
-                  setFocusedTreeOpen(true);
-                } else if (window.matchMedia('(max-width: 1023px)').matches) {
-                  setMobileSidebarOpen(true);
-                } else {
-                  setSidebarCollapsed(false);
-                }
-              }}
-              aria-label={t('editor.showSidebar')}
-              title={t('editor.showSidebar')}
-            >
-              <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
-            </Button>
-          )}
+    <div
+      className={cn(
+        'relative grid h-full w-full min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden',
+        !treeOverlay && 'lg:grid-cols-[var(--editor-sidebar)_1fr]',
+        showRail && 'xl:grid-cols-[var(--editor-sidebar)_1fr_300px]',
+      )}
+      style={
+        {
+          '--editor-sidebar': navigationCollapsed ? '0px' : `${sidebarWidth}px`,
+        } as CSSProperties
+      }
+    >
+      {treeOverlay ? (
+        <button
+          type="button"
+          aria-label={t('editor.hidePages')}
+          className="absolute inset-0 z-20 cursor-default bg-background/40"
+          onClick={() => setFocusedTreeOpen(false)}
+        />
+      ) : null}
 
-          <Link
-            to="/app/projects/$projectId"
-            params={{ projectId }}
-            className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title={t('editor.backToDashboard')}
-          >
-            <ChevronLeft className="size-4 rtl:-scale-x-100" />
-            {project?.name ? (
-              <span className="hidden max-w-[180px] truncate font-medium text-foreground text-xs sm:inline">{project.name}</span>
-            ) : null}
-          </Link>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.dispatchEvent(new CustomEvent('cms:open-search'))}
-            className="hidden h-7 items-center gap-2 rounded-lg px-2 text-muted-foreground text-xs font-normal hover:bg-muted/60 sm:flex"
-            aria-label={t('dashboard.search.placeholder')}
-          >
-            <Search className="size-3.5" />
-            <span>{t('dashboard.search.placeholder')}</span>
-            <kbd className="rounded border border-border bg-muted/60 px-1 py-0.2 font-mono text-[10px]">Ctrl+K</kbd>
-          </Button>
-
-          <Separator orientation="vertical" className="hidden h-4 sm:block" />
-
-          <BranchSwitcher
-            projectId={projectId}
-            branches={branches ?? []}
-            activeBranchId={activeBranchId}
-            onSwitch={(id) => {
-              setActiveBranchId(id);
-              setSelectedId(null);
-              setSynced(null);
-            }}
-          />
-        </div>
-
-        {/* Right: Save Status + Mode Switcher + Preview + Publish + Page Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <SaveStatusIndicator />
-
-          <SegmentedControl density="compact">
-            <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3" />}>
-              <span className="hidden md:inline">{t('editor.mode.visual')}</span>
-            </SegButton>
-            <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3" />}>
-              <span className="hidden md:inline">{t('editor.mode.wysiwyg')}</span>
-            </SegButton>
-            <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3" />}>
-              <span className="hidden md:inline">{t('editor.mode.markdown')}</span>
-            </SegButton>
-          </SegmentedControl>
-
-          <Button
-            aria-label={t('project.preview')}
-            onClick={() => void openDraftPreview()}
-            size="sm"
-            variant="outline"
-            className="h-7 gap-1.5 text-xs font-normal"
-          >
-            <Eye className="size-3.5" />
-            <span className="hidden md:inline">{t('project.preview')}</span>
-          </Button>
-
-          {project ? <PublishControl project={project} initialPublishOpen={publishParam} /> : null}
-
-          {activeId && (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'size-7 cursor-pointer')}
-                aria-label="Page actions"
-              >
-                <MoreHorizontal className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setSettingsForId(activeId)} className="gap-2 text-xs">
-                  <Settings2 className="size-3.5" />
-                  <span>{t('editor.pageSettings.title')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleCommentMode} className="gap-2 text-xs">
-                  <MessageSquare className="size-3.5" />
-                  <span>{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
-                </DropdownMenuItem>
-                {!markdownFocused && (
-                  <DropdownMenuItem onClick={() => setRailOpen((v) => !v)} className="gap-2 text-xs">
-                    <PanelRight className="size-3.5" />
-                    <span>{railOpen ? t('editor.hideRail') : t('editor.showRail')}</span>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const ok = await confirm({
-                      title: t('editor.deletePage'),
-                      description: t('editor.deletePageConfirm'),
-                      confirmLabel: t('editor.deletePage'),
-                      destructive: true,
-                    });
-                    if (ok && page) {
-                      const toDelete = page.id;
-                      setSelectedId(null);
-                      await deletePage.mutateAsync(toDelete);
-                    }
-                  }}
-                  variant="destructive"
-                  className="gap-2 text-xs"
-                >
-                  <Trash2 className="size-3.5" />
-                  <span>{t('editor.deletePage')}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </header>
-
-      {/* Editor grid: page-tree sidebar + canvas (+ comments rail). The single row is
-          pinned to the container height (minmax(0,1fr)) so each column is bounded and
-          its own overflow-y-auto scrolls — an implicit `auto` row would grow to the
-          tallest column's content and break scrolling. */}
-      <div
+      {/* Column 2: Navigation sidebar */}
+      <aside
         className={cn(
-          'relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)]',
-          // The overlay leaves the grid (absolute), so the canvas must own the only column.
-          !treeOverlay && 'lg:grid-cols-[var(--editor-sidebar)_1fr]',
-          showRail && 'xl:grid-cols-[var(--editor-sidebar)_1fr_300px]',
+          'relative flex min-h-0 flex-col overflow-hidden border-border border-e bg-sidebar/95',
+          treeOverlay
+            ? 'absolute inset-y-0 start-0 z-30 w-[min(85vw,320px)] shadow-xl'
+            : 'max-lg:absolute max-lg:inset-y-0 max-lg:start-0 max-lg:z-30 max-lg:w-[min(85vw,320px)] max-lg:shadow-xl lg:bg-sidebar/40',
+          !mobileSidebarOpen && !treeOverlay && 'max-lg:hidden',
+          navigationHidden && 'invisible pointer-events-none border-e-0',
         )}
-        style={
-          {
-            '--editor-sidebar': navigationCollapsed ? '0px' : `${sidebarWidth}px`,
-          } as CSSProperties
-        }
+        aria-hidden={navigationHidden}
+        inert={navigationHidden}
       >
-        {treeOverlay ? (
-          <button
-            type="button"
-            aria-label={t('editor.hidePages')}
-            className="absolute inset-0 z-20 cursor-default bg-background/40"
-            onClick={() => setFocusedTreeOpen(false)}
+        {!navigationCollapsed ? <SidebarResizer onResize={setSidebarWidth} /> : null}
+        {/* Sidebar header: section label + the collapse control (lives ON the sidebar). */}
+        <div className="flex h-12 shrink-0 items-center justify-between border-border border-b ps-3 pe-1.5">
+          <span className="font-semibold text-xs tracking-tight text-foreground/90">
+            {view === 'config' ? t('editor.config.heading') : 'Navigation'}
+          </span>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              if (treeOverlay) {
+                setFocusedTreeOpen(false);
+              } else if (window.matchMedia('(max-width: 1023px)').matches) {
+                setMobileSidebarOpen(false);
+              } else {
+                setSidebarCollapsed(true);
+              }
+            }}
+            aria-label={treeOverlay ? t('editor.hidePages') : t('editor.hideSidebar')}
+            title={treeOverlay ? t('editor.hidePages') : t('editor.hideSidebar')}
+          >
+            <PanelLeftClose className="size-3.5 rtl:-scale-x-100" />
+          </Button>
+        </div>
+
+        <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+          {view === 'config' ? (
+            <div className="overflow-y-auto px-2 py-2">
+              <ConfigSectionList
+                active={configSection}
+                onSelect={(section) => {
+                  setConfigSection(section);
+                  setMobileSidebarOpen(false);
+                }}
+              />
+            </div>
+          ) : (
+            <EditorSidebarPanel
+              projectId={projectId}
+              activeBranchId={activeBranchId}
+              selectedId={activeTreeId}
+              languages={orderedLanguages}
+              languagesPending={languagesPending}
+              activeLanguageId={currentLangId}
+              projectNavbar={project?.config?.navbar}
+              onSelectLanguage={(id) => {
+                setActiveLanguageId(id);
+                setSelectedId(null);
+              }}
+              onSelectPage={(id) => {
+                setSelectedId(id);
+                setMobileSidebarOpen(false);
+                setFocusedTreeOpen(false);
+              }}
+              onAddPage={(parentId, langId, slug) => addPage(parentId, langId, slug)}
+              onInsertPage={(node, pos, relId, langId) => insertPage(node, pos, relId, langId)}
+              onAddGroup={(langId, slug) => addGroup(langId, slug)}
+              onOpenPageSettings={(id) => setSettingsForId(id)}
+              onAddLanguage={() => setAddLangOpen(true)}
+              onLanguageSettings={(lang) => setLangSettings(lang)}
+              onManageNavbar={() => {
+                setView('config');
+                setConfigSection('navbar');
+              }}
+              onOpenSiteConfig={() => {
+                setView('config');
+                setSidebarCollapsed(false);
+                setMobileSidebarOpen(true);
+              }}
+              isCreatingPage={createPage.isPending}
+            />
+          )}
+        </div>
+        <AddLanguageDialog projectId={projectId} open={addLangOpen} onOpenChange={setAddLangOpen} onCreated={() => setAddLangOpen(false)} />
+        {langSettings ? (
+          <LanguageSettingsDialog
+            projectId={projectId}
+            language={langSettings}
+            open={Boolean(langSettings)}
+            onOpenChange={(o) => !o && setLangSettings(null)}
           />
         ) : null}
-        <aside
-          className={cn(
-            'relative flex min-h-0 flex-col overflow-hidden border-border border-e bg-sidebar/95',
-            // Below lg the tree is an on-demand drawer; in the focused Markdown layout
-            // it is a drawer at every size (the grid column stays collapsed).
-            treeOverlay
-              ? 'absolute inset-y-0 start-0 z-30 w-[min(85vw,320px)] shadow-xl'
-              : 'max-lg:absolute max-lg:inset-y-0 max-lg:start-0 max-lg:z-30 max-lg:w-[min(85vw,320px)] max-lg:shadow-xl lg:bg-sidebar/40',
-            !mobileSidebarOpen && !treeOverlay && 'max-lg:hidden',
-            navigationHidden && 'invisible pointer-events-none border-e-0',
-          )}
-          aria-hidden={navigationHidden}
-          inert={navigationHidden}
-        >
-          {!navigationCollapsed ? <SidebarResizer onResize={setSidebarWidth} /> : null}
-          {/* Sidebar header: section label + the collapse control (lives ON the sidebar). */}
-          <div className="flex h-12 shrink-0 items-center justify-between border-border border-b ps-3 pe-1.5">
-            <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">
-              {view === 'config' ? t('editor.config.heading') : t('editor.pages')}
-            </span>
+        {settingsForId
+          ? (() => {
+              const target = (allPages ?? []).find((p) => p.id === settingsForId);
+              return target ? (
+                <PageSettingsDialog projectId={projectId} page={target} open onOpenChange={(o) => !o && setSettingsForId(null)} />
+              ) : null;
+            })()
+          : null}
+      </aside>
+
+      {/* Column 3: Canvas / Main Area with its own top action bar */}
+      <div className="flex flex-1 min-w-0 h-full flex-col overflow-hidden bg-background">
+        <header className="flex h-12 shrink-0 items-center justify-between border-border border-b bg-background/95 px-3 backdrop-blur z-20">
+          {/* Left: Sidebar Toggle + Search + Branch Switcher */}
+          <div className="flex items-center gap-2">
+            {(navigationCollapsed || treeOverlay) && (
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                className="cursor-pointer"
+                onClick={() => {
+                  if (treeOverlay) {
+                    setFocusedTreeOpen(true);
+                  } else if (window.matchMedia('(max-width: 1023px)').matches) {
+                    setMobileSidebarOpen(true);
+                  } else {
+                    setSidebarCollapsed(false);
+                  }
+                }}
+                aria-label={t('editor.showSidebar')}
+                title={t('editor.showSidebar')}
+              >
+                <PanelLeftOpen className="size-4 rtl:-scale-x-100" />
+              </Button>
+            )}
+
             <Button
-              size="icon-xs"
-              variant="ghost"
-              className="cursor-pointer"
-              onClick={() => {
-                if (treeOverlay) {
-                  setFocusedTreeOpen(false);
-                } else if (window.matchMedia('(max-width: 1023px)').matches) {
-                  setMobileSidebarOpen(false);
-                } else {
-                  setSidebarCollapsed(true);
-                }
-              }}
-              aria-label={treeOverlay ? t('editor.hidePages') : t('editor.hideSidebar')}
-              title={treeOverlay ? t('editor.hidePages') : t('editor.hideSidebar')}
+              variant="outline"
+              size="sm"
+              onClick={() => window.dispatchEvent(new CustomEvent('cms:open-search'))}
+              className="hidden h-7 items-center gap-2 rounded-lg px-2 text-muted-foreground text-xs font-normal hover:bg-muted/60 sm:flex"
+              aria-label={t('dashboard.search.placeholder')}
             >
-              <PanelLeftClose className="size-3.5 rtl:-scale-x-100" />
+              <Search className="size-3.5" />
+              <span>{t('dashboard.search.placeholder')}</span>
+              <kbd className="rounded border border-border bg-muted/60 px-1 py-0.2 font-mono text-[10px]">Ctrl+K</kbd>
             </Button>
+
+            <Separator orientation="vertical" className="hidden h-4 sm:block" />
+
+            <BranchSwitcher
+              projectId={projectId}
+              branches={branches ?? []}
+              activeBranchId={activeBranchId}
+              onSwitch={(id) => {
+                setActiveBranchId(id);
+                setSelectedId(null);
+                setSynced(null);
+              }}
+            />
           </div>
 
-          <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
-            {view === 'config' ? (
-              <div className="overflow-y-auto px-2 py-2">
-                <ConfigSectionList
-                  active={configSection}
-                  onSelect={(section) => {
-                    setConfigSection(section);
-                    setMobileSidebarOpen(false);
-                  }}
-                />
-              </div>
-            ) : (
-              <EditorSidebarPanel
-                projectId={projectId}
-                activeBranchId={activeBranchId}
-                selectedId={activeTreeId}
-                languages={orderedLanguages}
-                languagesPending={languagesPending}
-                activeLanguageId={currentLangId}
-                projectNavbar={project?.config?.navbar}
-                onSelectLanguage={(id) => {
-                  setActiveLanguageId(id);
-                  setSelectedId(null);
-                }}
-                onSelectPage={(id) => {
-                  setSelectedId(id);
-                  setMobileSidebarOpen(false);
-                  setFocusedTreeOpen(false);
-                }}
-                onAddPage={(parentId, langId, slug) => addPage(parentId, langId, slug)}
-                onInsertPage={(node, pos, relId, langId) => insertPage(node, pos, relId, langId)}
-                onAddGroup={(langId, slug) => addGroup(langId, slug)}
-                onOpenPageSettings={(id) => setSettingsForId(id)}
-                onAddLanguage={() => setAddLangOpen(true)}
-                onLanguageSettings={(lang) => setLangSettings(lang)}
-                onManageNavbar={() => {
-                  setView('config');
-                  setConfigSection('navbar');
-                }}
-                onOpenSiteConfig={() => {
-                  setView('config');
-                  setSidebarCollapsed(false);
-                  setMobileSidebarOpen(true);
-                }}
-                isCreatingPage={createPage.isPending}
-              />
+          {/* Right: Save Status + Mode Switcher + Preview + Publish + Page Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <SaveStatusIndicator />
+
+            <SegmentedControl density="compact">
+              <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3" />}>
+                <span className="hidden md:inline">{t('editor.mode.visual')}</span>
+              </SegButton>
+              <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3" />}>
+                <span className="hidden md:inline">{t('editor.mode.wysiwyg')}</span>
+              </SegButton>
+              <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3" />}>
+                <span className="hidden md:inline">{t('editor.mode.markdown')}</span>
+              </SegButton>
+            </SegmentedControl>
+
+            <Button
+              aria-label={t('project.preview')}
+              onClick={() => void openDraftPreview()}
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 text-xs font-normal"
+            >
+              <Eye className="size-3.5" />
+              <span className="hidden md:inline">{t('project.preview')}</span>
+            </Button>
+
+            {project ? <PublishControl project={project} initialPublishOpen={publishParam} /> : null}
+
+            {activeId && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'size-7 cursor-pointer')}
+                  aria-label="Page actions"
+                >
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setSettingsForId(activeId)} className="gap-2 text-xs">
+                    <Settings2 className="size-3.5" />
+                    <span>{t('editor.pageSettings.title')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={toggleCommentMode} className="gap-2 text-xs">
+                    <MessageSquare className="size-3.5" />
+                    <span>{commentMode ? t('editor.comments.commenting') : t('editor.comments.mode')}</span>
+                  </DropdownMenuItem>
+                  {!markdownFocused && (
+                    <DropdownMenuItem onClick={() => setRailOpen((v) => !v)} className="gap-2 text-xs">
+                      <PanelRight className="size-3.5" />
+                      <span>{railOpen ? t('editor.hideRail') : t('editor.showRail')}</span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: t('editor.deletePage'),
+                        description: t('editor.deletePageConfirm'),
+                        confirmLabel: t('editor.deletePage'),
+                        destructive: true,
+                      });
+                      if (ok && page) {
+                        const toDelete = page.id;
+                        setSelectedId(null);
+                        await deletePage.mutateAsync(toDelete);
+                      }
+                    }}
+                    variant="destructive"
+                    className="gap-2 text-xs"
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span>{t('editor.deletePage')}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
-          <AddLanguageDialog projectId={projectId} open={addLangOpen} onOpenChange={setAddLangOpen} onCreated={() => setAddLangOpen(false)} />
-          {langSettings ? (
-            <LanguageSettingsDialog
-              projectId={projectId}
-              language={langSettings}
-              open={Boolean(langSettings)}
-              onOpenChange={(o) => !o && setLangSettings(null)}
-            />
-          ) : null}
-          {settingsForId
-            ? (() => {
-                const target = (allPages ?? []).find((p) => p.id === settingsForId);
-                return target ? (
-                  <PageSettingsDialog projectId={projectId} page={target} open onOpenChange={(o) => !o && setSettingsForId(null)} />
-                ) : null;
-              })()
-            : null}
-        </aside>
+        </header>
 
-        {/* Main area: site configuration */}
-        {view === 'config' ? (
-          <section className="min-h-0 min-w-0 overflow-y-auto">
-            {/* A muted overline so it reads as "Site configuration › <section>"
-              rather than competing with each section's own heading. */}
-            <div className="border-border border-b px-6 py-3">
-              <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">{t('editor.config.heading')}</span>
-            </div>
-            <div className="mx-auto w-full max-w-6xl px-5 pt-7 pb-32 sm:px-8">
-              {project ? (
-                <div className={cn('w-full', configSection === 'themes' ? 'max-w-6xl' : 'max-w-4xl')}>
-                  <ConfigSection project={project} section={configSection} />
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">{t('common.loading')}</p>
-              )}
-            </div>
-          </section>
-        ) : selectedGroup ? (
-          <section className="grid place-items-center px-6 text-center">
-            <div className="max-w-sm">
-              <FolderPlus className="mx-auto size-7 text-muted-foreground" />
-              <h1 className="mt-3 font-semibold text-xl tracking-tight">{selectedGroup.title}</h1>
-              <p className="mt-1 text-muted-foreground text-sm">{t('editor.groupSelectedHint')}</p>
-              <div className="mt-4 flex justify-center gap-2">
-                <Button variant="outline" onClick={() => setSettingsForId(selectedGroup.id)}>
-                  <Settings2 className="size-4" /> {t('editor.pageSettings.title')}
+        {/* Content Body: Config / Selected Group / Page Editor / Empty State */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {view === 'config' ? (
+            <section className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+              <div className="border-border border-b px-6 py-3 flex items-center justify-between">
+                <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">{t('editor.config.heading')}</span>
+                <Button variant="ghost" size="sm" onClick={() => setView('content')} className="text-xs h-7">
+                  Done
                 </Button>
-                {selectedGroup.languageId ? (
-                  <Button disabled={createPage.isPending} onClick={() => addPage(selectedGroup.id, selectedGroup.languageId)}>
+              </div>
+              <div className="mx-auto w-full max-w-6xl px-5 pt-7 pb-32 sm:px-8">
+                {project ? (
+                  <div className={cn('w-full', configSection === 'themes' ? 'max-w-6xl' : 'max-w-4xl')}>
+                    <ConfigSection project={project} section={configSection} />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">{t('common.loading')}</p>
+                )}
+              </div>
+            </section>
+          ) : selectedGroup ? (
+            <section className="flex-1 grid place-items-center px-6 text-center">
+              <div className="max-w-sm">
+                <FolderPlus className="mx-auto size-7 text-muted-foreground" />
+                <h1 className="mt-3 font-semibold text-xl tracking-tight">{selectedGroup.title}</h1>
+                <p className="mt-1 text-muted-foreground text-sm">{t('editor.groupSelectedHint')}</p>
+                <div className="mt-4 flex justify-center gap-2">
+                  <Button variant="outline" onClick={() => setSettingsForId(selectedGroup.id)}>
+                    <Settings2 className="size-4" /> {t('editor.pageSettings.title')}
+                  </Button>
+                  {selectedGroup.languageId ? (
+                    <Button disabled={createPage.isPending} onClick={() => addPage(selectedGroup.id, selectedGroup.languageId)}>
+                      <Plus className="size-4" /> {t('editor.newPage')}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    className="cursor-pointer text-destructive"
+                    aria-label={t('editor.deletePage')}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: t('editor.deletePage'),
+                        description: t('editor.deletePageConfirm'),
+                        confirmLabel: t('editor.deletePage'),
+                        destructive: true,
+                      });
+                      if (ok) {
+                        const toDelete = selectedGroup.id;
+                        setSelectedId(null);
+                        await deletePage.mutateAsync(toDelete);
+                      }
+                    }}
+                  >
+                    <Trash2 className="size-4" /> {t('editor.deletePage')}
+                  </Button>
+                </div>
+              </div>
+            </section>
+          ) : activeId && !page ? (
+            <section className="flex-1 grid place-items-center text-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </section>
+          ) : activeId && page ? (
+            <section className="flex-1 flex min-h-0 min-w-0 flex-col">
+              <div
+                className={cn(
+                  'min-h-0 flex-1',
+                  effectiveMode === 'markdown'
+                    ? 'flex flex-col overflow-hidden'
+                    : effectiveMode === 'wysiwyg'
+                      ? 'flex flex-col overflow-hidden'
+                      : 'overflow-y-auto px-4 py-6 sm:px-7 sm:py-8',
+                )}
+              >
+                {unsupportedTags.length > 0 && effectiveMode !== 'markdown' ? (
+                  <div
+                    className={cn(
+                      'flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-700 leading-snug dark:text-amber-300',
+                      effectiveMode === 'wysiwyg' ? 'mx-4 mt-4 sm:mx-7' : 'mx-auto mb-5 max-w-[720px]',
+                    )}
+                    role="status"
+                  >
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                    <p>
+                      {t('editor.unsupportedMdx.banner', {
+                        tags: unsupportedTags.join(', '),
+                      })}
+                    </p>
+                  </div>
+                ) : null}
+                {effectiveMode === 'visual' ? <div className="mx-auto max-w-[720px]">{pageTitleInput}</div> : null}
+                {effectiveMode === 'visual' || effectiveMode === 'wysiwyg' ? (
+                  <TiptapEditor
+                    key={page.id}
+                    value={content}
+                    onChange={setContent}
+                    className={effectiveMode === 'wysiwyg' ? 'min-h-0 flex-1' : undefined}
+                    dir={activeLangDir}
+                    lang={activeLanguage?.code}
+                    style={typographyVars(project?.config?.typography)}
+                    onUpload={onUploadImage}
+                    comments={commentMarkers}
+                    activeCommentId={activeCommentId}
+                    commentMode={commentMode}
+                    onAddComment={(anchor) => {
+                      setPendingAnchor(anchor);
+                      setRailOpen(true);
+                    }}
+                    titleSlot={effectiveMode === 'wysiwyg' ? pageTitleInput : undefined}
+                    variant={effectiveMode === 'wysiwyg' ? 'wysiwyg' : 'visual'}
+                  />
+                ) : (
+                  <MarkdownSourceEditor
+                    key={page.id}
+                    dir={activeLangDir}
+                    label={t('editor.markdownPlaceholder')}
+                    value={content}
+                    onChange={setContent}
+                    placeholder={t('editor.markdownPlaceholder')}
+                    titleSlot={pageTitleInput}
+                  />
+                )}
+              </div>
+            </section>
+          ) : (
+            <section className="flex-1 grid place-items-center text-center">
+              <div>
+                <FileText className="mx-auto size-7 text-muted-foreground" />
+                <p className="mt-3 font-medium">{t('editor.noPageSelected')}</p>
+                <p className="mt-1 text-muted-foreground text-sm">{t('editor.noPageSelectedHint')}</p>
+                {defaultLanguageId ? (
+                  <Button className="mt-4 cursor-pointer" disabled={createPage.isPending} onClick={() => addPage(null, defaultLanguageId)}>
                     <Plus className="size-4" /> {t('editor.newPage')}
                   </Button>
                 ) : null}
-                <Button
-                  variant="outline"
-                  className="cursor-pointer text-destructive"
-                  aria-label={t('editor.deletePage')}
-                  onClick={async () => {
-                    const ok = await confirm({
-                      title: t('editor.deletePage'),
-                      description: t('editor.deletePageConfirm'),
-                      confirmLabel: t('editor.deletePage'),
-                      destructive: true,
-                    });
-                    if (ok) {
-                      const toDelete = selectedGroup.id;
-                      setSelectedId(null);
-                      await deletePage.mutateAsync(toDelete);
-                    }
-                  }}
-                >
-                  <Trash2 className="size-4" /> {t('editor.deletePage')}
-                </Button>
               </div>
-            </div>
-          </section>
-        ) : activeId && !page ? (
-          <section className="grid place-items-center text-center">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </section>
-        ) : activeId && page ? (
-          /* Main area: page editor — borderless distraction-free canvas */
-          <section className="flex min-h-0 min-w-0 flex-col">
-            <div
-              className={cn(
-                'min-h-0 flex-1',
-                effectiveMode === 'markdown'
-                  ? 'flex flex-col overflow-hidden'
-                  : effectiveMode === 'wysiwyg'
-                    ? 'flex flex-col overflow-hidden'
-                    : 'overflow-y-auto px-4 py-6 sm:px-7 sm:py-8',
-              )}
-            >
-              {unsupportedTags.length > 0 && effectiveMode !== 'markdown' ? (
-                <div
-                  className={cn(
-                    'flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-700 leading-snug dark:text-amber-300',
-                    effectiveMode === 'wysiwyg' ? 'mx-4 mt-4 sm:mx-7' : 'mx-auto mb-5 max-w-[720px]',
-                  )}
-                  role="status"
-                >
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-                  <p>
-                    {t('editor.unsupportedMdx.banner', {
-                      tags: unsupportedTags.join(', '),
-                    })}
-                  </p>
-                </div>
-              ) : null}
-              {/* Visual mode keeps its reading measure. Rich Text and Markdown
-                render their toolbar and title inside their full-height canvas. */}
-              {effectiveMode === 'visual' ? <div className="mx-auto max-w-[720px]">{pageTitleInput}</div> : null}
-              {effectiveMode === 'visual' || effectiveMode === 'wysiwyg' ? (
-                // .ProseMirror self-centers at the 720px measure (tiptap.css), leaving a
-                // gutter for the block handle — so it is NOT wrapped in a narrow box.
-                // Keyed by page id: every page gets its own TipTap instance, so a
-                // document can never linger across a page switch.
-                <TiptapEditor
-                  key={page.id}
-                  value={content}
-                  onChange={setContent}
-                  className={effectiveMode === 'wysiwyg' ? 'min-h-0 flex-1' : undefined}
-                  dir={activeLangDir}
-                  lang={activeLanguage?.code}
-                  style={typographyVars(project?.config?.typography)}
-                  onUpload={onUploadImage}
-                  comments={commentMarkers}
-                  activeCommentId={activeCommentId}
-                  commentMode={commentMode}
-                  onAddComment={(anchor) => {
-                    setPendingAnchor(anchor);
-                    setRailOpen(true);
-                  }}
-                  titleSlot={effectiveMode === 'wysiwyg' ? pageTitleInput : undefined}
-                  variant={effectiveMode === 'wysiwyg' ? 'wysiwyg' : 'visual'}
-                />
-              ) : (
-                <MarkdownSourceEditor
-                  key={page.id}
-                  dir={activeLangDir}
-                  label={t('editor.markdownPlaceholder')}
-                  value={content}
-                  onChange={setContent}
-                  placeholder={t('editor.markdownPlaceholder')}
-                  titleSlot={pageTitleInput}
-                />
-              )}
-            </div>
-          </section>
-        ) : (
-          <section className="grid place-items-center text-center">
-            <div>
-              <FileText className="mx-auto size-7 text-muted-foreground" />
-              <p className="mt-3 font-medium">{t('editor.noPageSelected')}</p>
-              <p className="mt-1 text-muted-foreground text-sm">{t('editor.noPageSelectedHint')}</p>
-              {defaultLanguageId ? (
-                <Button className="mt-4 cursor-pointer" disabled={createPage.isPending} onClick={() => addPage(null, defaultLanguageId)}>
-                  <Plus className="size-4" /> {t('editor.newPage')}
-                </Button>
-              ) : null}
-            </div>
-          </section>
-        )}
-
-        {/* Right rail: Comments */}
-        {showRail && activeId ? (
-          <aside className="hidden min-h-0 flex-col overflow-hidden border-border border-s bg-sidebar/40 xl:flex">
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <CommentsPanel
-                pageId={activeId}
-                projectId={projectId}
-                pendingAnchor={pendingAnchor}
-                onClearPending={() => setPendingAnchor(null)}
-                activeCommentId={activeCommentId}
-                onSelectComment={setActiveCommentId}
-                commentMode={commentMode}
-              />
-            </div>
-          </aside>
-        ) : null}
+            </section>
+          )}
+        </div>
       </div>
+
+      {/* Column 4: Comments Rail */}
+      {showRail && activeId ? (
+        <aside className="hidden min-h-0 flex-col overflow-hidden border-border border-s bg-sidebar/40 xl:flex">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <CommentsPanel
+              pageId={activeId}
+              projectId={projectId}
+              pendingAnchor={pendingAnchor}
+              onClearPending={() => setPendingAnchor(null)}
+              activeCommentId={activeCommentId}
+              onSelectComment={setActiveCommentId}
+              commentMode={commentMode}
+            />
+          </div>
+        </aside>
+      ) : null}
     </div>
   );
 }
