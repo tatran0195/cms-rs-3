@@ -5,7 +5,7 @@ import { useT } from '@cms/i18n/react';
 import { ChevronDown, ChevronRight, ExternalLink, Layers, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { FIELD_COMPACT, FIELD_COMPACT_MONO, GroupLabel } from '../shared';
-import type { NavLinkChild, NavbarFormApi } from './types';
+import type { NavbarFormApi, NavLinkChild } from './types';
 
 /** Child-item row inside an expanded dropdown group */
 function LinkChildRow({
@@ -23,8 +23,7 @@ function LinkChildRow({
 }) {
   const t = useT();
   return (
-    // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and reorder by index
-    <div className="grid gap-1.5 p-2.5 border-border/60 border-t" key={index}>
+    <div className="grid gap-1.5 p-2.5 border-border/60 border-t">
       <div className="flex items-center gap-2">
         <form.Field name={`links[${parentIndex}].items[${index}].label`}>
           {(sub: any) => (
@@ -54,9 +53,7 @@ function LinkChildRow({
               aria-label={sub.state.value ? 'External link enabled' : 'External link disabled'}
               className={cn(
                 'size-7 shrink-0 text-xs',
-                sub.state.value
-                  ? 'border border-primary/30 bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground',
+                sub.state.value ? 'border border-primary/30 bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
               onClick={() => sub.handleChange(!sub.state.value)}
               size="icon-xs"
@@ -109,17 +106,7 @@ function LinkChildRow({
 }
 
 /** Single top-level link row — either a plain link or a dropdown group */
-function LinkRow({
-  index,
-  form,
-  direction,
-  onRemove,
-}: {
-  index: number;
-  form: NavbarFormApi;
-  direction?: 'ltr' | 'rtl';
-  onRemove: () => void;
-}) {
+function LinkRow({ index, form, direction, onRemove }: { index: number; form: NavbarFormApi; direction?: 'ltr' | 'rtl'; onRemove: () => void }) {
   const t = useT();
   const [childrenExpanded, setChildrenExpanded] = useState(true);
 
@@ -192,9 +179,7 @@ function LinkRow({
                       aria-label={sub.state.value ? 'External link enabled' : 'External link disabled'}
                       className={cn(
                         'size-7 shrink-0 text-xs',
-                        sub.state.value
-                          ? 'border border-primary/30 bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:text-foreground',
+                        sub.state.value ? 'border border-primary/30 bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
                       )}
                       onClick={() => sub.handleChange(!sub.state.value)}
                       size="icon-xs"
@@ -213,9 +198,7 @@ function LinkRow({
                 aria-label={isDropdown ? 'Convert to plain link' : 'Convert to dropdown collection'}
                 className={cn(
                   'size-7 shrink-0 text-xs',
-                  isDropdown
-                    ? 'border border-primary/30 bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:text-foreground',
+                  isDropdown ? 'border border-primary/30 bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
                 )}
                 onClick={toggleDropdownMode}
                 size="icon-xs"
@@ -243,11 +226,11 @@ function LinkRow({
             {isDropdown && childrenExpanded && (
               <div className="bg-muted/30">
                 {items.map((_: unknown, childIndex: number) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
                   <LinkChildRow
                     direction={direction}
                     form={form}
                     index={childIndex}
+                    // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
                     key={childIndex}
                     onRemove={() => itemsField.removeValue(childIndex)}
                     parentIndex={index}
@@ -285,13 +268,7 @@ export function NavbarLinksField({ form, direction }: { form: NavbarFormApi; dir
               <div className="mb-3 space-y-2">
                 {field.state.value.map((_: unknown, index: number) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
-                  <LinkRow
-                    direction={direction}
-                    form={form}
-                    index={index}
-                    key={index}
-                    onRemove={() => field.removeValue(index)}
-                  />
+                  <LinkRow direction={direction} form={form} index={index} key={index} onRemove={() => field.removeValue(index)} />
                 ))}
               </div>
             ) : null}

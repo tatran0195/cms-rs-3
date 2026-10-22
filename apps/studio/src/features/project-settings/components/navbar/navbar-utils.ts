@@ -25,7 +25,12 @@ export const normalizeLinks = (items?: unknown[]): NavRow[] =>
 
 export const cleanRows = (
   rows: NavRow[],
-): Array<{ label: string; href?: string; external?: boolean; items?: Array<{ label: string; href: string; icon?: string; description?: string; external?: boolean }> }> =>
+): Array<{
+  label: string;
+  href?: string;
+  external?: boolean;
+  items?: Array<{ label: string; href: string; icon?: string; description?: string; external?: boolean }>;
+}> =>
   rows
     .filter((row) => row.label.trim() || row.href?.trim() || (row.items && row.items.length > 0))
     .map((row) => {

@@ -25,9 +25,9 @@ export interface SnapshotNavLinkChild {
 }
 export interface SnapshotNavLink {
   label: string;
-  href?: string;       // optional when acting as a non-clickable dropdown group header
+  href?: string; // optional when acting as a non-clickable dropdown group header
   external?: boolean;
-  items?: SnapshotNavLinkChild[];  // when present, renders as a dropdown
+  items?: SnapshotNavLinkChild[]; // when present, renders as a dropdown
 }
 export interface SnapshotNavAnchor {
   label: string;

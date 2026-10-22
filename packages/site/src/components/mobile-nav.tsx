@@ -154,8 +154,8 @@ function MobileDropdownLink({ link }: { link: MobileNavLink }) {
       </div>
       {open && (
         <ul className="ms-3 space-y-0.5 border-border/50 border-s ps-2 pt-0.5">
-          {link.items?.map((child, i) => (
-            <li key={`${child.label}-${child.href}-${i}`}>
+          {link.items?.map((child) => (
+            <li key={`${child.label}-${child.href}`}>
               <a
                 href={child.href}
                 target={child.external ? '_blank' : undefined}
@@ -229,21 +229,15 @@ export function MobileNav({
           <div className="px-4 pt-12 pb-8">
             {links.length > 0 ? (
               <ul className="mb-4 space-y-0.5 border-border/60 border-b pb-4">
-                {links.map((link, li) => {
-                  const isDropdown = link.items && link.items.length > 0;
-                  const hasActiveChild = isDropdown && link.items!.some((c) => c.active);
+                {links.map((link) => {
+                  const isDropdown = Boolean(link.items && link.items.length > 0);
 
                   if (isDropdown) {
-                    return (
-                      <MobileDropdownLink
-                        key={`${link.label}-${li}`}
-                        link={link}
-                      />
-                    );
+                    return <MobileDropdownLink key={link.label} link={link} />;
                   }
 
                   return (
-                    <li key={`${link.label}-${link.href}-${li}`}>
+                    <li key={`${link.label}-${link.href}`}>
                       <a
                         href={link.href}
                         target={link.external ? '_blank' : undefined}

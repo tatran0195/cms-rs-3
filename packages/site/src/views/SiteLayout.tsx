@@ -7,7 +7,7 @@ import React, { type ReactNode, useCallback, useEffect, useMemo, useRef, useStat
 import { DocumentationReaderLayout, DocumentationThemeProvider } from '../components/documentation-theme-provider';
 import { LanguageSwitcher } from '../components/language-switcher';
 import { MadeWithBadge } from '../components/made-with-badge';
-import { MobileNav } from '../components/mobile-nav';
+import { MobileNav, type MobileNavLink } from '../components/mobile-nav';
 import { type SiteLanguageAlternate, SitePageAlternatesContext } from '../components/page-alternates-context';
 import { hasIcon, PageIcon } from '../components/page-icon';
 import { SiteBanner } from '../components/site-banner';
@@ -333,7 +333,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
     return prefix !== '' && (effectiveCurrentPath === prefix || effectiveCurrentPath.startsWith(`${prefix}/`));
   };
 
-  const headerLinks = [
+  const headerLinks: MobileNavLink[] = [
     ...(config?.navbar?.changelog === true
       ? [
           {
@@ -344,23 +344,31 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
             }),
             active: isChangelog,
             external: false,
+            items: undefined,
           },
         ]
       : []),
-    ...navLinks.map((link: { label: string; href?: string; external?: boolean; items?: Array<{ label: string; href: string; external?: boolean; icon?: string; description?: string }> }) => ({
-      label: link.label,
-      href: link.href ? resolveNavHref(link.href) : undefined,
-      active: link.href && !link.external ? isNavActive(link.href) : false,
-      external: Boolean(link.external),
-      items: (link.items ?? []).map((child) => ({
-        label: child.label,
-        href: resolveNavHref(child.href),
-        external: Boolean(child.external),
-        icon: child.icon,
-        description: child.description,
-        active: !child.external && isNavActive(child.href),
-      })),
-    })),
+    ...navLinks.map(
+      (link: {
+        label: string;
+        href?: string;
+        external?: boolean;
+        items?: Array<{ label: string; href: string; external?: boolean; icon?: string; description?: string }>;
+      }) => ({
+        label: link.label,
+        href: link.href ? resolveNavHref(link.href) : undefined,
+        active: Boolean(link.href && !link.external && isNavActive(link.href)),
+        external: Boolean(link.external),
+        items: (link.items ?? []).map((child) => ({
+          label: child.label,
+          href: resolveNavHref(child.href),
+          external: Boolean(child.external),
+          icon: child.icon,
+          description: child.description,
+          active: !child.external && isNavActive(child.href),
+        })),
+      }),
+    ),
   ];
 
   const brandNode = (
@@ -480,7 +488,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       <nav className="hidden shrink-0 items-center gap-5 text-sm lg:flex" aria-label={t('docs')}>
         {headerLinks.map((link) =>
           link.items && link.items.length > 0 ? (
-            <NavLinkDropdown key={`${link.label}-${link.href ?? 'group'}`} link={link} />
+            <NavLinkDropdown key={`${link.label}-${link.href ?? 'group'}`} link={link as NavLinkDropdownProps['link']} />
           ) : (
             <a
               key={`${link.label}-${link.href}`}
@@ -767,9 +775,7 @@ function NavLinkDropdown({ link }: NavLinkDropdownProps) {
         ) : (
           link.label
         )}
-        <ChevronDown
-          className={cn('size-3 transition-transform duration-200 text-muted-foreground', open && 'rotate-180')}
-        />
+        <ChevronDown className={cn('size-3 transition-transform duration-200 text-muted-foreground', open && 'rotate-180')} />
       </button>
 
       {/* Dropdown panel */}
@@ -803,9 +809,7 @@ function NavLinkDropdown({ link }: NavLinkDropdownProps) {
               )}
               <span className="min-w-0 flex-1">
                 <span className="block font-medium text-foreground leading-tight">{item.label}</span>
-                {item.description && (
-                  <span className="block mt-0.5 text-xs text-muted-foreground leading-snug">{item.description}</span>
-                )}
+                {item.description && <span className="block mt-0.5 text-xs text-muted-foreground leading-snug">{item.description}</span>}
               </span>
               {item.external && <ExternalLink className="mt-0.5 size-3 shrink-0 opacity-50" />}
             </a>
