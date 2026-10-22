@@ -12,7 +12,7 @@ import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
 import { usePages, useReorderPages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
 import type { NavAnchor, NavLink, NavTabItem } from '@cms/validators';
-import { ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, X } from 'lucide-react';
+import { ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AnchorSettingsDialog } from './anchor-settings-dialog';
 import { LinkSettingsDialog } from './link-settings-dialog';
@@ -42,6 +42,7 @@ export interface EditorSidebarPanelProps {
   onAddLanguage?: () => void;
   onLanguageSettings?: (lang: Language) => void;
   onManageNavbar?: () => void;
+  onOpenSiteConfig?: () => void;
   isCreatingPage?: boolean;
 }
 
@@ -65,6 +66,7 @@ export function EditorSidebarPanel({
   onOpenPageSettings,
   onAddLanguage = noop,
   onLanguageSettings = noop,
+  onOpenSiteConfig,
   isCreatingPage = false,
 }: EditorSidebarPanelProps) {
   const t = useT();
@@ -556,6 +558,105 @@ export function EditorSidebarPanel({
             }
           />
         )}
+      </div>
+
+      {/* Pinned footer actions matching Mintlify */}
+      <div className="mt-auto shrink-0 border-border border-t p-2 flex flex-col gap-1.5 bg-sidebar/50">
+        {onOpenSiteConfig && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 text-xs font-normal h-8"
+            onClick={onOpenSiteConfig}
+            aria-label="Site configuration"
+          >
+            <SlidersHorizontal className="size-3.5" />
+            <span>Site configuration</span>
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button size="sm" className="w-full justify-center gap-1.5 text-xs font-medium h-8" aria-label="New page">
+                <Plus className="size-3.5" />
+                <span>New page</span>
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-52" side="top">
+            <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
+              Content
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => {
+                if (currentLangId) {
+                  if (targetTab) {
+                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
+                    onAddPage(null, currentLangId, cleanHref ? `${cleanHref}/untitled` : undefined);
+                  } else {
+                    onAddPage(null, currentLangId);
+                  }
+                }
+              }}
+              className="cursor-pointer flex items-center gap-2 text-xs"
+            >
+              <FileText className="size-3.5 text-muted-foreground" />
+              <span>New page</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                if (currentLangId) {
+                  if (targetTab) {
+                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
+                    onAddGroup(currentLangId, cleanHref ? `${cleanHref}-new-group` : undefined);
+                  } else {
+                    onAddGroup(currentLangId);
+                  }
+                }
+              }}
+              className="cursor-pointer flex items-center gap-2 text-xs"
+            >
+              <FolderPlus className="size-3.5 text-muted-foreground" />
+              <span>New group</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
+              Site Navigation
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => {
+                setEditingTab(null);
+                setTabDialogOpen(true);
+              }}
+              className="cursor-pointer flex items-center gap-2 text-xs"
+            >
+              <Layers className="size-3.5 text-muted-foreground" />
+              <span>New tab</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setEditingAnchor(null);
+                setAnchorDialogOpen(true);
+              }}
+              className="cursor-pointer flex items-center gap-2 text-xs"
+            >
+              <Pin className="size-3.5 text-muted-foreground" />
+              <span>New anchor</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                setEditingLink(null);
+                setLinkDialogOpen(true);
+              }}
+              className="cursor-pointer flex items-center gap-2 text-xs"
+            >
+              <ExternalLink className="size-3.5 text-muted-foreground" />
+              <span>New navbar link</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Dialogs */}

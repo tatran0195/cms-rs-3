@@ -129,4 +129,39 @@ describe('EditorSidebarPanel', () => {
     const addBtn = container.querySelector('[aria-label="Add content or navigation"]');
     expect(addBtn).not.toBeNull();
   });
+
+  it('renders pinned footer actions for site configuration and new page', async () => {
+    const onOpenSiteConfig = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <EditorSidebarPanel
+          projectId="proj-1"
+          activeBranchId="b-main"
+          selectedId="p1"
+          languages={mockLanguages}
+          languagesPending={false}
+          activeLanguageId="en"
+          onSelectLanguage={vi.fn()}
+          onSelectPage={vi.fn()}
+          onAddPage={vi.fn()}
+          onAddGroup={vi.fn()}
+          onOpenPageSettings={vi.fn()}
+          onOpenSiteConfig={onOpenSiteConfig}
+        />,
+      );
+    });
+
+    const configBtn = container.querySelector('button[aria-label="Site configuration"]');
+    expect(configBtn).not.toBeNull();
+    configBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onOpenSiteConfig).toHaveBeenCalledTimes(1);
+
+    const newPageBtn = container.querySelector('button[aria-label="New page"]');
+    expect(newPageBtn).not.toBeNull();
+  });
 });

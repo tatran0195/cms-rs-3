@@ -672,6 +672,11 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                   setView('config');
                   setConfigSection('navbar');
                 }}
+                onOpenSiteConfig={() => {
+                  setView('config');
+                  setSidebarCollapsed(false);
+                  setMobileSidebarOpen(true);
+                }}
                 isCreatingPage={createPage.isPending}
               />
             )}
