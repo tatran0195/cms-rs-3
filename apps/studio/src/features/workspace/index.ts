@@ -7,4 +7,5 @@ export { ProjectSidebar } from './components/ProjectSidebar';
 export { SidebarAccountFooter } from './components/SidebarAccountFooter';
 export { SiteSwitcher } from './components/SiteSwitcher';
 export { SupportAccessBanner } from './components/SupportAccessBanner';
+export { WorkspaceMenu } from './components/WorkspaceMenu';
 export { WorkspaceMembersPage } from './WorkspaceMembersPage';

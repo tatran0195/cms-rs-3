@@ -40,6 +40,7 @@ vi.mock('@/features/auth', () => ({
 
 vi.mock('@cms/sdk/react', () => ({
   useProjects: () => ({ data: [{ id: 'test-project', name: 'Test Project', slug: 'test-project' }] }),
+  useWorkspaceSettings: () => ({ data: { name: 'Acme Workspace' } }),
 }));
 
 vi.mock('@cms/design-system/theme', () => ({

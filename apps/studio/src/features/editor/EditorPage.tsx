@@ -61,6 +61,7 @@ import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/featur
 import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
 import { PublishControl, useChangeDetectionWorker } from '@/features/publishing';
+import { WorkspaceMenu } from '@/features/workspace';
 import { typographyVars } from '@/shared/lib/typography';
 import { type EditorSyncStatus, editorStore } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';
@@ -568,11 +569,13 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
         inert={navigationHidden}
       >
         {!navigationCollapsed ? <SidebarResizer onResize={setSidebarWidth} /> : null}
-        {/* Sidebar header: section label + the collapse control (lives ON the sidebar). */}
-        <div className="flex h-12 shrink-0 items-center justify-between border-border border-b ps-3 pe-1.5">
-          <span className="font-semibold text-xs tracking-tight text-foreground/90">
-            {view === 'config' ? t('editor.config.heading') : 'Navigation'}
-          </span>
+        {/* Sidebar header: Workspace trigger matching Mintlify + the collapse control. */}
+        <div className="flex h-12 shrink-0 items-center justify-between border-border border-b ps-2.5 pe-1.5">
+          {view === 'config' ? (
+            <span className="font-semibold text-xs tracking-tight text-foreground/90">{t('editor.config.heading')}</span>
+          ) : (
+            <WorkspaceMenu projectId={projectId} side="bottom" align="start" />
+          )}
           <Button
             size="icon-xs"
             variant="ghost"

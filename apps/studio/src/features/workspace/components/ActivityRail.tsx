@@ -14,13 +14,13 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useTheme } from '@cms/design-system/theme';
 import { INTERFACE_LOCALES } from '@cms/i18n';
 import { useLocale } from '@cms/i18n/react';
-import { useProjects } from '@cms/sdk/react';
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BarChart3, Check, Languages, LayoutDashboard, LogOut, Moon, PenLine, Plus, Rocket, Search, Settings, Sun } from 'lucide-react';
+import { BarChart3, Languages, LayoutDashboard, LogOut, Moon, PenLine, Rocket, Search, Settings, Sun } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { useSession, useSignOut } from '@/features/auth';
 import { InterfaceLanguageDialog } from '@/shared';
 import { NotificationsPopover } from './NotificationsPopover';
+import { WorkspaceMenu } from './WorkspaceMenu';
 
 const subscribeToHydration = () => () => undefined;
 
@@ -35,7 +35,6 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
   const rawPath = useRouterState({ select: (s) => s.location.pathname });
   const pathname = typeof rawPath === 'string' ? rawPath : '';
   const { data: session } = useSession();
-  const { data: projects } = useProjects();
   const signOutMutation = useSignOut();
   const { setTheme, resolvedTheme } = useTheme();
   const navigate = useNavigate();
@@ -67,54 +66,24 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
         className="flex h-screen w-12 shrink-0 flex-col items-center justify-between border-border border-e bg-sidebar/95 py-3 select-none z-30"
         aria-label="Activity Rail"
       >
-        {/* Top: Brand Logo & Navigation */}
+        {/* Top: Brand Logo & Workspace Menu (Mintlify style) */}
         <div className="flex flex-col items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={t('nav.overview')}
-            >
-              <svg className="size-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z" />
-              </svg>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="w-60">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
-                {t('project.allSites')}
-              </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigate({ to: '/app' })} className="gap-2 text-xs cursor-pointer">
-                <LayoutDashboard className="size-4" />
-                <span className="flex-1 font-medium">{t('nav.overview')}</span>
-                {!projectId ? <Check className="size-3.5 text-primary" /> : null}
-              </DropdownMenuItem>
-              {(projects ?? []).length > 0 ? <DropdownMenuSeparator /> : null}
-              <div className="max-h-56 overflow-y-auto">
-                {(projects ?? []).slice(0, 15).map((site) => (
-                  <DropdownMenuItem
-                    key={site.id}
-                    onClick={() =>
-                      navigate({
-                        to: '/app/projects/$projectId',
-                        params: { projectId: site.id },
-                      })
-                    }
-                    className="gap-2 text-xs cursor-pointer"
-                  >
-                    <span className="truncate flex-1">{site.name}</span>
-                    {site.id === projectId ? <Check className="size-3.5 text-primary" /> : null}
-                  </DropdownMenuItem>
-                ))}
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => navigate({ to: '/app', search: { newSite: true } })}
-                className="gap-2 text-xs cursor-pointer text-primary"
+          <WorkspaceMenu
+            projectId={projectId}
+            side="right"
+            align="start"
+            trigger={
+              <button
+                type="button"
+                className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={t('nav.workspace') || 'Workspace'}
               >
-                <Plus className="size-4" />
-                <span>{t('dashboard.newProject')}</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <svg className="size-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z" />
+                </svg>
+              </button>
+            }
+          />
 
           <Separator className="w-5 opacity-50" />
 

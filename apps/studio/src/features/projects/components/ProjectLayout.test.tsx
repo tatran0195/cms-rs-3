@@ -28,6 +28,7 @@ vi.mock('@cms/i18n/react', () => ({
 vi.mock('@cms/sdk/react', () => ({
   useProject: () => ({ data: { id: 'test-project', name: 'Test Docs' } }),
   useProjects: () => ({ data: [{ id: 'test-project', name: 'Test Docs' }] }),
+  useWorkspaceSettings: () => ({ data: { name: 'Acme Workspace' } }),
   useSession: () => ({ data: { user: { name: 'Test User' } } }),
   useUnreadNotificationCount: () => ({ data: 0 }),
   useNotifications: () => ({ data: [], isLoading: false }),
