@@ -179,6 +179,15 @@ describe('ThemeSection with Fumadocs Story & Props Table', () => {
   });
 
   it('switches baseline preset and updates preview', async () => {
+    // Standalone gallery card is purged
+    expect(container.textContent).not.toContain('settings.theme.gallery');
+
+    // Preset lives inside palette drill-down
+    const paletteRow = container.querySelector<HTMLButtonElement>('button[data-prop-id="palette"]');
+    if (!paletteRow) throw new Error('missing palette prop button');
+
+    await act(async () => paletteRow.click());
+
     const signalBtn = container.querySelector<HTMLButtonElement>('button[data-preset-id="signal"]');
     if (!signalBtn) throw new Error('missing signal preset button');
 

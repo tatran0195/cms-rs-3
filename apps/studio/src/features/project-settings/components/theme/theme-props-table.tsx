@@ -81,7 +81,7 @@ export function ThemePropsTable({
     onThemeConfigChange((prev) => ({
       ...prev,
       layout: {
-        ...(prev.layout ?? {}),
+        ...prev.layout,
         [key]: value,
       },
     }));
@@ -94,7 +94,7 @@ export function ThemePropsTable({
     onThemeConfigChange((prev) => ({
       ...prev,
       components: {
-        ...(prev.components ?? {}),
+        ...prev.components,
         [key]: value,
       },
     }));
