@@ -15,15 +15,29 @@ vi.mock('@cms/i18n/react', () => ({
   },
 }));
 
+const mockPages: PageNode[] = [
+  { id: 'p1', title: 'Docs Intro', slug: 'intro', path: '/docs/intro', kind: 'PAGE', parentId: null, position: 0 },
+  { id: 'p2', title: 'API Auth', slug: 'auth', path: '/api/auth', kind: 'PAGE', parentId: null, position: 1 },
+  { id: 'p3', title: 'Other Page', slug: 'other', path: '/other', kind: 'PAGE', parentId: null, position: 2 },
+];
+
 vi.mock('@cms/sdk/react', () => ({
   usePages: () => ({
-    data: [{ id: 'p1', title: 'Home', slug: 'home', path: '/home', kind: 'PAGE', parentId: null, position: 0 }] as PageNode[],
+    data: mockPages,
     isPending: false,
     isPlaceholderData: false,
     isFetching: false,
   }),
   useReorderPages: () => ({
     mutate: vi.fn(),
+  }),
+  useUpdateLanguage: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useUpdateProjectConfig: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
   }),
 }));
 
@@ -38,10 +52,30 @@ afterEach(async () => {
   document.body.replaceChildren();
 });
 
-const mockLanguages: Language[] = [{ id: 'en', code: 'en', label: 'English', isDefault: true, direction: 'LTR', position: 0 } as Language];
+const mockLanguages: Language[] = [
+  {
+    id: 'en',
+    code: 'en',
+    label: 'English',
+    isDefault: true,
+    direction: 'LTR',
+    position: 0,
+    config: {
+      navbar: {
+        tabs: [
+          { label: 'Documentation', href: '/docs' },
+          { label: 'API Reference', href: '/api' },
+        ],
+        anchors: [
+          { label: 'Community Forum', href: 'https://community.example.com' },
+        ],
+      },
+    },
+  } as unknown as Language,
+];
 
 describe('EditorSidebarPanel', () => {
-  it('renders pages tree when pages are loaded', async () => {
+  it('renders root tab sections grouping pages by path prefix', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -61,11 +95,40 @@ describe('EditorSidebarPanel', () => {
           onAddPage={vi.fn()}
           onAddGroup={vi.fn()}
           onOpenPageSettings={vi.fn()}
-          onManageNavbar={vi.fn()}
         />,
       );
     });
 
-    expect(container.querySelector('[data-page-id="p1"]')).not.toBeNull();
+    expect(container.textContent).toContain('Documentation');
+    expect(container.textContent).toContain('API Reference');
+    expect(container.textContent).toContain('Community Forum');
+  });
+
+  it('renders unified creation button', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <EditorSidebarPanel
+          projectId="proj-1"
+          activeBranchId="b-main"
+          selectedId="p1"
+          languages={mockLanguages}
+          languagesPending={false}
+          activeLanguageId="en"
+          onSelectLanguage={vi.fn()}
+          onSelectPage={vi.fn()}
+          onAddPage={vi.fn()}
+          onAddGroup={vi.fn()}
+          onOpenPageSettings={vi.fn()}
+        />,
+      );
+    });
+
+    const addBtn = container.querySelector('[aria-label="Add content or navigation"]');
+    expect(addBtn).not.toBeNull();
   });
 });

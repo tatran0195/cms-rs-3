@@ -17,8 +17,8 @@ export interface LocaleSelectorProps {
   onSelect: (languageId: string) => void;
   onAddLanguage: () => void;
   onLanguageSettings: (language: Language) => void;
-  onAddPage: (languageId: string) => void;
-  onAddGroup: (languageId: string) => void;
+  onAddPage?: (languageId: string) => void;
+  onAddGroup?: (languageId: string) => void;
   disabled?: boolean;
 }
 
@@ -88,30 +88,36 @@ export function LocaleSelector({
       </DropdownMenu>
 
       {/* Quick actions for active language */}
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          className="cursor-pointer"
-          onClick={() => onAddGroup(activeLang.id)}
-          aria-label={t('editor.newGroup')}
-          title={t('editor.newGroup')}
-          disabled={disabled}
-        >
-          <FolderPlus className="size-3" />
-        </Button>
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          className="cursor-pointer"
-          onClick={() => onAddPage(activeLang.id)}
-          aria-label={t('editor.newPage')}
-          title={t('editor.newPage')}
-          disabled={disabled}
-        >
-          <Plus className="size-3" />
-        </Button>
-      </div>
+      {(onAddGroup || onAddPage) && (
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onAddGroup && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="cursor-pointer"
+              onClick={() => onAddGroup(activeLang.id)}
+              aria-label={t('editor.newGroup')}
+              title={t('editor.newGroup')}
+              disabled={disabled}
+            >
+              <FolderPlus className="size-3" />
+            </Button>
+          )}
+          {onAddPage && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              className="cursor-pointer"
+              onClick={() => onAddPage(activeLang.id)}
+              aria-label={t('editor.newPage')}
+              title={t('editor.newPage')}
+              disabled={disabled}
+            >
+              <Plus className="size-3" />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
