@@ -390,6 +390,25 @@ export interface PendingChangesResponse {
   redirectIssues?: RedirectIssue[];
 }
 
+export interface BaselinePageItem {
+  id: string;
+  title: string;
+  path: string;
+  slug: string;
+  content: string;
+  isPublished: boolean;
+  languageCode: string;
+  kind: 'PAGE' | 'GROUP';
+}
+
+export interface DeploymentBaselineResponse {
+  hasBaseline: boolean;
+  deploymentId: string | null;
+  version: number | null;
+  pages: BaselinePageItem[];
+}
+
+
 export interface ReaderAccessData {
   accessMode: 'PUBLIC' | 'WORKSPACE' | 'READERS';
   readers: Array<{

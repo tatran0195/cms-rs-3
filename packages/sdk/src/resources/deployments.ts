@@ -1,5 +1,13 @@
 import type { HttpClient } from '../http';
-import type { CreateDeploymentRequest, DeploymentChangesResponse, DeploymentId, DeploymentListItem, DeploymentResponse, ProjectId } from '../types';
+import type {
+  CreateDeploymentRequest,
+  DeploymentBaselineResponse,
+  DeploymentChangesResponse,
+  DeploymentId,
+  DeploymentListItem,
+  DeploymentResponse,
+  ProjectId,
+} from '../types';
 
 export class DeploymentsResource {
   constructor(private readonly http: HttpClient) {}
@@ -16,6 +24,13 @@ export class DeploymentsResource {
    */
   async get(projectId: ProjectId, deploymentId: DeploymentId): Promise<DeploymentResponse> {
     return this.http.get<DeploymentResponse>(`/api/projects/${projectId}/deployments/${deploymentId}`);
+  }
+
+  /**
+   * Get baseline deployment snapshot pages for client diffing
+   */
+  async getBaseline(projectId: ProjectId): Promise<DeploymentBaselineResponse> {
+    return this.http.get<DeploymentBaselineResponse>(`/api/app/projects/${projectId}/deployments/baseline`);
   }
 
   /**

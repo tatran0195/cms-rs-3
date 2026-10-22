@@ -1,5 +1,6 @@
 export { useProjectAnalytics, useWorkspaceAnalytics } from './hooks/analytics';
 export {
+  useBaselineSnapshot,
   useDeployments,
   usePendingChanges,
 } from './hooks/deployments';

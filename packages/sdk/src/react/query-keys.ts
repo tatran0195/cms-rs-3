@@ -23,6 +23,7 @@ export const queryKeys = {
   deployments: {
     all: (projectId: string) => ['deployments', projectId] as const,
     latest: (projectId: string) => ['deployments', projectId, 'latest'] as const,
+    baseline: (projectId: string) => ['deployments', projectId, 'baseline'] as const,
     changes: (projectId: string) => ['deployments', projectId, 'changes'] as const,
     detail: (projectId: string, id: string) => ['deployments', projectId, id] as const,
     diff: (projectId: string, id: string) => ['deployments', projectId, id, 'diff'] as const,
