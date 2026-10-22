@@ -32,13 +32,11 @@ import {
   PanelRight,
   Pencil,
   Plus,
-  Search,
   Settings2,
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
   Type as TypeIcon,
-  X,
 } from 'lucide-react';
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -47,13 +45,12 @@ import { BranchSwitcher } from '@/features/editor/components/branch-switcher';
 import { CommentsPanel } from '@/features/editor/components/comments-panel';
 import { isDirty, nextHydration, type ServerSnapshot, shouldAutosave } from '@/features/editor/components/editor-draft';
 import { resolveEditorLayout } from '@/features/editor/components/editor-layout';
+import { EditorSidebarPanel } from '@/features/editor/components/editor-sidebar-panel';
 import { LanguageSettingsDialog } from '@/features/editor/components/language-settings-dialog';
-import { LocaleSelector } from '@/features/editor/components/locale-selector';
 import { MarkdownSourceEditor } from '@/features/editor/components/markdown-source-editor';
 import { PageSettingsDialog } from '@/features/editor/components/page-settings-dialog';
 import { SaveStatusIndicator } from '@/features/editor/components/save-status-indicator';
 import { ConfigSection, type ConfigSectionId, ConfigSectionList } from '@/features/editor/components/site-config-panel';
-import { SortablePageTree } from '@/features/editor/components/sortable-page-tree';
 import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
 import { PublishControl } from '@/features/publishing';
@@ -107,12 +104,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const currentLangId = activeLanguageId ?? defaultLanguageId;
 
   // ─── Data: pages scoped to the active language & branch ─────────────────────
-  const { data: allPages, isPending: pagesPending } = usePages(
-    languagesPending ? undefined : projectId,
-    currentLangId ?? undefined,
-    activeBranchId ?? undefined,
-  );
-  const isPending = languagesPending || pagesPending;
+  const { data: allPages } = usePages(projectId, currentLangId ?? undefined, activeBranchId ?? undefined);
   const createPage = useCreatePage(projectId);
   const deletePage = useDeletePage(projectId);
   const updatePage = useUpdatePage(projectId);
@@ -129,39 +121,6 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       return null;
     }
   };
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredPages = useMemo(() => {
-    const pages = allPages ?? [];
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) {
-      return pages;
-    }
-    const matchedIds = new Set<string>();
-    const parentLookup = new Map<string, string | null>();
-    for (const p of pages) {
-      parentLookup.set(p.id, p.parentId);
-      const titleMatch = p.title.toLowerCase().includes(q);
-      const slugMatch = p.slug.toLowerCase().includes(q);
-      const pathMatch = p.path.toLowerCase().includes(q);
-      const sidebarTitleMatch = p.config?.sidebarTitle?.toLowerCase().includes(q) ?? false;
-      if (titleMatch || slugMatch || pathMatch || sidebarTitleMatch) {
-        matchedIds.add(p.id);
-      }
-    }
-
-    // Ensure all ancestor groups of matched items are also preserved
-    for (const id of Array.from(matchedIds)) {
-      let curr = parentLookup.get(id);
-      while (curr) {
-        matchedIds.add(curr);
-        curr = parentLookup.get(curr);
-      }
-    }
-
-    return pages.filter((p) => matchedIds.has(p.id));
-  }, [allPages, searchQuery]);
 
   const [selectedId, setSelectedId] = useState<string | null>(pageParam ?? null);
   // Follow ?page= deep links even when the editor is already mounted (e.g. a
@@ -382,7 +341,6 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const addPage = (parentId: string | null, languageId: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
-    setSearchQuery('');
     createPage.mutate(
       // Localized placeholder title with a pinned 'untitled' slug: the server treats
       // that slug as a placeholder to swap for the real title's slug on first rename,
@@ -406,7 +364,6 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const insertPage = (targetNode: PageNode, position: 'before' | 'after', targetParentId: string | null, languageId: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
-    setSearchQuery('');
 
     const siblings = (allPages ?? [])
       .filter((p) => (p.parentId ?? null) === (targetParentId ?? null) && (p.languageId ?? defaultLanguageId) === languageId)
@@ -458,7 +415,6 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const addGroup = (languageId: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
-    setSearchQuery('');
     createPage.mutate(
       // The display title is localized, but the slug is pinned: deriving it from
       // a non-Latin title would strip to a broken 'page' slug.
@@ -668,49 +624,6 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
             </Button>
           </div>
 
-          {/* Active Locale Selector dropdown — collects languages to avoid vertical overflow */}
-          {view === 'content' && orderedLanguages.length > 0 && (
-            <LocaleSelector
-              languages={orderedLanguages}
-              activeLanguageId={currentLangId}
-              onSelect={(id) => {
-                setActiveLanguageId(id);
-                setSelectedId(null);
-              }}
-              onAddLanguage={() => setAddLangOpen(true)}
-              onLanguageSettings={(lang) => setLangSettings(lang)}
-              onAddPage={(langId) => addPage(null, langId)}
-              onAddGroup={(langId) => addGroup(langId)}
-              disabled={createPage.isPending}
-            />
-          )}
-
-          {/* Quick filter input for large documentation trees (100+ to 1,000+ docs) */}
-          {view === 'content' && (allPages?.length ?? 0) > 0 ? (
-            <div className="border-border border-b px-2 py-1.5">
-              <div className="relative flex items-center">
-                <Search className="pointer-events-none absolute start-2 size-3.5 text-muted-foreground/60" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter pages..."
-                  className="h-7 w-full rounded-md border border-input bg-background/50 ps-7 pe-6 text-xs placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                {searchQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute end-1.5 flex size-4 items-center justify-center text-muted-foreground hover:text-foreground"
-                    aria-label="Clear filter"
-                  >
-                    <X className="size-3" />
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
           <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
             {view === 'config' ? (
               <div className="overflow-y-auto px-2 py-2">
@@ -722,48 +635,36 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                   }}
                 />
               </div>
-            ) : isPending ? (
-              <p className="px-3 py-3 text-muted-foreground text-sm">{t('common.loading')}</p>
             ) : (
-              (() => {
-                const activeLangObj = orderedLanguages.find((l) => l.id === currentLangId);
-                const dir = activeLangObj?.direction === 'RTL' ? 'rtl' : 'ltr';
-
-                return (
-                  <div className="flex-1 min-h-0 flex flex-col" dir={dir}>
-                    {filteredPages.length === 0 ? (
-                      <div className="p-4 text-center">
-                        <p className="text-xs text-muted-foreground/70">{t('editor.noPagesYet')}</p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 cursor-pointer text-xs"
-                          onClick={() => currentLangId && addPage(null, currentLangId)}
-                        >
-                          <Plus className="size-3 mr-1" /> {t('editor.newPage')}
-                        </Button>
-                      </div>
-                    ) : (
-                      <SortablePageTree
-                        key={currentLangId ?? 'default'}
-                        pages={filteredPages}
-                        activeId={activeTreeId}
-                        treeKey={currentLangId ?? 'default'}
-                        onSelect={(id) => {
-                          setSelectedId(id);
-                          setMobileSidebarOpen(false);
-                          setFocusedTreeOpen(false);
-                        }}
-                        onAddChild={(parentId) => currentLangId && addPage(parentId, currentLangId)}
-                        onSettings={(id) => setSettingsForId(id)}
-                        onMove={(items) => reorderPages.mutate({ items })}
-                        onInsertAfter={(node, parentId) => currentLangId && insertPage(node, 'after', parentId, currentLangId)}
-                        onInsertBefore={(node, parentId) => currentLangId && insertPage(node, 'before', parentId, currentLangId)}
-                      />
-                    )}
-                  </div>
-                );
-              })()
+              <EditorSidebarPanel
+                projectId={projectId}
+                activeBranchId={activeBranchId}
+                selectedId={activeTreeId}
+                languages={orderedLanguages}
+                languagesPending={languagesPending}
+                activeLanguageId={currentLangId}
+                projectNavbar={project?.config?.navbar}
+                onSelectLanguage={(id) => {
+                  setActiveLanguageId(id);
+                  setSelectedId(null);
+                }}
+                onSelectPage={(id) => {
+                  setSelectedId(id);
+                  setMobileSidebarOpen(false);
+                  setFocusedTreeOpen(false);
+                }}
+                onAddPage={(parentId, langId) => addPage(parentId, langId)}
+                onInsertPage={(node, pos, relId, langId) => insertPage(node, pos, relId, langId)}
+                onAddGroup={(langId) => addGroup(langId)}
+                onOpenPageSettings={(id) => setSettingsForId(id)}
+                onAddLanguage={() => setAddLangOpen(true)}
+                onLanguageSettings={(lang) => setLangSettings(lang)}
+                onManageNavbar={() => {
+                  setView('config');
+                  setConfigSection('navbar');
+                }}
+                isCreatingPage={createPage.isPending}
+              />
             )}
           </div>
           <AddLanguageDialog projectId={projectId} open={addLangOpen} onOpenChange={setAddLangOpen} onCreated={() => setAddLangOpen(false)} />
