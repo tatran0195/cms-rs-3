@@ -12,7 +12,7 @@ import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
 import { usePages, useReorderPages } from '@cms/sdk/react';
 import type { NavAnchor, NavLink, NavTabItem } from '@cms/validators';
-import { ChevronDown, ChevronRight, ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, X } from 'lucide-react';
+import { ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AnchorSettingsDialog } from './anchor-settings-dialog';
 import { LinkSettingsDialog } from './link-settings-dialog';
@@ -69,7 +69,6 @@ export function EditorSidebarPanel({
 }: EditorSidebarPanelProps) {
   const t = useT();
   const [searchQuery, setSearchQuery] = useState('');
-  const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>({});
 
   // Dialog states
   const [tabDialogOpen, setTabDialogOpen] = useState(false);
@@ -142,21 +141,28 @@ export function EditorSidebarPanel({
     return pages.filter((p) => matchedIds.has(p.id));
   }, [allPages, searchQuery]);
 
-  // Partition pages into tabs based on base path prefix
-  const { tabGroups, unassignedPages } = useMemo(() => {
-    const pages = filteredPages;
+  // Construct unified tree nodes: if tabs exist, map tabs as root sections in single virtualized tree
+  const displayPages = useMemo(() => {
     if (currentNavbarTabs.length === 0) {
-      return { tabGroups: [], unassignedPages: pages };
+      return filteredPages;
     }
 
     const assignedIds = new Set<string>();
-    const groups = currentNavbarTabs.map((tab) => {
-      const rawHref = (tab.href ?? '').replace(/^\/+|\/+$/g, '').toLowerCase();
-      const matchedIds = new Set<string>();
-      const parentLookup = new Map<string, string | null>();
+    const treeNodes: PageNode[] = [];
 
-      for (const p of pages) {
-        parentLookup.set(p.id, p.parentId);
+    // Pre-index pages by parent
+    const parentLookup = new Map<string, string | null>();
+    for (const p of filteredPages) {
+      parentLookup.set(p.id, p.parentId);
+    }
+
+    // 1. Create top-level root nodes for each tab
+    currentNavbarTabs.forEach((tab, index) => {
+      const tabId = `__tab__${tab.label}`;
+      const rawHref = (tab.href ?? '').replace(/^\/+|\/+$/g, '').toLowerCase();
+
+      const matchedIds = new Set<string>();
+      for (const p of filteredPages) {
         const cleanP = p.path.replace(/^\/+|\/+$/g, '').toLowerCase();
         const cleanS = p.slug.toLowerCase();
         if (rawHref && (cleanP === rawHref || cleanP.startsWith(`${rawHref}/`) || cleanS === rawHref)) {
@@ -164,6 +170,7 @@ export function EditorSidebarPanel({
         }
       }
 
+      // Preserve ancestor groups
       for (const id of Array.from(matchedIds)) {
         let curr = parentLookup.get(id);
         while (curr) {
@@ -176,17 +183,62 @@ export function EditorSidebarPanel({
         assignedIds.add(id);
       }
 
-      const tabPages = pages.filter((p) => matchedIds.has(p.id));
-      return { tab, pages: tabPages };
+      // Add the tab root node
+      treeNodes.push({
+        id: tabId,
+        parentId: null,
+        languageId: currentLangId ?? '',
+        kind: 'GROUP',
+        title: tab.label,
+        slug: tab.href ?? '',
+        path: tab.href ?? '',
+        icon: 'Layers',
+        description: null,
+        position: -1000 + index * 10,
+        hidden: false,
+        updatedAt: '',
+      });
+
+      // Add the tab's pages, re-pointing root pages to tabId
+      for (const p of filteredPages) {
+        if (matchedIds.has(p.id)) {
+          treeNodes.push({
+            ...p,
+            parentId: p.parentId === null ? tabId : p.parentId,
+          });
+        }
+      }
     });
 
-    const unassigned = pages.filter((p) => !assignedIds.has(p.id));
-    return { tabGroups: groups, unassignedPages: unassigned };
-  }, [filteredPages, currentNavbarTabs]);
+    // 2. Unassigned pages
+    const unassigned = filteredPages.filter((p) => !assignedIds.has(p.id));
+    if (unassigned.length > 0) {
+      const unassignedTabId = '__tab__unassigned';
+      treeNodes.push({
+        id: unassignedTabId,
+        parentId: null,
+        languageId: currentLangId ?? '',
+        kind: 'GROUP',
+        title: 'Pages',
+        slug: 'pages',
+        path: '',
+        icon: 'Layers',
+        description: null,
+        position: -500,
+        hidden: false,
+        updatedAt: '',
+      });
 
-  const toggleTabCollapse = (label: string) => {
-    setCollapsedTabs((prev) => ({ ...prev, [label]: !prev[label] }));
-  };
+      for (const p of unassigned) {
+        treeNodes.push({
+          ...p,
+          parentId: p.parentId === null ? unassignedTabId : p.parentId,
+        });
+      }
+    }
+
+    return treeNodes;
+  }, [filteredPages, currentNavbarTabs, currentLangId]);
 
   const isInitialLoading = (languagesPending && languages.length === 0) || (pagesPending && !allPages);
   const isStreamingUpdate = Boolean(isPlaceholderData || (isFetching && allPages && allPages.length > 0));
@@ -341,120 +393,17 @@ export function EditorSidebarPanel({
         </div>
       )}
 
-      {/* Main tree list area */}
+      {/* Main tree list area - single scroll container with full virtualization */}
       <div
         className={cn(
-          'min-h-0 flex-1 flex flex-col overflow-y-auto',
+          'min-h-0 flex-1 flex flex-col overflow-hidden',
           isStreamingUpdate && 'opacity-70 transition-opacity duration-200 pointer-events-none',
         )}
         dir={dir}
       >
         {isInitialLoading ? (
           <PageTreeSkeleton count={8} />
-        ) : currentNavbarTabs.length > 0 ? (
-          /* Approach B: Root Tab Sections in Tree */
-          <div className="flex-1 divide-y divide-border/60">
-            {tabGroups.map(({ tab, pages: tabPages }) => {
-              const isCollapsed = collapsedTabs[tab.label] ?? false;
-              return (
-                <div key={tab.label} className="py-0.5">
-                  <div className="group flex items-center justify-between px-2.5 py-1.5 text-xs font-semibold text-foreground/90 hover:bg-muted/40 transition-colors">
-                    <button
-                      type="button"
-                      onClick={() => toggleTabCollapse(tab.label)}
-                      className="flex items-center gap-1.5 min-w-0 flex-1 truncate cursor-pointer text-start"
-                    >
-                      {isCollapsed ? (
-                        <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
-                      )}
-                      <Layers className="size-3 text-primary/80 shrink-0" />
-                      <span className="truncate uppercase tracking-wide text-[11px] font-bold">{tab.label}</span>
-                      <span className="text-[10px] text-muted-foreground font-normal">({tabPages.length})</span>
-                    </button>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="cursor-pointer size-6"
-                        onClick={() => currentLangId && onAddPage(null, currentLangId)}
-                        title={`Add page to ${tab.label}`}
-                      >
-                        <Plus className="size-3" />
-                      </Button>
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        className="cursor-pointer size-6"
-                        onClick={() => {
-                          setEditingTab(tab);
-                          setTabDialogOpen(true);
-                        }}
-                        title="Tab settings"
-                      >
-                        <MoreHorizontal className="size-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {!isCollapsed && (
-                    <div className="ps-2">
-                      {tabPages.length === 0 ? (
-                        <p className="px-6 py-2 text-[11px] text-muted-foreground/60 italic">No pages in this tab</p>
-                      ) : (
-                        <SortablePageTree
-                          key={`${tab.label}-${currentLangId ?? 'default'}`}
-                          pages={tabPages}
-                          activeId={selectedId}
-                          treeKey={`${tab.label}-${currentLangId ?? 'default'}`}
-                          onSelect={onSelectPage}
-                          onAddChild={(parentId) => currentLangId && onAddPage(parentId, currentLangId)}
-                          onSettings={onOpenPageSettings}
-                          onMove={(items) => reorderPages.mutate({ items })}
-                          onInsertAfter={
-                            onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId) : undefined
-                          }
-                          onInsertBefore={
-                            onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId) : undefined
-                          }
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Unassigned root pages, if any exist */}
-            {unassignedPages.length > 0 && (
-              <div className="py-0.5">
-                <div className="flex items-center px-2.5 py-1.5 text-xs font-semibold text-muted-foreground">
-                  <span className="uppercase tracking-wide text-[11px]">{t('editor.pages')}</span>
-                  <span className="ms-1 text-[10px] font-normal">({unassignedPages.length})</span>
-                </div>
-                <div className="ps-2">
-                  <SortablePageTree
-                    key={`unassigned-${currentLangId ?? 'default'}`}
-                    pages={unassignedPages}
-                    activeId={selectedId}
-                    treeKey={`unassigned-${currentLangId ?? 'default'}`}
-                    onSelect={onSelectPage}
-                    onAddChild={(parentId) => currentLangId && onAddPage(parentId, currentLangId)}
-                    onSettings={onOpenPageSettings}
-                    onMove={(items) => reorderPages.mutate({ items })}
-                    onInsertAfter={
-                      onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId) : undefined
-                    }
-                    onInsertBefore={
-                      onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId) : undefined
-                    }
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        ) : filteredPages.length === 0 ? (
+        ) : displayPages.length === 0 ? (
           /* Empty state when no pages and no tabs exist */
           <div className="p-4 text-center">
             <p className="text-xs text-muted-foreground/70">{t('editor.noPagesYet')}</p>
@@ -468,18 +417,68 @@ export function EditorSidebarPanel({
             </Button>
           </div>
         ) : (
-          /* Standard nested tree when no tabs are configured */
           <SortablePageTree
             key={currentLangId ?? 'default'}
-            pages={filteredPages}
+            pages={displayPages}
             activeId={selectedId}
             treeKey={currentLangId ?? 'default'}
-            onSelect={onSelectPage}
-            onAddChild={(parentId) => currentLangId && onAddPage(parentId, currentLangId)}
-            onSettings={onOpenPageSettings}
-            onMove={(items) => reorderPages.mutate({ items })}
-            onInsertAfter={onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId) : undefined}
-            onInsertBefore={onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId) : undefined}
+            onSelect={(id) => {
+              if (!id.startsWith('__tab__')) {
+                onSelectPage(id);
+              }
+            }}
+            onAddChild={(parentId) => {
+              if (currentLangId) {
+                if (parentId?.startsWith('__tab__')) {
+                  onAddPage(null, currentLangId);
+                } else {
+                  onAddPage(parentId, currentLangId);
+                }
+              }
+            }}
+            onSettings={(id) => {
+              if (id.startsWith('__tab__')) {
+                if (id === '__tab__unassigned') return;
+                const tabLabel = id.replace('__tab__', '');
+                const tab = currentNavbarTabs.find((t) => t.label === tabLabel);
+                if (tab) {
+                  setEditingTab(tab);
+                  setTabDialogOpen(true);
+                }
+              } else {
+                onOpenPageSettings(id);
+              }
+            }}
+            onMove={(items) => {
+              const cleaned = items
+                .filter((it) => !it.id.startsWith('__tab__'))
+                .map((it) => ({
+                  id: it.id,
+                  parentId: it.parentId?.startsWith('__tab__') ? null : it.parentId,
+                  position: it.position,
+                }));
+              if (cleaned.length > 0) {
+                reorderPages.mutate({ items: cleaned });
+              }
+            }}
+            onInsertAfter={
+              onInsertPage
+                ? (node, parentId) => {
+                    if (currentLangId) {
+                      onInsertPage(node, 'after', parentId?.startsWith('__tab__') ? null : parentId, currentLangId);
+                    }
+                  }
+                : undefined
+            }
+            onInsertBefore={
+              onInsertPage
+                ? (node, parentId) => {
+                    if (currentLangId) {
+                      onInsertPage(node, 'before', parentId?.startsWith('__tab__') ? null : parentId, currentLangId);
+                    }
+                  }
+                : undefined
+            }
           />
         )}
       </div>

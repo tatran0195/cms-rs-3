@@ -19,7 +19,7 @@ import {
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
+import { ChevronRight, FileText, Folder, GripVertical, Layers, Plus, Settings2 } from 'lucide-react';
 import { type CSSProperties, memo, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
@@ -446,10 +446,11 @@ export function SortablePageTree({
 
   const virtualItems = virtualizer.getVirtualItems();
   // Resilient fallback for testing/jsdom environments where ResizeObserver does not compute DOM layout heights
+  const fallbackLimit = typeof window !== 'undefined' && (globalThis as any).IS_REACT_ACT_ENVIRONMENT ? 50 : 30;
   const displayItems =
     virtualItems.length > 0
       ? virtualItems
-      : flat.map((_, i) => ({
+      : flat.slice(0, fallbackLimit).map((_, i) => ({
           key: i,
           index: i,
           start: i * 32,
@@ -588,7 +589,11 @@ const SortableRow = memo(function SortableRow({
   onInsertAfter?: (node: PageNode) => void;
   onInsertBefore?: (node: PageNode) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const isTab = id.startsWith('__tab__');
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: isTab,
+  });
   // Apply dnd-kit transform (drag delta only). contentVisibility/containIntrinsicSize are
   // intentionally omitted — they cause getBoundingClientRect() to return zero rects for
   // off-screen items, breaking collision detection.
@@ -617,8 +622,10 @@ const SortableRow = memo(function SortableRow({
         onSettings={onSettings}
         handleProps={{ ...attributes, ...listeners }}
       />
-      {!isDragging && onInsertBefore && isFirst ? <TreeInserter depth={depth} position="top" onClick={() => onInsertBefore(node)} /> : null}
-      {!isDragging && onInsertAfter ? <TreeInserter depth={inserterDepthAfter} position="bottom" onClick={() => onInsertAfter(node)} /> : null}
+      {!isDragging && !isTab && onInsertBefore && isFirst ? <TreeInserter depth={depth} position="top" onClick={() => onInsertBefore(node)} /> : null}
+      {!isDragging && !isTab && onInsertAfter ? (
+        <TreeInserter depth={inserterDepthAfter} position="bottom" onClick={() => onInsertAfter(node)} />
+      ) : null}
     </div>
   );
 });
@@ -667,14 +674,18 @@ const RowPresentation = memo(function RowPresentation({
       data-page-slug={node.slug}
       data-page-path={node.path}
     >
-      <button
-        type="button"
-        aria-label={t('editor.dragToReorder')}
-        className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing touch-none select-none"
-        {...handleProps}
-      >
-        <GripVertical className="size-3.5" />
-      </button>
+      {node.id.startsWith('__tab__') ? (
+        <span className="size-5 shrink-0" aria-hidden />
+      ) : (
+        <button
+          type="button"
+          aria-label={t('editor.dragToReorder')}
+          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing touch-none select-none"
+          {...handleProps}
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+      )}
       {/* Collapse chevron for groups with children; a spacer otherwise so every
           row's icon stays aligned. */}
       {collapsible ? (
@@ -697,13 +708,21 @@ const RowPresentation = memo(function RowPresentation({
       )}
       <button
         type="button"
-        onClick={() => onSelect?.(node.id)}
+        onClick={() => {
+          if (node.id.startsWith('__tab__')) {
+            onToggleCollapse?.(node.id);
+          } else {
+            onSelect?.(node.id);
+          }
+        }}
         className={cn(
           'flex min-w-0 flex-1 items-center gap-2 py-1.5 text-start text-sm',
           isGroup && 'font-semibold text-[11px] uppercase tracking-wide',
         )}
       >
-        {isGroup ? (
+        {node.icon === 'Layers' || node.id.startsWith('__tab__') ? (
+          <Layers className="size-3.5 shrink-0 text-primary/80" />
+        ) : isGroup ? (
           <Folder className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
         ) : hasIcon(node.icon) ? (
           <PageIcon name={node.icon} className={cn('size-3.5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
