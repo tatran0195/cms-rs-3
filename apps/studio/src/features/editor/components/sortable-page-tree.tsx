@@ -20,7 +20,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, FileText, Folder, GripVertical, Plus, Settings2 } from 'lucide-react';
-import { type CSSProperties, memo, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, memo, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * A Notion-style page tree with @dnd-kit: drag the handle to reorder, drag
@@ -285,6 +285,8 @@ export function SortablePageTree({
   onAddChild,
   onSettings,
   onMove,
+  onInsertAfter,
+  onInsertBefore,
   treeKey,
 }: {
   pages: PageNode[];
@@ -293,6 +295,8 @@ export function SortablePageTree({
   onAddChild: (parentId: string) => void;
   onSettings: (id: string) => void;
   onMove: (items: Array<{ id: string; parentId: string | null; position: number }>) => void;
+  onInsertAfter?: (node: PageNode, parentId: string | null) => void;
+  onInsertBefore?: (node: PageNode, parentId: string | null) => void;
   /** Namespace for persisting which groups are collapsed (e.g. the language id). */
   treeKey?: string;
 }) {
@@ -319,7 +323,45 @@ export function SortablePageTree({
     }
   };
 
+  // Sync collapsed state when treeKey changes
+  useEffect(() => {
+    setCollapsed(readCollapsed(treeKey));
+  }, [treeKey]);
+
   const flatFull = useMemo(() => flatten(pages), [pages]);
+
+  // Automatically expand any collapsed ancestor groups if activeId is inside one
+  useEffect(() => {
+    if (!activeId) return;
+    const parentMap = new Map<string, string | null>();
+    for (const item of flatFull) {
+      parentMap.set(item.id, item.parentId);
+    }
+    let curr = parentMap.get(activeId);
+    const toUncollapse: string[] = [];
+    while (curr) {
+      if (collapsed.has(curr)) {
+        toUncollapse.push(curr);
+      }
+      curr = parentMap.get(curr);
+    }
+    if (toUncollapse.length > 0) {
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        for (const id of toUncollapse) {
+          next.delete(id);
+        }
+        if (treeKey) {
+          try {
+            window.localStorage.setItem(collapsedStoreKey(treeKey), JSON.stringify([...next]));
+          } catch {
+            // ignore storage failures
+          }
+        }
+        return next;
+      });
+    }
+  }, [activeId, flatFull, collapsed, treeKey]);
   // Ids of nodes that have at least one child (so only those get a collapse chevron).
   const parentIds = useMemo(() => {
     const set = new Set<string>();
@@ -393,6 +435,15 @@ export function SortablePageTree({
     overscan: 10,
   });
 
+  // Automatically scroll to activeId when it changes or when flat updates
+  useEffect(() => {
+    if (!activeId) return;
+    const targetIndex = flat.findIndex((item) => item.id === activeId);
+    if (targetIndex >= 0) {
+      virtualizer.scrollToIndex(targetIndex, { align: 'auto' });
+    }
+  }, [activeId, flat, virtualizer]);
+
   const virtualItems = virtualizer.getVirtualItems();
   // Resilient fallback for testing/jsdom environments where ResizeObserver does not compute DOM layout heights
   const displayItems =
@@ -427,6 +478,11 @@ export function SortablePageTree({
             {displayItems.map((virtualRow) => {
               const item = flat[virtualRow.index];
               if (!item) return null;
+              const isFirst = virtualRow.index === 0;
+              const isGroup = item.node.kind === 'GROUP';
+              const isCollapsed = collapsed.has(item.id);
+              const insertParentIdAfter = isGroup && !isCollapsed ? item.id : item.parentId;
+
               return (
                 <div
                   key={item.id}
@@ -446,10 +502,21 @@ export function SortablePageTree({
                     active={activeId === item.id}
                     hasChildren={parentIds.has(item.id)}
                     collapsed={collapsed.has(item.id)}
+                    isFirst={isFirst}
                     onToggleCollapse={toggleCollapse}
                     onSelect={onSelect}
                     onAddChild={onAddChild}
                     onSettings={onSettings}
+                    onInsertAfter={
+                      !draggingId && onInsertAfter
+                        ? (node) => onInsertAfter(node, insertParentIdAfter)
+                        : undefined
+                    }
+                    onInsertBefore={
+                      !draggingId && onInsertBefore
+                        ? (node) => onInsertBefore(node, item.parentId)
+                        : undefined
+                    }
                   />
                 </div>
               );
@@ -462,6 +529,61 @@ export function SortablePageTree({
   );
 }
 
+const TreeInserter = memo(function TreeInserter({
+  depth,
+  position,
+  onClick,
+}: {
+  depth: number;
+  position: 'top' | 'bottom';
+  onClick: () => void;
+}) {
+  const t = useT();
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onClick();
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={t('editor.newPage')}
+      title={t('editor.newPage')}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={cn(
+        'group/inserter absolute inset-x-0 z-20 flex h-4 items-center cursor-pointer pointer-events-auto',
+        position === 'bottom'
+          ? 'opacity-0 group-hover/item:opacity-100 hover:!opacity-100 transition-opacity duration-150 -bottom-2'
+          : 'opacity-0 hover:!opacity-100 transition-opacity duration-150 -top-2',
+      )}
+      data-testid="tree-item-inserter"
+    >
+      <div
+        className="h-0.5 flex-1 bg-primary/40 group-hover/inserter:bg-primary transition-colors duration-150"
+        style={{ marginInlineStart: depth * INDENT + 6 }}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={handleClick}
+        aria-label={t('editor.newPage')}
+        className="relative mx-1.5 flex size-4.5 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-background text-primary shadow-xs transition-all duration-150 group-hover/inserter:scale-115 group-hover/inserter:border-primary group-hover/inserter:bg-primary group-hover/inserter:text-primary-foreground group-hover/inserter:shadow-sm active:scale-95 cursor-pointer"
+      >
+        <Plus className="size-2.5 stroke-[2.5]" />
+      </button>
+      <div className="h-0.5 flex-1 bg-primary/40 group-hover/inserter:bg-primary transition-colors duration-150" />
+    </div>
+  );
+});
+
 const SortableRow = memo(function SortableRow({
   id,
   node,
@@ -469,10 +591,13 @@ const SortableRow = memo(function SortableRow({
   active,
   hasChildren,
   collapsed,
+  isFirst,
   onToggleCollapse,
   onSelect,
   onAddChild,
   onSettings,
+  onInsertAfter,
+  onInsertBefore,
 }: {
   id: string;
   node: PageNode;
@@ -480,10 +605,13 @@ const SortableRow = memo(function SortableRow({
   active: boolean;
   hasChildren: boolean;
   collapsed: boolean;
+  isFirst?: boolean;
   onToggleCollapse: (id: string) => void;
   onSelect: (id: string) => void;
   onAddChild: (parentId: string) => void;
   onSettings: (id: string) => void;
+  onInsertAfter?: (node: PageNode) => void;
+  onInsertBefore?: (node: PageNode) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   // Apply dnd-kit transform (drag delta only). contentVisibility/containIntrinsicSize are
@@ -497,8 +625,15 @@ const SortableRow = memo(function SortableRow({
     userSelect: isDragging ? 'none' : undefined,
     WebkitUserSelect: isDragging ? 'none' : undefined,
   };
+  const isGroupChildInsert = node.kind === 'GROUP' && !collapsed;
+  const inserterDepthAfter = isGroupChildInsert ? depth + 1 : depth;
+
   return (
-    <div ref={setNodeRef} style={style}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn('relative w-full group/item', isDragging ? 'z-50' : 'hover:z-30')}
+    >
       <RowPresentation
         node={node}
         depth={depth}
@@ -511,6 +646,20 @@ const SortableRow = memo(function SortableRow({
         onSettings={onSettings}
         handleProps={{ ...attributes, ...listeners }}
       />
+      {!isDragging && onInsertBefore && isFirst ? (
+        <TreeInserter
+          depth={depth}
+          position="top"
+          onClick={() => onInsertBefore(node)}
+        />
+      ) : null}
+      {!isDragging && onInsertAfter ? (
+        <TreeInserter
+          depth={inserterDepthAfter}
+          position="bottom"
+          onClick={() => onInsertAfter(node)}
+        />
+      ) : null}
     </div>
   );
 });

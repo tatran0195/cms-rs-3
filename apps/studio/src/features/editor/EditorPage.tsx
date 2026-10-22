@@ -91,9 +91,30 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
     }
   }, [branches, activeBranchId]);
 
-  // ─── Data: all languages + all pages on the active branch (every language) ───
-  const { data: languages } = useLanguages(projectId);
-  const { data: allPages, isPending } = usePages(projectId, undefined, activeBranchId ?? undefined);
+  // ─── Languages: ordered default-first, then by position ─────────────────────
+  const { data: languages, isPending: languagesPending } = useLanguages(projectId);
+  const orderedLanguages = useMemo<Language[]>(
+    () => [...(languages ?? [])].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.position - b.position),
+    [languages],
+  );
+  const defaultLanguageId = orderedLanguages[0]?.id ?? null;
+  const [activeLanguageId, setActiveLanguageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeLanguageId && defaultLanguageId) {
+      setActiveLanguageId(defaultLanguageId);
+    }
+  }, [defaultLanguageId, activeLanguageId]);
+
+  const currentLangId = activeLanguageId ?? defaultLanguageId;
+
+  // ─── Data: pages scoped to the active language & branch ─────────────────────
+  const { data: allPages, isPending: pagesPending } = usePages(
+    languagesPending ? undefined : projectId,
+    currentLangId ?? undefined,
+    activeBranchId ?? undefined,
+  );
+  const isPending = languagesPending || pagesPending;
   const createPage = useCreatePage(projectId);
   const deletePage = useDeletePage(projectId);
   const updatePage = useUpdatePage(projectId);
@@ -111,65 +132,38 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
     }
   };
 
-  // Languages ordered default-first, then by position; pages grouped per language.
-  const orderedLanguages = useMemo<Language[]>(
-    () => [...(languages ?? [])].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || a.position - b.position),
-    [languages],
-  );
-  const defaultLanguageId = orderedLanguages[0]?.id ?? null;
-  const [activeLanguageId, setActiveLanguageId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!activeLanguageId && defaultLanguageId) {
-      setActiveLanguageId(defaultLanguageId);
-    }
-  }, [defaultLanguageId, activeLanguageId]);
-  const pagesByLanguage = useMemo(() => {
-    const map = new Map<string, PageNode[]>();
-    for (const page of allPages ?? []) {
-      const list = map.get(page.languageId) ?? [];
-      list.push(page);
-      map.set(page.languageId, list);
-    }
-    return map;
-  }, [allPages]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredPagesByLanguage = useMemo(() => {
+  const filteredPages = useMemo(() => {
+    const pages = allPages ?? [];
     const q = searchQuery.trim().toLowerCase();
     if (!q) {
-      return pagesByLanguage;
+      return pages;
     }
-    const map = new Map<string, PageNode[]>();
-    for (const [langId, pages] of pagesByLanguage.entries()) {
-      // Find matching page ids
-      const matchedIds = new Set<string>();
-      const parentLookup = new Map<string, string | null>();
-      for (const p of pages) {
-        parentLookup.set(p.id, p.parentId);
-        const titleMatch = p.title.toLowerCase().includes(q);
-        const slugMatch = p.slug.toLowerCase().includes(q);
-        const pathMatch = p.path.toLowerCase().includes(q);
-        const sidebarTitleMatch = p.config?.sidebarTitle?.toLowerCase().includes(q) ?? false;
-        if (titleMatch || slugMatch || pathMatch || sidebarTitleMatch) {
-          matchedIds.add(p.id);
-        }
+    const matchedIds = new Set<string>();
+    const parentLookup = new Map<string, string | null>();
+    for (const p of pages) {
+      parentLookup.set(p.id, p.parentId);
+      const titleMatch = p.title.toLowerCase().includes(q);
+      const slugMatch = p.slug.toLowerCase().includes(q);
+      const pathMatch = p.path.toLowerCase().includes(q);
+      const sidebarTitleMatch = p.config?.sidebarTitle?.toLowerCase().includes(q) ?? false;
+      if (titleMatch || slugMatch || pathMatch || sidebarTitleMatch) {
+        matchedIds.add(p.id);
       }
-
-      // Ensure all ancestor groups of matched items are also preserved
-      for (const id of Array.from(matchedIds)) {
-        let curr = parentLookup.get(id);
-        while (curr) {
-          matchedIds.add(curr);
-          curr = parentLookup.get(curr);
-        }
-      }
-
-      const filtered = pages.filter((p) => matchedIds.has(p.id));
-      map.set(langId, filtered);
     }
-    return map;
-  }, [pagesByLanguage, searchQuery]);
+
+    // Ensure all ancestor groups of matched items are also preserved
+    for (const id of Array.from(matchedIds)) {
+      let curr = parentLookup.get(id);
+      while (curr) {
+        matchedIds.add(curr);
+        curr = parentLookup.get(curr);
+      }
+    }
+
+    return pages.filter((p) => matchedIds.has(p.id));
+  }, [allPages, searchQuery]);
 
   const [selectedId, setSelectedId] = useState<string | null>(pageParam ?? null);
   // Follow ?page= deep links even when the editor is already mounted (e.g. a
@@ -390,6 +384,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   const addPage = (parentId: string | null, languageId: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
+    setSearchQuery('');
     createPage.mutate(
       // Localized placeholder title with a pinned 'untitled' slug: the server treats
       // that slug as a placeholder to swap for the real title's slug on first rename,
@@ -410,9 +405,71 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       },
     );
   };
+  const insertPage = (
+    targetNode: PageNode,
+    position: 'before' | 'after',
+    targetParentId: string | null,
+    languageId: string,
+  ) => {
+    if (creationInFlight.current) return;
+    creationInFlight.current = true;
+    setSearchQuery('');
+
+    const siblings = (allPages ?? [])
+      .filter(
+        (p) =>
+          (p.parentId ?? null) === (targetParentId ?? null) &&
+          (p.languageId ?? defaultLanguageId) === languageId,
+      )
+      .sort((a, b) => a.position - b.position);
+
+    let insertIndex = 0;
+    // If inserting after an open group as its first child
+    if (position === 'after' && targetNode.kind === 'GROUP' && targetParentId === targetNode.id) {
+      insertIndex = 0;
+    } else {
+      const targetIndex = siblings.findIndex((p) => p.id === targetNode.id);
+      if (targetIndex >= 0) {
+        insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+      } else {
+        insertIndex = siblings.length;
+      }
+    }
+
+    createPage.mutate(
+      {
+        title: t('editor.untitled'),
+        slug: 'untitled',
+        parentId: targetParentId,
+        languageId,
+        position: insertIndex,
+        ...branchScope,
+      },
+      {
+        onSuccess: (created) => {
+          setSelectedId(created.id);
+          const updatedSiblings = [...siblings];
+          updatedSiblings.splice(insertIndex, 0, created);
+          const reorderItems = updatedSiblings.map((item, idx) => ({
+            id: item.id,
+            parentId: targetParentId,
+            position: idx,
+          }));
+          if (reorderItems.length > 1) {
+            reorderPages.mutate({ items: reorderItems });
+          }
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : t('editor.createFailed')),
+        onSettled: () => {
+          creationInFlight.current = false;
+        },
+      },
+    );
+  };
   const addGroup = (languageId: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
+    setSearchQuery('');
     createPage.mutate(
       // The display title is localized, but the slug is pinned: deriving it from
       // a non-Latin title would strip to a broken 'page' slug.
@@ -626,11 +683,10 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
           {view === 'content' && orderedLanguages.length > 0 && (
             <LocaleSelector
               languages={orderedLanguages}
-              activeLanguageId={activeLanguageId ?? defaultLanguageId}
+              activeLanguageId={currentLangId}
               onSelect={(id) => {
                 setActiveLanguageId(id);
-                const firstInLang = (allPages ?? []).find((p) => p.languageId === id && p.kind === 'PAGE');
-                if (firstInLang) setSelectedId(firstInLang.id);
+                setSelectedId(null);
               }}
               onAddLanguage={() => setAddLangOpen(true)}
               onLanguageSettings={(lang) => setLangSettings(lang)}
@@ -681,14 +737,12 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
               <p className="px-3 py-3 text-muted-foreground text-sm">{t('common.loading')}</p>
             ) : (
               (() => {
-                const currentLangId = activeLanguageId ?? defaultLanguageId;
-                const langPages = currentLangId ? (filteredPagesByLanguage.get(currentLangId) ?? []) : [];
                 const activeLangObj = orderedLanguages.find((l) => l.id === currentLangId);
                 const dir = activeLangObj?.direction === 'RTL' ? 'rtl' : 'ltr';
 
                 return (
                   <div className="flex-1 min-h-0 flex flex-col" dir={dir}>
-                    {langPages.length === 0 ? (
+                    {filteredPages.length === 0 ? (
                       <div className="p-4 text-center">
                         <p className="text-xs text-muted-foreground/70">{t('editor.noPagesYet')}</p>
                         <Button
@@ -702,7 +756,8 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                       </div>
                     ) : (
                       <SortablePageTree
-                        pages={langPages}
+                        key={currentLangId ?? 'default'}
+                        pages={filteredPages}
                         activeId={activeTreeId}
                         treeKey={currentLangId ?? 'default'}
                         onSelect={(id) => {
@@ -713,6 +768,12 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                         onAddChild={(parentId) => currentLangId && addPage(parentId, currentLangId)}
                         onSettings={(id) => setSettingsForId(id)}
                         onMove={(items) => reorderPages.mutate({ items })}
+                        onInsertAfter={(node, parentId) =>
+                          currentLangId && insertPage(node, 'after', parentId, currentLangId)
+                        }
+                        onInsertBefore={(node, parentId) =>
+                          currentLangId && insertPage(node, 'before', parentId, currentLangId)
+                        }
                       />
                     )}
                   </div>

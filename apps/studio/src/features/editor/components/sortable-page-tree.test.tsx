@@ -330,6 +330,8 @@ describe('SortablePageTree - React Component Interactions', () => {
     onAddChild?: (parentId: string) => void;
     onSettings?: (id: string) => void;
     onMove?: (items: Array<{ id: string; parentId: string | null; position: number }>) => void;
+    onInsertAfter?: (node: PageNode, parentId: string | null) => void;
+    onInsertBefore?: (node: PageNode, parentId: string | null) => void;
     treeKey?: string;
   }) {
     const container = document.createElement('div');
@@ -346,6 +348,8 @@ describe('SortablePageTree - React Component Interactions', () => {
           onAddChild={props.onAddChild ?? vi.fn()}
           onSettings={props.onSettings ?? vi.fn()}
           onMove={props.onMove ?? vi.fn()}
+          onInsertAfter={props.onInsertAfter}
+          onInsertBefore={props.onInsertBefore}
           treeKey={props.treeKey}
         />,
       ),
@@ -419,6 +423,43 @@ describe('SortablePageTree - React Component Interactions', () => {
     expect(onSettings).toHaveBeenCalledWith('p1');
   });
 
+  it('triggers onInsertAfter when clicking the bottom inserter on a tree item', async () => {
+    const onInsertAfter = vi.fn();
+    const pages = [
+      makeNode({ id: 'p1', title: 'Page One', position: 0 }),
+      makeNode({ id: 'p2', title: 'Page Two', position: 1 }),
+    ];
+
+    const container = await renderTree({ pages, onInsertAfter });
+    const inserters = container.querySelectorAll('[data-testid="tree-item-inserter"]');
+    expect(inserters.length).toBeGreaterThanOrEqual(2);
+
+    // Click the bottom inserter of p1
+    const p1BottomInserter = inserters[0];
+    await act(async () => {
+      p1BottomInserter?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onInsertAfter).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }), null);
+  });
+
+  it('triggers onInsertBefore when clicking the top inserter on the first tree item', async () => {
+    const onInsertBefore = vi.fn();
+    const pages = [makeNode({ id: 'p1', title: 'Page One', position: 0 })];
+
+    const container = await renderTree({ pages, onInsertBefore });
+    const inserters = container.querySelectorAll('[data-testid="tree-item-inserter"]');
+    expect(inserters.length).toBeGreaterThanOrEqual(1);
+
+    // The top inserter on the first item
+    const topInserter = inserters[0];
+    await act(async () => {
+      topInserter?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onInsertBefore).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }), null);
+  });
+
   it('collapses and expands group children and persists to localStorage', async () => {
     const pages = [
       makeNode({ id: 'g1', title: 'Folder', kind: 'GROUP', position: 0 }),
@@ -447,6 +488,23 @@ describe('SortablePageTree - React Component Interactions', () => {
     });
 
     expect(container.textContent).toContain('Child Leaf');
+  });
+
+  it('automatically uncollapses ancestor group when child activeId is selected', async () => {
+    const pages = [
+      makeNode({ id: 'g1', title: 'Folder', kind: 'GROUP', position: 0 }),
+      makeNode({ id: 'c1', title: 'Child Leaf', parentId: 'g1', position: 0 }),
+    ];
+
+    // Pre-collapse g1 in localStorage
+    window.localStorage.setItem('cms.editor.collapsedGroups:lang-en', JSON.stringify(['g1']));
+
+    // Render tree with activeId pointing to the nested child c1
+    const container = await renderTree({ pages, activeId: 'c1', treeKey: 'lang-en' });
+
+    // Child leaf should be visible because ancestor group was auto-expanded
+    expect(container.textContent).toContain('Child Leaf');
+    expect(window.localStorage.getItem('cms.editor.collapsedGroups:lang-en')).not.toContain('g1');
   });
 
   it('handles high-scale virtualized trees (1,000 nodes) without degradation', async () => {
