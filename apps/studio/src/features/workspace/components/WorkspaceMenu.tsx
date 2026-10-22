@@ -13,7 +13,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import { useProjects, useWorkspaceSettings } from '@cms/sdk/react';
 import { useNavigate } from '@tanstack/react-router';
-import { Check, ChevronRight, Plus, Settings, Users } from 'lucide-react';
+import { Check, ChevronRight, Download, Plus, Settings, Users } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { useSyncExternalStore } from 'react';
 
@@ -142,6 +142,26 @@ export function WorkspaceMenu({ projectId, trigger, side = 'bottom', align = 'st
         >
           <Settings className="size-3.5" />
           <span>{t('nav.settings') || 'Workspace settings'}</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+          onClick={() => {
+            window.location.href = '/api/runner/download';
+          }}
+          className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <span className="flex items-center gap-2">
+            <Download className="size-3.5" />
+            <span>
+              {(() => {
+                const val = (t as (k: string) => string)('workspace.downloadRunner');
+                return !val || val === 'workspace.downloadRunner' ? 'Download runner (.exe)' : val;
+              })()}
+            </span>
+          </span>
+          <span className="text-[10px] uppercase font-mono text-muted-foreground/60">CLI</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

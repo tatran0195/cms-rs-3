@@ -69,3 +69,8 @@ test-results/
 crates/**/data/
 *.db
 cms.db
+*.exe
+public/downloads/*
+!public/downloads/.gitkeep
+apps/studio/public/downloads/*
+!apps/studio/public/downloads/.gitkeep

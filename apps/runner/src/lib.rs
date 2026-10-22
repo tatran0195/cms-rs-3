@@ -74,6 +74,24 @@ pub enum Commands {
 
     /// Remove cms-site from user PATH and unregister cms-doc:// protocol in Windows registry
     Uninstall,
+
+    /// Upgrade cms-site executable to the latest version from the CMS server
+    Upgrade(UpgradeArgs),
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct UpgradeArgs {
+    /// URL of the hosted CMS API server (default: http://localhost:8080 or http://localhost:3000)
+    #[arg(long, default_value = "http://localhost:3000")]
+    pub url: String,
+
+    /// Force re-download and replacement even if already at latest version
+    #[arg(long)]
+    pub force: bool,
+
+    /// Check if a newer version or download is available without applying
+    #[arg(long)]
+    pub check: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -2032,6 +2050,125 @@ pub async fn run_uninstall() -> anyhow::Result<()> {
     }
 
     println!("\nUninstallation complete.");
+    Ok(())
+}
+
+pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
+    use tokio::io::AsyncWriteExt;
+
+    let current_exe = std::env::current_exe()?;
+    let current_version = env!("CARGO_PKG_VERSION");
+    let clean_url = args.url.trim_end_matches('/');
+
+    println!("Checking for updates from '{}'...", clean_url);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .build()?;
+
+    // 1. Fetch info endpoint
+    let info_url = format!("{clean_url}/api/runner/info");
+    let info_resp = match client.get(&info_url).send().await {
+        Ok(r) if r.status().is_success() => r.json::<serde_json::Value>().await.ok(),
+        _ => None,
+    };
+
+    let (server_version, file_size) = if let Some(ref val) = info_resp {
+        let v = val["version"].as_str().unwrap_or("unknown").to_string();
+        let s = val["sizeBytes"].as_u64().unwrap_or(0);
+        let avail = val["available"].as_bool().unwrap_or(true);
+        if !avail {
+            anyhow::bail!("Server does not have a runner executable ready for download.");
+        }
+        (v, s)
+    } else {
+        ("latest".to_string(), 0)
+    };
+
+    println!("Current version : {}", current_version);
+    println!("Server version  : {}", server_version);
+    if file_size > 0 {
+        let mb = file_size as f64 / (1024.0 * 1024.0);
+        println!("Artifact size   : {:.1} MB", mb);
+    }
+
+    if args.check {
+        if server_version != current_version && server_version != "unknown" {
+            println!("\nUpdate available! Run 'cms-site upgrade --url {}' to install.", clean_url);
+        } else {
+            println!("\ncms-site is up to date.");
+        }
+        return Ok(());
+    }
+
+    if server_version == current_version && !args.force && server_version != "latest" {
+        println!("\ncms-site is already at the latest version ({}). Use --force to re-download.", current_version);
+        return Ok(());
+    }
+
+    // 2. Download runner binary to .tmp
+    let download_url = format!("{clean_url}/api/runner/download");
+    println!("\nDownloading latest runner from '{}'...", download_url);
+
+    let mut resp = client.get(&download_url).send().await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let err_text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("Download failed with HTTP {status}: {err_text}");
+    }
+
+    let tmp_path = current_exe.with_extension("tmp.exe");
+    {
+        let mut tmp_file = tokio::fs::File::create(&tmp_path).await?;
+        let mut downloaded_bytes: u64 = 0;
+
+        while let Some(chunk) = resp.chunk().await? {
+            tmp_file.write_all(&chunk).await?;
+            downloaded_bytes += chunk.len() as u64;
+        }
+        tmp_file.flush().await?;
+
+        if downloaded_bytes < 1024 {
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            anyhow::bail!("Downloaded binary is too small ({} bytes) - download incomplete or invalid.", downloaded_bytes);
+        }
+    }
+
+    // 3. Set Unix executable permissions if on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&tmp_path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&tmp_path, perms)?;
+    }
+
+    // 4. Atomically swap current_exe with tmp_path
+    #[cfg(windows)]
+    {
+        let old_path = current_exe.with_extension("old.exe");
+        if old_path.exists() {
+            let _ = std::fs::remove_file(&old_path);
+        }
+        std::fs::rename(&current_exe, &old_path)?;
+        match std::fs::rename(&tmp_path, &current_exe) {
+            Ok(()) => {
+                let _ = std::fs::remove_file(&old_path);
+            }
+            Err(e) => {
+                let _ = std::fs::rename(&old_path, &current_exe);
+                return Err(e.into());
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::fs::rename(&tmp_path, &current_exe)?;
+    }
+
+    println!("✓ Successfully upgraded cms-site to latest version!");
+    println!("  Location: {}", current_exe.display());
     Ok(())
 }
 

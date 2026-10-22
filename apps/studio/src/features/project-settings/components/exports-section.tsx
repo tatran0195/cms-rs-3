@@ -49,6 +49,11 @@ export function ExportsSection({ projectId }: { projectId: string }) {
       ? t('settings.usage.unit.gb', { value: number(bytes / MEBIBYTE / 1024, { maximumFractionDigits: 1 }) })
       : t('settings.usage.unit.mb', { value: number(bytes / MEBIBYTE, { maximumFractionDigits: bytes < MEBIBYTE ? 2 : 1 }) });
 
+  const tr = (k: string, fallback: string) => {
+    const val = (t as (key: string) => string)(k);
+    return !val || val === k ? fallback : val;
+  };
+
   const [formats, setFormats] = useState<WorkflowFormat[]>(['MARKDOWN']);
   const [showSchedule, setShowSchedule] = useState(false);
   const [surface, setSurface] = useState<'create' | 'schedules'>('create');
@@ -166,6 +171,55 @@ export function ExportsSection({ projectId }: { projectId: string }) {
               </a>
               .
             </p>
+          </section>
+
+          {/* Documentation Runner Section */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-sm">
+                {tr('settings.exports.runner.title', 'Documentation Runner & Desktop Server')}
+              </div>
+              <Badge variant="outline" className="text-[11px] font-mono font-medium">
+                cms-site.exe
+              </Badge>
+            </div>
+            <div className="rounded-xl border border-border p-4 bg-card space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-foreground">
+                    {tr('settings.exports.runner.heading', 'Standalone Offline Viewer & MCP Server')}
+                  </div>
+                  <p className="text-muted-foreground text-xs max-w-xl">
+                    {tr(
+                      'settings.exports.runner.desc',
+                      'Zero-dependency executable for offline browsing, embedded Tantivy full-text search, and AI agent integration via Model Context Protocol (MCP).',
+                    )}
+                  </p>
+                </div>
+                <Button
+                  id="download-runner-button"
+                  variant="outline"
+                  className="shrink-0 gap-2 font-medium"
+                  onClick={() => {
+                    window.location.href = '/api/runner/download';
+                  }}
+                >
+                  <Download className="size-4" />
+                  {tr('settings.exports.runner.download', 'Download cms-site.exe')}
+                </Button>
+              </div>
+
+              <div className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-border/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-primary font-semibold">$</span>
+                  <span>cms-site serve --dir ./export</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground/80">
+                  <span className="text-foreground/70 font-sans">Self-upgrade:</span>
+                  <span>cms-site upgrade --url http://&lt;server&gt;</span>
+                </div>
+              </div>
+            </div>
           </section>
 
           {/* Export History Section under Create Export */}

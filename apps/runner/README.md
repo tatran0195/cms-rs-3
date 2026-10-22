@@ -141,6 +141,28 @@ cms-site uninstall
 
 ---
 
+### 7. `cms-site upgrade` (Self-Upgrade & Automated Binary Updates)
+
+Upgrades the running `cms-site` binary directly from the hosted CMS server or public download directory:
+
+```bash
+# Check if an update is available without applying
+cms-site upgrade --check
+
+# Self-upgrade from hosted CMS API server (default: http://localhost:3000)
+cms-site upgrade --url https://cms.internal.company.corp
+
+# Force re-download and replacement even if already at latest version
+cms-site upgrade --force
+```
+
+#### Windows & Unix Safe Atomic Swap:
+- Downloads incoming binary to `.tmp.exe`.
+- On Windows, safely renames active binary to `.old.exe` (bypassing Windows running executable file locks), moves `.tmp.exe` into place, and cleans up old artifacts.
+- On Unix / macOS, ensures `chmod 0755` executable bit before atomic rename.
+
+---
+
 ## 🔒 Security & Deployment Scope
 
 - **Internal Company Deployment**: Built exclusively for internal enterprise documentation distribution. No public multi-tenant SaaS features, billing gateways, or subscription tiers.
