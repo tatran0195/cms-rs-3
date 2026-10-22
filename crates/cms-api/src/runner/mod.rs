@@ -35,41 +35,62 @@ pub struct RunnerInfoResponse {
     pub download_url: String,
 }
 
+static DOWNLOADS_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
 /// Resolves the unified canonical public downloads directory (`public/downloads`).
 /// Configurable via `CMS_DOWNLOADS_DIR` or `CMS_PUBLIC_DIR/downloads`.
+/// Cached via OnceLock to prevent repeated directory traversal and I/O on every request.
 pub fn get_downloads_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("CMS_DOWNLOADS_DIR") {
-        let p = PathBuf::from(dir.trim());
-        if p.is_dir() {
-            return p;
-        }
-    }
+    DOWNLOADS_DIR
+        .get_or_init(|| {
+            if let Ok(dir) = std::env::var("CMS_DOWNLOADS_DIR") {
+                let p = PathBuf::from(dir.trim());
+                if p.is_dir() {
+                    return p.canonicalize().unwrap_or(p);
+                }
+            }
 
-    if let Ok(public_dir) = std::env::var("CMS_PUBLIC_DIR") {
-        let p = PathBuf::from(public_dir.trim()).join("downloads");
-        if p.is_dir() {
-            return p;
-        }
-    }
+            if let Ok(public_dir) = std::env::var("CMS_PUBLIC_DIR") {
+                let p = PathBuf::from(public_dir.trim()).join("downloads");
+                if p.is_dir() {
+                    return p.canonicalize().unwrap_or(p);
+                }
+            }
 
-    let primary = Path::new("public/downloads");
-    if primary.is_dir() {
-        return primary.to_path_buf();
-    }
+            let primary = Path::new("public/downloads");
+            if primary.is_dir() {
+                return primary.canonicalize().unwrap_or_else(|_| primary.to_path_buf());
+            }
 
-    let parent_path = Path::new("../../public/downloads");
-    if parent_path.is_dir() {
-        return parent_path.to_path_buf();
-    }
+            let parent_path = Path::new("../../public/downloads");
+            if parent_path.is_dir() {
+                return parent_path.canonicalize().unwrap_or_else(|_| parent_path.to_path_buf());
+            }
 
-    let studio_path = Path::new("apps/studio/public/downloads");
-    if studio_path.is_dir() {
-        return studio_path.to_path_buf();
-    }
+            let studio_path = Path::new("apps/studio/public/downloads");
+            if studio_path.is_dir() {
+                return studio_path.canonicalize().unwrap_or_else(|_| studio_path.to_path_buf());
+            }
 
-    let default_dir = PathBuf::from("public/downloads");
-    let _ = std::fs::create_dir_all(&default_dir);
-    default_dir
+            let default_dir = PathBuf::from("public/downloads");
+            let _ = std::fs::create_dir_all(&default_dir);
+            default_dir.canonicalize().unwrap_or(default_dir)
+        })
+        .clone()
+}
+
+/// Resolves the runner binary filename in the downloads directory.
+/// Checks the host platform binary first, but gracefully falls back if the
+/// other platform executable is present (e.g. running Linux API server serving Windows runner).
+pub fn resolve_runner_filename(dir: &Path) -> Option<String> {
+    if dir.join(RUNNER_FILENAME).is_file() {
+        return Some(RUNNER_FILENAME.to_string());
+    }
+    let alt = if RUNNER_FILENAME == "cms-site.exe" { "cms-site" } else { "cms-site.exe" };
+    if dir.join(alt).is_file() {
+        return Some(alt.to_string());
+    }
+    None
 }
 
 /// Infer standard MIME content-type based on file extension
@@ -99,17 +120,26 @@ async fn serve_download_file(file_path: &Path, filename: &str, req: Request) -> 
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!("ServeFile error: {e}")))?;
 
+    let status = res.status();
     let mut res = res.into_response();
-    let content_type = infer_mime_type(filename);
 
-    res.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static(content_type),
-    );
+    // Only inject body headers on successful content responses (200 OK or 206 Partial Content)
+    if status.is_success() || status == axum::http::StatusCode::PARTIAL_CONTENT {
+        let content_type = infer_mime_type(filename);
+        res.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(content_type),
+        );
 
-    let disposition = format!("attachment; filename=\"{filename}\"");
-    if let Ok(val) = HeaderValue::from_str(&disposition) {
-        res.headers_mut().insert(header::CONTENT_DISPOSITION, val);
+        let disposition = format!("attachment; filename=\"{filename}\"");
+        if let Ok(val) = HeaderValue::from_str(&disposition) {
+            res.headers_mut().insert(header::CONTENT_DISPOSITION, val);
+        }
+
+        res.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=60, must-revalidate"),
+        );
     }
 
     Ok(res)
@@ -120,13 +150,15 @@ pub async fn download_artifact_handler(
     AxumPath(filename): AxumPath<String>,
     req: Request,
 ) -> Result<Response, AppError> {
-    // Prevent directory traversal attacks
+    // 1. Strict filename security validation
     if filename.is_empty()
-        || filename.contains('/')
-        || filename.contains('\\')
-        || filename.contains("..")
+        || filename.starts_with('.')
+        || !filename.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
     {
-        return Err(AppError::BadRequest("Invalid filename".to_string()));
+        return Err(AppError::BadRequest(
+            "Invalid filename: must be alphanumeric, dashes, dots, or underscores only and not start with '.'"
+                .to_string(),
+        ));
     }
 
     let dir = get_downloads_dir();
@@ -134,6 +166,13 @@ pub async fn download_artifact_handler(
 
     if !file_path.is_file() {
         return Err(AppError::NotFound(format!("File '{filename}' not found in public downloads")));
+    }
+
+    // 2. Canonical containment check to guarantee no symlink escapes
+    if let (Ok(canonical_dir), Ok(canonical_file)) = (dir.canonicalize(), file_path.canonicalize()) {
+        if !canonical_file.starts_with(&canonical_dir) {
+            return Err(AppError::Forbidden);
+        }
     }
 
     serve_download_file(&file_path, &filename, req).await
@@ -166,15 +205,18 @@ pub async fn list_downloads_handler() -> Result<Json<Vec<DownloadItem>>, AppErro
     Ok(Json(items))
 }
 
-/// Handler for GET /api/runner/download: Direct shortcut to download cms-site.exe from public downloads
+/// Handler for GET /api/runner/download: Direct shortcut to download runner binary from public downloads
 pub async fn download_runner_handler(req: Request) -> Result<Response, AppError> {
-    download_artifact_handler(AxumPath(RUNNER_FILENAME.to_string()), req).await
+    let dir = get_downloads_dir();
+    let runner_name = resolve_runner_filename(&dir).unwrap_or_else(|| RUNNER_FILENAME.to_string());
+    download_artifact_handler(AxumPath(runner_name), req).await
 }
 
 /// Handler for GET /api/runner/info: Checks runner status directly in public downloads
 pub async fn runner_info_handler() -> Result<Json<RunnerInfoResponse>, AppError> {
     let dir = get_downloads_dir();
-    let runner_path = dir.join(RUNNER_FILENAME);
+    let runner_name = resolve_runner_filename(&dir).unwrap_or_else(|| RUNNER_FILENAME.to_string());
+    let runner_path = dir.join(&runner_name);
 
     let (available, size_bytes, path_str) = if runner_path.is_file() {
         let size = std::fs::metadata(&runner_path).map(|m| m.len()).unwrap_or(0);
@@ -186,7 +228,7 @@ pub async fn runner_info_handler() -> Result<Json<RunnerInfoResponse>, AppError>
 
     Ok(Json(RunnerInfoResponse {
         available,
-        filename: RUNNER_FILENAME.to_string(),
+        filename: runner_name,
         path: path_str,
         size_bytes,
         version: env!("CARGO_PKG_VERSION").to_string(),

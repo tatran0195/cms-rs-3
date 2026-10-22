@@ -2068,6 +2068,62 @@ pub async fn run_uninstall() -> anyhow::Result<()> {
     Ok(())
 }
 
+struct TempFileGuard(PathBuf, bool);
+
+impl TempFileGuard {
+    fn new(path: PathBuf) -> Self {
+        Self(path, true)
+    }
+    fn disarm(&mut self) {
+        self.1 = false;
+    }
+}
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        if self.1 && self.0.exists() {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+}
+
+/// Verifies that the downloaded file contains the correct executable binary magic header
+/// for the running OS before attempting self-replacement.
+fn verify_executable_header(path: &std::path::Path) -> anyhow::Result<()> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut magic = [0u8; 4];
+    let bytes_read = file.read(&mut magic)?;
+    if bytes_read < 2 {
+        anyhow::bail!("Downloaded payload is too small to be an executable binary");
+    }
+
+    // Windows PE binary starts with "MZ" (0x4D, 0x5A)
+    if cfg!(windows) {
+        if &magic[0..2] != b"MZ" {
+            anyhow::bail!(
+                "Downloaded payload is not a valid Windows PE executable (magic header mismatch: got {:?})",
+                &magic[0..2]
+            );
+        }
+    } else if cfg!(target_os = "linux") {
+        if &magic[0..4] != b"\x7fELF" {
+            anyhow::bail!("Downloaded payload is not a valid Linux ELF executable (magic header mismatch)");
+        }
+    } else if cfg!(target_os = "macos") {
+        let is_macho = magic == [0xFE, 0xED, 0xFA, 0xCE]
+            || magic == [0xFE, 0xED, 0xFA, 0xCF]
+            || magic == [0xCE, 0xFA, 0xED, 0xFE]
+            || magic == [0xCF, 0xFA, 0xED, 0xFE]
+            || magic == [0xCA, 0xFE, 0xBA, 0xBE];
+        if !is_macho {
+            anyhow::bail!("Downloaded payload is not a valid macOS Mach-O executable (magic header mismatch)");
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
     use tokio::io::AsyncWriteExt;
 
@@ -2121,7 +2177,7 @@ pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // 2. Download runner binary to .tmp
+    // 2. Download runner binary to a protected temporary file
     let download_url = format!("{clean_url}/api/runner/download");
     println!("\nDownloading latest runner from '{}'...", download_url);
 
@@ -2132,24 +2188,44 @@ pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
         anyhow::bail!("Download failed with HTTP {status}: {err_text}");
     }
 
-    let tmp_path = current_exe.with_extension("tmp.exe");
+    let tmp_path = current_exe.with_extension(if cfg!(windows) { "tmp.exe" } else { "tmp" });
+    let mut cleanup = TempFileGuard::new(tmp_path.clone());
+
     {
         let mut tmp_file = tokio::fs::File::create(&tmp_path).await?;
         let mut downloaded_bytes: u64 = 0;
+        let mut last_logged_mb: u64 = 0;
 
         while let Some(chunk) = resp.chunk().await? {
             tmp_file.write_all(&chunk).await?;
             downloaded_bytes += chunk.len() as u64;
+
+            let mb = downloaded_bytes / (1024 * 1024);
+            if mb >= last_logged_mb + 25 {
+                last_logged_mb = mb;
+                if file_size > 0 {
+                    let total_mb = file_size / (1024 * 1024);
+                    let pct = (downloaded_bytes as f64 / file_size as f64) * 100.0;
+                    println!("  Downloaded {} MB / {} MB ({:.1}%)", mb, total_mb, pct);
+                } else {
+                    println!("  Downloaded {} MB...", mb);
+                }
+            }
         }
         tmp_file.flush().await?;
 
-        if downloaded_bytes < 1024 {
-            let _ = tokio::fs::remove_file(&tmp_path).await;
-            anyhow::bail!("Downloaded binary is too small ({} bytes) - download incomplete or invalid.", downloaded_bytes);
+        if downloaded_bytes < 100 * 1024 {
+            anyhow::bail!(
+                "Downloaded binary is suspiciously small ({} bytes) - download incomplete or corrupt.",
+                downloaded_bytes
+            );
         }
     }
 
-    // 3. Set Unix executable permissions if on Unix
+    // 3. Verify executable magic header to prevent corrupting binary with HTML/error responses
+    verify_executable_header(&tmp_path)?;
+
+    // 4. Set Unix executable permissions if on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -2158,29 +2234,10 @@ pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
         std::fs::set_permissions(&tmp_path, perms)?;
     }
 
-    // 4. Atomically swap current_exe with tmp_path
-    #[cfg(windows)]
-    {
-        let old_path = current_exe.with_extension("old.exe");
-        if old_path.exists() {
-            let _ = std::fs::remove_file(&old_path);
-        }
-        std::fs::rename(&current_exe, &old_path)?;
-        match std::fs::rename(&tmp_path, &current_exe) {
-            Ok(()) => {
-                let _ = std::fs::remove_file(&old_path);
-            }
-            Err(e) => {
-                let _ = std::fs::rename(&old_path, &current_exe);
-                return Err(e.into());
-            }
-        }
-    }
-
-    #[cfg(not(windows))]
-    {
-        std::fs::rename(&tmp_path, &current_exe)?;
-    }
+    // 5. Replace current running executable using battle-tested self-replace crate
+    self_replace::self_replace(&tmp_path)?;
+    cleanup.disarm();
+    let _ = std::fs::remove_file(&tmp_path);
 
     println!("✓ Successfully upgraded cms-site to latest version!");
     println!("  Location: {}", current_exe.display());

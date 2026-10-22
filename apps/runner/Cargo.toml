@@ -33,6 +33,7 @@ tantivy = { workspace = true }
 cms-search = { path = "../../crates/cms-search", default-features = false }
 rmcp = { workspace = true }
 schemars = { workspace = true }
+self-replace = "1.5"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

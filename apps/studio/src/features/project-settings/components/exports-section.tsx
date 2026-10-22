@@ -176,9 +176,7 @@ export function ExportsSection({ projectId }: { projectId: string }) {
           {/* Documentation Runner Section */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="font-semibold text-sm">
-                {tr('settings.exports.runner.title', 'Documentation Runner & Desktop Server')}
-              </div>
+              <div className="font-semibold text-sm">{tr('settings.exports.runner.title', 'Documentation Runner & Desktop Server')}</div>
               <Badge variant="outline" className="text-[11px] font-mono font-medium">
                 cms-site.exe
               </Badge>
