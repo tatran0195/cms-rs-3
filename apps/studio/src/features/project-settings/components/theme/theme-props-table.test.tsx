@@ -9,6 +9,11 @@ import { ThemePropsTable } from './theme-props-table';
 // @ts-expect-error configure react act environment for jsdom
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+vi.mock('@cms/sdk/react', () => ({
+  useImportProjectTheme: () => ({ isPending: false, mutate: vi.fn() }),
+  useExportProjectTheme: () => ({ isPending: false, mutate: vi.fn() }),
+}));
+
 describe('ThemePropsTable', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
@@ -131,5 +136,38 @@ describe('ThemePropsTable', () => {
     // Design system select triggers are present
     const selectTriggers = container.querySelectorAll('[data-slot="select-trigger"]');
     expect(selectTriggers.length).toBeGreaterThan(0);
+  });
+
+  it('renders Export and Import buttons in header and handles clicks', async () => {
+    const handleExport = vi.fn();
+    const handleImportTheme = vi.fn();
+    await act(async () => {
+      root.render(
+        <ThemePropsTable
+          path={[]}
+          onNavigate={vi.fn()}
+          themeConfig={{}}
+          onThemeConfigChange={vi.fn()}
+          resolvedColors={harbor.colors}
+          resolvedLayout={harbor.layout}
+          resolvedComponents={harbor.components}
+          onReset={vi.fn()}
+          onExport={handleExport}
+          onImportTheme={handleImportTheme}
+          projectId="test-proj"
+        />,
+      );
+    });
+
+    const exportBtn = container.querySelector('button[aria-label="Export Theme JSON"]');
+    const importBtn = container.querySelector('button[aria-label="Import Theme JSON"]');
+    expect(exportBtn).toBeDefined();
+    expect(importBtn).toBeDefined();
+
+    await act(async () => {
+      (exportBtn as HTMLElement)?.click();
+    });
+
+    expect(handleExport).toHaveBeenCalled();
   });
 });
