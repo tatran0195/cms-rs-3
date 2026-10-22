@@ -21,12 +21,10 @@ import { useDebouncedCallback } from '@tanstack/react-pacer';
 import { Link } from '@tanstack/react-router';
 import {
   ChevronLeft,
-  ChevronRight,
   Code2,
   Eye,
   FileText,
   FolderPlus,
-  Languages,
   Loader2,
   MessageSquare,
   PanelLeftClose,
@@ -405,22 +403,13 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       },
     );
   };
-  const insertPage = (
-    targetNode: PageNode,
-    position: 'before' | 'after',
-    targetParentId: string | null,
-    languageId: string,
-  ) => {
+  const insertPage = (targetNode: PageNode, position: 'before' | 'after', targetParentId: string | null, languageId: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
     setSearchQuery('');
 
     const siblings = (allPages ?? [])
-      .filter(
-        (p) =>
-          (p.parentId ?? null) === (targetParentId ?? null) &&
-          (p.languageId ?? defaultLanguageId) === languageId,
-      )
+      .filter((p) => (p.parentId ?? null) === (targetParentId ?? null) && (p.languageId ?? defaultLanguageId) === languageId)
       .sort((a, b) => a.position - b.position);
 
     let insertIndex = 0;
@@ -768,12 +757,8 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                         onAddChild={(parentId) => currentLangId && addPage(parentId, currentLangId)}
                         onSettings={(id) => setSettingsForId(id)}
                         onMove={(items) => reorderPages.mutate({ items })}
-                        onInsertAfter={(node, parentId) =>
-                          currentLangId && insertPage(node, 'after', parentId, currentLangId)
-                        }
-                        onInsertBefore={(node, parentId) =>
-                          currentLangId && insertPage(node, 'before', parentId, currentLangId)
-                        }
+                        onInsertAfter={(node, parentId) => currentLangId && insertPage(node, 'after', parentId, currentLangId)}
+                        onInsertBefore={(node, parentId) => currentLangId && insertPage(node, 'before', parentId, currentLangId)}
                       />
                     )}
                   </div>

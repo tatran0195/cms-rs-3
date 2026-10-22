@@ -43,10 +43,7 @@ export function LocaleSelector({
   if (!activeLang) return null;
 
   return (
-    <div
-      className="flex items-center justify-between gap-1.5 border-border border-b bg-muted/20 px-2.5 py-1.5"
-      data-testid="locale-selector"
-    >
+    <div className="flex items-center justify-between gap-1.5 border-border border-b bg-muted/20 px-2.5 py-1.5" data-testid="locale-selector">
       <DropdownMenu>
         <DropdownMenuTrigger
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-start text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -66,20 +63,14 @@ export function LocaleSelector({
           {orderedLanguages.map((lang) => {
             const isSelected = lang.id === activeLang.id;
             return (
-              <DropdownMenuItem
-                key={lang.id}
-                onClick={() => onSelect(lang.id)}
-                className="flex cursor-pointer items-center justify-between text-xs"
-              >
+              <DropdownMenuItem key={lang.id} onClick={() => onSelect(lang.id)} className="flex cursor-pointer items-center justify-between text-xs">
                 <div className="flex min-w-0 items-center gap-2">
                   {isSelected ? <Check className="size-3.5 text-primary" /> : <span className="size-3.5" />}
                   <span className="truncate font-medium">{lang.label}</span>
                   <span className="text-[10px] text-muted-foreground uppercase">({lang.code})</span>
                 </div>
                 {lang.isDefault && (
-                  <span className="shrink-0 rounded bg-accent px-1 text-[9px] text-accent-foreground">
-                    {t('editor.default') || 'Default'}
-                  </span>
+                  <span className="shrink-0 rounded bg-accent px-1 text-[9px] text-accent-foreground">{t('editor.default') || 'Default'}</span>
                 )}
               </DropdownMenuItem>
             );
@@ -89,10 +80,7 @@ export function LocaleSelector({
             <Plus className="size-3.5 text-muted-foreground" />
             <span>{t('editor.addLanguage') || 'Add language'}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onLanguageSettings(activeLang)}
-            className="flex cursor-pointer items-center gap-2 text-xs"
-          >
+          <DropdownMenuItem onClick={() => onLanguageSettings(activeLang)} className="flex cursor-pointer items-center gap-2 text-xs">
             <Settings2 className="size-3.5 text-muted-foreground" />
             <span>{t('editor.langSettings.settings') || 'Language settings'}</span>
           </DropdownMenuItem>

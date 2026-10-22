@@ -1,11 +1,11 @@
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import {
-  type cmsThemeConfig,
   DOCS_LAYOUT_IDS,
   type DocsLayoutId,
   resolveDocsLayout,
   resolveTheme,
+  type ThemeConfig,
   type ThemeOwnedProjectConfig,
 } from '@cms/shared/themes';
 import { DocumentationThemeProvider, projectThemeStyle, projectThemeVariables } from '@cms/site';
@@ -35,7 +35,7 @@ export interface DocsLayoutSandboxProps {
   currentLayout?: DocsLayoutId;
   onSelectLayout: (layout: DocsLayoutId) => void;
   config?: ProjectConfig;
-  theme?: cmsThemeConfig;
+  theme?: ThemeConfig;
   appearance?: 'light' | 'dark' | 'system';
   className?: string;
 }
@@ -71,7 +71,7 @@ export function DocsLayoutSandbox({
 
   // Build effective config by merging props with live sandbox options
   const effectiveConfig: ProjectConfig = useMemo(() => {
-    const baseTheme = theme ?? (config?.theme as cmsThemeConfig | undefined);
+    const baseTheme = theme ?? (config?.theme as ThemeConfig | undefined);
     return {
       ...(config ?? {}),
       theme: {

@@ -507,16 +507,8 @@ export function SortablePageTree({
                     onSelect={onSelect}
                     onAddChild={onAddChild}
                     onSettings={onSettings}
-                    onInsertAfter={
-                      !draggingId && onInsertAfter
-                        ? (node) => onInsertAfter(node, insertParentIdAfter)
-                        : undefined
-                    }
-                    onInsertBefore={
-                      !draggingId && onInsertBefore
-                        ? (node) => onInsertBefore(node, item.parentId)
-                        : undefined
-                    }
+                    onInsertAfter={!draggingId && onInsertAfter ? (node) => onInsertAfter(node, insertParentIdAfter) : undefined}
+                    onInsertBefore={!draggingId && onInsertBefore ? (node) => onInsertBefore(node, item.parentId) : undefined}
                   />
                 </div>
               );
@@ -529,15 +521,7 @@ export function SortablePageTree({
   );
 }
 
-const TreeInserter = memo(function TreeInserter({
-  depth,
-  position,
-  onClick,
-}: {
-  depth: number;
-  position: 'top' | 'bottom';
-  onClick: () => void;
-}) {
+const TreeInserter = memo(function TreeInserter({ depth, position, onClick }: { depth: number; position: 'top' | 'bottom'; onClick: () => void }) {
   const t = useT();
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -546,41 +530,32 @@ const TreeInserter = memo(function TreeInserter({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       aria-label={t('editor.newPage')}
       title={t('editor.newPage')}
       onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
       className={cn(
-        'group/inserter absolute inset-x-0 z-20 flex h-4 items-center cursor-pointer pointer-events-auto',
+        'group/inserter absolute inset-x-0 z-20 flex h-4 items-center cursor-pointer pointer-events-auto border-none bg-transparent p-0',
         position === 'bottom'
-          ? 'opacity-0 group-hover/item:opacity-100 hover:!opacity-100 transition-opacity duration-150 -bottom-2'
-          : 'opacity-0 hover:!opacity-100 transition-opacity duration-150 -top-2',
+          ? 'opacity-0 group-hover/item:opacity-100 hover:!opacity-100 focus-visible:opacity-100 transition-opacity duration-150 -bottom-2'
+          : 'opacity-0 hover:!opacity-100 focus-visible:opacity-100 transition-opacity duration-150 -top-2',
       )}
       data-testid="tree-item-inserter"
     >
-      <div
+      <span
+        aria-hidden="true"
         className="h-0.5 flex-1 bg-primary/40 group-hover/inserter:bg-primary transition-colors duration-150"
         style={{ marginInlineStart: depth * INDENT + 6 }}
       />
-      <button
-        type="button"
-        tabIndex={-1}
-        onClick={handleClick}
-        aria-label={t('editor.newPage')}
-        className="relative mx-1.5 flex size-4.5 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-background text-primary shadow-xs transition-all duration-150 group-hover/inserter:scale-115 group-hover/inserter:border-primary group-hover/inserter:bg-primary group-hover/inserter:text-primary-foreground group-hover/inserter:shadow-sm active:scale-95 cursor-pointer"
+      <span
+        aria-hidden="true"
+        className="relative mx-1.5 flex size-4.5 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-background text-primary shadow-xs transition-all duration-150 group-hover/inserter:scale-115 group-hover/inserter:border-primary group-hover/inserter:bg-primary group-hover/inserter:text-primary-foreground group-hover/inserter:shadow-sm active:scale-95"
       >
         <Plus className="size-2.5 stroke-[2.5]" />
-      </button>
-      <div className="h-0.5 flex-1 bg-primary/40 group-hover/inserter:bg-primary transition-colors duration-150" />
-    </div>
+      </span>
+      <span aria-hidden="true" className="h-0.5 flex-1 bg-primary/40 group-hover/inserter:bg-primary transition-colors duration-150" />
+    </button>
   );
 });
 
@@ -629,11 +604,7 @@ const SortableRow = memo(function SortableRow({
   const inserterDepthAfter = isGroupChildInsert ? depth + 1 : depth;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn('relative w-full group/item', isDragging ? 'z-50' : 'hover:z-30')}
-    >
+    <div ref={setNodeRef} style={style} className={cn('relative w-full group/item', isDragging ? 'z-50' : 'hover:z-30')}>
       <RowPresentation
         node={node}
         depth={depth}
@@ -646,20 +617,8 @@ const SortableRow = memo(function SortableRow({
         onSettings={onSettings}
         handleProps={{ ...attributes, ...listeners }}
       />
-      {!isDragging && onInsertBefore && isFirst ? (
-        <TreeInserter
-          depth={depth}
-          position="top"
-          onClick={() => onInsertBefore(node)}
-        />
-      ) : null}
-      {!isDragging && onInsertAfter ? (
-        <TreeInserter
-          depth={inserterDepthAfter}
-          position="bottom"
-          onClick={() => onInsertAfter(node)}
-        />
-      ) : null}
+      {!isDragging && onInsertBefore && isFirst ? <TreeInserter depth={depth} position="top" onClick={() => onInsertBefore(node)} /> : null}
+      {!isDragging && onInsertAfter ? <TreeInserter depth={inserterDepthAfter} position="bottom" onClick={() => onInsertAfter(node)} /> : null}
     </div>
   );
 });

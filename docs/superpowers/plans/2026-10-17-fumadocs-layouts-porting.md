@@ -64,7 +64,7 @@ describe('resolveDocsLayout', () => {
 Add test in `packages/validators/src/themes.test.ts`:
 ```ts
 it('validates theme layout with docsLayout', () => {
-  const result = cmsThemeConfigSchema.safeParse({
+  const result = ThemeConfigSchema.safeParse({
     layout: {
       docsLayout: 'glass',
     },

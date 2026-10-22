@@ -48,14 +48,7 @@ describe('ThemeImportDialog', () => {
 
   it('renders dialog when open', async () => {
     await act(async () => {
-      root.render(
-        <ThemeImportDialog
-          projectId="test-proj"
-          open={true}
-          onOpenChange={vi.fn()}
-          onApplyTheme={vi.fn()}
-        />,
-      );
+      root.render(<ThemeImportDialog projectId="test-proj" open={true} onOpenChange={vi.fn()} onApplyTheme={vi.fn()} />);
     });
 
     expect(document.body.textContent).toContain('settings.theme.importTitle');
@@ -64,14 +57,7 @@ describe('ThemeImportDialog', () => {
 
   it('triggers preview when valid JSON is pasted', async () => {
     await act(async () => {
-      root.render(
-        <ThemeImportDialog
-          projectId="test-proj"
-          open={true}
-          onOpenChange={vi.fn()}
-          onApplyTheme={vi.fn()}
-        />,
-      );
+      root.render(<ThemeImportDialog projectId="test-proj" open={true} onOpenChange={vi.fn()} onApplyTheme={vi.fn()} />);
     });
 
     const textarea = document.body.querySelector('textarea') as HTMLTextAreaElement;

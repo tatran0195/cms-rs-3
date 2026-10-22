@@ -425,10 +425,7 @@ describe('SortablePageTree - React Component Interactions', () => {
 
   it('triggers onInsertAfter when clicking the bottom inserter on a tree item', async () => {
     const onInsertAfter = vi.fn();
-    const pages = [
-      makeNode({ id: 'p1', title: 'Page One', position: 0 }),
-      makeNode({ id: 'p2', title: 'Page Two', position: 1 }),
-    ];
+    const pages = [makeNode({ id: 'p1', title: 'Page One', position: 0 }), makeNode({ id: 'p2', title: 'Page Two', position: 1 })];
 
     const container = await renderTree({ pages, onInsertAfter });
     const inserters = container.querySelectorAll('[data-testid="tree-item-inserter"]');

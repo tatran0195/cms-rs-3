@@ -129,8 +129,6 @@ export interface ThemeConfig {
   components?: Partial<ThemeComponents>;
 }
 
-export type cmsThemeConfig = ThemeConfig;
-
 export interface ThemeOwnedProjectConfig {
   theme?: ThemeConfig;
   styling?: {

@@ -1,36 +1,28 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
+import { cn } from '@cms/design-system/lib/utils';
+import { useT } from '@cms/i18n/react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@cms/design-system/components/ui/select";
-import { cn } from "@cms/design-system/lib/utils";
-import { useT } from "@cms/i18n/react";
-import {
-  type ThemeConfig,
   DOCS_LAYOUT_IDS,
   type DocsLayoutId,
   type ResolvedTheme,
   resolveDocsLayout,
   type ThemeColorTokens,
   type ThemeComponents,
+  type ThemeConfig,
   type ThemeLayout,
   type ThemePresetId,
-} from "@cms/shared/themes";
-import type { ProjectConfig } from "@cms/validators";
-import { Maximize, Minimize, Moon, SlidersHorizontal, Sun } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { ThemePropsTable } from "./theme-props-table";
-import { ThemeStoryWindow } from "./theme-story-window";
-import type { PropsTablePath } from "./types";
+} from '@cms/shared/themes';
+import type { ProjectConfig } from '@cms/validators';
+import { Maximize, Minimize, Moon, SlidersHorizontal, Sun } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ThemePropsTable } from './theme-props-table';
+import { ThemeStoryWindow } from './theme-story-window';
+import type { PropsTablePath } from './types';
 
 export interface ThemePlaygroundStoryProps {
   config: ProjectConfig;
   themeConfig: ThemeConfig;
-  onThemeConfigChange: (
-    config: ThemeConfig | ((prev: ThemeConfig) => ThemeConfig),
-  ) => void;
+  onThemeConfigChange: (config: ThemeConfig | ((prev: ThemeConfig) => ThemeConfig)) => void;
   resolvedTheme: ResolvedTheme;
   resolvedColors: {
     light: ThemeColorTokens;
@@ -38,14 +30,14 @@ export interface ThemePlaygroundStoryProps {
   };
   resolvedLayout: ThemeLayout;
   resolvedComponents: ThemeComponents;
-  appearance: "light" | "dark" | "system";
-  onAppearanceChange: (appearance: "light" | "dark" | "system") => void;
+  appearance: 'light' | 'dark' | 'system';
+  onAppearanceChange: (appearance: 'light' | 'dark' | 'system') => void;
   onReset: () => void;
   projectId?: string;
   activePreset?: ThemePresetId;
   onSelectPreset?: (presetId: ThemePresetId) => void;
   onExport?: () => void;
-  onImportTheme?: (theme: ThemeConfig, appearance?: "light" | "dark" | "system") => void;
+  onImportTheme?: (theme: ThemeConfig, appearance?: 'light' | 'dark' | 'system') => void;
   isExporting?: boolean;
   className?: string;
 }
@@ -80,15 +72,14 @@ export function ThemePlaygroundStory({
     const handleFullscreenChange = () => {
       const isFs = Boolean(
         document.fullscreenElement &&
-        containerRef.current &&
-        (document.fullscreenElement === containerRef.current ||
-          containerRef.current.contains(document.fullscreenElement)),
+          containerRef.current &&
+          (document.fullscreenElement === containerRef.current || containerRef.current.contains(document.fullscreenElement)),
       );
       setIsFullscreen(isFs);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isFullscreen) {
+      if (e.key === 'Escape' && isFullscreen) {
         if (document.fullscreenElement && document.exitFullscreen) {
           document.exitFullscreen().catch(() => {
             /* ignore */
@@ -98,24 +89,19 @@ export function ThemePlaygroundStory({
       }
     };
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isFullscreen]);
 
-  const activeLayout: DocsLayoutId = resolveDocsLayout(
-    resolvedLayout.docsLayout,
-  );
-  const previewMode: "light" | "dark" =
-    appearance === "dark" ? "dark" : "light";
+  const activeLayout: DocsLayoutId = resolveDocsLayout(resolvedLayout.docsLayout);
+  const previewMode: 'light' | 'dark' = appearance === 'dark' ? 'dark' : 'light';
 
   const toggleFullscreen = async () => {
-    const isCurrentlyFullscreen = Boolean(
-      isFullscreen || document.fullscreenElement,
-    );
+    const isCurrentlyFullscreen = Boolean(isFullscreen || document.fullscreenElement);
     if (isCurrentlyFullscreen) {
       if (document.fullscreenElement && document.exitFullscreen) {
         try {
@@ -144,10 +130,8 @@ export function ThemePlaygroundStory({
     <div
       ref={containerRef}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all flex flex-col",
-        isFullscreen
-          ? "fixed inset-0 z-50 rounded-none border-0 h-screen w-screen"
-          : "w-full",
+        'relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all flex flex-col',
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none border-0 h-screen w-screen' : 'w-full',
         className,
       )}
     >
@@ -156,12 +140,8 @@ export function ThemePlaygroundStory({
         {/* Left: Title & Docs Layout selector */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground tracking-tight">
-              Preview Playground
-            </span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">
-              {layoutDisplayName}
-            </span>
+            <span className="font-semibold text-foreground tracking-tight">Preview Playground</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">{layoutDisplayName}</span>
           </div>
 
           <div className="h-4 w-px bg-border/70" />
@@ -191,12 +171,7 @@ export function ThemePlaygroundStory({
               </SelectTrigger>
               <SelectContent>
                 {DOCS_LAYOUT_IDS.map((layout) => (
-                  <SelectItem
-                    data-testid={`layout-option-${layout}`}
-                    key={layout}
-                    value={layout}
-                    className="text-xs"
-                  >
+                  <SelectItem data-testid={`layout-option-${layout}`} key={layout} value={layout} className="text-xs">
                     {t(`settings.theme.layout.${layout}.name`)}
                   </SelectItem>
                 ))}
@@ -211,13 +186,11 @@ export function ThemePlaygroundStory({
             <button
               type="button"
               onClick={() => setShowProps(!showProps)}
-              aria-label={showProps ? "Hide Props Table" : "Show Props Table"}
-              title={showProps ? "Hide Props Table" : "Show Props Table"}
+              aria-label={showProps ? 'Hide Props Table' : 'Show Props Table'}
+              title={showProps ? 'Hide Props Table' : 'Show Props Table'}
               className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors",
-                showProps
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border/70 bg-card text-foreground hover:bg-muted",
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors',
+                showProps ? 'bg-primary text-primary-foreground border-primary' : 'border-border/70 bg-card text-foreground hover:bg-muted',
               )}
             >
               <SlidersHorizontal className="size-3.5" />
@@ -228,33 +201,23 @@ export function ThemePlaygroundStory({
           {/* Light/Dark preview mode button */}
           <button
             type="button"
-            aria-label={`Toggle Preview: ${previewMode === "dark" ? "Light" : "Dark"}`}
+            aria-label={`Toggle Preview: ${previewMode === 'dark' ? 'Light' : 'Dark'}`}
             title={`Preview mode: ${previewMode}`}
-            onClick={() =>
-              onAppearanceChange(previewMode === "dark" ? "light" : "dark")
-            }
+            onClick={() => onAppearanceChange(previewMode === 'dark' ? 'light' : 'dark')}
             className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
           >
-            {previewMode === "dark" ? (
-              <Sun className="size-3.5 text-amber-400" />
-            ) : (
-              <Moon className="size-3.5" />
-            )}
+            {previewMode === 'dark' ? <Sun className="size-3.5 text-amber-400" /> : <Moon className="size-3.5" />}
           </button>
 
           {/* Fullscreen Button */}
           <button
             type="button"
-            aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             onClick={toggleFullscreen}
             className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
           >
-            {isFullscreen ? (
-              <Minimize className="size-3.5" />
-            ) : (
-              <Maximize className="size-3.5" />
-            )}
+            {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
           </button>
         </div>
       </div>
@@ -293,10 +256,7 @@ export function ThemePlaygroundStory({
           onExport={onExport}
           onImportTheme={onImportTheme}
           isExporting={isExporting}
-          className={cn(
-            "h-[280px] border-t border-border border-x-0 border-b-0 rounded-none",
-            isFullscreen && "shrink-0",
-          )}
+          className={cn('h-[280px] border-t border-border border-x-0 border-b-0 rounded-none', isFullscreen && 'shrink-0')}
         />
       )}
     </div>

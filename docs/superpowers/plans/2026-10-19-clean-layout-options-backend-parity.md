@@ -163,7 +163,7 @@ git commit -m "feat(shared,validators): add clean layout options to ThemeLayout 
 - Modify: `apps/studio/src/features/project-settings/components/theme/index.ts`
 
 **Interfaces:**
-- Consumes: `ThemeLayout`, `resolveTheme`, `cmsThemeConfig` from `@cms/shared/themes`.
+- Consumes: `ThemeLayout`, `resolveTheme`, `ThemeConfig` from `@cms/shared/themes`.
 - Produces: Direct synchronization of `draft.theme.layout` in `ThemeSection`. Modifying any layout property marks `hasChanges = true`, and saving triggers `useUpdateProjectConfig({ config: { ... } })`.
 
 - [ ] **Step 1: Clean up `types.ts`**

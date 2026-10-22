@@ -6,8 +6,8 @@ import {
   THEME_PRESETS,
   type ThemeColorKey,
   type ThemeColorTokens,
-  themeContrastIssues,
   type ThemePresetId,
+  themeContrastIssues,
 } from '@cms/shared/themes';
 import { AlertCircle, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
@@ -72,13 +72,14 @@ export function ThemePaletteEditor({
                   onClick={() => onSelectPreset?.(id)}
                   className={cn(
                     'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer',
-                    active
-                      ? 'bg-primary text-primary-foreground font-medium shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground',
+                    active ? 'bg-primary text-primary-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   <span className="flex items-center gap-0.5" aria-hidden>
-                    <span className="size-1.5 rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: presetColors.canvas }} />
+                    <span
+                      className="size-1.5 rounded-full border border-black/10 dark:border-white/10"
+                      style={{ backgroundColor: presetColors.canvas }}
+                    />
                     <span className="size-1.5 rounded-full" style={{ backgroundColor: presetColors.accent }} />
                   </span>
                   <span>{label}</span>

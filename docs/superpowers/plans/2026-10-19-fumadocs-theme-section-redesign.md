@@ -12,7 +12,7 @@
 - Deploy exclusively for internal deployment scope (no pricing, plans, or billing).
 - No external heavy dependencies like `@fumari/stf`; build clean, idiomatic, fully typed React state management for drill-down navigation and value updates.
 - Real-time reactivity: any prop or palette change in the table must instantly update `DocumentationThemeProvider` and the live preview.
-- Preserve full backward compatibility with `cmsThemeConfig`, `ProjectConfig`, and existing saved themes.
+- Preserve full backward compatibility with `ThemeConfig`, `ProjectConfig`, and existing saved themes.
 
 ---
 

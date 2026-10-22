@@ -82,13 +82,7 @@ describe('ThemePaletteEditor', () => {
     const handleSelectPreset = vi.fn();
     await act(async () => {
       root.render(
-        <ThemePaletteEditor
-          colors={harbor.colors}
-          activePreset="harbor"
-          onSelectPreset={handleSelectPreset}
-          mode="light"
-          onColorChange={vi.fn()}
-        />,
+        <ThemePaletteEditor colors={harbor.colors} activePreset="harbor" onSelectPreset={handleSelectPreset} mode="light" onColorChange={vi.fn()} />,
       );
     });
 

@@ -53,7 +53,7 @@ graph TD
 
 ### 3.1 Extended Theme State
 
-The theme draft state binds `ProjectConfig`, `cmsThemeConfig`, and Fumadocs layout options:
+The theme draft state binds `ProjectConfig`, `ThemeConfig`, and Fumadocs layout options:
 
 ```typescript
 export interface FumadocsLayoutOptions {
@@ -77,7 +77,7 @@ export interface UnifiedThemeDraft {
   preset: ThemePresetId;
   appearance: 'light' | 'dark' | 'system';
   previewMode: 'light' | 'dark';
-  theme: cmsThemeConfig;
+  theme: ThemeConfig;
   layoutOptions: FumadocsLayoutOptions;
 }
 ```
