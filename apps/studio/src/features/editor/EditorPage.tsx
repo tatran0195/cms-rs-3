@@ -262,14 +262,22 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   // autosave effect can never observe the previous page's body under the new id.
   const hydration = nextHydration({ synced, draft: { title, content } }, page);
   if (hydration) {
-    setSynced(hydration);
+    let cleanedContent = hydration.content ?? '';
+    if (hydration.title) {
+      const trimmed = cleanedContent.trimStart();
+      const match = trimmed.match(/^#\s+(.+?)(\r?\n+|$)/);
+      if (match?.[1] && match[1].trim().toLowerCase() === hydration.title.trim().toLowerCase()) {
+        cleanedContent = trimmed.slice(match[0].length).trimStart();
+      }
+    }
+    setSynced({ ...hydration, content: cleanedContent });
     setTitle(hydration.title);
-    setContent(hydration.content);
+    setContent(cleanedContent);
     setStatus('idle');
     // Offload frontmatter / heading parsing to web worker without blocking the render pipeline
-    if (hydration.content) {
-      void astWorkerClient.parseFrontmatter(hydration.content);
-      void astWorkerClient.extractHeadings(hydration.content);
+    if (cleanedContent) {
+      void astWorkerClient.parseFrontmatter(cleanedContent);
+      void astWorkerClient.extractHeadings(cleanedContent);
     }
   }
 

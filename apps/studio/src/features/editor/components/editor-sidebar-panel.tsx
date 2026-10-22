@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from '@cms/design-system/components/ui/button';
+import { Button } from '@cms/design-system/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -566,7 +566,7 @@ export function EditorSidebarPanel({
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 text-xs font-normal h-8"
+            className="w-full justify-start gap-2 text-xs font-normal h-8 border-border/70 hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
             onClick={onOpenSiteConfig}
             aria-label="Site configuration"
           >
@@ -576,7 +576,7 @@ export function EditorSidebarPanel({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            className={cn(buttonVariants({ size: 'sm' }), 'w-full justify-center gap-1.5 text-xs font-medium h-8 cursor-pointer')}
+            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white shadow-xs transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 h-8"
             aria-label="New page"
           >
             <Plus className="size-3.5" />

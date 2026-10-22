@@ -35,7 +35,7 @@
   "support_banner_stopping": "正在停止…",
   "support_banner_stoperror": "无法停止支持访问。如果问题仍然存在，请退出登录。",
   "dashboard_title": "您的网站",
-  "dashboard_subtitle": "您的所有文档站点 — 每个站点都有自己的设置、成员和计划。",
+  "dashboard_subtitle": "您的所有文档站点 — 每个站点都有自己的设置、文档和成员。",
   "dashboard_newproject": "新项目",
   "dashboard_stats_projects": "项目",
   "dashboard_stats_pages": "页数",

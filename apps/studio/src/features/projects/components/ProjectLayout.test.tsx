@@ -120,4 +120,50 @@ describe('ProjectLayout', () => {
     const overviewContent = container.querySelector('[data-testid="overview-content"]');
     expect(overviewContent).not.toBeNull();
   });
+
+  it('renders children with dedicated layout in settings mode without duplicate sidebar', async () => {
+    mocks.pathname = '/app/projects/test-project/settings';
+
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <ProjectLayout projectId="test-project">
+          <div data-testid="settings-content">Settings Content</div>
+        </ProjectLayout>,
+      );
+    });
+
+    const rail = container.querySelector('aside[aria-label="Activity Rail"]');
+    expect(rail).not.toBeNull();
+
+    const settingsContent = container.querySelector('[data-testid="settings-content"]');
+    expect(settingsContent).not.toBeNull();
+  });
+
+  it('renders children with dedicated layout in preview mode without duplicate sidebar', async () => {
+    mocks.pathname = '/app/projects/test-project/preview';
+
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <ProjectLayout projectId="test-project">
+          <div data-testid="preview-content">Preview Content</div>
+        </ProjectLayout>,
+      );
+    });
+
+    const rail = container.querySelector('aside[aria-label="Activity Rail"]');
+    expect(rail).not.toBeNull();
+
+    const previewContent = container.querySelector('[data-testid="preview-content"]');
+    expect(previewContent).not.toBeNull();
+  });
 });

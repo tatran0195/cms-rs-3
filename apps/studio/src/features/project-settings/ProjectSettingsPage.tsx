@@ -6,6 +6,7 @@ import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
 import type { Project } from '@cms/sdk';
 import { useProject } from '@cms/sdk/react';
+import { Link } from '@tanstack/react-router';
 import {
   Archive,
   Bell,
@@ -20,6 +21,7 @@ import {
   LayoutTemplate,
   LockKeyhole,
   type LucideIcon,
+  PenLine,
   Plug,
   Search,
   TriangleAlert,
@@ -113,63 +115,89 @@ export function ProjectSettingsPage({ projectId, section, onSectionChange }: Pro
   }));
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-background md:flex-row">
-      <div className="shrink-0 border-border border-b bg-card px-4 py-3 md:hidden">
-        <label className="mb-1.5 block font-semibold text-[10.5px] text-muted-foreground uppercase tracking-wider" htmlFor="mobile-settings-section">
-          {t('settings.heading')}
-        </label>
-        <Select items={sectionItems} onValueChange={(next) => onSectionChange((next ?? section) as SectionId)} value={section}>
-          <SelectTrigger aria-label={t('settings.heading')} className="h-10 w-full rounded-lg font-medium" id="mobile-settings-section">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {GROUPS.map((group) => (
-              <SelectGroup key={group.id}>
-                <SelectLabel>{t(group.labelKey)}</SelectLabel>
-                {SECTIONS.filter((item) => item.group === group.id).map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {t(`settings.${item.id}` as MessageKey)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <aside className="hidden w-[238px] shrink-0 overflow-y-auto border-border border-e bg-card px-3 py-4.5 md:block">
-        <div className="px-3 pt-1 pb-2.5 font-bold text-[11px] text-muted-foreground uppercase tracking-wider">{t('settings.heading')}</div>
-        <nav className="flex flex-col gap-0.5">
-          {GROUPS.map((group) => (
-            <div key={group.id} className="mt-3 first:mt-0">
-              <div className="px-3 pb-1 font-semibold text-[10.5px] text-muted-foreground/70 uppercase tracking-wider">{t(group.labelKey)}</div>
-              {SECTIONS.filter((item) => item.group === group.id).map((item) => {
-                const active = item.id === section;
-                const Icon = item.icon;
-                return (
-                  <Button
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'h-9 w-full justify-start gap-2 rounded-lg px-3 text-[13.5px]',
-                      active ? 'bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary' : 'text-muted-foreground',
-                    )}
-                    key={item.id}
-                    onClick={() => onSectionChange(item.id)}
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Icon aria-hidden className="size-4 shrink-0" />
-                    {t(`settings.${item.id}` as MessageKey)}
-                  </Button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </aside>
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      {/* Top Header Row aligned with ActivityRail baseline */}
+      <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between border-border border-b bg-background/85 px-4 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <Link
+            to="/app/projects/$projectId"
+            params={{ projectId }}
+            className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+          >
+            {project?.name ?? t('overview.title')}
+          </Link>
+          <span className="text-muted-foreground/40 text-xs">/</span>
+          <span className="font-semibold text-sm text-foreground">{t('settings.heading')}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" render={<Link to="/app/projects/$projectId/editor" params={{ projectId }} />} className="gap-1.5">
+            <PenLine className="size-3.5" />
+            <span>{t('project.editor')}</span>
+          </Button>
+        </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-24 sm:px-6 md:px-9 md:pt-8 md:pb-32">
-          {isLoading || !project ? <SectionSkeleton /> : <ActiveSection projectId={projectId} project={project} section={section} />}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+        <div className="shrink-0 border-border border-b bg-card px-4 py-3 md:hidden">
+          <label
+            className="mb-1.5 block font-semibold text-[10.5px] text-muted-foreground uppercase tracking-wider"
+            htmlFor="mobile-settings-section"
+          >
+            {t('settings.heading')}
+          </label>
+          <Select items={sectionItems} onValueChange={(next) => onSectionChange((next ?? section) as SectionId)} value={section}>
+            <SelectTrigger aria-label={t('settings.heading')} className="h-10 w-full rounded-lg font-medium" id="mobile-settings-section">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GROUPS.map((group) => (
+                <SelectGroup key={group.id}>
+                  <SelectLabel>{t(group.labelKey)}</SelectLabel>
+                  {SECTIONS.filter((item) => item.group === group.id).map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {t(`settings.${item.id}` as MessageKey)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <aside className="hidden w-[238px] shrink-0 overflow-y-auto border-border border-e bg-card px-3 py-4.5 md:block">
+          <div className="px-3 pt-1 pb-2.5 font-bold text-[11px] text-muted-foreground uppercase tracking-wider">{t('settings.heading')}</div>
+          <nav className="flex flex-col gap-0.5">
+            {GROUPS.map((group) => (
+              <div key={group.id} className="mt-3 first:mt-0">
+                <div className="px-3 pb-1 font-semibold text-[10.5px] text-muted-foreground/70 uppercase tracking-wider">{t(group.labelKey)}</div>
+                {SECTIONS.filter((item) => item.group === group.id).map((item) => {
+                  const active = item.id === section;
+                  const Icon = item.icon;
+                  return (
+                    <Button
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'h-9 w-full justify-start gap-2 rounded-lg px-3 text-[13.5px]',
+                        active ? 'bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary' : 'text-muted-foreground',
+                      )}
+                      key={item.id}
+                      onClick={() => onSectionChange(item.id)}
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Icon aria-hidden className="size-4 shrink-0" />
+                      {t(`settings.${item.id}` as MessageKey)}
+                    </Button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-24 sm:px-6 md:px-9 md:pt-8 md:pb-32">
+            {isLoading || !project ? <SectionSkeleton /> : <ActiveSection projectId={projectId} project={project} section={section} />}
+          </div>
         </div>
       </div>
     </div>

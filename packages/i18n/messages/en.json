@@ -35,7 +35,7 @@
   "support_banner_stopping": "Stopping…",
   "support_banner_stoperror": "Could not stop support access. Sign out if the problem continues.",
   "dashboard_title": "Your sites",
-  "dashboard_subtitle": "All your documentation sites — each with its own settings, members, and plan.",
+  "dashboard_subtitle": "All your documentation sites — each with its own settings, documentation, and members.",
   "dashboard_newproject": "New project",
   "dashboard_stats_projects": "Projects",
   "dashboard_stats_pages": "Pages",

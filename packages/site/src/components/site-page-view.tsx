@@ -2,7 +2,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import { siteT } from '@cms/i18n/site';
 import { protectMarkdownCode } from '@cms/shared/markdown-code';
 import { CalendarClock, Check, CircleAlert, Clock3, Image, PencilLine, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSiteAnalytics } from '../context/site-analytics-provider';
 import { FluxTOC } from '../layouts/flux';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from '../layouts/page';
@@ -198,16 +198,35 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
       </div>
     ) : null;
 
+  const cleanedHeadings = useMemo(() => {
+    if (!page.headings || page.headings.length === 0) return page.headings;
+    const first = page.headings[0];
+    if (first && first.depth === 1 && first.text.trim().toLowerCase() === page.title.trim().toLowerCase()) {
+      return page.headings.slice(1);
+    }
+    return page.headings;
+  }, [page.headings, page.title]);
+
+  const contentWithoutDuplicateTitle = useMemo(() => {
+    if (!page.content) return '';
+    const trimmed = page.content.trimStart();
+    const match = trimmed.match(/^#\s+(.+?)(\r?\n+|$)/);
+    if (match?.[1] && (!page.title || match[1].trim().toLowerCase() === page.title.trim().toLowerCase())) {
+      return trimmed.slice(match[0].length).trimStart();
+    }
+    return page.content;
+  }, [page.content, page.title]);
+
   const tableOfContentsElement =
     mode !== 'center' && showToc && !isFlux ? (
-      <TableOfContents headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} />
+      <TableOfContents headings={cleanedHeadings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} />
     ) : null;
 
   const tocPopoverElement =
     mode !== 'center' && showToc ? (
       isFlux ? (
         <FluxTOC
-          headings={page.headings.map((h) => ({
+          headings={cleanedHeadings.map((h) => ({
             id: h.id,
             title: h.text,
             url: `#${h.id}`,
@@ -216,7 +235,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
           style={tocStyle}
         />
       ) : (
-        <TOCPopover headings={page.headings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} />
+        <TOCPopover headings={cleanedHeadings} label={tArticle('onThisPage')} style={tocStyle} depth={tocDepth} />
       )
     ) : null;
 
@@ -255,7 +274,7 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
         ) : null}
         <div className="mt-8">
           <Markdown
-            content={page.content}
+            content={contentWithoutDuplicateTitle}
             site={{
               projectId,
               lang: language,

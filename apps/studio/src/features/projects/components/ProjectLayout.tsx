@@ -18,6 +18,9 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
   const previewEnabled = Boolean(project);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isEditor = pathname.endsWith('/editor');
+  const isSettings = pathname.includes('/settings');
+  const isPreview = pathname.includes('/preview');
+  const hasDedicatedLayout = isEditor || isSettings || isPreview;
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [deployOpen, setDeployOpen] = useState(false);
@@ -32,13 +35,13 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
     <div className="flex h-screen w-screen overflow-hidden">
       <ActivityRail projectId={projectId} onOpenSearch={() => setPaletteOpen(true)} onOpenDeploy={() => setDeployOpen(true)} />
       <div className="flex-1 min-w-0 h-full overflow-hidden">
-        {isEditor ? (
+        {hasDedicatedLayout ? (
           children
         ) : (
           <SidebarProvider
             style={
               {
-                '--sidebar-width': '18rem',
+                '--sidebar-width': '15rem',
                 '--header-height': '3rem',
               } as CSSProperties
             }
