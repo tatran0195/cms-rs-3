@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Branch, Comment, Language, Page, PageNode } from '../../types';
 import { useCmsClient } from '../context';
 import { queryKeys } from '../query-keys';
@@ -8,6 +8,7 @@ export const usePages = <T = PageNode>(projectId: string | undefined, languageId
   return useQuery({
     queryKey: queryKeys.pages.all(projectId ?? '', languageId, branchId),
     enabled: Boolean(projectId),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       if (!projectId) throw new Error('projectId is required');
       return (await client.pages.list(projectId, {
