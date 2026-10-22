@@ -1,3 +1,4 @@
+export { ActivityRail } from './components/ActivityRail';
 export { AppSidebar } from './components/AppSidebar';
 export { CommandPalette } from './components/CommandPalette';
 export { DashboardLayout } from './components/DashboardLayout';
