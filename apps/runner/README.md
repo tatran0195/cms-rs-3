@@ -141,25 +141,40 @@ cms-site uninstall
 
 ---
 
-### 7. `cms-site upgrade` (Self-Upgrade & Automated Binary Updates)
+### 7. Self-Upgrade & Update Commands (Similar to Cargo & Rustup)
 
-Upgrades the running `cms-site` binary directly from the hosted CMS server or public download directory:
+`cms-site` follows the Rust ecosystem toolchain pattern (identical to `rustup self update` and `cargo`):
+
+#### A. Automated In-Place Self-Upgrade (`cms-site self update` / `cms-site upgrade`)
+Downloads and replaces the binary directly from the hosted CMS server or public download directory:
 
 ```bash
-# Check if an update is available without applying
-cms-site upgrade --check
+# Check if an update is available without applying (like 'rustup check')
+cms-site self update --check
+# or: cms-site upgrade --check
 
-# Self-upgrade from hosted CMS API server (default: http://localhost:3000)
-cms-site upgrade --url https://cms.internal.company.corp
+# Self-upgrade from hosted CMS API server (like 'rustup self update')
+cms-site self update --url https://cms.internal.company.corp
+# or: cms-site upgrade --url https://cms.internal.company.corp
 
 # Force re-download and replacement even if already at latest version
-cms-site upgrade --force
+cms-site self update --force
 ```
 
-#### Windows & Unix Safe Atomic Swap:
+#### B. Safe Windows & Unix Atomic Swap:
 - Downloads incoming binary to `.tmp.exe`.
 - On Windows, safely renames active binary to `.old.exe` (bypassing Windows running executable file locks), moves `.tmp.exe` into place, and cleans up old artifacts.
 - On Unix / macOS, ensures `chmod 0755` executable bit before atomic rename.
+
+#### C. Local Development Build via Cargo:
+For engineers building from source within this workspace:
+```bash
+# Rebuild and install directly into user ~/.cargo/bin:
+cargo install --path apps/runner --force
+
+# Or compile release binary directly:
+cargo build --release -p cms-runner
+```
 
 ---
 

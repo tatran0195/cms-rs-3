@@ -216,7 +216,7 @@ export function ExportsSection({ projectId }: { projectId: string }) {
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground/80">
                   <span className="text-foreground/70 font-sans">Self-upgrade:</span>
-                  <span>cms-site upgrade --url http://&lt;server&gt;</span>
+                  <span>cms-site self update --url http://&lt;server&gt;</span>
                 </div>
               </div>
             </div>

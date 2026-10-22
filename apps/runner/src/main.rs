@@ -1,7 +1,7 @@
 use clap::Parser;
 use cms_runner::{
     init_tracing, run_doctor_cmd, run_install, run_mcp, run_open, run_server, run_sync,
-    run_uninstall, run_upgrade, Cli, Commands,
+    run_uninstall, run_upgrade, Cli, Commands, SelfCommands,
 };
 
 #[tokio::main]
@@ -44,6 +44,13 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Upgrade(upgrade_args)) => {
             init_tracing(false, "info");
             run_upgrade(upgrade_args).await?;
+        }
+        Some(Commands::SelfCmd(SelfCommands::Update(upgrade_args))) => {
+            init_tracing(false, "info");
+            run_upgrade(upgrade_args).await?;
+        }
+        Some(Commands::SelfCmd(SelfCommands::Uninstall)) => {
+            run_uninstall().await?;
         }
     }
 

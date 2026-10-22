@@ -75,8 +75,23 @@ pub enum Commands {
     /// Remove cms-site from user PATH and unregister cms-doc:// protocol in Windows registry
     Uninstall,
 
-    /// Upgrade cms-site executable to the latest version from the CMS server
+    /// Upgrade cms-site executable to the latest version (alias: update, self-update)
+    #[command(alias = "update", alias = "self-update", alias = "self-upgrade")]
     Upgrade(UpgradeArgs),
+
+    /// Self-management operations (e.g. 'cms-site self update', similar to 'rustup self update')
+    #[command(name = "self", subcommand)]
+    SelfCmd(SelfCommands),
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum SelfCommands {
+    /// Update cms-site executable to the latest version (like 'rustup self update')
+    #[command(alias = "upgrade")]
+    Update(UpgradeArgs),
+
+    /// Remove cms-site from user PATH and unregister protocol scheme
+    Uninstall,
 }
 
 #[derive(Parser, Debug, Clone)]
