@@ -38,15 +38,7 @@ describe('LinkSettingsDialog', () => {
     roots.push(root);
 
     await act(async () => {
-      root.render(
-        <LinkSettingsDialog
-          projectId="proj-1"
-          languageId="lang-en"
-          existingLinks={[]}
-          open={true}
-          onOpenChange={vi.fn()}
-        />,
-      );
+      root.render(<LinkSettingsDialog projectId="proj-1" languageId="lang-en" existingLinks={[]} open={true} onOpenChange={vi.fn()} />);
     });
 
     expect(document.querySelector('#link-label')).not.toBeNull();
@@ -72,9 +64,7 @@ describe('LinkSettingsDialog', () => {
       );
     });
 
-    const deleteBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Delete Link'),
-    );
+    const deleteBtn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete Link'));
     expect(deleteBtn).toBeDefined();
   });
 });

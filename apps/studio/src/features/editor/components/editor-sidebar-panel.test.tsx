@@ -19,7 +19,7 @@ const mockPages: PageNode[] = [
   { id: 'p1', title: 'Docs Intro', slug: 'intro', path: '/docs/intro', kind: 'PAGE', parentId: null, position: 0 },
   { id: 'p2', title: 'API Auth', slug: 'auth', path: '/api/auth', kind: 'PAGE', parentId: null, position: 1 },
   { id: 'p3', title: 'Other Page', slug: 'other', path: '/other', kind: 'PAGE', parentId: null, position: 2 },
-];
+] as unknown as PageNode[];
 
 vi.mock('@cms/sdk/react', () => ({
   usePages: () => ({
@@ -66,9 +66,7 @@ const mockLanguages: Language[] = [
           { label: 'Documentation', href: '/docs' },
           { label: 'API Reference', href: '/api' },
         ],
-        anchors: [
-          { label: 'Community Forum', href: 'https://community.example.com' },
-        ],
+        anchors: [{ label: 'Community Forum', href: 'https://community.example.com' }],
       },
     },
   } as unknown as Language,

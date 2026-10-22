@@ -44,15 +44,7 @@ describe('TabSettingsDialog', () => {
     roots.push(root);
 
     await act(async () => {
-      root.render(
-        <TabSettingsDialog
-          projectId="proj-1"
-          languageId="lang-en"
-          existingTabs={[]}
-          open={true}
-          onOpenChange={vi.fn()}
-        />,
-      );
+      root.render(<TabSettingsDialog projectId="proj-1" languageId="lang-en" existingTabs={[]} open={true} onOpenChange={vi.fn()} />);
     });
 
     const nameInput = document.querySelector('#tab-name') as HTMLInputElement;
@@ -87,9 +79,7 @@ describe('TabSettingsDialog', () => {
       );
     });
 
-    const deleteBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Delete Tab'),
-    );
+    const deleteBtn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete Tab'));
     expect(deleteBtn).toBeDefined();
   });
 });

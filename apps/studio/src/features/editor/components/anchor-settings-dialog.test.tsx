@@ -38,15 +38,7 @@ describe('AnchorSettingsDialog', () => {
     roots.push(root);
 
     await act(async () => {
-      root.render(
-        <AnchorSettingsDialog
-          projectId="proj-1"
-          languageId="lang-en"
-          existingAnchors={[]}
-          open={true}
-          onOpenChange={vi.fn()}
-        />,
-      );
+      root.render(<AnchorSettingsDialog projectId="proj-1" languageId="lang-en" existingAnchors={[]} open={true} onOpenChange={vi.fn()} />);
     });
 
     expect(document.querySelector('#anchor-label')).not.toBeNull();
@@ -72,9 +64,7 @@ describe('AnchorSettingsDialog', () => {
       );
     });
 
-    const deleteBtn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Delete Anchor'),
-    );
+    const deleteBtn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Delete Anchor'));
     expect(deleteBtn).toBeDefined();
   });
 });

@@ -29,12 +29,14 @@ describe('NavbarScopeForm', () => {
     await act(async () => {
       root.render(
         <NavbarScopeForm
-          initial={{
-            ctaLabel: 'Get Started',
-            ctaUrl: 'https://example.com',
-            links: [],
-            anchors: [],
-          } as any}
+          initial={
+            {
+              ctaLabel: 'Get Started',
+              ctaUrl: 'https://example.com',
+              links: [],
+              anchors: [],
+            } as any
+          }
           onSave={vi.fn()}
         />,
       );

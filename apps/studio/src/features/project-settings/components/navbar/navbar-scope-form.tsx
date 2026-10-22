@@ -1,9 +1,8 @@
 import { Input } from '@cms/design-system/components/ui/input';
 import { useT } from '@cms/i18n/react';
-import type { NavTabItem } from '@cms/validators';
 import { useForm } from '@tanstack/react-form';
 import type { ReactNode } from 'react';
-import { DirtyStateReporter, FIELD_INPUT, Field, GroupLabel, SaveBar, ToggleRow } from '../shared';
+import { DirtyStateReporter, FIELD_INPUT, Field, SaveBar, ToggleRow } from '../shared';
 import { NavbarAnchorsField } from './navbar-anchors-field';
 import { NavbarLinksField } from './navbar-links-field';
 import type { GlobalNavbarPreview, NavbarValues } from './types';

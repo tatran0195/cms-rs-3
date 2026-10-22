@@ -1,12 +1,5 @@
 import { Button } from '@cms/design-system/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@cms/design-system/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@cms/design-system/components/ui/dialog';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Switch } from '@cms/design-system/components/ui/switch';
@@ -26,15 +19,7 @@ export interface LinkSettingsDialogProps {
   onSaved?: (updatedLinks: NavLink[]) => void;
 }
 
-export function LinkSettingsDialog({
-  projectId,
-  languageId,
-  link,
-  existingLinks,
-  open,
-  onOpenChange,
-  onSaved,
-}: LinkSettingsDialogProps) {
+export function LinkSettingsDialog({ projectId, languageId, link, existingLinks, open, onOpenChange, onSaved }: LinkSettingsDialogProps) {
   const updateLanguage = useUpdateLanguage(projectId);
   const updateProject = useUpdateProjectConfig(projectId);
 
@@ -69,8 +54,10 @@ export function LinkSettingsDialog({
       });
     } else {
       await updateProject.mutateAsync({
-        navbar: {
-          links: nextLinks,
+        config: {
+          navbar: {
+            links: nextLinks,
+          },
         },
       });
     }
@@ -138,24 +125,13 @@ export function LinkSettingsDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Link Settings' : 'New Navbar Link'}</DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? 'Configure top navigation bar link.'
-              : 'Add a navigation link to your site top header.'}
-          </DialogDescription>
+          <DialogDescription>{isEditing ? 'Configure top navigation bar link.' : 'Add a navigation link to your site top header.'}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSave} className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label htmlFor="link-label">Label</Label>
-            <Input
-              id="link-label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Changelog, Status"
-              required
-              autoFocus
-            />
+            <Input id="link-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Changelog, Status" required autoFocus />
           </div>
 
           <div className="space-y-1.5">

@@ -12,19 +12,7 @@ import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
 import { usePages, useReorderPages } from '@cms/sdk/react';
 import type { NavAnchor, NavLink, NavTabItem } from '@cms/validators';
-import {
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  FileText,
-  FolderPlus,
-  Layers,
-  MoreHorizontal,
-  Pin,
-  Plus,
-  Search,
-  X,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AnchorSettingsDialog } from './anchor-settings-dialog';
 import { LinkSettingsDialog } from './link-settings-dialog';
@@ -94,10 +82,7 @@ export function EditorSidebarPanel({
   const [editingLink, setEditingLink] = useState<NavLink | null>(null);
 
   const currentLangId = activeLanguageId ?? languages[0]?.id ?? null;
-  const activeLangObj = useMemo(
-    () => languages.find((l) => l.id === currentLangId) ?? languages[0],
-    [languages, currentLangId],
-  );
+  const activeLangObj = useMemo(() => languages.find((l) => l.id === currentLangId) ?? languages[0], [languages, currentLangId]);
   const dir = activeLangObj?.direction === 'RTL' ? 'rtl' : 'ltr';
 
   // Fetch pages concurrently without waiting for languagesPending
@@ -244,10 +229,7 @@ export function EditorSidebarPanel({
               <FileText className="size-3.5 text-muted-foreground" />
               <span>New page</span>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => currentLangId && onAddGroup(currentLangId)}
-              className="cursor-pointer flex items-center gap-2 text-xs"
-            >
+            <DropdownMenuItem onClick={() => currentLangId && onAddGroup(currentLangId)} className="cursor-pointer flex items-center gap-2 text-xs">
               <FolderPlus className="size-3.5 text-muted-foreground" />
               <span>New group</span>
             </DropdownMenuItem>
@@ -431,14 +413,10 @@ export function EditorSidebarPanel({
                           onSettings={onOpenPageSettings}
                           onMove={(items) => reorderPages.mutate({ items })}
                           onInsertAfter={
-                            onInsertPage
-                              ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId)
-                              : undefined
+                            onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId) : undefined
                           }
                           onInsertBefore={
-                            onInsertPage
-                              ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId)
-                              : undefined
+                            onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId) : undefined
                           }
                         />
                       )}
@@ -466,14 +444,10 @@ export function EditorSidebarPanel({
                     onSettings={onOpenPageSettings}
                     onMove={(items) => reorderPages.mutate({ items })}
                     onInsertAfter={
-                      onInsertPage
-                        ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId)
-                        : undefined
+                      onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId) : undefined
                     }
                     onInsertBefore={
-                      onInsertPage
-                        ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId)
-                        : undefined
+                      onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId) : undefined
                     }
                   />
                 </div>
@@ -504,16 +478,8 @@ export function EditorSidebarPanel({
             onAddChild={(parentId) => currentLangId && onAddPage(parentId, currentLangId)}
             onSettings={onOpenPageSettings}
             onMove={(items) => reorderPages.mutate({ items })}
-            onInsertAfter={
-              onInsertPage
-                ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId)
-                : undefined
-            }
-            onInsertBefore={
-              onInsertPage
-                ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId)
-                : undefined
-            }
+            onInsertAfter={onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'after', parentId, currentLangId) : undefined}
+            onInsertBefore={onInsertPage ? (node, parentId) => currentLangId && onInsertPage(node, 'before', parentId, currentLangId) : undefined}
           />
         )}
       </div>

@@ -1,17 +1,8 @@
 import { Button } from '@cms/design-system/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@cms/design-system/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@cms/design-system/components/ui/dialog';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Switch } from '@cms/design-system/components/ui/switch';
-import { useT } from '@cms/i18n/react';
 import { useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
 import { slugify } from '@cms/shared/utils';
 import type { NavTabItem } from '@cms/validators';
@@ -29,16 +20,7 @@ export interface TabSettingsDialogProps {
   onSaved?: (updatedTabs: NavTabItem[]) => void;
 }
 
-export function TabSettingsDialog({
-  projectId,
-  languageId,
-  tab,
-  existingTabs,
-  open,
-  onOpenChange,
-  onSaved,
-}: TabSettingsDialogProps) {
-  const t = useT();
+export function TabSettingsDialog({ projectId, languageId, tab, existingTabs, open, onOpenChange, onSaved }: TabSettingsDialogProps) {
   const updateLanguage = useUpdateLanguage(projectId);
   const updateProject = useUpdateProjectConfig(projectId);
 
@@ -88,8 +70,10 @@ export function TabSettingsDialog({
       });
     } else {
       await updateProject.mutateAsync({
-        navbar: {
-          tabs: nextTabs,
+        config: {
+          navbar: {
+            tabs: nextTabs,
+          },
         },
       });
     }
@@ -111,9 +95,7 @@ export function TabSettingsDialog({
     }
 
     // Check duplicate path
-    const isDuplicate = existingTabs.some(
-      (t) => (!tab || t !== tab) && t.href?.toLowerCase() === cleanHref.toLowerCase(),
-    );
+    const isDuplicate = existingTabs.some((t) => (!tab || t !== tab) && t.href?.toLowerCase() === cleanHref.toLowerCase());
     if (cleanHref && isDuplicate) {
       toast.error('Another tab already uses this base path');
       return;
@@ -166,9 +148,7 @@ export function TabSettingsDialog({
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Tab Settings' : 'New Tab'}</DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Configure tab navigation and base path.'
-              : 'Create a top-level documentation tab section.'}
+            {isEditing ? 'Configure tab navigation and base path.' : 'Create a top-level documentation tab section.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -194,9 +174,7 @@ export function TabSettingsDialog({
               placeholder={external ? 'https://example.com' : 'e.g. /docs or /api'}
             />
             <p className="text-[11px] text-muted-foreground">
-              {external
-                ? 'External URL this tab will link to.'
-                : 'Pages starting with this URL path will be grouped under this tab.'}
+              {external ? 'External URL this tab will link to.' : 'Pages starting with this URL path will be grouped under this tab.'}
             </p>
           </div>
 

@@ -1,12 +1,5 @@
 import { Button } from '@cms/design-system/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@cms/design-system/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@cms/design-system/components/ui/dialog';
 import { Input } from '@cms/design-system/components/ui/input';
 import { Label } from '@cms/design-system/components/ui/label';
 import { Switch } from '@cms/design-system/components/ui/switch';
@@ -26,15 +19,7 @@ export interface AnchorSettingsDialogProps {
   onSaved?: (updatedAnchors: NavAnchor[]) => void;
 }
 
-export function AnchorSettingsDialog({
-  projectId,
-  languageId,
-  anchor,
-  existingAnchors,
-  open,
-  onOpenChange,
-  onSaved,
-}: AnchorSettingsDialogProps) {
+export function AnchorSettingsDialog({ projectId, languageId, anchor, existingAnchors, open, onOpenChange, onSaved }: AnchorSettingsDialogProps) {
   const updateLanguage = useUpdateLanguage(projectId);
   const updateProject = useUpdateProjectConfig(projectId);
 
@@ -71,8 +56,10 @@ export function AnchorSettingsDialog({
       });
     } else {
       await updateProject.mutateAsync({
-        navbar: {
-          anchors: nextAnchors,
+        config: {
+          navbar: {
+            anchors: nextAnchors,
+          },
         },
       });
     }
@@ -142,9 +129,7 @@ export function AnchorSettingsDialog({
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Anchor Settings' : 'New Anchor'}</DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Configure pinned sidebar anchor link.'
-              : 'Add a pinned anchor link to the top of your sidebar.'}
+            {isEditing ? 'Configure pinned sidebar anchor link.' : 'Add a pinned anchor link to the top of your sidebar.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -174,12 +159,7 @@ export function AnchorSettingsDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="anchor-icon">Icon (optional)</Label>
-            <Input
-              id="anchor-icon"
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              placeholder="e.g. messages-square, github, life-buoy"
-            />
+            <Input id="anchor-icon" value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="e.g. messages-square, github, life-buoy" />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">
