@@ -5,7 +5,10 @@ pub mod mcp;
 pub mod diagnostics;
 pub mod sync;
 
-pub use sync::{run_sync, SyncArgs};
+pub use sync::{
+    poll_and_sync_cycle, run_sync, spawn_runner_sync_worker, RunnerSyncConfig, SyncArgs,
+    SyncWorkerStatus,
+};
 
 use axum::{
     extract::{Query, State},
@@ -142,6 +145,51 @@ pub struct ServeArgs {
     /// Allowed CORS origin when exposing over network (e.g. "https://docs.example.com")
     #[arg(long, visible_alias = "allowed-origin")]
     pub cors_origin: Option<String>,
+
+    /// Enable background sync worker to continuously check and pull new documentation and branch updates
+    #[arg(long, visible_alias = "auto-sync", env = "CMS_AUTO_SYNC")]
+    pub sync: bool,
+
+    /// URL of the main CMS server for background sync polling (e.g. http://localhost:3000)
+    #[arg(long, visible_alias = "sync-server", env = "CMS_SYNC_URL")]
+    pub sync_url: Option<String>,
+
+    /// Background polling interval in seconds for checking documentation updates (default: 30)
+    #[arg(long, env = "CMS_SYNC_INTERVAL", default_value_t = 30)]
+    pub sync_interval: u64,
+
+    /// Project ID or slug to sync documentation for
+    #[arg(long, env = "CMS_SYNC_PROJECT")]
+    pub sync_project: Option<String>,
+
+    /// Specific documentation branch to track
+    #[arg(long, env = "CMS_SYNC_BRANCH")]
+    pub sync_branch: Option<String>,
+
+    /// API authentication token for background sync worker
+    #[arg(long, env = "CMS_SYNC_TOKEN")]
+    pub sync_token: Option<String>,
+}
+
+impl Default for ServeArgs {
+    fn default() -> Self {
+        Self {
+            db: PathBuf::from("docs.sqlite"),
+            dir: None,
+            index_dir: None,
+            bundle: None,
+            port: 8080,
+            bind: "127.0.0.1".to_string(),
+            network: false,
+            cors_origin: None,
+            sync: false,
+            sync_url: None,
+            sync_interval: 30,
+            sync_project: None,
+            sync_branch: None,
+            sync_token: None,
+        }
+    }
 }
 
 pub type Args = ServeArgs;
@@ -961,6 +1009,7 @@ pub struct AppState {
     inner: Arc<tokio::sync::RwLock<InnerState>>,
     pub db_path: Option<PathBuf>,
     pub idx_dir: Option<PathBuf>,
+    pub sync_status: Arc<tokio::sync::RwLock<SyncWorkerStatus>>,
 }
 
 #[derive(Clone)]
@@ -984,6 +1033,7 @@ impl AppState {
             inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, instance, search })),
             db_path: None,
             idx_dir: None,
+            sync_status: Arc::new(tokio::sync::RwLock::new(SyncWorkerStatus::default())),
         }
     }
 
@@ -1003,6 +1053,7 @@ impl AppState {
             inner: Arc::new(tokio::sync::RwLock::new(InnerState { db, instance, search })),
             db_path: Some(db_path),
             idx_dir,
+            sync_status: Arc::new(tokio::sync::RwLock::new(SyncWorkerStatus::default())),
         }
     }
 
@@ -1636,6 +1687,82 @@ async fn api_reload(
     }
 }
 
+async fn api_sync_status(State(state): State<AppState>) -> Response {
+    let status = state.sync_status.read().await.clone();
+    (StatusCode::OK, Json(status)).into_response()
+}
+
+async fn api_sync_trigger(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let host_header = headers
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
+    let host_name = host_header.split(':').next().unwrap_or("");
+
+    if !is_loopback_host(host_name) {
+        tracing::warn!("Blocked non-loopback sync trigger request from host '{}'", host_header);
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Forbidden: Sync trigger is strictly restricted to loopback callers"
+            })),
+        )
+            .into_response();
+    }
+
+    let config = {
+        let status = state.sync_status.read().await;
+        if !status.enabled {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": "Background sync worker is disabled. Pass --sync or --sync-url to enable."
+                })),
+            )
+                .into_response();
+        }
+        sync::RunnerSyncConfig {
+            enabled: true,
+            server_url: status
+                .server_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:3000".to_string()),
+            interval: std::time::Duration::from_secs(status.interval_secs),
+            project: status.project.clone(),
+            branch: status.branch.clone(),
+            token: None,
+        }
+    };
+
+    match sync::poll_and_sync_cycle(&state, &config).await {
+        Ok(pulled) => {
+            let status = state.sync_status.read().await.clone();
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "synced": pulled,
+                    "status": status
+                })),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            tracing::error!("Sync trigger failed: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Sync trigger failed",
+                    "detail": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
 async fn fast_path_redirect(
     State(state): State<AppState>,
     uri: axum::http::Uri,
@@ -2254,6 +2381,7 @@ pub async fn run_doctor_cmd(args: DoctorArgs) -> anyhow::Result<bool> {
         bind: "127.0.0.1".into(),
         network: false,
         cors_origin: None,
+        ..Default::default()
     };
     let (db_path, idx_dir_opt) = resolve_runner_paths(&dummy_serve)?;
     diagnostics::run_doctor(&db_path, idx_dir_opt.as_deref(), args.port).await
@@ -2269,6 +2397,7 @@ pub async fn run_mcp(args: McpCliArgs) -> anyhow::Result<()> {
         bind: "127.0.0.1".into(),
         network: false,
         cors_origin: None,
+        ..Default::default()
     };
     let (db_path, idx_dir_opt) = resolve_runner_paths(&dummy_serve)?;
 
@@ -2390,6 +2519,10 @@ pub async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
     let instance = Arc::new(SiteInstance::load(&pool).await?);
     let state = AppState::with_paths(pool, instance, search, db_path, idx_dir_opt);
 
+    // Spawn background sync worker if configured
+    let sync_config = sync::RunnerSyncConfig::from_serve_args(&args);
+    let _sync_handle = sync::spawn_runner_sync_worker(state.clone(), sync_config);
+
     let bind_host = resolve_bind_host(&args.bind, args.network);
     let maybe_cors = build_cors_layer(&bind_host, args.cors_origin.as_deref())?;
 
@@ -2509,6 +2642,8 @@ pub fn create_runner_router(state: AppState, maybe_cors: Option<CorsLayer>) -> R
         .route("/api/v1/changelog", get(api_changelog))
         .route("/api/v1/search", get(api_search))
         .route("/api/v1/reload", axum::routing::post(api_reload))
+        .route("/api/v1/sync/status", get(api_sync_status))
+        .route("/api/v1/sync", axum::routing::post(api_sync_trigger))
         .route("/assets/{*path}", get(serve_asset))
         .nest_service("/mcp", mcp_service)
         .fallback(get(serve_spa))
@@ -3238,6 +3373,7 @@ mod tests {
             bind: "127.0.0.1".into(),
             network: false,
             cors_origin: None,
+            ..Default::default()
         };
 
         let (found_db, found_idx) = resolve_runner_paths(&args).unwrap();
@@ -3262,6 +3398,7 @@ mod tests {
             bind: "127.0.0.1".into(),
             network: false,
             cors_origin: None,
+            ..Default::default()
         };
 
         let (found_db, found_idx) = resolve_runner_paths(&args).unwrap();

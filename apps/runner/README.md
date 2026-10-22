@@ -37,14 +37,37 @@ cms-site serve --dir /path/to/exported-site --port 8080
 
 # Serve with network access (binds to 0.0.0.0 with optional CORS restriction)
 cms-site serve --dir ./demo-site --network --cors-origin "https://internal-docs.company.corp"
+
+# Serve with background auto-sync worker enabled (polls main CMS server and hot-reloads on new documentation/branch exports)
+cms-site serve --sync --sync-url http://localhost:3000 --sync-interval 30 --sync-project my-docs
+```
+
+#### Background Auto-Sync Worker (`--sync` / `--sync-url`)
+When enabled, the runner spawns a lightweight background worker that continuously polls the central CMS server for new completed SQLite exports or branch revisions. When a newer export is detected, it automatically downloads it, verifies SQLite integrity, swaps the database atomically, and hot-reloads the in-memory state with zero downtime.
+
+Configuration:
+- `--sync` / `CMS_AUTO_SYNC=true`: Enable background sync worker (disabled by default).
+- `--sync-url <URL>` / `CMS_SYNC_URL`: Main CMS server URL (default: `http://localhost:3000`) or direct artifact URL.
+- `--sync-interval <SEC>` / `CMS_SYNC_INTERVAL`: Polling interval in seconds (default: `30`).
+- `--sync-project <ID>` / `CMS_SYNC_PROJECT`: Filter to a specific project ID or slug.
+- `--sync-branch <NAME>` / `CMS_SYNC_BRANCH`: Filter to a specific documentation branch / version.
+- `--sync-token <TOKEN>` / `CMS_SYNC_TOKEN`: Bearer token for authenticated CMS API servers.
+
+Inspection & Management Endpoints:
+```bash
+# Check current background worker status, last polled/synced timestamps, and job ID:
+curl http://127.0.0.1:8080/api/v1/sync/status
+
+# Trigger an immediate on-demand sync check right now:
+curl -X POST http://127.0.0.1:8080/api/v1/sync
 ```
 
 #### Hot-Reloading Endpoint
-When `docs.sqlite` or search index is updated on disk, notify the running server without restarting:
+When `docs.sqlite` or search index is updated on disk manually, notify the running server without restarting:
 ```bash
 curl -X POST http://127.0.0.1:8080/api/v1/reload
 ```
-*Note: For security, the reload endpoint strictly enforces loopback origin (`127.0.0.1`, `localhost`, `::1`). External requests receive `403 Forbidden`.*
+*Note: For security, the reload and sync trigger endpoints strictly enforce loopback origin (`127.0.0.1`, `localhost`, `::1`). External requests receive `403 Forbidden`.*
 
 ---
 

@@ -1,7 +1,87 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use clap::Parser;
+use serde::{Deserialize, Serialize};
 use crate::diagnostics::{check_sqlite_integrity, DiagnosticItem};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncWorkerStatus {
+    pub enabled: bool,
+    pub server_url: Option<String>,
+    pub interval_secs: u64,
+    pub project: Option<String>,
+    pub branch: Option<String>,
+    pub last_polled_at: Option<String>,
+    pub last_synced_at: Option<String>,
+    pub last_job_id: Option<String>,
+    pub last_error: Option<String>,
+    pub sync_count: u64,
+}
+
+impl Default for SyncWorkerStatus {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            server_url: None,
+            interval_secs: 30,
+            project: None,
+            branch: None,
+            last_polled_at: None,
+            last_synced_at: None,
+            last_job_id: None,
+            last_error: None,
+            sync_count: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RunnerSyncConfig {
+    pub enabled: bool,
+    pub server_url: String,
+    pub interval: Duration,
+    pub project: Option<String>,
+    pub branch: Option<String>,
+    pub token: Option<String>,
+}
+
+impl RunnerSyncConfig {
+    pub fn from_serve_args(args: &crate::ServeArgs) -> Self {
+        let env_auto = std::env::var("CMS_AUTO_SYNC")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes"))
+            .unwrap_or(false);
+        let enabled = args.sync || args.sync_url.is_some() || env_auto;
+        let server_url = args
+            .sync_url
+            .clone()
+            .or_else(|| std::env::var("CMS_SYNC_URL").ok())
+            .unwrap_or_else(|| "http://localhost:3000".to_string());
+        let interval = Duration::from_secs(args.sync_interval.max(5));
+        let project = args
+            .sync_project
+            .clone()
+            .or_else(|| std::env::var("CMS_SYNC_PROJECT").ok());
+        let branch = args
+            .sync_branch
+            .clone()
+            .or_else(|| std::env::var("CMS_SYNC_BRANCH").ok());
+        let token = args
+            .sync_token
+            .clone()
+            .or_else(|| std::env::var("CMS_SYNC_TOKEN").ok())
+            .or_else(|| std::env::var("CMS_API_TOKEN").ok());
+
+        Self {
+            enabled,
+            server_url,
+            interval,
+            project,
+            branch,
+            token,
+        }
+    }
+}
 
 #[derive(Parser, Debug, Clone)]
 pub struct SyncArgs {
@@ -242,6 +322,259 @@ pub async fn run_sync(args: SyncArgs) -> anyhow::Result<()> {
     }
 }
 
+/// Executes a single polling and sync cycle.
+/// Returns Ok(true) if a new database was pulled and reloaded,
+/// or Ok(false) if the documentation was already up to date.
+pub async fn poll_and_sync_cycle(
+    state: &crate::AppState,
+    config: &RunnerSyncConfig,
+) -> anyhow::Result<bool> {
+    let db_path = state
+        .db_path
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No database path configured on runner server"))?
+        .clone();
+
+    let now_str = chrono::Utc::now().to_rfc3339();
+    {
+        let mut status = state.sync_status.write().await;
+        status.last_polled_at = Some(now_str);
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
+
+    let clean_base = config.server_url.trim_end_matches('/');
+
+    // Case 1: Direct .sqlite file URL
+    if clean_base.ends_with(".sqlite") || clean_base.ends_with("/download") {
+        let mut req = client.get(clean_base);
+        if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+            req = req.bearer_auth(tok);
+        }
+
+        let resp = req.send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("Direct download URL returned HTTP {}", resp.status());
+        }
+
+        let bytes = resp.bytes().await?;
+        let _report = verify_and_swap_sqlite(&db_path, &bytes).await?;
+        let stats = state.reload().await?;
+
+        {
+            let mut status = state.sync_status.write().await;
+            status.last_synced_at = Some(chrono::Utc::now().to_rfc3339());
+            status.last_error = None;
+            status.sync_count += 1;
+        }
+
+        tracing::info!(
+            "✓ Runner sync: Successfully pulled and reloaded database from direct URL ({} pages)",
+            stats.page_count
+        );
+        return Ok(true);
+    }
+
+    // Case 2: Standard CMS API endpoint - query completed export jobs
+    let mut jobs_url = format!("{clean_base}/api/v1/export/jobs?status=completed&format=sqlite&limit=5");
+    if let Some(ref proj) = config.project {
+        jobs_url.push_str(&format!("&project_id={proj}"));
+    }
+
+    let mut req = client.get(&jobs_url);
+    if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+        req = req.bearer_auth(tok);
+    }
+
+    let resp = req.send().await.map_err(|e| {
+        anyhow::anyhow!("Failed to query export jobs from {jobs_url}: {e}")
+    })?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        anyhow::bail!("API server returned HTTP {status} for export jobs: {text}");
+    }
+
+    let jobs_json: serde_json::Value = resp.json().await?;
+    let items = jobs_json
+        .get("items")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("Invalid response from export jobs endpoint (missing 'items')"))?;
+
+    if items.is_empty() {
+        tracing::debug!("Runner sync: No completed SQLite export jobs found on server.");
+        return Ok(false);
+    }
+
+    // Find latest matching job (respecting branch if specified)
+    let latest_job = if let Some(ref branch) = config.branch {
+        items.iter().find(|job| {
+            let snap = &job["snapshot"];
+            snap["branchName"].as_str() == Some(branch)
+                || snap["branch"].as_str() == Some(branch)
+                || snap["versionName"].as_str() == Some(branch)
+                || snap["slug"].as_str() == Some(branch)
+        }).unwrap_or(&items[0])
+    } else {
+        &items[0]
+    };
+
+    let job_id = latest_job
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Export job missing 'id'"))?;
+    let completed_at = latest_job
+        .get("completed_at")
+        .or_else(|| latest_job.get("completedAt"))
+        .and_then(|v| v.as_str());
+
+    // Check if we already synced this job
+    let last_job_id = {
+        state.sync_status.read().await.last_job_id.clone()
+    };
+
+    if last_job_id.as_deref() == Some(job_id) {
+        tracing::debug!("Runner sync: Already up to date with job {job_id}");
+        return Ok(false);
+    }
+
+    // If last_job_id is None (fresh runner start), check current DB exported_at
+    if last_job_id.is_none() {
+        let current_exported_at = state.get_instance().await.generated_at.clone();
+        if let Some(comp) = completed_at {
+            if comp <= current_exported_at.as_str() {
+                let mut status = state.sync_status.write().await;
+                status.last_job_id = Some(job_id.to_string());
+                tracing::debug!("Runner sync: Current database is already up to date ({current_exported_at})");
+                return Ok(false);
+            }
+        }
+    }
+
+    tracing::info!("Runner sync: New documentation export detected: {job_id} (completed: {:?}). Pulling...", completed_at);
+
+    // Resolve download URL for this job
+    let dl_meta_url = format!("{clean_base}/api/v1/export/jobs/{job_id}/download");
+    let mut dl_meta_req = client.get(&dl_meta_url);
+    if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+        dl_meta_req = dl_meta_req.bearer_auth(tok);
+    }
+
+    let dl_resp = dl_meta_req.send().await?;
+    if !dl_resp.status().is_success() {
+        anyhow::bail!("Failed to get download URL for job {job_id}: HTTP {}", dl_resp.status());
+    }
+
+    let dl_json: serde_json::Value = dl_resp.json().await?;
+    let raw_url = dl_json
+        .get("download_url")
+        .or_else(|| dl_json.get("downloadUrl"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Missing 'download_url' in job response"))?;
+
+    let resolved_url = if raw_url.starts_with("http://") || raw_url.starts_with("https://") {
+        raw_url.to_string()
+    } else {
+        format!("{clean_base}{}", if raw_url.starts_with('/') { "" } else { "/" }) + raw_url
+    };
+
+    // Download SQLite binary
+    let mut download_req = client.get(&resolved_url);
+    if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+        download_req = download_req.bearer_auth(tok);
+    }
+
+    let download_resp = download_req.send().await?;
+    if !download_resp.status().is_success() {
+        anyhow::bail!("Failed to download database artifact from {resolved_url}: HTTP {}", download_resp.status());
+    }
+
+    let bytes = download_resp.bytes().await?;
+    let report = verify_and_swap_sqlite(&db_path, &bytes).await?;
+    let stats = state.reload().await?;
+
+    {
+        let mut status = state.sync_status.write().await;
+        status.last_synced_at = Some(chrono::Utc::now().to_rfc3339());
+        status.last_job_id = Some(job_id.to_string());
+        status.last_error = None;
+        status.sync_count += 1;
+    }
+
+    tracing::info!(
+        "✓ Runner sync: Successfully pulled new documentation database (job {}, {} pages, {})",
+        job_id,
+        stats.page_count,
+        report.message
+    );
+    println!(
+        "✓ Runner sync: Pulled new database from server ({} pages reloaded)",
+        stats.page_count
+    );
+
+    Ok(true)
+}
+
+/// Spawns the background sync worker task if enabled in configuration.
+pub fn spawn_runner_sync_worker(
+    state: crate::AppState,
+    config: RunnerSyncConfig,
+) -> Option<tokio::task::JoinHandle<()>> {
+    if !config.enabled {
+        tracing::debug!("Background documentation sync worker is disabled.");
+        return None;
+    }
+
+    let server_url = config.server_url.clone();
+    let interval = config.interval;
+    let project = config.project.clone();
+    let branch = config.branch.clone();
+
+    // Initialize sync_status in state
+    {
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            let mut status = state_clone.sync_status.write().await;
+            status.enabled = true;
+            status.server_url = Some(server_url);
+            status.interval_secs = interval.as_secs();
+            status.project = project;
+            status.branch = branch;
+        });
+    }
+
+    tracing::info!(
+        "Starting background documentation sync worker (polling '{}' every {}s)...",
+        config.server_url,
+        config.interval.as_secs()
+    );
+    println!(
+        "✓ Background documentation sync worker active: polling '{}' every {}s",
+        config.server_url,
+        config.interval.as_secs()
+    );
+
+    let handle = tokio::spawn(async move {
+        // Run first check after a brief 2-second warm-up
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        loop {
+            if let Err(e) = poll_and_sync_cycle(&state, &config).await {
+                tracing::warn!("Runner sync worker polling error: {}", e);
+                let mut status = state.sync_status.write().await;
+                status.last_error = Some(e.to_string());
+            }
+
+            tokio::time::sleep(config.interval).await;
+        }
+    });
+
+    Some(handle)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -291,5 +624,41 @@ mod tests {
         let report = verify_and_swap_sqlite(&target_db, &valid_bytes).await.unwrap();
         assert!(report.passed);
         assert!(target_db.exists(), "Target file must exist after successful swap");
+    }
+
+    #[test]
+    fn test_runner_sync_config_defaults_and_explicit() {
+        // Default: disabled
+        let default_serve = crate::ServeArgs::default();
+        let cfg = RunnerSyncConfig::from_serve_args(&default_serve);
+        assert!(!cfg.enabled, "Sync should be disabled by default");
+        assert_eq!(cfg.server_url, "http://localhost:3000");
+
+        // Explicit enable via --sync
+        let mut enabled_serve = crate::ServeArgs::default();
+        enabled_serve.sync = true;
+        enabled_serve.sync_url = Some("http://192.168.1.50:3000".to_string());
+        enabled_serve.sync_interval = 15;
+        enabled_serve.sync_project = Some("proj-123".to_string());
+        enabled_serve.sync_branch = Some("feature-v2".to_string());
+        enabled_serve.sync_token = Some("secret-token".to_string());
+
+        let cfg2 = RunnerSyncConfig::from_serve_args(&enabled_serve);
+        assert!(cfg2.enabled);
+        assert_eq!(cfg2.server_url, "http://192.168.1.50:3000");
+        assert_eq!(cfg2.interval, Duration::from_secs(15));
+        assert_eq!(cfg2.project.as_deref(), Some("proj-123"));
+        assert_eq!(cfg2.branch.as_deref(), Some("feature-v2"));
+        assert_eq!(cfg2.token.as_deref(), Some("secret-token"));
+    }
+
+    #[test]
+    fn test_sync_status_default() {
+        let status = SyncWorkerStatus::default();
+        assert!(!status.enabled);
+        assert_eq!(status.sync_count, 0);
+        assert!(status.last_synced_at.is_none());
+        assert!(status.last_job_id.is_none());
+        assert!(status.last_error.is_none());
     }
 }
