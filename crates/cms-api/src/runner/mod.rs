@@ -14,6 +14,8 @@ use serde::Serialize;
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
+pub const RUNNER_FILENAME: &str = if cfg!(windows) { "cms-site.exe" } else { "cms-site" };
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadItem {
@@ -34,7 +36,7 @@ pub struct RunnerInfoResponse {
 }
 
 /// Resolves the unified canonical public downloads directory (`public/downloads`).
-/// Overridable via `CMS_DOWNLOADS_DIR` or `CMS_PUBLIC_DIR/downloads`.
+/// Configurable via `CMS_DOWNLOADS_DIR` or `CMS_PUBLIC_DIR/downloads`.
 pub fn get_downloads_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("CMS_DOWNLOADS_DIR") {
         let p = PathBuf::from(dir.trim());
@@ -68,44 +70,6 @@ pub fn get_downloads_dir() -> PathBuf {
     let default_dir = PathBuf::from("public/downloads");
     let _ = std::fs::create_dir_all(&default_dir);
     default_dir
-}
-
-/// Locates the runner executable directly within the unified downloads folder.
-/// Automatically seeds from `target/release` during local development if missing.
-pub fn find_runner_executable() -> Option<PathBuf> {
-    let dir = get_downloads_dir();
-    let exe_name = if cfg!(windows) { "cms-site.exe" } else { "cms-site" };
-    let primary = dir.join(exe_name);
-
-    if primary.is_file() {
-        return Some(primary);
-    }
-
-    // Secondary check for alternate binary extension
-    let alt_name = if cfg!(windows) { "cms-site" } else { "cms-site.exe" };
-    let alt = dir.join(alt_name);
-    if alt.is_file() {
-        return Some(alt);
-    }
-
-    // If running in development without initial download seed, copy from target/release
-    let build_sources = [
-        PathBuf::from("target/release").join(exe_name),
-        PathBuf::from("../../target/release").join(exe_name),
-        PathBuf::from("target/debug").join(exe_name),
-        PathBuf::from("../../target/debug").join(exe_name),
-    ];
-    for src in build_sources {
-        if src.is_file() {
-            let _ = std::fs::copy(&src, &primary);
-            if primary.is_file() {
-                return Some(primary);
-            }
-            return Some(src);
-        }
-    }
-
-    None
 }
 
 /// Infer standard MIME content-type based on file extension
@@ -151,50 +115,31 @@ async fn serve_download_file(file_path: &Path, filename: &str, req: Request) -> 
     Ok(res)
 }
 
-/// Handler for GET /api/runner/info
-pub async fn runner_info_handler() -> Result<Json<RunnerInfoResponse>, AppError> {
-    let runner_path = find_runner_executable();
+/// Handler for GET /api/downloads/{filename}: Generic unified downloads route for any artifact
+pub async fn download_artifact_handler(
+    AxumPath(filename): AxumPath<String>,
+    req: Request,
+) -> Result<Response, AppError> {
+    // Prevent directory traversal attacks
+    if filename.is_empty()
+        || filename.contains('/')
+        || filename.contains('\\')
+        || filename.contains("..")
+    {
+        return Err(AppError::BadRequest("Invalid filename".to_string()));
+    }
 
-    let (available, filename, size_bytes, path_str) = match runner_path {
-        Some(ref p) => {
-            let fname = p
-                .file_name()
-                .and_then(|f| f.to_str())
-                .unwrap_or("cms-site.exe")
-                .to_string();
-            let size = std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
-            let display_path = p.display().to_string();
-            (true, fname, size, Some(display_path))
-        }
-        None => (false, "cms-site.exe".to_string(), 0, None),
-    };
+    let dir = get_downloads_dir();
+    let file_path = dir.join(&filename);
 
-    Ok(Json(RunnerInfoResponse {
-        available,
-        filename,
-        path: path_str,
-        size_bytes,
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        download_url: "/api/runner/download".to_string(),
-    }))
+    if !file_path.is_file() {
+        return Err(AppError::NotFound(format!("File '{filename}' not found in public downloads")));
+    }
+
+    serve_download_file(&file_path, &filename, req).await
 }
 
-/// Handler for GET /api/runner/download
-pub async fn download_runner_handler(req: Request) -> Result<Response, AppError> {
-    let runner_path = find_runner_executable().ok_or_else(|| {
-        AppError::NotFound("Runner executable (cms-site.exe) not found in public downloads folder".to_string())
-    })?;
-
-    let filename = runner_path
-        .file_name()
-        .and_then(|f| f.to_str())
-        .unwrap_or("cms-site.exe")
-        .to_string();
-
-    serve_download_file(&runner_path, &filename, req).await
-}
-
-/// Handler for GET /api/downloads: Lists all public downloadable artifacts
+/// Handler for GET /api/downloads: Lists all public downloadable artifacts in public/downloads/
 pub async fn list_downloads_handler() -> Result<Json<Vec<DownloadItem>>, AppError> {
     let dir = get_downloads_dir();
     let mut items = Vec::new();
@@ -221,28 +166,32 @@ pub async fn list_downloads_handler() -> Result<Json<Vec<DownloadItem>>, AppErro
     Ok(Json(items))
 }
 
-/// Handler for GET /api/downloads/{filename}: Generic unified downloads route for any artifact
-pub async fn download_artifact_handler(
-    AxumPath(filename): AxumPath<String>,
-    req: Request,
-) -> Result<Response, AppError> {
-    // Prevent directory traversal attacks
-    if filename.is_empty()
-        || filename.contains('/')
-        || filename.contains('\\')
-        || filename.contains("..")
-    {
-        return Err(AppError::BadRequest("Invalid filename".to_string()));
-    }
+/// Handler for GET /api/runner/download: Direct shortcut to download cms-site.exe from public downloads
+pub async fn download_runner_handler(req: Request) -> Result<Response, AppError> {
+    download_artifact_handler(AxumPath(RUNNER_FILENAME.to_string()), req).await
+}
 
+/// Handler for GET /api/runner/info: Checks runner status directly in public downloads
+pub async fn runner_info_handler() -> Result<Json<RunnerInfoResponse>, AppError> {
     let dir = get_downloads_dir();
-    let file_path = dir.join(&filename);
+    let runner_path = dir.join(RUNNER_FILENAME);
 
-    if !file_path.is_file() {
-        return Err(AppError::NotFound(format!("File '{filename}' not found in public downloads")));
-    }
+    let (available, size_bytes, path_str) = if runner_path.is_file() {
+        let size = std::fs::metadata(&runner_path).map(|m| m.len()).unwrap_or(0);
+        let display_path = runner_path.display().to_string();
+        (true, size, Some(display_path))
+    } else {
+        (false, 0, None)
+    };
 
-    serve_download_file(&file_path, &filename, req).await
+    Ok(Json(RunnerInfoResponse {
+        available,
+        filename: RUNNER_FILENAME.to_string(),
+        path: path_str,
+        size_bytes,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        download_url: "/api/runner/download".to_string(),
+    }))
 }
 
 /// Router for /api/runner
