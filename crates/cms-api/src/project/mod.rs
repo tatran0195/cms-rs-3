@@ -148,6 +148,10 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(get_latest_project_deployment_handler),
         )
         .route(
+            "/{project_id}/deployments/baseline",
+            get(get_deployment_baseline_handler),
+        )
+        .route(
             "/{project_id}/deployments/changes",
             get(get_deployment_changes_handler),
         )

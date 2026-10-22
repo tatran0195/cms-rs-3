@@ -9,7 +9,8 @@ use cms_biz::platform_event::{FunnelEventType, PlatformEventService};
 use cms_entity::{
     common::ApiResponse,
     deployment::{
-        DeploymentChangeItem, DeploymentChangesResponse, DeploymentListItem, TriggerPublishRequest,
+        BaselinePageItem, DeploymentBaselineResponse, DeploymentChangeItem,
+        DeploymentChangesResponse, DeploymentListItem, TriggerPublishRequest,
     },
 };
 use cms_error::AppError;
@@ -211,6 +212,75 @@ pub async fn get_latest_project_deployment_handler(
     });
 
     Ok(Json(ApiResponse::new(latest_ready)))
+}
+
+/// Deployment baseline snapshot
+///
+/// Returns the baseline deployment snapshot pages for client-side diffing in Web Worker.
+/// If no active deployment exists, returns has_baseline = false.
+pub async fn get_deployment_baseline_handler(
+    State(state): State<Arc<AppState>>,
+    auth: AuthExtractor,
+    Path(project_id): Path<String>,
+) -> Result<Json<ApiResponse<DeploymentBaselineResponse>>, AppError> {
+    super::common::authorize_project(&state, &auth, &project_id, cms_authz::Relation::Viewer)
+        .await?;
+    use cms_biz::deployment::DeploymentService;
+
+    let deployments = DeploymentService::list_deployments(
+        &state.biz_context(),
+        &auth.user.id,
+        &project_id,
+        1,
+        50,
+    )
+    .await?;
+
+    let baseline = deployments
+        .data
+        .iter()
+        .find(|d| matches!(d.status, cms_entity::deployment::DeploymentStatus::Active));
+
+    let Some(base) = baseline else {
+        return Ok(Json(ApiResponse::new(DeploymentBaselineResponse {
+            has_baseline: false,
+            deployment_id: None,
+            version: None,
+            pages: Vec::new(),
+        })));
+    };
+
+    let snapshot_meta =
+        cms_db::deployment::DeploymentQueries::get_snapshot_by_deployment(&state.pool, &base.id)
+            .await
+            .unwrap_or_default();
+    let version = snapshot_meta.map(|s| s.version);
+
+    let snapshot_pages: Vec<cms_entity::page::Page> =
+        cms_db::deployment::DeploymentQueries::get_snapshot_pages(&state.pool, &base.id, None)
+            .await
+            .unwrap_or_default();
+
+    let pages: Vec<BaselinePageItem> = snapshot_pages
+        .into_iter()
+        .map(|p| BaselinePageItem {
+            id: p.id,
+            title: p.title,
+            path: p.path,
+            slug: p.slug,
+            content: p.content,
+            is_published: p.is_published,
+            language_code: "en".to_string(),
+            kind: "PAGE".to_string(),
+        })
+        .collect();
+
+    Ok(Json(ApiResponse::new(DeploymentBaselineResponse {
+        has_baseline: true,
+        deployment_id: Some(base.id.clone()),
+        version,
+        pages,
+    })))
 }
 
 /// Deployment changes

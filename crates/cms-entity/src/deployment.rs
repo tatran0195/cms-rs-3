@@ -158,3 +158,28 @@ pub struct DeploymentChangesResponse {
     pub redirect_issues: Vec<String>,
     pub has_baseline: bool,
 }
+
+/// Baseline page item for /api/app/projects/:id/deployments/baseline
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselinePageItem {
+    pub id: String,
+    pub title: String,
+    pub path: String,
+    pub slug: String,
+    pub content: String,
+    pub is_published: bool,
+    pub language_code: String,
+    pub kind: String,
+}
+
+/// Baseline deployment snapshot response for /api/app/projects/:id/deployments/baseline
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct DeploymentBaselineResponse {
+    pub has_baseline: bool,
+    pub deployment_id: Option<String>,
+    pub version: Option<i64>,
+    pub pages: Vec<BaselinePageItem>,
+}
+
