@@ -338,7 +338,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
   // the same-frame double-click window immediately, so a slow request can never
   // create two pages or groups from repeated clicks.
   const creationInFlight = useRef(false);
-  const addPage = (parentId: string | null, languageId: string) => {
+  const addPage = (parentId: string | null, languageId: string, slug?: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
     createPage.mutate(
@@ -347,7 +347,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       // and deriving it from e.g. a non-Latin title would strip to a broken 'page' slug.
       {
         title: t('editor.untitled'),
-        slug: 'untitled',
+        slug: slug ?? 'untitled',
         parentId,
         languageId,
         ...branchScope,
@@ -412,7 +412,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       },
     );
   };
-  const addGroup = (languageId: string) => {
+  const addGroup = (languageId: string, slug?: string) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
     createPage.mutate(
@@ -421,7 +421,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       {
         title: t('editor.newGroup'),
         kind: 'GROUP',
-        slug: 'new-group',
+        slug: slug ?? 'new-group',
         languageId,
         ...branchScope,
       },
@@ -653,9 +653,9 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                   setMobileSidebarOpen(false);
                   setFocusedTreeOpen(false);
                 }}
-                onAddPage={(parentId, langId) => addPage(parentId, langId)}
+                onAddPage={(parentId, langId, slug) => addPage(parentId, langId, slug)}
                 onInsertPage={(node, pos, relId, langId) => insertPage(node, pos, relId, langId)}
-                onAddGroup={(langId) => addGroup(langId)}
+                onAddGroup={(langId, slug) => addGroup(langId, slug)}
                 onOpenPageSettings={(id) => setSettingsForId(id)}
                 onAddLanguage={() => setAddLangOpen(true)}
                 onLanguageSettings={(lang) => setLangSettings(lang)}

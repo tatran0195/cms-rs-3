@@ -10,7 +10,7 @@ import {
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
-import { usePages, useReorderPages } from '@cms/sdk/react';
+import { usePages, useReorderPages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
 import type { NavAnchor, NavLink, NavTabItem } from '@cms/validators';
 import { ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -35,9 +35,9 @@ export interface EditorSidebarPanelProps {
   };
   onSelectLanguage: (id: string) => void;
   onSelectPage: (id: string) => void;
-  onAddPage: (parentId: string | null, languageId: string) => void;
+  onAddPage: (parentId: string | null, languageId: string, slug?: string) => void;
   onInsertPage?: (node: PageNode, position: 'before' | 'after', relativeToId: string | null, languageId: string) => void;
-  onAddGroup: (languageId: string) => void;
+  onAddGroup: (languageId: string, slug?: string) => void;
   onOpenPageSettings: (id: string) => void;
   onAddLanguage?: () => void;
   onLanguageSettings?: (lang: Language) => void;
@@ -93,6 +93,8 @@ export function EditorSidebarPanel({
   } = usePages(projectId, currentLangId ?? undefined, activeBranchId ?? undefined);
 
   const reorderPages = useReorderPages(projectId);
+  const updateLanguage = useUpdateLanguage(projectId);
+  const updateProject = useUpdateProjectConfig(projectId);
 
   const currentNavbarTabs = useMemo(
     () => (activeLangObj?.config?.navbar?.tabs ?? projectNavbar?.tabs ?? []) as NavTabItem[],
@@ -141,6 +143,30 @@ export function EditorSidebarPanel({
     return pages.filter((p) => matchedIds.has(p.id));
   }, [allPages, searchQuery]);
 
+  const targetTab = useMemo(() => {
+    if (currentNavbarTabs.length === 0) return null;
+    if (selectedId) {
+      const sel = (allPages ?? []).find((p) => p.id === selectedId);
+      if (sel) {
+        const cleanP = sel.path.replace(/^\/+|\/+$/g, '').toLowerCase();
+        const cleanS = sel.slug.toLowerCase();
+        const matched = currentNavbarTabs.find((t) => {
+          const rawHref = (t.href ?? '').replace(/^\/+|\/+$/g, '').toLowerCase();
+          return (
+            rawHref &&
+            (cleanP === rawHref ||
+              cleanP.startsWith(`${rawHref}/`) ||
+              cleanS === rawHref ||
+              cleanS.startsWith(`${rawHref}-`) ||
+              cleanS.startsWith(`${rawHref}/`))
+          );
+        });
+        if (matched) return matched;
+      }
+    }
+    return currentNavbarTabs[0];
+  }, [currentNavbarTabs, selectedId, allPages]);
+
   // Construct unified tree nodes: if tabs exist, map tabs as root sections in single virtualized tree
   const displayPages = useMemo(() => {
     if (currentNavbarTabs.length === 0) {
@@ -165,7 +191,14 @@ export function EditorSidebarPanel({
       for (const p of filteredPages) {
         const cleanP = p.path.replace(/^\/+|\/+$/g, '').toLowerCase();
         const cleanS = p.slug.toLowerCase();
-        if (rawHref && (cleanP === rawHref || cleanP.startsWith(`${rawHref}/`) || cleanS === rawHref)) {
+        if (
+          rawHref &&
+          (cleanP === rawHref ||
+            cleanP.startsWith(`${rawHref}/`) ||
+            cleanS === rawHref ||
+            cleanS.startsWith(`${rawHref}-`) ||
+            cleanS.startsWith(`${rawHref}/`))
+        ) {
           matchedIds.add(p.id);
         }
       }
@@ -194,7 +227,7 @@ export function EditorSidebarPanel({
         path: tab.href ?? '',
         icon: 'Layers',
         description: null,
-        position: -1000 + index * 10,
+        position: tab.position ?? index * 10,
         hidden: false,
         updatedAt: '',
       });
@@ -210,29 +243,16 @@ export function EditorSidebarPanel({
       }
     });
 
-    // 2. Unassigned pages
+    // 2. Tabs are strictly the top level of navigation; all other items sit inside them.
+    // Any unassigned pages or groups are nested inside the primary tab so nothing sits along tabs at depth 0.
     const unassigned = filteredPages.filter((p) => !assignedIds.has(p.id));
-    if (unassigned.length > 0) {
-      const unassignedTabId = '__tab__unassigned';
-      treeNodes.push({
-        id: unassignedTabId,
-        parentId: null,
-        languageId: currentLangId ?? '',
-        kind: 'GROUP',
-        title: 'Pages',
-        slug: 'pages',
-        path: '',
-        icon: 'Layers',
-        description: null,
-        position: -500,
-        hidden: false,
-        updatedAt: '',
-      });
-
+    const primaryTab = currentNavbarTabs[0];
+    if (unassigned.length > 0 && primaryTab) {
+      const primaryTabId = `__tab__${primaryTab.label}`;
       for (const p of unassigned) {
         treeNodes.push({
           ...p,
-          parentId: p.parentId === null ? unassignedTabId : p.parentId,
+          parentId: p.parentId === null ? primaryTabId : p.parentId,
         });
       }
     }
@@ -275,13 +295,34 @@ export function EditorSidebarPanel({
               Content
             </DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => currentLangId && onAddPage(null, currentLangId)}
+              onClick={() => {
+                if (currentLangId) {
+                  if (targetTab) {
+                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
+                    onAddPage(null, currentLangId, cleanHref ? `${cleanHref}/untitled` : undefined);
+                  } else {
+                    onAddPage(null, currentLangId);
+                  }
+                }
+              }}
               className="cursor-pointer flex items-center gap-2 text-xs"
             >
               <FileText className="size-3.5 text-muted-foreground" />
               <span>New page</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => currentLangId && onAddGroup(currentLangId)} className="cursor-pointer flex items-center gap-2 text-xs">
+            <DropdownMenuItem
+              onClick={() => {
+                if (currentLangId) {
+                  if (targetTab) {
+                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
+                    onAddGroup(currentLangId, cleanHref ? `${cleanHref}-new-group` : undefined);
+                  } else {
+                    onAddGroup(currentLangId);
+                  }
+                }
+              }}
+              className="cursor-pointer flex items-center gap-2 text-xs"
+            >
               <FolderPlus className="size-3.5 text-muted-foreground" />
               <span>New group</span>
             </DropdownMenuItem>
@@ -430,7 +471,14 @@ export function EditorSidebarPanel({
             onAddChild={(parentId) => {
               if (currentLangId) {
                 if (parentId?.startsWith('__tab__')) {
-                  onAddPage(null, currentLangId);
+                  const tabLabel = parentId.replace('__tab__', '');
+                  const tab = currentNavbarTabs.find((t) => t.label === tabLabel);
+                  const cleanHref = (tab?.href ?? '').replace(/^\/+|\/+$/g, '');
+                  if (cleanHref) {
+                    onAddPage(null, currentLangId, `${cleanHref}/untitled`);
+                  } else {
+                    onAddPage(null, currentLangId);
+                  }
                 } else {
                   onAddPage(parentId, currentLangId);
                 }
@@ -438,7 +486,6 @@ export function EditorSidebarPanel({
             }}
             onSettings={(id) => {
               if (id.startsWith('__tab__')) {
-                if (id === '__tab__unassigned') return;
                 const tabLabel = id.replace('__tab__', '');
                 const tab = currentNavbarTabs.find((t) => t.label === tabLabel);
                 if (tab) {
@@ -459,6 +506,34 @@ export function EditorSidebarPanel({
                 }));
               if (cleaned.length > 0) {
                 reorderPages.mutate({ items: cleaned });
+              }
+
+              // Update tab positions alongside pages and groups
+              const movedTabs = items.filter((it) => it.id.startsWith('__tab__'));
+              if (movedTabs.length > 0) {
+                const tabPosMap = new Map(movedTabs.map((t) => [t.id.replace('__tab__', ''), t.position]));
+                let tabsChanged = false;
+                const nextTabs = currentNavbarTabs.map((t) => {
+                  const newPos = tabPosMap.get(t.label);
+                  if (newPos !== undefined && newPos !== t.position) {
+                    tabsChanged = true;
+                    return { ...t, position: newPos };
+                  }
+                  return t;
+                });
+                if (tabsChanged) {
+                  nextTabs.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+                  if (currentLangId) {
+                    updateLanguage.mutate({
+                      id: currentLangId,
+                      body: { config: { navbar: { tabs: nextTabs } } },
+                    });
+                  } else {
+                    updateProject.mutate({
+                      config: { navbar: { tabs: nextTabs } },
+                    });
+                  }
+                }
               }
             }}
             onInsertAfter={

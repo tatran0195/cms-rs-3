@@ -297,7 +297,7 @@ describe('navTabItemSchema & navbar.tabs recursive validation', () => {
   it('validates a flat list of tabs for backward compatibility', () => {
     const flatTabs = [
       { label: 'Guides', href: '/guides' },
-      { label: 'API', href: 'https://api.example.com', external: true },
+      { label: 'API', href: 'https://api.example.com', external: true, position: 2 },
     ];
     const parsed = projectConfigSchema.safeParse({ navbar: { tabs: flatTabs } });
     expect(parsed.success).toBe(true);

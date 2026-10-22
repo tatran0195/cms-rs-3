@@ -41,6 +41,7 @@ export interface SnapshotNavTabItem {
   href?: string;
   external?: boolean;
   items?: SnapshotNavTabItem[];
+  position?: number;
 }
 
 /** Per-language overrides baked into the snapshot. Mirrors

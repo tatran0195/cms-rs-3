@@ -179,7 +179,7 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
                   <button
                     className={cn(
                       'mb-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-start text-sm transition-colors',
-                      item.kind === 'GROUP' && 'font-semibold text-muted-foreground text-xs uppercase tracking-wide',
+                      item.kind === 'GROUP' && 'font-semibold text-muted-foreground',
                       item.id === selected?.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                       item.hidden && 'opacity-55',
                     )}
@@ -225,7 +225,7 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
                   <button
                     className={cn(
                       'mb-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors',
-                      item.kind === 'GROUP' && 'font-semibold text-muted-foreground text-xs uppercase tracking-wide',
+                      item.kind === 'GROUP' && 'font-semibold text-muted-foreground',
                       item.id === selected?.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                       item.hidden && 'opacity-55',
                     )}

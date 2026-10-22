@@ -117,31 +117,67 @@ export function getProjection(items: Flat[], activeId: string, overId: string, d
     return { depth: activeItem?.depth ?? 0, parentId: activeItem?.parentId ?? null };
   }
   const activeItem = items[activeIndex];
+  if (!activeItem) {
+    return { depth: 0, parentId: null };
+  }
+  const isTab = activeItem.id.startsWith('__tab__');
+  const hasTabs = items.some((it) => it.id.startsWith('__tab__'));
+
+  // 1. Tab items are strictly top-level navigation sections (depth 0, parentId null).
+  if (isTab) {
+    return { depth: 0, parentId: null };
+  }
+
+  // 2. Non-tab items (pages and groups) must sit INSIDE tabs if tabs exist.
+  // Tabs are the top level of navigation, other items sit inside them.
   const newItems = arrayMove(items, activeIndex, overIndex);
   const previousItem = newItems[overIndex - 1];
   const nextItem = newItems[overIndex + 1];
   const dragDepth = Math.round(dragOffset / indent);
   const projectedDepth = (activeItem?.depth ?? 0) + dragDepth;
-  const maxDepth = previousItem ? previousItem.depth + 1 : 0;
-  const minDepth = nextItem ? nextItem.depth : 0;
-  const depth = projectedDepth > maxDepth ? maxDepth : projectedDepth < minDepth ? minDepth : projectedDepth;
+
+  const minAllowedDepth = hasTabs ? 1 : 0;
+  const maxDepth = previousItem ? previousItem.depth + 1 : minAllowedDepth;
+  const minDepth = Math.max(minAllowedDepth, nextItem ? nextItem.depth : minAllowedDepth);
+  let depth = projectedDepth > maxDepth ? maxDepth : projectedDepth < minDepth ? minDepth : projectedDepth;
+  if (hasTabs && depth < 1) {
+    depth = 1;
+  }
 
   const parentId = (() => {
-    if (depth === 0 || !previousItem) {
+    if (!hasTabs && (depth === 0 || !previousItem)) {
       return null;
     }
-    if (depth === previousItem.depth) {
-      return previousItem.parentId;
-    }
-    if (depth > previousItem.depth) {
-      return previousItem.id;
-    }
-    return (
-      newItems
+    if (previousItem) {
+      if (depth === previousItem.depth) {
+        return previousItem.parentId;
+      }
+      if (depth > previousItem.depth) {
+        return previousItem.id;
+      }
+      const matchingAncestor = newItems
         .slice(0, overIndex)
         .reverse()
-        .find((item) => item.depth === depth)?.parentId ?? null
-    );
+        .find((item) => item.depth === depth);
+      if (matchingAncestor) {
+        return matchingAncestor.parentId;
+      }
+      if (hasTabs) {
+        const precedingTab = newItems
+          .slice(0, overIndex)
+          .reverse()
+          .find((item) => item.id.startsWith('__tab__'));
+        if (precedingTab) {
+          return precedingTab.id;
+        }
+      }
+      return null;
+    }
+    if (hasTabs) {
+      const firstTab = newItems.find((item) => item.id.startsWith('__tab__'));
+      return firstTab?.id ?? null;
+    }
+    return null;
   })();
 
   return { depth, parentId };
@@ -330,9 +366,32 @@ export function SortablePageTree({
 
   const flatFull = useMemo(() => flatten(pages), [pages]);
 
-  // Automatically expand any collapsed ancestor groups if activeId is inside one
+  const prevActiveIdRef = useRef<string | null>(null);
+
+  // Set of group/tab IDs that currently have the activeId as a descendant
+  const activeAncestorIds = useMemo(() => {
+    if (!activeId) return new Set<string>();
+    const parentMap = new Map<string, string | null>();
+    for (const item of flatFull) {
+      parentMap.set(item.id, item.parentId);
+    }
+    const set = new Set<string>();
+    let curr = parentMap.get(activeId);
+    while (curr) {
+      set.add(curr);
+      curr = parentMap.get(curr);
+    }
+    return set;
+  }, [activeId, flatFull]);
+
+  // Automatically expand any collapsed ancestor groups ONLY when navigating to a new activeId
   useEffect(() => {
-    if (!activeId) return;
+    if (!activeId || activeId === prevActiveIdRef.current) {
+      prevActiveIdRef.current = activeId;
+      return;
+    }
+    prevActiveIdRef.current = activeId;
+
     const parentMap = new Map<string, string | null>();
     for (const item of flatFull) {
       parentMap.set(item.id, item.parentId);
@@ -361,7 +420,7 @@ export function SortablePageTree({
         return next;
       });
     }
-  }, [activeId, flatFull, collapsed, treeKey]);
+  }, [activeId, flatFull, treeKey, collapsed.has]);
   // Ids of nodes that have at least one child (so only those get a collapse chevron).
   const parentIds = useMemo(() => {
     const set = new Set<string>();
@@ -501,6 +560,7 @@ export function SortablePageTree({
                     node={item.node}
                     depth={item.id === draggingId && projection ? projection.depth : item.depth}
                     active={activeId === item.id}
+                    hasActiveChild={collapsed.has(item.id) && activeAncestorIds.has(item.id)}
                     hasChildren={parentIds.has(item.id)}
                     collapsed={collapsed.has(item.id)}
                     isFirst={isFirst}
@@ -565,6 +625,7 @@ const SortableRow = memo(function SortableRow({
   node,
   depth,
   active,
+  hasActiveChild,
   hasChildren,
   collapsed,
   isFirst,
@@ -579,6 +640,7 @@ const SortableRow = memo(function SortableRow({
   node: PageNode;
   depth: number;
   active: boolean;
+  hasActiveChild?: boolean;
   hasChildren: boolean;
   collapsed: boolean;
   isFirst?: boolean;
@@ -589,11 +651,7 @@ const SortableRow = memo(function SortableRow({
   onInsertAfter?: (node: PageNode) => void;
   onInsertBefore?: (node: PageNode) => void;
 }) {
-  const isTab = id.startsWith('__tab__');
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-    disabled: isTab,
-  });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   // Apply dnd-kit transform (drag delta only). contentVisibility/containIntrinsicSize are
   // intentionally omitted — they cause getBoundingClientRect() to return zero rects for
   // off-screen items, breaking collision detection.
@@ -614,6 +672,7 @@ const SortableRow = memo(function SortableRow({
         node={node}
         depth={depth}
         active={active}
+        hasActiveChild={hasActiveChild}
         hasChildren={hasChildren}
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
@@ -622,10 +681,10 @@ const SortableRow = memo(function SortableRow({
         onSettings={onSettings}
         handleProps={{ ...attributes, ...listeners }}
       />
-      {!isDragging && !isTab && onInsertBefore && isFirst ? <TreeInserter depth={depth} position="top" onClick={() => onInsertBefore(node)} /> : null}
-      {!isDragging && !isTab && onInsertAfter ? (
-        <TreeInserter depth={inserterDepthAfter} position="bottom" onClick={() => onInsertAfter(node)} />
+      {!isDragging && onInsertBefore && isFirst && !node.id.startsWith('__tab__') ? (
+        <TreeInserter depth={depth} position="top" onClick={() => onInsertBefore(node)} />
       ) : null}
+      {!isDragging && onInsertAfter ? <TreeInserter depth={inserterDepthAfter} position="bottom" onClick={() => onInsertAfter(node)} /> : null}
     </div>
   );
 });
@@ -634,6 +693,7 @@ const RowPresentation = memo(function RowPresentation({
   node,
   depth,
   active,
+  hasActiveChild,
   overlay,
   hasChildren,
   collapsed,
@@ -646,6 +706,7 @@ const RowPresentation = memo(function RowPresentation({
   node: PageNode;
   depth: number;
   active?: boolean;
+  hasActiveChild?: boolean;
   overlay?: boolean;
   hasChildren?: boolean;
   collapsed?: boolean;
@@ -665,7 +726,8 @@ const RowPresentation = memo(function RowPresentation({
         'group/row flex items-center gap-1 rounded-md pe-1',
         overlay && 'bg-card shadow-lg ring-1 ring-border',
         !overlay && active && 'bg-primary/10 font-medium text-primary',
-        !overlay && !active && 'text-foreground/80 hover:bg-muted hover:text-foreground',
+        !overlay && !active && hasActiveChild && 'bg-primary/5 font-medium text-primary/90',
+        !overlay && !active && !hasActiveChild && 'text-foreground/80 hover:bg-muted hover:text-foreground',
       )}
       style={{ marginInlineStart: depth * INDENT }}
       data-testid={overlay ? undefined : 'page-row'}
@@ -674,18 +736,14 @@ const RowPresentation = memo(function RowPresentation({
       data-page-slug={node.slug}
       data-page-path={node.path}
     >
-      {node.id.startsWith('__tab__') ? (
-        <span className="size-5 shrink-0" aria-hidden />
-      ) : (
-        <button
-          type="button"
-          aria-label={t('editor.dragToReorder')}
-          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing touch-none select-none"
-          {...handleProps}
-        >
-          <GripVertical className="size-3.5" />
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label={t('editor.dragToReorder')}
+        className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover/row:opacity-100 active:cursor-grabbing touch-none select-none"
+        {...handleProps}
+      >
+        <GripVertical className="size-3.5" />
+      </button>
       {/* Collapse chevron for groups with children; a spacer otherwise so every
           row's icon stays aligned. */}
       {collapsible ? (
@@ -715,10 +773,7 @@ const RowPresentation = memo(function RowPresentation({
             onSelect?.(node.id);
           }
         }}
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-2 py-1.5 text-start text-sm',
-          isGroup && 'font-semibold text-[11px] uppercase tracking-wide',
-        )}
+        className={cn('flex min-w-0 flex-1 items-center gap-2 py-1.5 text-start text-sm', isGroup && 'font-semibold')}
       >
         {node.icon === 'Layers' || node.id.startsWith('__tab__') ? (
           <Layers className="size-3.5 shrink-0 text-primary/80" />

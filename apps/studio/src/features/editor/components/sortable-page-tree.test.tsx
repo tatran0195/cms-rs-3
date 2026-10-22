@@ -165,6 +165,27 @@ describe('SortablePageTree - Tree Algorithms', () => {
       const proj = getProjection(flat, 'unknown', 'p2', 0, 16);
       expect(proj).toEqual({ depth: 0, parentId: null });
     });
+
+    it('enforces tabs as strictly top-level (depth 0, parentId null)', () => {
+      const tabPages = [
+        makeNode({ id: '__tab__Docs', kind: 'GROUP', position: 0 }),
+        makeNode({ id: 'p1', parentId: '__tab__Docs', position: 0 }),
+        makeNode({ id: '__tab__API', kind: 'GROUP', position: 1 }),
+      ];
+      const tabFlat = flatten(tabPages);
+      // Attempt to drag __tab__API into p1 with large horizontal offset
+      const proj = getProjection(tabFlat, '__tab__API', 'p1', 64, 16);
+      expect(proj).toEqual({ depth: 0, parentId: null });
+    });
+
+    it('prevents non-tab pages from sitting along tabs at depth 0 when tabs exist', () => {
+      const tabPages = [makeNode({ id: '__tab__Docs', kind: 'GROUP', position: 0 }), makeNode({ id: 'p1', parentId: '__tab__Docs', position: 0 })];
+      const tabFlat = flatten(tabPages);
+      // Attempt to drag p1 to depth 0 with negative horizontal offset
+      const proj = getProjection(tabFlat, 'p1', '__tab__Docs', -64, 16);
+      expect(proj.depth).toBeGreaterThanOrEqual(1);
+      expect(proj.parentId).toBe('__tab__Docs');
+    });
   });
 
   describe('reorderTree - Operations and Invariants', () => {
@@ -502,6 +523,30 @@ describe('SortablePageTree - React Component Interactions', () => {
     // Child leaf should be visible because ancestor group was auto-expanded
     expect(container.textContent).toContain('Child Leaf');
     expect(window.localStorage.getItem('cms.editor.collapsedGroups:lang-en')).not.toContain('g1');
+  });
+
+  it('allows collapsing an ancestor group that contains the active document, keeping it collapsed', async () => {
+    const pages = [
+      makeNode({ id: 'g1', title: 'Folder', kind: 'GROUP', position: 0 }),
+      makeNode({ id: 'c1', title: 'Child Leaf', parentId: 'g1', position: 0 }),
+    ];
+
+    const container = await renderTree({ pages, activeId: 'c1', treeKey: 'lang-en' });
+    expect(container.textContent).toContain('Child Leaf');
+
+    // Click collapse chevron on g1 while c1 is active
+    const collapseChevron = container.querySelector('button[aria-label="editor.collapse"]');
+    expect(collapseChevron).not.toBeNull();
+    await act(async () => {
+      collapseChevron?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Group g1 should remain collapsed and child should be hidden
+    expect(container.textContent).not.toContain('Child Leaf');
+    expect(window.localStorage.getItem('cms.editor.collapsedGroups:lang-en')).toContain('g1');
+
+    // Chevron should now be expand
+    expect(container.querySelector('button[aria-label="editor.expand"]')).not.toBeNull();
   });
 
   it('handles high-scale virtualized trees (1,000 nodes) without degradation', async () => {

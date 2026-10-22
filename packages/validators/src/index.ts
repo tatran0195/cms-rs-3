@@ -108,6 +108,7 @@ export type NavTabItem = {
   href?: string;
   external?: boolean;
   items?: NavTabItem[];
+  position?: number;
 };
 
 export const navTabItemSchema: z.ZodType<NavTabItem> = z.lazy(() =>
@@ -117,6 +118,7 @@ export const navTabItemSchema: z.ZodType<NavTabItem> = z.lazy(() =>
       href: url.optional().or(z.literal('')),
       external: z.boolean().optional(),
       items: z.array(navTabItemSchema).max(30).optional(),
+      position: z.number().int().optional(),
     })
     .strict(),
 );
