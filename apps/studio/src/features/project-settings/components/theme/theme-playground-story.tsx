@@ -135,91 +135,81 @@ export function ThemePlaygroundStory({
         className,
       )}
     >
-      {/* Top Controls Toolbar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/70 bg-card px-4 text-xs select-none">
-        {/* Left: Title & Docs Layout selector */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground tracking-tight">Preview Playground</span>
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">{layoutDisplayName}</span>
-          </div>
+      {/* Top Controls Toolbar — mirrors Fumadocs WithControl */}
+      <div className="flex h-10 shrink-0 items-center justify-end gap-1 border-b border-border/70 bg-card ps-4 pe-1.5 text-xs select-none">
+        {/* Left: Display Name */}
+        <p className="me-auto truncate text-[0.8125rem] font-medium text-card-foreground">
+          {layoutDisplayName}
+        </p>
 
-          <div className="h-4 w-px bg-border/70" />
+        {/* Right: Layout / Variant Picker */}
+        <Select
+          value={activeLayout}
+          onValueChange={(val) => {
+            if (!val) return;
+            onThemeConfigChange((prev: ThemeConfig) => ({
+              ...prev,
+              layout: {
+                ...(prev.layout ?? {}),
+                docsLayout: val as DocsLayoutId,
+              },
+            }));
+          }}
+        >
+          <SelectTrigger
+            data-testid="docs-layout-select-trigger"
+            aria-label="Select Docs Layout"
+            className="h-7 w-auto max-w-64 gap-1.5 border-0 bg-transparent px-2 text-xs hover:bg-accent focus:ring-0 focus-visible:ring-2 shadow-none"
+          >
+            <span className="text-muted-foreground">Layout</span>
+            <SelectValue className="truncate font-medium" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {DOCS_LAYOUT_IDS.map((layout) => (
+              <SelectItem data-testid={`layout-option-${layout}`} key={layout} value={layout} className="text-xs">
+                {t(`settings.theme.layout.${layout}.name`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {/* Docs Layout Mode Picker */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Layout:</span>
-            <Select
-              value={activeLayout}
-              onValueChange={(val) => {
-                if (!val) return;
-                onThemeConfigChange((prev: ThemeConfig) => ({
-                  ...prev,
-                  layout: {
-                    ...(prev.layout ?? {}),
-                    docsLayout: val as DocsLayoutId,
-                  },
-                }));
-              }}
-            >
-              <SelectTrigger
-                data-testid="docs-layout-select-trigger"
-                aria-label="Select Docs Layout"
-                className="h-7 min-w-[6.5rem] border-border/80 bg-background text-xs shadow-none"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DOCS_LAYOUT_IDS.map((layout) => (
-                  <SelectItem data-testid={`layout-option-${layout}`} key={layout} value={layout} className="text-xs">
-                    {t(`settings.theme.layout.${layout}.name`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Right: Fullscreen and Appearance toggle */}
-        <div className="flex items-center gap-1.5">
-          {isFullscreen && (
-            <button
-              type="button"
-              onClick={() => setShowProps(!showProps)}
-              aria-label={showProps ? 'Hide Props Table' : 'Show Props Table'}
-              title={showProps ? 'Hide Props Table' : 'Show Props Table'}
-              className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors',
-                showProps ? 'bg-primary text-primary-foreground border-primary' : 'border-border/70 bg-card text-foreground hover:bg-muted',
-              )}
-            >
-              <SlidersHorizontal className="size-3.5" />
-              <span>Props</span>
-            </button>
-          )}
-
-          {/* Light/Dark preview mode button */}
+        {isFullscreen && (
           <button
             type="button"
-            aria-label={`Toggle Preview: ${previewMode === 'dark' ? 'Light' : 'Dark'}`}
-            title={`Preview mode: ${previewMode}`}
-            onClick={() => onAppearanceChange(previewMode === 'dark' ? 'light' : 'dark')}
-            className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
+            onClick={() => setShowProps(!showProps)}
+            aria-label={showProps ? 'Hide Props Table' : 'Show Props Table'}
+            title={showProps ? 'Hide Props Table' : 'Show Props Table'}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-colors',
+              showProps ? 'bg-primary text-primary-foreground border-primary' : 'border-border/70 bg-card text-foreground hover:bg-muted',
+            )}
           >
-            {previewMode === 'dark' ? <Sun className="size-3.5 text-amber-400" /> : <Moon className="size-3.5" />}
+            <SlidersHorizontal className="size-3.5" />
+            <span>Props</span>
           </button>
+        )}
 
-          {/* Fullscreen Button */}
-          <button
-            type="button"
-            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            onClick={toggleFullscreen}
-            className="inline-flex size-7 items-center justify-center rounded-md border border-border/70 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
-          >
-            {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
-          </button>
-        </div>
+        {/* Light/Dark preview mode button */}
+        <button
+          type="button"
+          aria-label={`Toggle Preview: ${previewMode === 'dark' ? 'Light' : 'Dark'}`}
+          title={`Preview mode: ${previewMode}`}
+          onClick={() => onAppearanceChange(previewMode === 'dark' ? 'light' : 'dark')}
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+        >
+          {previewMode === 'dark' ? <Sun className="size-3.5 text-amber-400" /> : <Moon className="size-3.5" />}
+        </button>
+
+        {/* Fullscreen Button */}
+        <button
+          type="button"
+          aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          onClick={toggleFullscreen}
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
+        >
+          {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
+        </button>
       </div>
 
       {/* Story Window with Window Frame */}

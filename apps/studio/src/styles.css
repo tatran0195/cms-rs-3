@@ -746,6 +746,25 @@
     max-width: none;
   }
 
+  /* In Fumadocs layouts, #nd-page spans the main grid column and direct child blocks follow natural prose max-width */
+  .cms-site-chrome[data-theme-page-width="full"] #nd-page,
+  .cms-site-chrome[data-theme-page-width="wide"] #nd-page,
+  .cms-site-chrome[data-theme-width="full"] #nd-page,
+  .cms-site-chrome[data-theme-width="wide"] #nd-page,
+  .cms-site-chrome #nd-notebook-layout #nd-page,
+  .cms-site-chrome #nd-docs-layout #nd-page {
+    max-width: none;
+    width: 100%;
+  }
+
+  /* Robust sidebar child width without relying on invalid arbitrary bracket syntax */
+  #nd-sidebar {
+    width: var(--fd-sidebar-width, 268px);
+  }
+  #nd-sidebar > * {
+    width: 100%;
+  }
+
   /* Legacy width fallback for custom shells without a docsLayout */
   .cms-site-chrome:not([data-documentation-layout])[data-theme-width="focused"]
   [data-theme-region="article"] {

@@ -16,18 +16,22 @@ export function NotebookReaderShell(slots: DocsLayoutSlots) {
         {/* Left Sidebar [grid-area:sidebar] */}
         <Sidebar
           brand={slots.brand}
-          searchFull={slots.searchFull}
           navTabs={slots.navTabs}
           navAnchors={slots.navAnchors}
           navigation={slots.navigation}
           sidebarTree={slots.sidebarTree}
-          sidebarTools={slots.sidebarTools}
-          tools={slots.tools}
           hasGranular={hasGranular}
         />
 
         {/* Top Header [grid-area:header] */}
-        <Header navLinks={slots.navLinks} searchButton={slots.searchButton} tools={slots.tools} />
+        <Header
+          mobileHeader={slots.header}
+          brand={slots.brand}
+          navLinks={slots.navLinks}
+          searchFull={slots.searchFull}
+          searchButton={slots.searchButton}
+          tools={slots.tools}
+        />
 
         {/* Content slots rendered with contents so toc-popover, main, and toc snap to grid areas */}
         <div className="notebook-paper contents" data-theme-region="content-slot">

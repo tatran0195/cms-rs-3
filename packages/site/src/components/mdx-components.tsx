@@ -23,6 +23,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   useId,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -47,7 +48,7 @@ const CALLOUT: Record<CalloutType, { icon: LucideIcon; token: string }> = {
   },
 };
 
-export function Callout({ type, children }: { type?: string; children?: ReactNode }) {
+export function Callout({ type, title, children }: { type?: string; title?: ReactNode; children?: ReactNode }) {
   const meta = CALLOUT[normalizeType(type)];
   const Icon = meta.icon;
   return (
@@ -64,7 +65,10 @@ export function Callout({ type, children }: { type?: string; children?: ReactNod
       }
     >
       <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />
-      <div className="min-w-0 flex-1 [&>:first-child]:mt-0 [&>:last-child]:mb-0">{children}</div>
+      <div className="min-w-0 flex-1 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+        {title && <div className="font-medium mb-1 text-sm">{title}</div>}
+        {children}
+      </div>
     </div>
   );
 }
@@ -82,19 +86,38 @@ export function CardGroup({ cols, children }: { cols?: string | number; children
   return <div className={cn('my-5 grid grid-cols-1 gap-4', colsClass)}>{children}</div>;
 }
 
-export function Card({ title, href, icon, children }: { title?: string; href?: string; icon?: string; children?: ReactNode }) {
+export function Card({
+  title,
+  description,
+  href,
+  icon,
+  children,
+}: {
+  title?: ReactNode;
+  description?: ReactNode;
+  href?: string;
+  icon?: ReactNode | string;
+  children?: ReactNode;
+}) {
+  const iconNode = isValidElement(icon) ? (
+    <span className="mb-3 inline-flex text-primary" aria-hidden>
+      {icon}
+    </span>
+  ) : typeof icon === 'string' ? (
+    <span className="mb-3 inline-flex text-primary" aria-hidden>
+      {hasIcon(icon) ? (
+        <PageIcon name={icon} className="size-5" />
+      ) : (
+        <span className="grid size-5 place-items-center rounded-md bg-primary/10 font-mono text-[11px]">{icon[0]?.toUpperCase()}</span>
+      )}
+    </span>
+  ) : null;
+
   const inner = (
     <>
-      {icon ? (
-        <span className="mb-3 inline-flex text-primary" aria-hidden>
-          {hasIcon(icon) ? (
-            <PageIcon name={icon} className="size-5" />
-          ) : (
-            <span className="grid size-5 place-items-center rounded-md bg-primary/10 font-mono text-[11px]">{icon[0]?.toUpperCase()}</span>
-          )}
-        </span>
-      ) : null}
+      {iconNode}
       {title ? <div className="font-semibold">{title}</div> : null}
+      {description ? <div className="mt-1 text-muted-foreground text-sm">{description}</div> : null}
       {children ? <div className="mt-1.5 text-muted-foreground text-sm [&>:first-child]:mt-0 [&>:last-child]:mb-0">{children}</div> : null}
     </>
   );
@@ -109,6 +132,8 @@ export function Card({ title, href, icon, children }: { title?: string; href?: s
     </div>
   );
 }
+
+export const Cards = CardGroup;
 
 // ─── Steps ──────────────────────────────────────────────────────────────────
 
@@ -170,13 +195,36 @@ function handleTabKeyDown(
   tabRefs[next]?.focus();
 }
 
-export function Tabs({ children, language }: { children?: ReactNode; language?: string }) {
-  const tabs = Children.toArray(children).filter((child) => isValidElement<{ title?: string; children?: ReactNode }>(child));
-  const [active, setActive] = useState(0);
+export function Tabs({
+  items,
+  defaultIndex = 0,
+  defaultValue,
+  children,
+  language,
+}: {
+  items?: string[];
+  defaultIndex?: number;
+  defaultValue?: string;
+  children?: ReactNode;
+  language?: string;
+}) {
+  const tabs = Children.toArray(children).filter((child) => isValidElement<{ title?: string; value?: string; children?: ReactNode }>(child));
+  const initialIndex = useMemo(() => {
+    if (defaultValue && items) {
+      const idx = items.findIndex((it) => it.toLowerCase() === defaultValue.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    return defaultIndex;
+  }, [defaultValue, defaultIndex, items]);
+
+  const [active, setActive] = useState(initialIndex);
   const tabsId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const t = siteT(language);
-  if (tabs.length === 0) return null;
+  if (tabs.length === 0 && (!items || items.length === 0)) return null;
+
+  const tabLabels = items ?? tabs.map((tab, i) => tab.props.title ?? tab.props.value ?? `${t('tab')} ${i + 1}`);
+
   return (
     <div className="my-5">
       <div
@@ -185,9 +233,9 @@ export function Tabs({ children, language }: { children?: ReactNode; language?: 
         role="tablist"
         aria-orientation="horizontal"
       >
-        {tabs.map((tab, i) => (
+        {tabLabels.map((label, i) => (
           <button
-            key={tab.key}
+            key={`${tabsId}-tab-btn-${label}`}
             ref={(element) => {
               tabRefs.current[i] = element;
             }}
@@ -195,7 +243,7 @@ export function Tabs({ children, language }: { children?: ReactNode; language?: 
             data-theme-component="tab"
             data-state={i === active ? 'active' : 'inactive'}
             onClick={() => setActive(i)}
-            onKeyDown={(event) => handleTabKeyDown(event, i, tabs.length, language, setActive, tabRefs.current)}
+            onKeyDown={(event) => handleTabKeyDown(event, i, tabLabels.length, language, setActive, tabRefs.current)}
             id={`${tabsId}-tab-${i}`}
             role="tab"
             aria-controls={`${tabsId}-panel-${i}`}
@@ -206,13 +254,13 @@ export function Tabs({ children, language }: { children?: ReactNode; language?: 
               i === active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
-            {tab.props.title ?? `${t('tab')} ${i + 1}`}
+            {label}
           </button>
         ))}
       </div>
       {tabs.map((tab, i) => (
         <div
-          key={tab.key}
+          key={tab.key ?? `${tabsId}-panel-content-${i}`}
           id={`${tabsId}-panel-${i}`}
           data-theme-component="tab-panel"
           role="tabpanel"
@@ -227,7 +275,7 @@ export function Tabs({ children, language }: { children?: ReactNode; language?: 
   );
 }
 
-export function Tab({ children }: { title?: string; children?: ReactNode }) {
+export function Tab({ children }: { title?: string; value?: string; children?: ReactNode }) {
   return <div className="[&>:first-child]:mt-0 [&>:last-child]:mb-0">{children}</div>;
 }
 

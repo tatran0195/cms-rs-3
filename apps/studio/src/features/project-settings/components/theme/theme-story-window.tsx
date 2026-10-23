@@ -83,28 +83,27 @@ export function ThemeStoryWindow({
     <div
       className={cn(
         'relative overflow-hidden flex flex-col',
-        isFullscreen ? 'flex-1 min-h-0 size-full p-0 bg-background' : 'px-3 py-3.5 sm:px-5 sm:py-4 bg-[#181615]',
+        isFullscreen ? 'flex-1 min-h-0 size-full p-0 bg-background' : 'px-4 pt-6 pb-8 sm:px-8 bg-[#181615]',
         className,
       )}
-      style={
-        isFullscreen
-          ? undefined
-          : {
-              backgroundImage: 'radial-gradient(circle, #e29f372b 1.25px, transparent 1.25px)',
-              backgroundSize: '16px 16px',
-            }
-      }
     >
+      {!isFullscreen && (
+        <img
+          src="/images/story-wallpaper.png"
+          alt=""
+          className="pointer-events-none absolute inset-0 size-full object-cover select-none"
+        />
+      )}
       {/* macOS Window Chrome Container */}
       <div
         className={cn(
           'relative overflow-hidden bg-background transition-colors flex flex-col min-h-0',
-          isFullscreen ? 'flex-1 size-full rounded-none border-0 shadow-none' : 'rounded-xl border border-border/80 shadow-2xl',
+          isFullscreen ? 'flex-1 size-full rounded-none border-0 shadow-none' : 'rounded-xl border border-border/80 shadow-xl',
         )}
       >
         {/* macOS Window Header */}
-        <div className="flex h-8.5 shrink-0 items-center justify-between border-b border-border/70 bg-muted px-3.5 select-none">
-          <div className="flex items-center gap-2">
+        <div className="flex h-8 shrink-0 items-center justify-between border-b border-border/70 bg-card px-3 select-none">
+          <div className="flex items-center gap-1.5">
             <span data-window-control="close" className="size-2.5 rounded-full bg-[#ff5f57] border border-black/10 inline-block" />
             <span data-window-control="minimize" className="size-2.5 rounded-full bg-[#febc2e] border border-black/10 inline-block" />
             <button
@@ -116,7 +115,7 @@ export function ThemeStoryWindow({
               aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             />
           </div>
-          <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background/60 px-2.5 py-0.5 text-[10.5px] font-mono text-muted-foreground">
+          <div className="flex items-center gap-1 rounded-md border border-border/50 bg-background/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
             <span>
               https://docs.local/preview/{layoutId}
               {activePath ? `/${activePath.replace(/^\/+/, '')}` : ''}

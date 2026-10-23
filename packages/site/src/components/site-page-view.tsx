@@ -248,8 +248,20 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
       breadcrumb={breadcrumbsElement}
       tableOfContents={tableOfContentsElement}
       tocPopover={tocPopoverElement}
-      full={mode === 'wide' || currentTheme?.layout?.contentWidth === 'full'}
-      className={cn(mode === 'center' && 'mx-auto max-w-[42rem]', (mode === 'wide' || currentTheme?.layout?.contentWidth === 'full') && 'max-w-none')}
+      full={
+        mode === 'wide' ||
+        currentTheme?.layout?.pageWidth === 'full' ||
+        currentTheme?.layout?.pageWidth === 'wide' ||
+        currentTheme?.layout?.contentWidth === 'full'
+      }
+      className={cn(
+        mode === 'center' && 'mx-auto max-w-[42rem]',
+        (mode === 'wide' ||
+          currentTheme?.layout?.pageWidth === 'full' ||
+          currentTheme?.layout?.pageWidth === 'wide' ||
+          currentTheme?.layout?.contentWidth === 'full') &&
+          'max-w-none',
+      )}
     >
       <DocsTitle>{page.title}</DocsTitle>
       {page.description ? <DocsDescription>{page.description}</DocsDescription> : null}

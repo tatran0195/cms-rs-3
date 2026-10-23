@@ -39,6 +39,13 @@ export function DemoPage({ activePath, onNavigate }: DemoPageProps): ReactNode {
   );
 }
 
+const USAGE_CODE = `import { DocsLayout } from 'fumadocs-ui/layouts/docs';
+import { source } from '@/lib/source';
+
+export default function Layout({ children }) {
+  return <DocsLayout tree={source.getPageTree()}>{children}</DocsLayout>;
+}`;
+
 function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void }) {
   return (
     <>
@@ -47,8 +54,8 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
           Introduction
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          This is an authentic live preview of your documentation layout running Fumadocs&apos; real layout engine. Open pages in the sidebar, switch
-          layouts, or adjust theme colors to see instant updates.
+          This is a live preview of the layout. Open the pages in sidebar, search for content, or
+          switch the theme, it works like your docs site.
         </p>
       </div>
 
@@ -56,12 +63,12 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
       <CardGroup cols={2}>
         <button type="button" onClick={() => onNavigate('quick-start')} className="text-start w-full cursor-pointer">
           <Card title="Quick Start" icon="Rocket">
-            Create your first docs site in minutes with full Markdown and MDX support.
+            Create your first docs site in minutes.
           </Card>
         </button>
         <button type="button" onClick={() => onNavigate('themes')} className="text-start w-full cursor-pointer">
-          <Card title="Themes & Palettes" icon="Palette">
-            Customize primary accents, canvas background, surfaces, and typography tokens.
+          <Card title="Themes" icon="Palette">
+            Customize the colors and the look of your site.
           </Card>
         </button>
       </CardGroup>
@@ -71,14 +78,14 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
         <h2 id="installation" className="text-xl font-bold tracking-tight text-foreground scroll-m-4">
           Installation
         </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">Install the framework packages with your package manager:</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">Install the packages with your package manager:</p>
         <Tabs>
           <Tab title="npm">
             <pre
               data-theme-component="code"
               className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg"
             >
-              <code>npm i @cms/site fumadocs-core</code>
+              <code>npm i fumadocs-ui fumadocs-core</code>
             </pre>
           </Tab>
           <Tab title="pnpm">
@@ -86,7 +93,7 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
               data-theme-component="code"
               className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg"
             >
-              <code>pnpm add @cms/site fumadocs-core</code>
+              <code>pnpm add fumadocs-ui fumadocs-core</code>
             </pre>
           </Tab>
           <Tab title="yarn">
@@ -94,7 +101,7 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
               data-theme-component="code"
               className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg"
             >
-              <code>yarn add @cms/site fumadocs-core</code>
+              <code>yarn add fumadocs-ui fumadocs-core</code>
             </pre>
           </Tab>
         </Tabs>
@@ -106,14 +113,36 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
           Usage
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Wrap your documentation pages in the selected layout shell. Layout tabs highlight the active page section automatically.
+          Wrap your pages with the layout, it takes a page tree which is generated from your content files.
+        </p>
+        <div className="rounded-lg border border-border/80 bg-(--theme-code) overflow-hidden">
+          <div className="border-b border-border/50 bg-muted/40 px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
+            app/docs/layout.tsx
+          </div>
+          <pre
+            data-theme-component="code"
+            className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) overflow-x-auto"
+          >
+            <code>{USAGE_CODE}</code>
+          </pre>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Navigation items, including the sidebar and layout tabs, highlight the active page. Layout tabs show the content of one root folder at a time.
         </p>
       </div>
 
-      {/* Callout */}
-      <Callout type="info">
-        For complete control over design tokens, customize typography, radius, density, and colors directly in the Props table below.
-      </Callout>
+      {/* Configuration Section */}
+      <div className="space-y-3">
+        <h3 id="configuration" className="text-lg font-bold tracking-tight text-foreground scroll-m-4">
+          Configuration
+        </h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Every layout accepts options for the navbar, the theme switch and the search toggle. Options specific to a layout are listed on its page.
+        </p>
+        <Callout type="info" title="Good to know">
+          For full control over the UI, install the layout with Fumadocs CLI and edit the components directly.
+        </Callout>
+      </div>
 
       {/* Deployment Section */}
       <div className="space-y-3">
@@ -121,7 +150,7 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
           Deployment
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Your documentation site compiles to clean, fast static HTML with automatic incremental cache invalidation.
+          Your docs site is a normal React.js app, deploy it like other apps of your framework. Static export is supported when your framework supports it.
         </p>
       </div>
     </>

@@ -18,7 +18,7 @@ describe('DocsStandardLayoutTemplate', () => {
     expect(markup).toContain('Header');
     expect(markup).toContain('Navigation');
     expect(markup).toContain('Content');
-    expect(markup).toContain('1600px');
+    expect(markup).toContain('var(--fd-sidebar-col)');
   });
 
   it('renders PageLayout with #nd-page and TOC structure', () => {
