@@ -27,7 +27,9 @@ import {
 } from '@cms/sdk/react';
 import { useDebouncedCallback } from '@tanstack/react-pacer';
 import {
+  ArrowLeft,
   Code2,
+  ExternalLink,
   Eye,
   FileText,
   FolderPlus,
@@ -62,6 +64,7 @@ import { TiptapEditor } from '@/features/editor/components/tiptap-editor';
 import { detectUnsupportedMdxTags } from '@/features/editor/components/unsupported-mdx';
 import { PublishControl, useChangeDetectionWorker } from '@/features/publishing';
 import { WorkspaceMenu } from '@/features/workspace';
+import { useLiveSiteUrl } from '@/features/projects';
 import { typographyVars } from '@/shared/lib/typography';
 import { type EditorSyncStatus, editorStore } from './stores/editor-store';
 import { astWorkerClient } from './utils/ast-worker-client';
@@ -76,6 +79,7 @@ export interface EditorPageProps {
 export function EditorPage({ projectId, page: pageParam, publish: publishParam }: EditorPageProps) {
   const t = useT();
   const { data: project } = useProject(projectId);
+  const { liveHref } = useLiveSiteUrl(projectId);
 
   // Top-level editor view: writing content vs. configuring the whole site.
   const [view, setView] = useState<'content' | 'config'>('content');
@@ -730,6 +734,20 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                 <span className="hidden md:inline">{t('editor.mode.markdown')}</span>
               </SegButton>
             </SegmentedControl>
+
+            <Button
+              nativeButton={false}
+              render={
+                // biome-ignore lint/a11y/useAnchorContent: content is merged from the Button children via Base UI's render prop
+                <a aria-label="View live published site" href={liveHref} rel="noreferrer" target="_blank" />
+              }
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 text-xs font-normal"
+            >
+              <ExternalLink className="size-3.5" />
+              <span className="hidden md:inline">Live Site</span>
+            </Button>
 
             <Button
               aria-label={t('project.preview')}
