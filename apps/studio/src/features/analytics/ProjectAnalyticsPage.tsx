@@ -3,7 +3,7 @@ import { Skeleton } from '@cms/design-system/components/ui/skeleton';
 import type { MessageKey } from '@cms/i18n';
 import { useT } from '@cms/i18n/react';
 import { useProjectAnalytics } from '@cms/sdk/react';
-import { AlertTriangle, BarChart3, Search, SearchX, Users } from 'lucide-react';
+import { AlertTriangle, BarChart3, Search, SearchX, Timer, Users } from 'lucide-react';
 import { ListCard } from './components/ListCard';
 import { RangeTabs } from './components/RangeTabs';
 import { StatCard } from './components/StatCard';
@@ -74,8 +74,21 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
   const unknownOr = (empty: string) => (unavailable ? t('analytics.state.unknown') : empty);
   const hasTimeseries = (data?.timeseries ?? []).some((point) => point.views > 0);
 
+  const zeroResultsRate =
+    data?.searches.total && data.searches.total > 0 && typeof data.searches.zeroResults === 'number'
+      ? `${Math.round((data.searches.zeroResults / data.searches.total) * 100)}%`
+      : data?.searches.zeroResults !== null && data?.searches.zeroResults !== undefined
+      ? `${data.searches.zeroResults}`
+      : null;
+
+  const latency =
+    typeof data?.searches.averageLatencyMs === 'number' ? `${data.searches.averageLatencyMs}ms` : null;
+
+  const maxPageViews = Math.max(...(data?.topPages ?? []).map((p) => p.views), 1);
+  const totalLangViews = (data?.languages ?? []).reduce((acc, l) => acc + l.views, 0) || 1;
+
   return (
-    <div className="w-full px-6 py-8 xl:px-10">
+    <div className="w-full px-6 py-8 xl:px-10 min-h-full flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-semibold text-2xl tracking-tight">{t('analytics.title')}</h1>
@@ -85,38 +98,45 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
       </div>
 
       {unavailable ? (
-        <Alert className="mt-6" variant="warning">
+        <Alert variant="warning">
           <AlertTriangle />
           <AlertTitle>{t('analytics.state.unavailable.title')}</AlertTitle>
           <AlertDescription>{t('analytics.state.unavailable.body')}</AlertDescription>
         </Alert>
       ) : null}
       {partial ? (
-        <Alert className="mt-6" variant="info">
+        <Alert variant="info">
           <AlertTriangle />
           <AlertTitle>{t('analytics.state.partial.title')}</AlertTitle>
           <AlertDescription>{t('analytics.state.partial.body')}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label={t('analytics.kpi.pageViews')} value={data?.totalViews ?? null} icon={<BarChart3 className="size-4" />} loading={isPending} />
+      {/* High-Density 5 KPI Strip */}
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard label={t('analytics.kpi.pageViews')} value={data?.totalViews ?? null} icon={<BarChart3 className="size-4 text-emerald-500" />} loading={isPending} />
         <StatCard
           label={t('analytics.kpi.uniqueVisitors')}
           value={data?.uniqueVisitors ?? null}
-          icon={<Users className="size-4" />}
+          icon={<Users className="size-4 text-sky-500" />}
           loading={isPending}
         />
-        <StatCard label={t('analytics.kpi.searches')} value={data?.searches.total ?? null} icon={<Search className="size-4" />} loading={isPending} />
+        <StatCard label={t('analytics.kpi.searches')} value={data?.searches.total ?? null} icon={<Search className="size-4 text-indigo-500" />} loading={isPending} />
         <StatCard
           label={t('analytics.kpi.zeroResults')}
-          value={data?.searches.zeroResults ?? null}
-          icon={<SearchX className="size-4" />}
+          value={zeroResultsRate}
+          icon={<SearchX className="size-4 text-amber-500" />}
+          loading={isPending}
+        />
+        <StatCard
+          label={t('analytics.kpi.averageLatencyMs')}
+          value={latency}
+          icon={<Timer className="size-4 text-primary" />}
           loading={isPending}
         />
       </div>
 
-      <div className="mt-4 rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-4 font-medium text-sm">{t('analytics.chart.pageviewsOverTime')}</div>
         {isPending ? (
           <Skeleton className="h-[240px] w-full" />
@@ -129,7 +149,7 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ListCard
           title={t('analytics.section.topPages')}
           loading={isPending}
@@ -137,8 +157,13 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
           items={(data?.topPages ?? []).map((p) => ({
             key: p.path,
             label: (
-              <span className="truncate" dir="ltr">
+              <span className="truncate font-mono text-xs" dir="ltr">
                 /{p.path}
+              </span>
+            ),
+            meta: (
+              <span className="text-[11px] text-muted-foreground">
+                {Math.round((p.views / maxPageViews) * 100)}%
               </span>
             ),
             value: p.views,
@@ -193,12 +218,14 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
           items={(data?.languages ?? []).map((l) => ({
             key: l.language,
             label: <span dir="auto">{languageName(l.language)}</span>,
+            meta: (
+              <span className="text-[11px] text-muted-foreground">
+                {Math.round((l.views / totalLangViews) * 100)}%
+              </span>
+            ),
             value: l.views,
           }))}
         />
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ListCard
           title={t('analytics.section.aiAnswers')}
           loading={isPending}
@@ -233,6 +260,9 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
                 ]),
           ]}
         />
+      </div>
+
+      {(data?.noAnswerReasons ?? []).length > 0 && (
         <ListCard
           title={t('analytics.section.noAnswerReasons')}
           loading={isPending}
@@ -243,9 +273,9 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
             value: item.count,
           }))}
         />
-      </div>
+      )}
 
-      <p className="mt-4 text-muted-foreground text-xs">{t('analytics.privacy.queryTerms')}</p>
+      <p className="text-muted-foreground text-xs">{t('analytics.privacy.queryTerms')}</p>
     </div>
   );
 }

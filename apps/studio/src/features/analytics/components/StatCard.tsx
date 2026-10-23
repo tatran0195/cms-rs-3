@@ -9,8 +9,23 @@ import { useFormatters } from '@/shared';
  * identical; unlike SectionCard it accepts `null` and shows "—" when a figure
  * is unknown (e.g. analytics unavailable).
  */
-export function StatCard({ label, value, icon, loading }: { label: string; value: number | null; icon?: ReactNode; loading?: boolean }) {
+export function StatCard({
+  label,
+  value,
+  icon,
+  suffix,
+  loading,
+}: {
+  label: string;
+  value: number | string | null;
+  icon?: ReactNode;
+  suffix?: string;
+  loading?: boolean;
+}) {
   const { number } = useFormatters();
+  const display =
+    value === null ? '—' : typeof value === 'number' ? `${number(value)}${suffix ?? ''}` : `${value}${suffix ?? ''}`;
+
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -22,7 +37,7 @@ export function StatCard({ label, value, icon, loading }: { label: string; value
           <Skeleton className="mt-1 h-8 w-20" />
         ) : (
           <CardTitle className="font-semibold text-2xl tabular-nums tracking-tight @[200px]/card:text-3xl">
-            {value === null ? '—' : number(value)}
+            {display}
           </CardTitle>
         )}
       </CardHeader>
