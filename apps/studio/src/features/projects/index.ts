@@ -2,6 +2,7 @@ export * from './components/NewProjectDialog';
 export * from './components/ProjectAccessBoundary';
 export * from './components/ProjectLayout';
 export * from './context/active-project-context';
+export * from './hooks/useLiveSiteUrl';
 export * from './ProjectOverviewPage';
 export * from './ProjectPreviewPage';
 export * from './ProjectsOverviewPage';
