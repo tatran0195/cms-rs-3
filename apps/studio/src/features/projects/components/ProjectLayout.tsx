@@ -3,11 +3,12 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@cms/design-syste
 import { useT } from '@cms/i18n/react';
 import { useProject } from '@cms/sdk/react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Eye, Search } from 'lucide-react';
+import { ExternalLink, Eye, Search } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { DeployPipeline } from '@/features/publishing/components/DeployPipeline';
 import { ActivityRail, CommandPalette, NotificationsPopover, ProjectSidebar } from '@/features/workspace';
 import { useSearchShortcutLabel } from '@/shared';
+import { useLiveSiteUrl } from '../hooks/useLiveSiteUrl';
 
 export { PublishControl } from '@/features/publishing';
 
@@ -16,6 +17,7 @@ export { PublishControl } from '@/features/publishing';
 export function ProjectLayout({ projectId, children }: { projectId: string; children: ReactNode }) {
   const t = useT();
   const { data: project } = useProject(projectId);
+  const { liveHref } = useLiveSiteUrl(projectId);
   const previewEnabled = Boolean(project);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isEditor = pathname.endsWith('/editor');
@@ -81,6 +83,18 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
                 <Button
                   nativeButton={false}
                   render={
+                    // biome-ignore lint/a11y/useAnchorContent: content is merged from the Button children via Base UI's render prop
+                    <a aria-label="View live published site" href={liveHref} rel="noreferrer" target="_blank" />
+                  }
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs font-normal gap-1.5"
+                >
+                  <ExternalLink className="size-3.5" /> Live Site
+                </Button>
+                <Button
+                  nativeButton={false}
+                  render={
                     previewEnabled ? (
                       <Link aria-label={t('project.previewDraftAria')} params={{ projectId }} to="/app/projects/$projectId/preview" />
                     ) : (
@@ -135,6 +149,18 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
                     </kbd>
                   </Button>
                   <NotificationsPopover />
+                  <Button
+                    nativeButton={false}
+                    render={
+                      // biome-ignore lint/a11y/useAnchorContent: content is merged from the Button children via Base UI's render prop
+                      <a aria-label="View live published site" href={liveHref} rel="noreferrer" target="_blank" />
+                    }
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs font-normal gap-1.5"
+                  >
+                    <ExternalLink className="size-3.5" /> Live Site
+                  </Button>
                   <Button
                     nativeButton={false}
                     render={

@@ -35,6 +35,7 @@ vi.mock('@cms/sdk/react', () => ({
   useMarkNotificationsRead: () => ({ mutate: vi.fn() }),
   usePages: () => ({ data: [{ id: 'page-1', title: 'Intro', slug: 'intro', kind: 'PAGE' }], isPending: false }),
   useDeployments: () => ({ data: [] }),
+  useDomains: () => ({ data: [] }),
 }));
 
 vi.mock('@/features/auth', () => ({
@@ -122,6 +123,10 @@ describe('ProjectLayout', () => {
 
     const overviewContent = container.querySelector('[data-testid="overview-content"]');
     expect(overviewContent).not.toBeNull();
+
+    const liveSiteLink = container.querySelector('a[aria-label="View live published site"]');
+    expect(liveSiteLink).not.toBeNull();
+    expect(liveSiteLink?.getAttribute('href')).toBe('/sites/test-project');
   });
 
   it('renders children with dedicated layout in settings mode without duplicate sidebar', async () => {
