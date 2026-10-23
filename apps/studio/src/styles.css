@@ -706,9 +706,12 @@
   #nd-docs-layout,
   #nd-notebook-layout,
   #nd-spacious-layout,
+  #fd-glass-layout,
   [data-documentation-layout="docs"],
   [data-documentation-layout="notebook"],
-  [data-documentation-layout="spacious"] {
+  [data-documentation-layout="spacious"],
+  [data-documentation-layout="glass"],
+  [data-documentation-layout="flux"] {
     max-width: none;
     width: 100%;
   }

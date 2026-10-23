@@ -54,6 +54,8 @@ export const usePublish = <T = any>(projectId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.deployments.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+      qc.invalidateQueries({ queryKey: ['site', projectId] });
+      qc.invalidateQueries({ queryKey: ['site-page', projectId] });
     },
   });
 };
@@ -67,6 +69,8 @@ export const usePublishAnyway = <T = any>(projectId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.deployments.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+      qc.invalidateQueries({ queryKey: ['site', projectId] });
+      qc.invalidateQueries({ queryKey: ['site-page', projectId] });
     },
   });
 };
@@ -79,6 +83,8 @@ export const useRollback = <T = any>(projectId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.deployments.all(projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+      qc.invalidateQueries({ queryKey: ['site', projectId] });
+      qc.invalidateQueries({ queryKey: ['site-page', projectId] });
     },
   });
 };

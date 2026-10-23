@@ -76,6 +76,8 @@ export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentI
       announced.current = deployment.id;
       qc.invalidateQueries({ queryKey: queryKeys.deployments.baseline(project.id) });
       qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(project.id) });
+      qc.invalidateQueries({ queryKey: ['site', project.id] });
+      qc.invalidateQueries({ queryKey: ['site-page', project.id] });
       toast.success(t('deploy.published'), {
         action: {
           label: t('deploy.viewSiteArrow'),
@@ -107,6 +109,8 @@ export function DeployPipeline({ project, open, onOpenChange, trackedDeploymentI
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: queryKeys.deployments.baseline(project.id) });
         qc.invalidateQueries({ queryKey: queryKeys.deployments.changes(project.id) });
+        qc.invalidateQueries({ queryKey: ['site', project.id] });
+        qc.invalidateQueries({ queryKey: ['site-page', project.id] });
         toast.success(t('deploy.rollback.success', { version: previousReady.version }));
         onOpenChange(false);
       },

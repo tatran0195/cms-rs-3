@@ -22,7 +22,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
       page = await queryClient.query({
         queryKey: ['site-page', params.projectId, path, { language: deps.lang, version }],
         queryFn: () => cmsClient.sites.getPage<SitePage>(params.projectId, path, { language: deps.lang, version }),
-        staleTime: 'static',
+        staleTime: 5_000,
       });
     } catch (error) {
       if (!(error instanceof CmsApiError) || error.status !== 404) {
@@ -37,7 +37,7 @@ export const Route = createFileRoute('/sites/$projectId/$')({
         const site = await queryClient.query({
           queryKey: ['site', params.projectId, { language: deps.lang }],
           queryFn: () => cmsClient.sites.getSite<SiteShell>(params.projectId, { language: deps.lang }),
-          staleTime: 'static',
+          staleTime: 5_000,
         });
         if (site.openapi && requested === site.openapi.path) {
           return { kind: 'openapi' as const, openapi: site.openapi, site, lang: deps.lang };

@@ -1,6 +1,6 @@
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { cn } from '@cms/design-system/lib/utils';
-import { type ResolvedTheme, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
+import { type ResolvedTheme, resolveDocsLayout, THEME_SCHEMA_VERSION, type ThemeLayout } from '@cms/shared/themes';
 import { type CSSProperties, createContext, type ReactNode, useContext } from 'react';
 import { type DocsLayoutSlots, type DocsPageSlots, getDocsLayoutTemplate, type ProjectPreviewSlots, type StudioPreviewSlots } from '../layouts';
 
@@ -305,7 +305,7 @@ export function DocumentationThemeProvider({
   css?: string;
   children: ReactNode;
 }) {
-  const docsLayout = theme.layout.docsLayout ?? 'docs';
+  const docsLayout = resolveDocsLayout(theme.layout);
   const template = getDocsLayoutTemplate(docsLayout);
 
   const isPreview = context === 'studio-preview' || context === 'project-preview';

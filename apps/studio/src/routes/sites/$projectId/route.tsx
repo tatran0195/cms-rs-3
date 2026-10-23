@@ -19,7 +19,12 @@ export const Route = createFileRoute('/sites/$projectId')({
 
       const cached = queryClient.getQueriesData<SiteShell>({ queryKey: ['site', params.projectId] });
       const knownVersions = cached.find(([, data]) => Boolean(data?.versions))?.[1]?.versions;
-      const isKnownVersion = knownVersions && rawCandidate ? knownVersions.some((v) => v.slug === rawCandidate || v.id === rawCandidate) : undefined;
+      const memoryVersions = projectKnownVersions.get(params.projectId);
+      const isKnownVersion = knownVersions && rawCandidate
+        ? knownVersions.some((v) => v.slug === rawCandidate || v.id === rawCandidate)
+        : memoryVersions && rawCandidate
+          ? memoryVersions.has(rawCandidate)
+          : undefined;
 
       const candidate = isKnownVersion === false ? undefined : rawCandidate;
 
@@ -38,7 +43,7 @@ export const Route = createFileRoute('/sites/$projectId')({
           }
           return res;
         },
-        staleTime: 'static',
+        staleTime: 5_000,
       });
       if (site.versions) {
         projectKnownVersions.set(params.projectId, new Set(site.versions.map((v) => v.slug)));
