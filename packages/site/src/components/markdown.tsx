@@ -178,10 +178,10 @@ function Pre({ locale, ...props }: ComponentProps<'pre'> & { locale?: string }) 
 // --content-scroll-mt (set on the chrome wrapper); the 6rem fallback keeps
 // editor preview and changelog offsets sane.
 const htmlComponents: Components = {
-  h1: (props) => <h1 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
-  h2: (props) => <h2 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
-  h3: (props) => <h3 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
-  h4: (props) => <h4 className="scroll-mt-[var(--content-scroll-mt,6rem)]" {...props} />,
+  h1: (props) => <h1 style={{ scrollMarginTop: 'var(--content-scroll-mt, 6rem)' }} className="scroll-mt-24" {...props} />,
+  h2: (props) => <h2 style={{ scrollMarginTop: 'var(--content-scroll-mt, 6rem)' }} className="scroll-mt-24" {...props} />,
+  h3: (props) => <h3 style={{ scrollMarginTop: 'var(--content-scroll-mt, 6rem)' }} className="scroll-mt-24" {...props} />,
+  h4: (props) => <h4 style={{ scrollMarginTop: 'var(--content-scroll-mt, 6rem)' }} className="scroll-mt-24" {...props} />,
   table: (props) => (
     <div className="typeset-scroll">
       <table {...props} />

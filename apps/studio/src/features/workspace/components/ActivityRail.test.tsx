@@ -62,8 +62,7 @@ afterEach(async () => {
 });
 
 describe('ActivityRail', () => {
-  it('renders navigation links and triggers search and deploy actions', async () => {
-    const onOpenSearch = vi.fn();
+  it('renders navigation links and triggers deploy action', async () => {
     const onOpenDeploy = vi.fn();
 
     const container = document.createElement('div');
@@ -72,7 +71,7 @@ describe('ActivityRail', () => {
     roots.push(root);
 
     await act(async () => {
-      root.render(<ActivityRail projectId="test-project" onOpenSearch={onOpenSearch} onOpenDeploy={onOpenDeploy} />);
+      root.render(<ActivityRail projectId="test-project" onOpenDeploy={onOpenDeploy} />);
     });
 
     const overviewLink = container.querySelector('a[aria-label="project.overview"]');
@@ -87,10 +86,9 @@ describe('ActivityRail', () => {
     const settingsLink = container.querySelector('a[aria-label="project.settings"]');
     expect(settingsLink).not.toBeNull();
 
+    // Search button should no longer exist on the rail
     const searchBtn = container.querySelector('button[aria-label="dashboard.search.placeholder"]');
-    expect(searchBtn).not.toBeNull();
-    searchBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(onOpenSearch).toHaveBeenCalledTimes(1);
+    expect(searchBtn).toBeNull();
 
     const deployBtn = container.querySelector('button[aria-label="project.publish"]');
     expect(deployBtn).not.toBeNull();

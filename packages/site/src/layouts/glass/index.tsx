@@ -35,10 +35,12 @@ export function GlassReaderShell(slots: DocsLayoutSlots) {
           hasGranular={hasGranular}
         />
 
-        <div className="min-w-0 flex-1 pt-4 md:pt-6">{slots.content}</div>
+        <div className="flex flex-col min-w-0 flex-1 pt-4 md:pt-6">
+          <div className="min-w-0 flex-1">{slots.content}</div>
+          {slots.footer && <div className="mt-auto pt-8">{slots.footer}</div>}
+        </div>
       </div>
 
-      {slots.footer}
       {slots.overlays}
     </div>
   );

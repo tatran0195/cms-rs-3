@@ -3,10 +3,11 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@cms/design-syste
 import { useT } from '@cms/i18n/react';
 import { useProject } from '@cms/sdk/react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { Eye } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { DeployPipeline } from '@/features/publishing/components/DeployPipeline';
 import { ActivityRail, CommandPalette, NotificationsPopover, ProjectSidebar } from '@/features/workspace';
+import { useSearchShortcutLabel } from '@/shared';
 
 export { PublishControl } from '@/features/publishing';
 
@@ -25,6 +26,7 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [deployOpen, setDeployOpen] = useState(false);
+  const searchShortcut = useSearchShortcutLabel();
 
   useEffect(() => {
     const handleOpenSearch = () => setPaletteOpen(true);
@@ -34,7 +36,7 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
-      <ActivityRail projectId={projectId} onOpenSearch={() => setPaletteOpen(true)} onOpenDeploy={() => setDeployOpen(true)} />
+      <ActivityRail projectId={projectId} onOpenDeploy={() => setDeployOpen(true)} />
       <div className="flex-1 min-w-0 h-full overflow-hidden">
         {isEditor || isSettings || isPreview ? (
           children
@@ -55,6 +57,19 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
                 </>
               )}
               <div className="ms-auto flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex h-7 w-48 items-center gap-2 rounded-lg border-input bg-transparent px-2.5 text-muted-foreground text-xs shadow-xs font-normal hover:bg-muted/50 dark:bg-input/30"
+                  onClick={() => setPaletteOpen(true)}
+                  aria-label={t('dashboard.search.placeholder')}
+                >
+                  <Search className="size-3.5" />
+                  <span className="flex-1 text-start truncate">{t('dashboard.search.placeholder')}</span>
+                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.2 font-mono text-[10px]" dir="ltr">
+                    {searchShortcut}
+                  </kbd>
+                </Button>
                 <NotificationsPopover />
                 <Button
                   nativeButton={false}
@@ -99,6 +114,19 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
                   <span className="h-4 w-28 animate-pulse rounded bg-muted" aria-hidden />
                 )}
                 <div className="ms-auto flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex h-7 w-48 items-center gap-2 rounded-lg border-input bg-transparent px-2.5 text-muted-foreground text-xs shadow-xs font-normal hover:bg-muted/50 dark:bg-input/30"
+                    onClick={() => setPaletteOpen(true)}
+                    aria-label={t('dashboard.search.placeholder')}
+                  >
+                    <Search className="size-3.5" />
+                    <span className="flex-1 text-start truncate">{t('dashboard.search.placeholder')}</span>
+                    <kbd className="rounded border border-border bg-muted px-1.5 py-0.2 font-mono text-[10px]" dir="ltr">
+                      {searchShortcut}
+                    </kbd>
+                  </Button>
                   <NotificationsPopover />
                   <Button
                     nativeButton={false}

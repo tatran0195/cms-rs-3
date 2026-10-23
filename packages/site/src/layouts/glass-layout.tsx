@@ -20,7 +20,7 @@ export const GlassLayoutTemplate: DocsLayoutTemplate = {
       >
         <aside
           id="nd-sidebar"
-          className="glass-sidebar hidden w-56 flex-col rounded-xl border border-border/70 bg-card/70 p-3 shadow-xs backdrop-blur-sm md:flex"
+          className="glass-sidebar hidden w-72 shrink-0 flex-col rounded-xl border border-border/70 bg-card/70 p-3 shadow-xs backdrop-blur-sm md:flex"
           data-theme-region="sidebar"
         >
           {brand && <div className="border-b border-border/50 p-2">{brand}</div>}

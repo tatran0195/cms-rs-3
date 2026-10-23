@@ -18,7 +18,7 @@ export const NotebookLayoutTemplate: DocsLayoutTemplate = {
         data-documentation-layout="notebook-preview"
         data-theme-region="preview-shell"
       >
-        <aside id="nd-sidebar" className="hidden w-52 flex-col border-border/60 border-e bg-card/40 p-3 md:flex" data-theme-region="sidebar">
+        <aside id="nd-sidebar" className="hidden w-72 shrink-0 flex-col border-border/60 border-e bg-card/40 p-3 md:flex" data-theme-region="sidebar">
           {navigation}
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-sm">{content}</div>

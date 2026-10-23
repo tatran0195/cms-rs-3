@@ -18,7 +18,7 @@ export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
         data-documentation-layout="spacious-preview"
         data-theme-region="preview-shell"
       >
-        <aside className="hidden w-56 flex-col border-e-0 bg-transparent p-3 md:flex" data-theme-region="sidebar">
+        <aside className="hidden w-72 shrink-0 flex-col border-e-0 bg-transparent p-3 md:flex" data-theme-region="sidebar">
           {navigation}
         </aside>
         <div id="nd-page-panel" className="min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border/80 bg-background p-6 shadow-xs">

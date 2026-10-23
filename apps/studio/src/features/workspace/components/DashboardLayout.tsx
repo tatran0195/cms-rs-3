@@ -39,7 +39,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
-      <ActivityRail onOpenSearch={() => setPaletteOpen(true)} />
+      <ActivityRail />
       <div className="flex-1 min-w-0 h-full overflow-hidden">
         {isFullWidth ? (
           <div className="min-w-0 h-full flex flex-col overflow-hidden bg-background">

@@ -9,7 +9,14 @@ vi.mock('@cms/i18n/react', () => ({
   useT: () => (key: string) => key,
 }));
 
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => vi.fn(),
+  useRouterState: () => '/app/projects/proj-1/preview',
+  Outlet: () => null,
+}));
+
 vi.mock('@cms/sdk/react', () => ({
+  CmsClientProvider: ({ children }: any) => <>{children}</>,
   useProject: () => ({
     data: {
       id: 'proj-1',
@@ -44,6 +51,27 @@ const roots: Array<ReturnType<typeof createRoot>> = [];
 
 beforeEach(() => {
   document.body.innerHTML = '';
+  global.ResizeObserver = class {
+    observe() {
+      // Mock implementation
+    }
+    unobserve() {
+      // Mock implementation
+    }
+    disconnect() {
+      // Mock implementation
+    }
+  };
+  window.matchMedia = vi.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
 });
 
 afterEach(() => {
@@ -73,7 +101,9 @@ describe('ProjectPreviewPage', () => {
     expect(links && links.length > 0).toBe(true);
 
     // Theme toggle button should be present
-    const themeBtn = container.querySelector('button[aria-label="Toggle preview theme"]');
+    const themeBtn = container.querySelector(
+      'button[aria-label="Light theme"], button[aria-label="Dark theme"], button[aria-label="Toggle preview theme"]',
+    );
     expect(themeBtn).not.toBeNull();
 
     // Theme CSS style tag should be injected inside the provider

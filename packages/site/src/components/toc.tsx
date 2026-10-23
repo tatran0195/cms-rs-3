@@ -76,6 +76,7 @@ export class Observer {
   activeAnchors: string[] = [];
   activeAnchor: string | undefined;
   private observer: IntersectionObserver | null = null;
+  private scrollHandler: (() => void) | null = null;
   private readonly listeners = new Set<ChangeListener>();
 
   constructor(
@@ -113,74 +114,109 @@ export class Observer {
   };
 
   watch(options?: IntersectionObserverInit) {
-    if (this.observer || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
-    this.observer = new IntersectionObserver(this.callback.bind(this), options);
-    for (const item of this.items) {
-      const element = document.getElementById(item.id) || document.getElementById(slugify(item.id));
-      if (!element) continue;
-      this.observer.observe(element);
+    if (!this.observer && typeof IntersectionObserver !== 'undefined') {
+      this.observer = new IntersectionObserver(this.callback.bind(this), {
+        rootMargin: '-80px 0px -40% 0px',
+        threshold: [0, 0.5, 1],
+        ...options,
+      });
+      for (const item of this.items) {
+        const element = document.getElementById(item.id) || document.getElementById(slugify(item.id));
+        if (!element) continue;
+        this.observer.observe(element);
+      }
+    }
+
+    if (!this.scrollHandler) {
+      let ticking = false;
+      this.scrollHandler = () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            this.onScrollSpy();
+            ticking = false;
+          });
+          ticking = true;
+        }
+      };
+      window.addEventListener('scroll', this.scrollHandler, { passive: true, capture: true });
+      window.addEventListener('resize', this.scrollHandler, { passive: true });
+      this.onScrollSpy();
     }
   }
 
   unwatch() {
     this.observer?.disconnect();
     this.observer = null;
+    if (this.scrollHandler && typeof window !== 'undefined') {
+      window.removeEventListener('scroll', this.scrollHandler, true);
+      window.removeEventListener('resize', this.scrollHandler);
+      this.scrollHandler = null;
+    }
   }
 
-  private callback(entries: IntersectionObserverEntry[]) {
-    if (entries.length === 0) return;
+  private onScrollSpy() {
+    if (this.items.length === 0 || typeof document === 'undefined') return;
 
-    let hasActive = false;
-    const updated = this.items.map((item) => {
-      const entry = entries.find((e) => e.target.id === item.id || e.target.id === slugify(item.id));
-      let active = entry ? entry.isIntersecting : item.active && !item.fallback;
-      if (this.single && hasActive) active = false;
+    const firstId = this.items[0]?.id;
+    const firstEl = firstId ? document.getElementById(firstId) || document.getElementById(slugify(firstId)) : null;
+    const headerEl = document.querySelector('[data-theme-region="header-shell"]') || document.querySelector('header');
+    const headerHeight = headerEl?.getBoundingClientRect().height ?? 64;
+    const readingOffset = headerHeight + 56;
 
-      const currentItem =
-        item.active !== active
-          ? {
-              ...item,
-              t: Date.now(),
-              active,
-              fallback: false,
-            }
-          : item;
-
-      if (active) hasActive = true;
-      return currentItem;
-    });
-
-    if (!hasActive && entries[0]?.rootBounds) {
-      const viewTop = entries[0].rootBounds.top;
-      let min = Number.MAX_VALUE;
-      let fallbackIdx = -1;
-
-      for (let i = 0; i < updated.length; i++) {
-        const item = updated[i];
-        if (!item) continue;
-        const element = document.getElementById(item.id) || document.getElementById(slugify(item.id));
-        if (!element) continue;
-
-        const d = Math.abs(viewTop - element.getBoundingClientRect().top);
-        if (d < min) {
-          fallbackIdx = i;
-          min = d;
-        }
+    // Detect bottom of scroll container (whether window or inner scroll container)
+    let isAtBottom = false;
+    let parent = firstEl?.parentElement;
+    let scrollEl: HTMLElement | null = null;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      const style = window.getComputedStyle(parent);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+        scrollEl = parent;
+        break;
       }
+      parent = parent.parentElement;
+    }
 
-      const target = fallbackIdx !== -1 ? updated[fallbackIdx] : undefined;
-      if (target) {
-        updated[fallbackIdx] = {
-          ...target,
-          active: true,
-          fallback: true,
-          t: Date.now(),
-        };
+    if (scrollEl) {
+      isAtBottom = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 50;
+    } else {
+      const scrollY = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+      isAtBottom = window.innerHeight + scrollY >= scrollHeight - 60;
+    }
+
+    if (isAtBottom) {
+      const last = this.items[this.items.length - 1];
+      if (last && (!last.active || this.activeAnchor !== last.id)) {
+        this.setActive([last.id]);
+      }
+      return;
+    }
+
+    let activeId: string | undefined;
+    for (const item of this.items) {
+      const el = document.getElementById(item.id) || document.getElementById(slugify(item.id));
+      if (!el) continue;
+      const top = el.getBoundingClientRect().top;
+      if (top <= readingOffset) {
+        activeId = item.id;
+      } else {
+        break;
       }
     }
 
-    this.update(updated);
+    if (!activeId && this.items.length > 0) {
+      activeId = this.items[0]?.id;
+    }
+
+    if (activeId && this.activeAnchor !== activeId) {
+      this.setActive([activeId]);
+    }
+  }
+
+  private callback() {
+    this.onScrollSpy();
   }
 
   update(next: TOCItemInfo[]) {
@@ -221,14 +257,13 @@ export interface AnchorProviderProps {
   children?: ReactNode;
 }
 
-export function AnchorProvider({ toc, single = false, activeIds = [], children }: AnchorProviderProps) {
+export function AnchorProvider({ toc, single = true, activeIds = [], children }: AnchorProviderProps) {
   const activeIdsKey = activeIds.join(',');
-  const observer = useMemo(() => new Observer(toc, single, activeIdsKey ? activeIdsKey.split(',') : []), [toc, single, activeIdsKey]);
+  const isSingle = single ?? activeIds.length <= 1;
+  const observer = useMemo(() => new Observer(toc, isSingle, activeIdsKey ? activeIdsKey.split(',') : []), [toc, isSingle, activeIdsKey]);
 
   useEffect(() => {
-    observer.watch({
-      threshold: 0.9,
-    });
+    observer.watch();
 
     return () => observer.unwatch();
   }, [observer]);
@@ -349,6 +384,7 @@ export function PrimitiveTOCItem({ ref, onActiveChange, autoScroll = true, onSel
         if (id) {
           e.preventDefault();
           onSelect?.(id);
+          observer.setActive([id]);
           const el = document.getElementById(id) || document.getElementById(slugify(id));
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -960,13 +996,14 @@ export function TableOfContents({
   style = 'clerk',
   depth = 3,
   className,
-  single = false,
+  single = true,
   activeId: controlledActiveId,
   activeIds: controlledActiveIds,
   onActiveChange,
   onActiveIdsChange,
   onSelect,
 }: TableOfContentsProps) {
+  const isSingle = single ?? (!controlledActiveIds || controlledActiveIds.length <= 1);
   const toc: TOCItemType[] = useMemo(
     () =>
       headings
@@ -986,7 +1023,7 @@ export function TableOfContents({
   }, [controlledActiveIds, controlledActiveId]);
 
   return (
-    <TOCProvider toc={toc} single={single} activeIds={initialActiveIds}>
+    <TOCProvider toc={toc} single={isSingle} activeIds={initialActiveIds}>
       <TableOfContentsInner
         label={label}
         style={style}

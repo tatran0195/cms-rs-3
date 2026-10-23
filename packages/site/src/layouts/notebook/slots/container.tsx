@@ -16,9 +16,10 @@ export function Container({ className, style, children, ...props }: ComponentPro
       {...props}
       style={
         {
-          gridTemplate: `"sidebar sidebar header header ."
-"sidebar sidebar toc-popover toc-popover ."
-"sidebar sidebar main toc ." 1fr / minmax(min-content, 1fr) var(--fd-sidebar-col) minmax(0, calc(var(--fd-layout-width,1600px) - var(--fd-sidebar-col) - var(--fd-toc-col))) var(--fd-toc-col) minmax(min-content, 1fr)`,
+          gridTemplate: `"sidebar sidebar header header ." auto
+"sidebar sidebar toc-popover toc-popover ." auto
+"sidebar sidebar main toc ." 1fr
+"sidebar sidebar footer footer ." auto / minmax(min-content, 1fr) var(--fd-sidebar-col) minmax(0, calc(var(--fd-layout-width,1600px) - var(--fd-sidebar-col) - var(--fd-toc-col))) var(--fd-toc-col) minmax(min-content, 1fr)`,
           '--fd-docs-row-1': 'var(--fd-banner-height, 0px)',
           '--fd-docs-row-2': 'calc(var(--fd-docs-row-1) + var(--fd-header-height, 3.5rem))',
           '--fd-docs-row-3': 'calc(var(--fd-docs-row-2) + var(--fd-toc-popover-height, 0px))',

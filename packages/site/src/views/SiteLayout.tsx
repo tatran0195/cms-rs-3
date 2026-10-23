@@ -56,9 +56,12 @@ export interface SiteLayoutProps {
   lang?: string;
   basePath?: string;
   children?: ReactNode;
+  onNavigate?: (href: string) => void;
+  onLanguageChange?: (languageCode: string) => void;
+  onVersionChange?: (versionSlug: string) => void;
 }
 
-export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLayoutProps) {
+export function SiteLayout({ site, projectId, lang, basePath, children, onNavigate, onLanguageChange, onVersionChange }: SiteLayoutProps) {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [pageAlternates, setPageAlternates] = useState<SiteLanguageAlternate[]>([]);
@@ -192,6 +195,11 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
       if (target.target && target.target !== '_self') return;
       const href = target.getAttribute('href');
       if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+      if (onNavigate) {
+        e.preventDefault();
+        onNavigate(href);
+        return;
+      }
       if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(href)) {
         try {
           const url = new URL(href, window.location.href);
@@ -208,7 +216,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
         navigateToHref(href);
       }
     },
-    [basePrefix, navigateToHref],
+    [basePrefix, navigateToHref, onNavigate],
   );
 
   const handleThemeChange = useCallback(
@@ -264,7 +272,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   const chromeStyle = {
     ...projectThemeStyle(config),
     '--site-header-h': headerHeight,
-    '--content-scroll-mt': `calc(${headerHeight} + 1.5rem)`,
+    '--content-scroll-mt': `calc(${headerHeight} + 2rem)`,
   } as Record<string, string | number>;
   const themeCss = projectThemeCss(config);
   const siteName = site?.languageConfig?.name || site?.project.name;
@@ -288,6 +296,10 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   );
 
   const changeLanguage = (code: string) => {
+    if (onLanguageChange) {
+      onLanguageChange(code);
+      return;
+    }
     const targetLanguage = siteLanguageParam(code, defaultLanguage);
     const alternate = pageAlternates.find((item) => item.code === code && item.path);
     if (!isChangelog && alternate?.path) {
@@ -304,6 +316,10 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
   };
 
   const changeVersion = (slug: string) => {
+    if (onVersionChange) {
+      onVersionChange(slug);
+      return;
+    }
     const defaultVersion = versions.find((item) => item.isDefault);
     const targetPrefix = defaultVersion?.slug === slug ? '' : slug;
     const targetPath = [targetPrefix, isChangelog ? '' : contentPath].filter(Boolean).join('/');
@@ -648,7 +664,7 @@ export function SiteLayout({ site, projectId, lang, basePath, children }: SiteLa
               footer={
                 hasFooterContent || showBadge ? (
                   <footer className="mt-auto border-border/70 border-t py-6 text-center text-muted-foreground text-xs">
-                    <div className="mx-auto flex w-full max-w-[var(--theme-content-max,100%)] flex-wrap items-center justify-between gap-4 px-4 sm:px-6">
+                    <div className="mx-auto flex w-full max-w-[var(--theme-content-max,100%)] flex-wrap items-center justify-between gap-4 px-4 sm:px-6 xl:px-8">
                       <div>{footer?.copyright || `© ${new Date().getFullYear()} ${siteName ?? 'Documentation'}`}</div>
                       <div className="flex items-center gap-3">
                         {footer?.github && (

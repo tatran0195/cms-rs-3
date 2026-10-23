@@ -15,7 +15,7 @@ import { useTheme } from '@cms/design-system/theme';
 import { INTERFACE_LOCALES } from '@cms/i18n';
 import { useLocale } from '@cms/i18n/react';
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { BarChart3, Languages, LayoutDashboard, LogOut, Moon, PenLine, Rocket, Search, Settings, Sun } from 'lucide-react';
+import { BarChart3, Languages, LayoutDashboard, LogOut, Moon, PenLine, Rocket, Settings, Sun } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
 import { useSession, useSignOut } from '@/features/auth';
 import { InterfaceLanguageDialog } from '@/shared';
@@ -26,11 +26,10 @@ const subscribeToHydration = () => () => undefined;
 
 export interface ActivityRailProps {
   projectId?: string;
-  onOpenSearch?: () => void;
   onOpenDeploy?: () => void;
 }
 
-export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: ActivityRailProps) {
+export function ActivityRail({ projectId, onOpenDeploy }: ActivityRailProps) {
   const { locale, t } = useLocale();
   const rawPath = useRouterState({ select: (s) => s.location.pathname });
   const pathname = typeof rawPath === 'string' ? rawPath : '';
@@ -124,23 +123,6 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
                   </TooltipTrigger>
                   <TooltipContent side="right">{t('project.editor')}</TooltipContent>
                 </Tooltip>
-
-                {onOpenSearch ? (
-                  <Tooltip>
-                    <TooltipTrigger render={<span />}>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={onOpenSearch}
-                        aria-label={t('dashboard.search.placeholder')}
-                        className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <Search className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{t('dashboard.search.placeholder')}</TooltipContent>
-                  </Tooltip>
-                ) : null}
 
                 {onOpenDeploy ? (
                   <Tooltip>
@@ -244,23 +226,6 @@ export function ActivityRail({ projectId, onOpenSearch, onOpenDeploy }: Activity
                   </TooltipTrigger>
                   <TooltipContent side="right">{t('nav.settings')}</TooltipContent>
                 </Tooltip>
-
-                {onOpenSearch ? (
-                  <Tooltip>
-                    <TooltipTrigger render={<span />}>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={onOpenSearch}
-                        aria-label={t('dashboard.search.placeholder')}
-                        className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <Search className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{t('dashboard.search.placeholder')}</TooltipContent>
-                  </Tooltip>
-                ) : null}
               </>
             )}
           </nav>

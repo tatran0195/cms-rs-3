@@ -166,9 +166,13 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
     .replace(/[`#*_>[\](){}|~-]/g, ' ');
   const readingMinutes = Math.max(1, Math.ceil(readableText.split(/\s+/).filter(Boolean).length / 220));
   const imageCount = (protectMarkdownCode(page.content).content.match(/!\[[^\]]*\]\([^)]*\)|<img\b/gi) ?? []).length;
-  const updatedLabel = new Intl.DateTimeFormat(localeTag(language || 'en'), {
-    dateStyle: 'medium',
-  }).format(new Date(page.updatedAt));
+  const updatedDate = page.updatedAt ? new Date(page.updatedAt) : null;
+  const updatedLabel =
+    updatedDate && !Number.isNaN(updatedDate.getTime())
+      ? new Intl.DateTimeFormat(localeTag(language || 'en'), {
+          dateStyle: 'medium',
+        }).format(updatedDate)
+      : null;
   const currentTheme = useDocumentationTheme();
   const tocStyle = currentTheme?.layout?.tocStyle ?? 'clerk';
   const tocDepth = currentTheme?.layout?.tocDepth ?? 3;
@@ -259,9 +263,11 @@ export function SitePageView({ projectId, lang, data }: { projectId: string; lan
               <Image className="size-3.5" aria-hidden /> {imageCount} {tArticle(imageCount === 1 ? 'screenshot' : 'screenshots')}
             </li>
           ) : null}
-          <li className="inline-flex items-center gap-1.5">
-            <CalendarClock className="size-3.5" aria-hidden /> {tArticle('updated')} {updatedLabel}
-          </li>
+          {updatedLabel ? (
+            <li className="inline-flex items-center gap-1.5">
+              <CalendarClock className="size-3.5" aria-hidden /> {tArticle('updated')} {updatedLabel}
+            </li>
+          ) : null}
         </ul>
         {page.config?.tags?.length ? (
           <ul className="mt-4 flex flex-wrap gap-2" aria-label={tArticle('tags')}>

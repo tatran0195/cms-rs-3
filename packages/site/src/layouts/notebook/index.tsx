@@ -33,9 +33,15 @@ export function NotebookReaderShell(slots: DocsLayoutSlots) {
         <div className="notebook-paper contents" data-theme-region="content-slot">
           {slots.content}
         </div>
+
+        {/* Footer in [grid-area:footer] - strictly after sidebar columns */}
+        {slots.footer && (
+          <div className="[grid-area:footer] w-full min-w-0" data-theme-region="footer-slot">
+            {slots.footer}
+          </div>
+        )}
       </Container>
 
-      {slots.footer}
       {slots.overlays}
     </div>
   );

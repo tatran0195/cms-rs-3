@@ -21,7 +21,7 @@ export function TOC({ toc, tocPopover, className, ...props }: TOCProps) {
           data-theme-region="toc"
           {...props}
           className={cn(
-            'sticky top-[var(--fd-docs-row-1,0px)] h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-[var(--fd-toc-width,268px)] pt-12 pe-4 pb-2 max-xl:hidden self-start',
+            'sticky top-[var(--fd-docs-row-2,var(--site-header-h,4rem))] h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-2,var(--site-header-h,4rem)))] flex flex-col [grid-area:toc] w-[var(--fd-toc-width,268px)] pt-8 xl:pt-14 pe-4 pb-6 max-xl:hidden self-start',
             className,
           )}
         >
