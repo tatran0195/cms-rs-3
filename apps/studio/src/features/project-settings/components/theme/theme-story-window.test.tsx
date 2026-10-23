@@ -106,7 +106,7 @@ describe('ThemeStoryWindow', () => {
       cardsNavButton?.click();
     });
 
-    expect(container.textContent).toContain('https://docs.local/preview/docs/cards');
+    expect(container.textContent).toContain('https://docs.local/preview/docs/components/cards');
     expect(container.textContent).toContain('Cards Component');
   });
 
@@ -204,8 +204,8 @@ describe('ThemeStoryWindow', () => {
     expect(handleAppearanceChange).toHaveBeenCalledWith('dark');
   });
 
-  it('applies theme layout styles to the draft view header (floating, stacked, inline, radius, density)', async () => {
-    // 1. Floating header
+  it('applies theme layout styles to the preview container (header, radius, density)', async () => {
+    // 1. Pill radius and relaxed density
     await act(async () => {
       root.render(
         <ThemeStoryWindow
@@ -223,16 +223,17 @@ describe('ThemeStoryWindow', () => {
       );
     });
 
-    const floatingHeader = container.querySelector('header[data-theme-region="header"][data-theme-header="floating"]');
-    expect(floatingHeader).not.toBeNull();
-    expect(floatingHeader?.getAttribute('data-theme-radius')).toBe('pill');
-    expect(floatingHeader?.getAttribute('data-theme-density')).toBe('relaxed');
+    const chrome = container.querySelector('.cms-site-chrome');
+    expect(chrome).not.toBeNull();
+    expect(chrome?.getAttribute('data-theme-header')).toBe('floating');
+    expect(chrome?.getAttribute('data-theme-radius')).toBe('pill');
+    expect(chrome?.getAttribute('data-theme-density')).toBe('relaxed');
 
     // Pill radius applied to brand icon
-    const brandIcon = floatingHeader?.querySelector('span.rounded-full');
+    const brandIcon = container.querySelector('span.rounded-full');
     expect(brandIcon).not.toBeNull();
 
-    // 2. Stacked header
+    // 2. Sharp radius and compact density
     await act(async () => {
       root.render(
         <ThemeStoryWindow
@@ -250,10 +251,35 @@ describe('ThemeStoryWindow', () => {
       );
     });
 
-    const stackedHeader = container.querySelector('header[data-theme-region="header"][data-theme-header="stacked"]');
-    expect(stackedHeader).not.toBeNull();
-    expect(stackedHeader?.getAttribute('data-theme-radius')).toBe('sharp');
-    expect(stackedHeader?.getAttribute('data-theme-density')).toBe('compact');
+    const chrome2 = container.querySelector('.cms-site-chrome');
+    expect(chrome2).not.toBeNull();
+    expect(chrome2?.getAttribute('data-theme-header')).toBe('stacked');
+    expect(chrome2?.getAttribute('data-theme-radius')).toBe('sharp');
+    expect(chrome2?.getAttribute('data-theme-density')).toBe('compact');
+  });
+
+  it('handles fullscreen toggle callback when maximize window button is clicked', async () => {
+    const handleToggleFullscreen = vi.fn();
+    await act(async () => {
+      root.render(
+        <ThemeStoryWindow
+          layoutId="notebook"
+          effectiveConfig={{}}
+          resolvedTheme={harbor}
+          appearance="light"
+          onToggleFullscreen={handleToggleFullscreen}
+        />,
+      );
+    });
+
+    const maxBtn = container.querySelector('button[data-window-control="maximize"]');
+    expect(maxBtn).not.toBeNull();
+
+    await act(async () => {
+      (maxBtn as HTMLElement)?.click();
+    });
+
+    expect(handleToggleFullscreen).toHaveBeenCalledTimes(1);
   });
 
   it('renders flux layout with contained navigation panel inside preview viewport', async () => {
