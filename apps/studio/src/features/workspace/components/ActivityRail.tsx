@@ -14,6 +14,7 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useTheme } from '@cms/design-system/theme';
 import { INTERFACE_LOCALES } from '@cms/i18n';
 import { useLocale } from '@cms/i18n/react';
+import { useDeployments } from '@cms/sdk/react';
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
 import { BarChart3, Languages, LayoutDashboard, LogOut, Moon, PenLine, Rocket, Settings, Sun } from 'lucide-react';
 import { useState, useSyncExternalStore } from 'react';
@@ -47,8 +48,12 @@ export function ActivityRail({ projectId, onOpenDeploy }: ActivityRailProps) {
   const activeLocale = INTERFACE_LOCALES.find((option) => option.code === locale) ?? INTERFACE_LOCALES[0];
   const [languageOpen, setLanguageOpen] = useState(false);
 
+  const { data: deployments } = useDeployments(projectId ?? '', { enabled: Boolean(projectId) });
+  const isBuilding = deployments?.[0]?.status === 'PENDING' || deployments?.[0]?.status === 'BUILDING';
+
   const isHome = projectId ? pathname === `/app/projects/${projectId}` : pathname === '/app' || pathname === '/app/';
   const isEditor = projectId ? pathname.startsWith(`/app/projects/${projectId}/editor`) : false;
+  const isDeployments = projectId ? pathname.startsWith(`/app/projects/${projectId}/deployments`) : false;
   const isAnalytics = projectId ? pathname.startsWith(`/app/projects/${projectId}/analytics`) : pathname.startsWith('/app/analytics');
   const isSettings = projectId ? pathname.startsWith(`/app/projects/${projectId}/settings`) : pathname.startsWith('/app/settings');
 
@@ -124,22 +129,25 @@ export function ActivityRail({ projectId, onOpenDeploy }: ActivityRailProps) {
                   <TooltipContent side="right">{t('project.editor')}</TooltipContent>
                 </Tooltip>
 
-                {onOpenDeploy ? (
-                  <Tooltip>
-                    <TooltipTrigger render={<span />}>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={onOpenDeploy}
-                        aria-label={t('project.publish')}
-                        className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <Rocket className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{t('project.publish')}</TooltipContent>
-                  </Tooltip>
-                ) : null}
+                <Tooltip>
+                  <TooltipTrigger render={<span />}>
+                    <Link
+                      to="/app/projects/$projectId/deployments"
+                      params={{ projectId }}
+                      aria-label={t('project.publish')}
+                      className={cn(
+                        'relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                        isDeployments && 'bg-muted text-foreground font-medium',
+                      )}
+                    >
+                      <Rocket className="size-4" />
+                      {isBuilding && (
+                        <span className="absolute top-1.5 end-1.5 size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      )}
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{t('project.publish')}</TooltipContent>
+                </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger render={<span />}>

@@ -23,6 +23,7 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
   const isPreview = pathname.includes('/preview');
   const isOverview = pathname === `/app/projects/${projectId}` || pathname === `/app/projects/${projectId}/`;
   const isAnalytics = pathname.startsWith(`/app/projects/${projectId}/analytics`);
+  const isDeployments = pathname.startsWith(`/app/projects/${projectId}/deployments`);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [deployOpen, setDeployOpen] = useState(false);
@@ -40,7 +41,7 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
       <div className="flex-1 min-w-0 h-full overflow-hidden">
         {isEditor || isSettings || isPreview ? (
           children
-        ) : isOverview || isAnalytics ? (
+        ) : isOverview || isAnalytics || isDeployments ? (
           <div className="min-w-0 h-full flex flex-col overflow-hidden bg-background">
             <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-border border-b bg-background/85 px-6 backdrop-blur">
               {project?.name ? (
@@ -54,6 +55,12 @@ export function ProjectLayout({ projectId, children }: { projectId: string; chil
                 <>
                   <span className="text-muted-foreground/40 text-xs">/</span>
                   <span className="font-semibold text-sm text-foreground">{t('nav.analytics')}</span>
+                </>
+              )}
+              {isDeployments && (
+                <>
+                  <span className="text-muted-foreground/40 text-xs">/</span>
+                  <span className="font-semibold text-sm text-foreground">{t('project.publish')}</span>
                 </>
               )}
               <div className="ms-auto flex items-center gap-2">

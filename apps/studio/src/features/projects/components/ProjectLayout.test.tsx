@@ -34,6 +34,7 @@ vi.mock('@cms/sdk/react', () => ({
   useNotifications: () => ({ data: [], isLoading: false }),
   useMarkNotificationsRead: () => ({ mutate: vi.fn() }),
   usePages: () => ({ data: [{ id: 'page-1', title: 'Intro', slug: 'intro', kind: 'PAGE' }], isPending: false }),
+  useDeployments: () => ({ data: [] }),
 }));
 
 vi.mock('@/features/auth', () => ({
@@ -193,5 +194,31 @@ describe('ProjectLayout', () => {
 
     const analyticsContent = container.querySelector('[data-testid="analytics-content"]');
     expect(analyticsContent).not.toBeNull();
+  });
+
+  it('renders full-width layout without ProjectSidebar in deployments mode', async () => {
+    mocks.pathname = '/app/projects/test-project/deployments';
+
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <ProjectLayout projectId="test-project">
+          <div data-testid="deployments-content">Deployments Content</div>
+        </ProjectLayout>,
+      );
+    });
+
+    const rail = container.querySelector('aside[aria-label="Activity Rail"]');
+    expect(rail).not.toBeNull();
+
+    const projectSidebar = container.querySelector('div[data-slot="sidebar"]');
+    expect(projectSidebar).toBeNull();
+
+    const deploymentsContent = container.querySelector('[data-testid="deployments-content"]');
+    expect(deploymentsContent).not.toBeNull();
   });
 });
