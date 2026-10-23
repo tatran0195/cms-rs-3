@@ -5,16 +5,19 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { PageNode } from '@cms/sdk';
 import { useBranches, useLanguages, usePage, usePages, useProject } from '@cms/sdk/react';
+import { buildNavTree } from '@cms/shared';
 import {
   DocumentationProjectPreviewLayout,
   DocumentationThemeProvider,
   Markdown,
   PageIcon,
+  SiteNav,
+  projectThemeCss,
   projectThemeStyle,
   projectThemeVariables,
   resolveProjectTheme,
 } from '@cms/site';
-import { ChevronDown, Eye, FileText } from 'lucide-react';
+import { ChevronDown, Eye } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 
 export interface ProjectPreviewPageProps {
@@ -86,6 +89,25 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const theme = resolveProjectTheme(project?.config);
   const previewMode = project?.config?.styling?.theme === 'dark' ? 'dark' : 'light';
+  const themeCss = projectThemeCss(theme, previewMode);
+
+  const navNodes = useMemo(() => buildNavTree((pages ?? []) as any, activeLanguage?.code), [pages, activeLanguage?.code]);
+
+  const handleNavClick = (e: React.MouseEvent<HTMLElement>) => {
+    const anchor = (e.target as HTMLElement).closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    const cleanHref = href.split('?')[0].replace(/\/+$/, '');
+    const matched = pages?.find((p) => {
+      if (p.kind !== 'PAGE') return false;
+      return cleanHref.endsWith(`/${p.path}`) || cleanHref === p.path || cleanHref.endsWith(p.path);
+    });
+    if (matched) {
+      onUpdateSearch({ pageId: matched.id });
+    }
+  };
 
   const branchOptions = useMemo<ScopeOption[]>(
     () =>
@@ -138,9 +160,10 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
   return (
     <DocumentationThemeProvider
       appearance={previewMode}
-      className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden"
+      className="flex h-full w-full min-h-0 flex-col overflow-hidden"
       context="project-preview"
       direction={contentDir}
+      css={themeCss}
       style={{
         ...projectThemeVariables(project?.config, previewMode),
         ...projectThemeStyle(project?.config),
@@ -166,81 +189,61 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
             </button>
 
             {mobileNavigationOpen ? (
-              <div className="max-h-[min(55vh,28rem)] overflow-y-auto border-border border-t p-3" id="mobile-preview-navigation">
-                <p className="mb-3 text-muted-foreground text-xs">{t('preview.description')}</p>
+              <div
+                className="max-h-[min(55vh,28rem)] overflow-y-auto border-border border-t p-3"
+                id="mobile-preview-navigation"
+                onClickCapture={(e) => {
+                  handleNavClick(e);
+                  setMobileNavigationOpen(false);
+                }}
+              >
                 <div className="mb-3 grid gap-2">{scopeSelects}</div>
                 {pagesPending ? (
                   <div className="space-y-2 p-2">
                     <Skeleton className="h-8 w-full" />
                     <Skeleton className="h-8 w-10/12" />
                   </div>
-                ) : null}
-                {(pages ?? []).map((item) => (
-                  <button
-                    className={cn(
-                      'mb-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-start text-sm transition-colors',
-                      item.kind === 'GROUP' && 'font-semibold text-muted-foreground',
-                      item.id === selected?.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                      item.hidden && 'opacity-55',
-                    )}
-                    disabled={item.kind === 'GROUP'}
-                    key={item.id}
-                    onClick={() => {
-                      onUpdateSearch({ pageId: item.id });
-                      setMobileNavigationOpen(false);
-                    }}
-                    style={{
-                      paddingInlineStart: `${8 + item.path.split('/').length * 8}px`,
-                    }}
-                    type="button"
-                  >
-                    {item.kind === 'GROUP' ? <FileText className="size-3.5" /> : <PageIcon className="size-3.5" name={item.icon} />}
-                    <span className="truncate">{item.title}</span>
-                  </button>
-                ))}
+                ) : (
+                  <SiteNav
+                    nodes={navNodes}
+                    projectId={projectId}
+                    currentPath={selected?.path ?? ''}
+                    lang={activeLanguage?.code}
+                    version={activeBranchId}
+                  />
+                )}
               </div>
             ) : null}
           </div>
         }
         navigation={
           <>
-            <div className="shrink-0 border-border border-b p-4">
-              <div className="flex items-center gap-2 font-semibold text-sm">
-                <Eye className="size-4 text-muted-foreground" /> {t('preview.title')}
+            <div className="shrink-0 border-border border-b p-3 bg-muted/20">
+              <div className="flex items-center justify-between gap-2 mb-2 font-semibold text-xs tracking-tight text-muted-foreground uppercase">
+                <span className="flex items-center gap-1.5">
+                  <Eye className="size-3.5" /> {t('preview.title')}
+                </span>
               </div>
-              <p className="mt-1 text-muted-foreground text-xs">{t('preview.description')}</p>
-              <div className="mt-4 grid gap-2">{scopeSelects}</div>
+              <div className="grid gap-1.5">{scopeSelects}</div>
             </div>
 
             <ScrollArea className="min-h-0 flex-1">
-              <div className="p-3" data-theme-region="sidebar-content">
+              <div className="p-3" onClickCapture={handleNavClick} data-theme-region="sidebar-content">
                 {pagesPending ? (
                   <div className="space-y-2 p-2">
                     <Skeleton className="h-8 w-full" />
                     <Skeleton className="h-8 w-10/12" />
                     <Skeleton className="h-8 w-8/12" />
                   </div>
-                ) : null}
-                {(pages ?? []).map((item) => (
-                  <button
-                    className={cn(
-                      'mb-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors',
-                      item.kind === 'GROUP' && 'font-semibold text-muted-foreground',
-                      item.id === selected?.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                      item.hidden && 'opacity-55',
-                    )}
-                    disabled={item.kind === 'GROUP'}
-                    key={item.id}
-                    onClick={() => onUpdateSearch({ pageId: item.id })}
-                    style={{
-                      paddingInlineStart: `${8 + item.path.split('/').length * 8}px`,
-                    }}
-                    type="button"
-                  >
-                    {item.kind === 'GROUP' ? <FileText className="size-3.5" /> : <PageIcon className="size-3.5" name={item.icon} />}
-                    <span className="truncate">{item.title}</span>
-                  </button>
-                ))}
+                ) : (
+                  <SiteNav
+                    nodes={navNodes}
+                    projectId={projectId}
+                    currentPath={selected?.path ?? ''}
+                    lang={activeLanguage?.code}
+                    version={activeBranchId}
+                  />
+                )}
               </div>
             </ScrollArea>
           </>
