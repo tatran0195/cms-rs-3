@@ -21,21 +21,16 @@ import {
   CheckCircle2,
   Copy,
   ExternalLink,
-  Eye,
   FileText,
   Globe2,
   Languages,
   Link2Off,
   Loader2,
-  type LucideIcon,
   PenLine,
-  Plug,
   Rocket,
-  Settings as SettingsIcon,
   ShieldCheck,
   SpellCheck,
   TriangleAlert,
-  Users,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -140,15 +135,6 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
           <p className="mt-1 text-muted-foreground text-sm">{t('overview.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            nativeButton={false}
-            render={<a href={liveHref} target="_blank" rel="noreferrer" aria-label={t('overview.viewSite')} />}
-            size="sm"
-            variant="outline"
-            className="h-8 gap-1.5 text-xs font-normal"
-          >
-            <Eye className="size-3.5" /> {t('overview.viewSite')}
-          </Button>
           <Button
             nativeButton={false}
             render={<Link params={{ projectId }} to="/app/projects/$projectId/editor" />}
@@ -433,23 +419,6 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
               <Rocket className="size-3.5" /> Publish New Version
             </Button>
           </div>
-
-          {/* Manage quick links */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-            <h2 className="font-semibold text-xs tracking-tight text-muted-foreground uppercase mb-2">Project Quick Actions</h2>
-            <ManageRow icon={BarChart3} title={t('overview.link.analytics')} desc={t('overview.link.analyticsDesc')}>
-              <Link className="absolute inset-0" params={{ projectId }} to="/app/projects/$projectId/analytics" />
-            </ManageRow>
-            <ManageRow icon={Users} title={t('overview.link.members')} desc={t('overview.link.membersDesc')}>
-              <Link className="absolute inset-0" params={{ projectId }} search={{ section: 'members' }} to="/app/projects/$projectId/settings" />
-            </ManageRow>
-            <ManageRow icon={Plug} title={t('overview.link.integrations')} desc={t('overview.link.integrationsDesc')}>
-              <Link className="absolute inset-0" params={{ projectId }} search={{ section: 'integrations' }} to="/app/projects/$projectId/settings" />
-            </ManageRow>
-            <ManageRow icon={SettingsIcon} title={t('overview.link.settings')} desc={t('overview.link.settingsDesc')}>
-              <Link className="absolute inset-0" params={{ projectId }} search={{ section: 'general' }} to="/app/projects/$projectId/settings" />
-            </ManageRow>
-          </div>
         </div>
       </div>
     </div>
@@ -679,20 +648,5 @@ function NudgeStep({ n, title, desc, children }: { n: number; title: string; des
       </div>
       {children}
     </li>
-  );
-}
-
-function ManageRow({ icon: Icon, title, desc, children }: { icon: LucideIcon; title: string; desc: string; children: React.ReactNode }) {
-  return (
-    <div className="relative flex items-start gap-3 rounded-lg border border-border/80 bg-background/50 p-2.5 transition-colors hover:bg-muted/40">
-      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-        <Icon className="size-3.5" />
-      </span>
-      <div className="min-w-0 leading-snug flex-1">
-        <div className="font-medium text-xs">{title}</div>
-        <div className="text-muted-foreground text-[11px] truncate">{desc}</div>
-      </div>
-      {children}
-    </div>
   );
 }

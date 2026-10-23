@@ -180,16 +180,6 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            nativeButton={false}
-            render={<a href={liveHref} target="_blank" rel="noreferrer" aria-label={t('overview.viewSite')} />}
-            size="sm"
-            variant="outline"
-            className="h-8 gap-1.5 text-xs font-normal"
-          >
-            <ExternalLink className="size-3.5" /> View Live Site
-          </Button>
-
           <Button size="sm" disabled={isBuilding} onClick={() => setPublishOpen(true)} className="h-8 gap-1.5 text-xs font-medium shadow-xs">
             <Rocket className="size-3.5" />
             <span>Publish New Version</span>
