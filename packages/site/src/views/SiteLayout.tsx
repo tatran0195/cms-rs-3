@@ -1,6 +1,7 @@
 import { cn } from '@cms/design-system/lib/utils';
 import { THEME_STORAGE_KEY } from '@cms/design-system/theme';
 import { siteT } from '@cms/i18n/site';
+import { resolveDocsLayout } from '@cms/shared/themes';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { BookOpen, ChevronDown, ExternalLink, Link2, Search } from 'lucide-react';
 import React, { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,7 +20,7 @@ import { VersionSwitcher } from '../components/version-switcher';
 import { SidebarProvider } from '../context/sidebar-context';
 import { SiteAnalyticsProvider } from '../context/site-analytics-provider';
 import { useIsScrollTop } from '../hooks/use-is-scroll-top';
-import { FluxTabDropdown } from '../layouts';
+import { FluxTabDropdown, getLayoutHeaderHeight } from '../layouts';
 import { useSearchShortcutLabel } from '../lib/shortcut';
 import { publishedSiteLogo } from '../lib/site-branding';
 import { siteHref, siteLanguageParam } from '../lib/site-paths';
@@ -65,16 +66,6 @@ export function SiteLayout({ site, projectId, lang, basePath, children, onNaviga
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [pageAlternates, setPageAlternates] = useState<SiteLanguageAlternate[]>([]);
-  const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState<number>();
-
-  const observeHeader = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return;
-    const measure = () => setMeasuredHeaderHeight(node.getBoundingClientRect().height);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
 
   const searchShortcut = useSearchShortcutLabel();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -268,11 +259,12 @@ export function SiteLayout({ site, projectId, lang, basePath, children, onNaviga
   const logo = publishedSiteLogo(configuredLogo, siteTheme);
   const logoHref = branding?.logoHref?.trim() || undefined;
 
-  const headerHeight = measuredHeaderHeight === undefined ? (navTabs.length > 0 ? '6.75rem' : '4rem') : `${measuredHeaderHeight}px`;
+  const docsLayout = resolveDocsLayout(resolvedTheme.layout);
+  const headerHeight = getLayoutHeaderHeight(docsLayout);
   const chromeStyle = {
     ...projectThemeStyle(config),
     '--site-header-h': headerHeight,
-    '--content-scroll-mt': `calc(${headerHeight} + 2rem)`,
+    '--content-scroll-mt': headerHeight === '0px' ? '2rem' : `calc(${headerHeight} + 2rem)`,
   } as Record<string, string | number>;
   const themeCss = projectThemeCss(config);
   const siteName = site?.languageConfig?.name || site?.project.name;
@@ -593,7 +585,6 @@ export function SiteLayout({ site, projectId, lang, basePath, children, onNaviga
 
   const headerNode = (
     <div
-      ref={observeHeader}
       className={cn(
         'sticky top-0 z-30 transition-colors duration-200',
         isHeaderTransparent ? 'bg-transparent border-b border-transparent' : 'border-border/70 border-b bg-background/80 backdrop-blur-md',

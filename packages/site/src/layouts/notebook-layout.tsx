@@ -7,6 +7,7 @@ export * from './notebook';
 
 export const NotebookLayoutTemplate: DocsLayoutTemplate = {
   id: 'notebook',
+  headerHeight: '3.5rem',
   ReaderLayout: (slots) => <NotebookReaderShell {...slots} />,
 
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content }) => (

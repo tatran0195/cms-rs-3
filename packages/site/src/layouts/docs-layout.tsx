@@ -7,6 +7,7 @@ export * from './docs';
 
 export const DocsStandardLayoutTemplate: DocsLayoutTemplate = {
   id: 'docs',
+  headerHeight: '3.5rem',
   ReaderLayout: (slots) => <DocsStandardReaderShell {...slots} />,
 
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content, brand, tools }) => (

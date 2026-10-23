@@ -28,3 +28,5 @@ export const registerDocsLayoutTemplate = (id: DocsLayoutId, template: DocsLayou
 };
 
 export const getDocsLayoutTemplate = (id: DocsLayoutId): DocsLayoutTemplate => registry[id] ?? registry.docs;
+
+export const getLayoutHeaderHeight = (id: DocsLayoutId): string => getDocsLayoutTemplate(id).headerHeight ?? '3.5rem';

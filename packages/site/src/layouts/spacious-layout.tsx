@@ -7,6 +7,7 @@ export * from './spacious';
 
 export const SpaciousLayoutTemplate: DocsLayoutTemplate = {
   id: 'spacious',
+  headerHeight: '3.5rem',
   ReaderLayout: (slots) => <SpaciousReaderShell {...slots} />,
 
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content }) => (

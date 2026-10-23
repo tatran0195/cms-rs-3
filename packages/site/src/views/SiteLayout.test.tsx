@@ -248,4 +248,52 @@ describe('SiteLayout structure', () => {
     });
     expect(headerShellTop?.getAttribute('data-header-transparent')).toBe('false');
   });
+
+  it('sets --site-header-h and --content-scroll-mt based on layout type without manual measurement', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    // 1. Docs layout -> 3.5rem
+    const docsSite: SiteShell = {
+      ...mockSite,
+      project: {
+        ...mockSite.project,
+        config: {
+          theme: { layout: { docsLayout: 'docs' } },
+        },
+      },
+    };
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <SiteLayout site={docsSite} projectId="proj1" />
+        </QueryClientProvider>,
+      );
+    });
+    const chromeDocs = container.querySelector('.cms-site-chrome') as HTMLElement;
+    expect(chromeDocs.style.getPropertyValue('--site-header-h')).toBe('3.5rem');
+    expect(chromeDocs.style.getPropertyValue('--content-scroll-mt')).toBe('calc(3.5rem + 2rem)');
+
+    // 2. Flux layout -> 0px
+    const fluxSite: SiteShell = {
+      ...mockSite,
+      project: {
+        ...mockSite.project,
+        config: {
+          theme: { layout: { docsLayout: 'flux' } },
+        },
+      },
+    };
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <SiteLayout site={fluxSite} projectId="proj1" />
+        </QueryClientProvider>,
+      );
+    });
+    const chromeFlux = container.querySelector('.cms-site-chrome') as HTMLElement;
+    expect(chromeFlux.style.getPropertyValue('--site-header-h')).toBe('0px');
+    expect(chromeFlux.style.getPropertyValue('--content-scroll-mt')).toBe('2rem');
+  });
 });

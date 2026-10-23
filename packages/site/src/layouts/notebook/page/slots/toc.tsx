@@ -8,11 +8,15 @@ export interface TOCProps extends ComponentProps<'aside'> {
   tocPopover?: ReactNode;
 }
 
-export function TOC({ toc, tocPopover, className, ...props }: TOCProps) {
+export function TOC({ toc, tocPopover, className, style, ...props }: TOCProps) {
   return (
     <>
       {/* Mobile & Tablet TOC Popover in [grid-area:toc-popover] */}
-      {tocPopover && <div className="[grid-area:toc-popover] sticky top-[var(--fd-docs-row-2,0px)] z-10 xl:hidden w-full">{tocPopover}</div>}
+      {tocPopover && (
+        <div className="[grid-area:toc-popover] sticky z-10 xl:hidden w-full" style={{ top: 'var(--fd-docs-row-2, var(--site-header-h, 3.5rem))' }}>
+          {tocPopover}
+        </div>
+      )}
 
       {/* Desktop Sticky TOC in [grid-area:toc] */}
       {toc && (
@@ -20,8 +24,13 @@ export function TOC({ toc, tocPopover, className, ...props }: TOCProps) {
           id="nd-toc"
           data-theme-region="toc"
           {...props}
+          style={{
+            top: 'var(--fd-docs-row-2, var(--site-header-h, 3.5rem))',
+            height: 'calc(var(--fd-docs-height, 100dvh) - var(--fd-docs-row-2, var(--site-header-h, 3.5rem)))',
+            ...style,
+          }}
           className={cn(
-            'sticky top-[var(--fd-docs-row-1,0px)] h-[calc(var(--fd-docs-height,100dvh)-var(--fd-docs-row-1,0px))] flex flex-col [grid-area:toc] w-[var(--fd-toc-width,268px)] pt-12 pe-4 pb-2 max-xl:hidden self-start',
+            'sticky flex flex-col [grid-area:toc] w-[var(--fd-toc-width,268px)] pt-6 xl:pt-10 pe-4 pb-2 max-xl:hidden self-start',
             className,
           )}
         >

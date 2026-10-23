@@ -22,6 +22,7 @@ export const FluxTabDropdown = TabDropdown;
 
 export const fluxLayoutTemplate: DocsLayoutTemplate = {
   id: 'flux',
+  headerHeight: '0px',
   ReaderLayout: FluxReaderLayoutComponent,
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content }) => (
     <div id="fd-flux-layout" className="flex flex-col min-h-screen">

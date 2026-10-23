@@ -55,6 +55,7 @@ export interface DocsPageSlots {
 
 export interface DocsLayoutTemplate {
   id: DocsLayoutId;
+  headerHeight: string;
   ReaderLayout: (slots: DocsLayoutSlots) => ReactNode;
   ProjectPreviewLayout: (slots: ProjectPreviewSlots) => ReactNode;
   StudioPreviewLayout: (slots: StudioPreviewSlots) => ReactNode;

@@ -7,6 +7,7 @@ export * from './glass';
 
 export const GlassLayoutTemplate: DocsLayoutTemplate = {
   id: 'glass',
+  headerHeight: '3.5rem',
   ReaderLayout: (slots) => <GlassReaderShell {...slots} />,
 
   ProjectPreviewLayout: ({ mobileNavigation, navigation, content, brand, tools }) => (
