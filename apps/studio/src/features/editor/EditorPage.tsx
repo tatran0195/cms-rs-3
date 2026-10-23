@@ -576,7 +576,16 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
         {/* Sidebar header: Workspace trigger matching Mintlify + the collapse control. */}
         <div className="flex h-12 shrink-0 items-center justify-between border-border border-b ps-2.5 pe-1.5">
           {view === 'config' ? (
-            <span className="font-semibold text-xs tracking-tight text-foreground/90">{t('editor.config.heading')}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView('content')}
+              className="h-8 gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+              aria-label="Back to editor"
+            >
+              <ArrowLeft className="size-3.5 rtl:rotate-180" />
+              <span>Back to editor</span>
+            </Button>
           ) : (
             <WorkspaceMenu projectId={projectId} side="bottom" align="start" />
           )}
@@ -721,19 +730,23 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
 
           {/* Right: Save Status + Mode Switcher + Preview + Publish + Page Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <SaveStatusIndicator />
+            {view === 'content' ? (
+              <>
+                <SaveStatusIndicator />
 
-            <SegmentedControl density="compact">
-              <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3" />}>
-                <span className="hidden md:inline">{t('editor.mode.visual')}</span>
-              </SegButton>
-              <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3" />}>
-                <span className="hidden md:inline">{t('editor.mode.wysiwyg')}</span>
-              </SegButton>
-              <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3" />}>
-                <span className="hidden md:inline">{t('editor.mode.markdown')}</span>
-              </SegButton>
-            </SegmentedControl>
+                <SegmentedControl density="compact">
+                  <SegButton active={effectiveMode === 'visual'} onClick={() => setEditorMode('visual')} icon={<Pencil className="size-3" />}>
+                    <span className="hidden md:inline">{t('editor.mode.visual')}</span>
+                  </SegButton>
+                  <SegButton active={effectiveMode === 'wysiwyg'} onClick={() => setEditorMode('wysiwyg')} icon={<TypeIcon className="size-3" />}>
+                    <span className="hidden md:inline">{t('editor.mode.wysiwyg')}</span>
+                  </SegButton>
+                  <SegButton active={effectiveMode === 'markdown'} onClick={() => setEditorMode('markdown')} icon={<Code2 className="size-3" />}>
+                    <span className="hidden md:inline">{t('editor.mode.markdown')}</span>
+                  </SegButton>
+                </SegmentedControl>
+              </>
+            ) : null}
 
             <Button
               nativeButton={false}
@@ -818,8 +831,14 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
             <section className="min-h-0 min-w-0 flex-1 overflow-y-auto">
               <div className="border-border border-b px-6 py-3 flex items-center justify-between">
                 <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider">{t('editor.config.heading')}</span>
-                <Button variant="ghost" size="sm" onClick={() => setView('content')} className="text-xs h-7">
-                  Done
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setView('content')}
+                  className="h-7 gap-1.5 text-xs font-medium"
+                >
+                  <ArrowLeft className="size-3.5 rtl:rotate-180" />
+                  <span>Back to editor</span>
                 </Button>
               </div>
               <div className="mx-auto w-full max-w-6xl px-5 pt-7 pb-32 sm:px-8">
