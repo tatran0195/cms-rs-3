@@ -34,6 +34,7 @@ import { Route as SitesProjectIdSplatRouteImport } from './routes/sites/$project
 import { Route as SitesProjectIdChangelogRouteImport } from './routes/sites/$projectId/changelog'
 import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/app/projects/$projectId/index'
 import { Route as AppProjectsProjectIdAnalyticsRouteImport } from './routes/app/projects/$projectId/analytics'
+import { Route as AppProjectsProjectIdDeploymentsRouteImport } from './routes/app/projects/$projectId/deployments'
 import { Route as AppProjectsProjectIdEditorRouteImport } from './routes/app/projects/$projectId/editor'
 import { Route as AppProjectsProjectIdPreviewRouteImport } from './routes/app/projects/$projectId/preview'
 import { Route as AppProjectsProjectIdSettingsRouteImport } from './routes/app/projects/$projectId/settings'
@@ -165,6 +166,12 @@ const AppProjectsProjectIdAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => AppProjectsProjectIdRouteRoute,
   } as any)
+const AppProjectsProjectIdDeploymentsRoute =
+  AppProjectsProjectIdDeploymentsRouteImport.update({
+    id: '/deployments',
+    path: '/deployments',
+    getParentRoute: () => AppProjectsProjectIdRouteRoute,
+  } as any)
 const AppProjectsProjectIdEditorRoute =
   AppProjectsProjectIdEditorRouteImport.update({
     id: '/editor',
@@ -207,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppdashboardIndexRoute
   '/sites/$projectId/': typeof SitesProjectIdIndexRoute
   '/app/projects/$projectId/analytics': typeof AppProjectsProjectIdAnalyticsRoute
+  '/app/projects/$projectId/deployments': typeof AppProjectsProjectIdDeploymentsRoute
   '/app/projects/$projectId/editor': typeof AppProjectsProjectIdEditorRoute
   '/app/projects/$projectId/preview': typeof AppProjectsProjectIdPreviewRoute
   '/app/projects/$projectId/settings': typeof AppProjectsProjectIdSettingsRoute
@@ -232,6 +240,7 @@ export interface FileRoutesByTo {
   '/sites/$projectId/changelog': typeof SitesProjectIdChangelogRoute
   '/sites/$projectId': typeof SitesProjectIdIndexRoute
   '/app/projects/$projectId/analytics': typeof AppProjectsProjectIdAnalyticsRoute
+  '/app/projects/$projectId/deployments': typeof AppProjectsProjectIdDeploymentsRoute
   '/app/projects/$projectId/editor': typeof AppProjectsProjectIdEditorRoute
   '/app/projects/$projectId/preview': typeof AppProjectsProjectIdPreviewRoute
   '/app/projects/$projectId/settings': typeof AppProjectsProjectIdSettingsRoute
@@ -263,6 +272,7 @@ export interface FileRoutesById {
   '/app/(dashboard)/': typeof AppdashboardIndexRoute
   '/sites/$projectId/': typeof SitesProjectIdIndexRoute
   '/app/projects/$projectId/analytics': typeof AppProjectsProjectIdAnalyticsRoute
+  '/app/projects/$projectId/deployments': typeof AppProjectsProjectIdDeploymentsRoute
   '/app/projects/$projectId/editor': typeof AppProjectsProjectIdEditorRoute
   '/app/projects/$projectId/preview': typeof AppProjectsProjectIdPreviewRoute
   '/app/projects/$projectId/settings': typeof AppProjectsProjectIdSettingsRoute
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/sites/$projectId/'
     | '/app/projects/$projectId/analytics'
+    | '/app/projects/$projectId/deployments'
     | '/app/projects/$projectId/editor'
     | '/app/projects/$projectId/preview'
     | '/app/projects/$projectId/settings'
@@ -318,6 +329,7 @@ export interface FileRouteTypes {
     | '/sites/$projectId/changelog'
     | '/sites/$projectId'
     | '/app/projects/$projectId/analytics'
+    | '/app/projects/$projectId/deployments'
     | '/app/projects/$projectId/editor'
     | '/app/projects/$projectId/preview'
     | '/app/projects/$projectId/settings'
@@ -348,6 +360,7 @@ export interface FileRouteTypes {
     | '/app/(dashboard)/'
     | '/sites/$projectId/'
     | '/app/projects/$projectId/analytics'
+    | '/app/projects/$projectId/deployments'
     | '/app/projects/$projectId/editor'
     | '/app/projects/$projectId/preview'
     | '/app/projects/$projectId/settings'
@@ -542,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsProjectIdAnalyticsRouteImport
       parentRoute: typeof AppProjectsProjectIdRouteRoute
     }
+    '/app/projects/$projectId/deployments': {
+      id: '/app/projects/$projectId/deployments'
+      path: '/deployments'
+      fullPath: '/app/projects/$projectId/deployments'
+      preLoaderRoute: typeof AppProjectsProjectIdDeploymentsRouteImport
+      parentRoute: typeof AppProjectsProjectIdRouteRoute
+    }
     '/app/projects/$projectId/editor': {
       id: '/app/projects/$projectId/editor'
       path: '/editor'
@@ -607,6 +627,7 @@ const AppdashboardRouteRouteWithChildren =
 
 interface AppProjectsProjectIdRouteRouteChildren {
   AppProjectsProjectIdAnalyticsRoute: typeof AppProjectsProjectIdAnalyticsRoute
+  AppProjectsProjectIdDeploymentsRoute: typeof AppProjectsProjectIdDeploymentsRoute
   AppProjectsProjectIdEditorRoute: typeof AppProjectsProjectIdEditorRoute
   AppProjectsProjectIdPreviewRoute: typeof AppProjectsProjectIdPreviewRoute
   AppProjectsProjectIdSettingsRoute: typeof AppProjectsProjectIdSettingsRoute
@@ -616,6 +637,7 @@ interface AppProjectsProjectIdRouteRouteChildren {
 const AppProjectsProjectIdRouteRouteChildren: AppProjectsProjectIdRouteRouteChildren =
   {
     AppProjectsProjectIdAnalyticsRoute: AppProjectsProjectIdAnalyticsRoute,
+    AppProjectsProjectIdDeploymentsRoute: AppProjectsProjectIdDeploymentsRoute,
     AppProjectsProjectIdEditorRoute: AppProjectsProjectIdEditorRoute,
     AppProjectsProjectIdPreviewRoute: AppProjectsProjectIdPreviewRoute,
     AppProjectsProjectIdSettingsRoute: AppProjectsProjectIdSettingsRoute,
