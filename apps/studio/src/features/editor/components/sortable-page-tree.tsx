@@ -456,7 +456,9 @@ export function SortablePageTree({
     setOverId(String(active.id));
   };
   const onDragMove = ({ delta }: DragMoveEvent) => setOffsetLeft(delta.x);
-  const onDragOver = ({ over }: DragOverEvent) => setOverId(over ? String(over.id) : null);
+  const onDragOver = ({ over }: DragOverEvent) => {
+    setOverId(over ? String(over.id) : null);
+  };
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     const finalOverId = over ? String(over.id) : null;
     const finalActiveId = String(active.id);
@@ -731,7 +733,7 @@ const RowPresentation = memo(function RowPresentation({
       )}
       style={{ marginInlineStart: depth * INDENT }}
       data-testid={overlay ? undefined : 'page-row'}
-      data-page-id={node.id}
+      data-page-id={overlay ? undefined : node.id}
       data-page-kind={node.kind}
       data-page-slug={node.slug}
       data-page-path={node.path}
@@ -769,6 +771,7 @@ const RowPresentation = memo(function RowPresentation({
         onClick={() => {
           if (node.id.startsWith('__tab__')) {
             onToggleCollapse?.(node.id);
+            onSelect?.(node.id);
           } else {
             onSelect?.(node.id);
           }

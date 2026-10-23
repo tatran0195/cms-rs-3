@@ -119,7 +119,7 @@ export const useReorderPages = (projectId: string) => {
 
       const orderMap = new Map(newOrder.items.map((it) => [it.id, it]));
       qc.setQueriesData<any[]>({ queryKey: queryKeys.pages.allForProject(projectId) }, (old) => {
-        if (!old) return old;
+        if (!old || !Array.isArray(old)) return old;
         return old.map((page) => {
           const update = orderMap.get(page.id);
           if (!update) return page;

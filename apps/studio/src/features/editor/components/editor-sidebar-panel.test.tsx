@@ -31,6 +31,10 @@ vi.mock('@cms/sdk/react', () => ({
   useReorderPages: () => ({
     mutate: vi.fn(),
   }),
+  useUpdatePage: () => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+  }),
   useUpdateLanguage: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
@@ -163,5 +167,26 @@ describe('EditorSidebarPanel', () => {
 
     const newPageBtn = container.querySelector('button[aria-label="New page"]');
     expect(newPageBtn).not.toBeNull();
+  });
+
+  it('correctly extracts tab prefixes and matches the most specific tab first', async () => {
+    const { getTabPrefix, findTabForPage } = await import('./editor-sidebar-panel');
+
+    const tabDocs = { label: 'Level 1 - Docs', href: '/getting-started' };
+    const tabNotes = { label: 'Level 1 - Release Notes', href: '/getting-started#notes' };
+    const tabExt = { label: 'External', href: 'https://docs.example.com' };
+
+    expect(getTabPrefix(tabDocs)).toBe('getting-started');
+    expect(getTabPrefix(tabNotes)).toBe('getting-started-notes');
+    expect(getTabPrefix(tabExt)).toBe('external');
+
+    const pageNotes = { path: '/getting-started-notes-untitled', slug: 'getting-started-notes-untitled' };
+    const pageDocs = { path: '/getting-started', slug: 'getting-started' };
+
+    const matchedNotes = findTabForPage(pageNotes, [tabDocs, tabNotes]);
+    expect(matchedNotes?.label).toBe('Level 1 - Release Notes');
+
+    const matchedDocs = findTabForPage(pageDocs, [tabDocs, tabNotes]);
+    expect(matchedDocs?.label).toBe('Level 1 - Docs');
   });
 });

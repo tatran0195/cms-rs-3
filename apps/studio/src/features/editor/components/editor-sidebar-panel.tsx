@@ -11,7 +11,8 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Language, PageNode } from '@cms/sdk';
-import { usePages, useReorderPages, useUpdateLanguage, useUpdateProjectConfig } from '@cms/sdk/react';
+import { usePages, useReorderPages, useUpdateLanguage, useUpdatePage, useUpdateProjectConfig } from '@cms/sdk/react';
+import { slugify } from '@cms/shared/utils';
 import type { NavAnchor, NavLink, NavTabItem } from '@cms/validators';
 import { ExternalLink, FileText, FolderPlus, Layers, MoreHorizontal, Pin, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -37,7 +38,13 @@ export interface EditorSidebarPanelProps {
   onSelectLanguage: (id: string) => void;
   onSelectPage: (id: string) => void;
   onAddPage: (parentId: string | null, languageId: string, slug?: string) => void;
-  onInsertPage?: (node: PageNode, position: 'before' | 'after', relativeToId: string | null, languageId: string) => void;
+  onInsertPage?: (
+    node: PageNode,
+    position: 'before' | 'after',
+    relativeToId: string | null,
+    languageId: string,
+    slug?: string,
+  ) => void;
   onAddGroup: (languageId: string, slug?: string) => void;
   onOpenPageSettings: (id: string) => void;
   onAddLanguage?: () => void;
@@ -45,6 +52,55 @@ export interface EditorSidebarPanelProps {
   onManageNavbar?: () => void;
   onOpenSiteConfig?: () => void;
   isCreatingPage?: boolean;
+}
+
+export function getTabPrefix(tab: NavTabItem | null | undefined): string {
+  if (!tab) return '';
+  const rawHref = tab.href?.trim() ?? '';
+  if (/^(?:https?:)?\/\//i.test(rawHref)) {
+    return slugify(tab.label);
+  }
+  const noQuery = rawHref.split('?')[0] ?? '';
+  const cleaned = noQuery
+    .replace(/#/g, '-')
+    .replace(/^\/+|\/+$/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (cleaned) {
+    return cleaned;
+  }
+  return slugify(tab.label);
+}
+
+export function findTabForPage(
+  page: Pick<PageNode, 'path' | 'slug'>,
+  tabs: NavTabItem[],
+): NavTabItem | null {
+  if (!tabs || tabs.length === 0) return null;
+
+  const sortedTabs = [...tabs]
+    .map((t) => ({ tab: t, prefix: getTabPrefix(t) }))
+    .filter((item) => item.prefix.length > 0)
+    .sort((a, b) => b.prefix.length - a.prefix.length);
+
+  const cleanP = (page.path ?? '').replace(/^\/+|\/+$/g, '').toLowerCase();
+  const cleanS = (page.slug ?? '').toLowerCase();
+
+  for (const { tab, prefix } of sortedTabs) {
+    if (
+      cleanP === prefix ||
+      cleanP.startsWith(`${prefix}/`) ||
+      cleanP.startsWith(`${prefix}-`) ||
+      cleanS === prefix ||
+      cleanS.startsWith(`${prefix}-`) ||
+      cleanS.startsWith(`${prefix}/`)
+    ) {
+      return tab;
+    }
+  }
+
+  return null;
 }
 
 const noop = () => {
@@ -96,8 +152,10 @@ export function EditorSidebarPanel({
   } = usePages(projectId, currentLangId ?? undefined, activeBranchId ?? undefined);
 
   const reorderPages = useReorderPages(projectId);
+  const updatePage = useUpdatePage(projectId);
   const updateLanguage = useUpdateLanguage(projectId);
   const updateProject = useUpdateProjectConfig(projectId);
+  const [selectedTabLabel, setSelectedTabLabel] = useState<string | null>(null);
 
   const currentNavbarTabs = useMemo(
     () => (activeLangObj?.config?.navbar?.tabs ?? projectNavbar?.tabs ?? []) as NavTabItem[],
@@ -148,27 +206,19 @@ export function EditorSidebarPanel({
 
   const targetTab = useMemo(() => {
     if (currentNavbarTabs.length === 0) return null;
+    if (selectedTabLabel) {
+      const found = currentNavbarTabs.find((t) => t.label === selectedTabLabel);
+      if (found) return found;
+    }
     if (selectedId) {
       const sel = (allPages ?? []).find((p) => p.id === selectedId);
       if (sel) {
-        const cleanP = sel.path.replace(/^\/+|\/+$/g, '').toLowerCase();
-        const cleanS = sel.slug.toLowerCase();
-        const matched = currentNavbarTabs.find((t) => {
-          const rawHref = (t.href ?? '').replace(/^\/+|\/+$/g, '').toLowerCase();
-          return (
-            rawHref &&
-            (cleanP === rawHref ||
-              cleanP.startsWith(`${rawHref}/`) ||
-              cleanS === rawHref ||
-              cleanS.startsWith(`${rawHref}-`) ||
-              cleanS.startsWith(`${rawHref}/`))
-          );
-        });
-        if (matched) return matched;
+        const found = findTabForPage(sel, currentNavbarTabs);
+        if (found) return found;
       }
     }
     return currentNavbarTabs[0];
-  }, [currentNavbarTabs, selectedId, allPages]);
+  }, [currentNavbarTabs, selectedTabLabel, selectedId, allPages]);
 
   // Construct unified tree nodes: if tabs exist, map tabs as root sections in single virtualized tree
   const displayPages = useMemo(() => {
@@ -176,50 +226,71 @@ export function EditorSidebarPanel({
       return filteredPages;
     }
 
-    const assignedIds = new Set<string>();
-    const treeNodes: PageNode[] = [];
-
-    // Pre-index pages by parent
-    const parentLookup = new Map<string, string | null>();
+    // 1. Direct page-to-tab matches (most specific prefix wins)
+    const pageTabMap = new Map<string, NavTabItem>();
     for (const p of filteredPages) {
-      parentLookup.set(p.id, p.parentId);
+      const matchedTab = findTabForPage(p, currentNavbarTabs);
+      if (matchedTab) {
+        pageTabMap.set(p.id, matchedTab);
+      }
     }
 
-    // 1. Create top-level root nodes for each tab
+    // 2. Ancestor propagation: if child has a tab, its parent group belongs to the same tab
+    const childrenByParent = new Map<string, string[]>();
+    for (const p of filteredPages) {
+      if (p.parentId) {
+        const list = childrenByParent.get(p.parentId) ?? [];
+        list.push(p.id);
+        childrenByParent.set(p.parentId, list);
+      }
+    }
+
+    for (const p of filteredPages) {
+      const tab = pageTabMap.get(p.id);
+      if (tab) {
+        let currParentId = p.parentId;
+        while (currParentId) {
+          if (!pageTabMap.has(currParentId)) {
+            pageTabMap.set(currParentId, tab);
+          }
+          const parentObj = filteredPages.find((item) => item.id === currParentId);
+          currParentId = parentObj?.parentId ?? null;
+        }
+      }
+    }
+
+    // 3. Descendant propagation: if parent group has a tab, all its children/descendants belong to that tab
+    const propagateToChildren = (parentId: string, tab: NavTabItem) => {
+      const childIds = childrenByParent.get(parentId) ?? [];
+      for (const cid of childIds) {
+        if (!pageTabMap.has(cid)) {
+          pageTabMap.set(cid, tab);
+        }
+        propagateToChildren(cid, tab);
+      }
+    };
+    for (const p of filteredPages) {
+      const tab = pageTabMap.get(p.id);
+      if (tab) {
+        propagateToChildren(p.id, tab);
+      }
+    }
+
+    // 4. Default remaining unassigned pages to primary tab
+    const primaryTab = currentNavbarTabs[0];
+    if (primaryTab) {
+      for (const p of filteredPages) {
+        if (!pageTabMap.has(p.id)) {
+          pageTabMap.set(p.id, primaryTab);
+        }
+      }
+    }
+
+    const treeNodes: PageNode[] = [];
+
+    // 5. Construct virtual tree nodes: each tab is a root group, with its assigned pages inside
     currentNavbarTabs.forEach((tab, index) => {
       const tabId = `__tab__${tab.label}`;
-      const rawHref = (tab.href ?? '').replace(/^\/+|\/+$/g, '').toLowerCase();
-
-      const matchedIds = new Set<string>();
-      for (const p of filteredPages) {
-        const cleanP = p.path.replace(/^\/+|\/+$/g, '').toLowerCase();
-        const cleanS = p.slug.toLowerCase();
-        if (
-          rawHref &&
-          (cleanP === rawHref ||
-            cleanP.startsWith(`${rawHref}/`) ||
-            cleanS === rawHref ||
-            cleanS.startsWith(`${rawHref}-`) ||
-            cleanS.startsWith(`${rawHref}/`))
-        ) {
-          matchedIds.add(p.id);
-        }
-      }
-
-      // Preserve ancestor groups
-      for (const id of Array.from(matchedIds)) {
-        let curr = parentLookup.get(id);
-        while (curr) {
-          matchedIds.add(curr);
-          curr = parentLookup.get(curr);
-        }
-      }
-
-      for (const id of Array.from(matchedIds)) {
-        assignedIds.add(id);
-      }
-
-      // Add the tab root node
       treeNodes.push({
         id: tabId,
         parentId: null,
@@ -235,9 +306,8 @@ export function EditorSidebarPanel({
         updatedAt: '',
       });
 
-      // Add the tab's pages, re-pointing root pages to tabId
       for (const p of filteredPages) {
-        if (matchedIds.has(p.id)) {
+        if (pageTabMap.get(p.id) === tab) {
           treeNodes.push({
             ...p,
             parentId: p.parentId === null ? tabId : p.parentId,
@@ -245,20 +315,6 @@ export function EditorSidebarPanel({
         }
       }
     });
-
-    // 2. Tabs are strictly the top level of navigation; all other items sit inside them.
-    // Any unassigned pages or groups are nested inside the primary tab so nothing sits along tabs at depth 0.
-    const unassigned = filteredPages.filter((p) => !assignedIds.has(p.id));
-    const primaryTab = currentNavbarTabs[0];
-    if (unassigned.length > 0 && primaryTab) {
-      const primaryTabId = `__tab__${primaryTab.label}`;
-      for (const p of unassigned) {
-        treeNodes.push({
-          ...p,
-          parentId: p.parentId === null ? primaryTabId : p.parentId,
-        });
-      }
-    }
 
     return treeNodes;
   }, [filteredPages, currentNavbarTabs, currentLangId]);
@@ -428,7 +484,15 @@ export function EditorSidebarPanel({
             activeId={selectedId}
             treeKey={currentLangId ?? 'default'}
             onSelect={(id) => {
-              if (!id.startsWith('__tab__')) {
+              if (id.startsWith('__tab__')) {
+                const tabLabel = id.replace('__tab__', '');
+                setSelectedTabLabel(tabLabel);
+              } else {
+                const sel = (allPages ?? []).find((p) => p.id === id);
+                if (sel) {
+                  const found = findTabForPage(sel, currentNavbarTabs);
+                  if (found) setSelectedTabLabel(found.label);
+                }
                 onSelectPage(id);
               }
             }}
@@ -437,14 +501,13 @@ export function EditorSidebarPanel({
                 if (parentId?.startsWith('__tab__')) {
                   const tabLabel = parentId.replace('__tab__', '');
                   const tab = currentNavbarTabs.find((t) => t.label === tabLabel);
-                  const cleanHref = (tab?.href ?? '').replace(/^\/+|\/+$/g, '');
-                  if (cleanHref) {
-                    onAddPage(null, currentLangId, `${cleanHref}/untitled`);
-                  } else {
-                    onAddPage(null, currentLangId);
-                  }
+                  const prefix = getTabPrefix(tab);
+                  onAddPage(null, currentLangId, prefix ? `${prefix}/untitled` : undefined);
                 } else {
-                  onAddPage(parentId, currentLangId);
+                  const parentNode = (allPages ?? []).find((p) => p.id === parentId);
+                  const tab = parentNode ? findTabForPage(parentNode, currentNavbarTabs) : null;
+                  const prefix = getTabPrefix(tab ?? targetTab);
+                  onAddPage(parentId, currentLangId, prefix ? `${prefix}/untitled` : undefined);
                 }
               }
             }}
@@ -468,25 +531,68 @@ export function EditorSidebarPanel({
                   parentId: it.parentId?.startsWith('__tab__') ? null : it.parentId,
                   position: it.position,
                 }));
+
+              // Detect cross-tab moves and update page slug with destination tab prefix
+              if (currentNavbarTabs.length > 0) {
+                for (const it of items) {
+                  if (it.id.startsWith('__tab__')) continue;
+                  const originalPage = (allPages ?? []).find((p) => p.id === it.id);
+                  if (!originalPage) continue;
+
+                  let destTab: NavTabItem | null = null;
+                  if (it.parentId?.startsWith('__tab__')) {
+                    const tabLabel = it.parentId.replace('__tab__', '');
+                    destTab = currentNavbarTabs.find((t) => t.label === tabLabel) ?? null;
+                  } else if (it.parentId) {
+                    const parentPage = (allPages ?? []).find((p) => p.id === it.parentId);
+                    destTab = parentPage ? findTabForPage(parentPage, currentNavbarTabs) : null;
+                  }
+
+                  const origTab = findTabForPage(originalPage, currentNavbarTabs);
+                  if (destTab && origTab && destTab.label !== origTab.label) {
+                    const origPrefix = getTabPrefix(origTab);
+                    const destPrefix = getTabPrefix(destTab);
+
+                    let baseSlug = originalPage.slug;
+                    if (origPrefix && baseSlug.startsWith(`${origPrefix}-`)) {
+                      baseSlug = baseSlug.slice(origPrefix.length + 1);
+                    } else if (origPrefix && baseSlug.startsWith(`${origPrefix}/`)) {
+                      baseSlug = baseSlug.slice(origPrefix.length + 1);
+                    } else if (origPrefix && baseSlug === origPrefix) {
+                      baseSlug = 'page';
+                    }
+
+                    const nextSlug = destPrefix ? `${destPrefix}-${baseSlug}` : baseSlug;
+                    if (nextSlug !== originalPage.slug) {
+                      updatePage.mutate({
+                        pageId: it.id,
+                        body: { slug: nextSlug },
+                      });
+                    }
+                  }
+                }
+              }
+
               if (cleaned.length > 0) {
                 reorderPages.mutate({ items: cleaned });
               }
 
-              // Update tab positions alongside pages and groups
+              // Update tab positions only if tab order actually changed
               const movedTabs = items.filter((it) => it.id.startsWith('__tab__'));
-              if (movedTabs.length > 0) {
-                const tabPosMap = new Map(movedTabs.map((t) => [t.id.replace('__tab__', ''), t.position]));
-                let tabsChanged = false;
-                const nextTabs = currentNavbarTabs.map((t) => {
-                  const newPos = tabPosMap.get(t.label);
-                  if (newPos !== undefined && newPos !== t.position) {
-                    tabsChanged = true;
-                    return { ...t, position: newPos };
-                  }
-                  return t;
-                });
-                if (tabsChanged) {
-                  nextTabs.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+              if (movedTabs.length > 1) {
+                const orderedLabels = movedTabs
+                  .sort((a, b) => a.position - b.position)
+                  .map((t) => t.id.replace('__tab__', ''));
+                const currentLabels = currentNavbarTabs.map((t) => t.label);
+                const orderChanged = orderedLabels.some((lbl, idx) => lbl !== currentLabels[idx]);
+                if (orderChanged) {
+                  const nextTabs: NavTabItem[] = orderedLabels
+                    .map((lbl, idx) => {
+                      const existing = currentNavbarTabs.find((t) => t.label === lbl);
+                      return existing ? { ...existing, position: (idx + 1) * 10 } : null;
+                    })
+                    .filter((t): t is NonNullable<typeof t> => t !== null);
+
                   if (currentLangId) {
                     updateLanguage.mutate({
                       id: currentLangId,
@@ -504,7 +610,17 @@ export function EditorSidebarPanel({
               onInsertPage
                 ? (node, parentId) => {
                     if (currentLangId) {
-                      onInsertPage(node, 'after', parentId?.startsWith('__tab__') ? null : parentId, currentLangId);
+                      const effectiveParentId = parentId?.startsWith('__tab__') ? null : parentId;
+                      let tab: NavTabItem | null = null;
+                      if (parentId?.startsWith('__tab__')) {
+                        const tabLabel = parentId.replace('__tab__', '');
+                        tab = currentNavbarTabs.find((t) => t.label === tabLabel) ?? null;
+                      } else {
+                        tab = findTabForPage(node, currentNavbarTabs);
+                      }
+                      const prefix = getTabPrefix(tab ?? targetTab);
+                      const slug = prefix ? `${prefix}/untitled` : undefined;
+                      onInsertPage(node, 'after', effectiveParentId, currentLangId, slug);
                     }
                   }
                 : undefined
@@ -513,7 +629,17 @@ export function EditorSidebarPanel({
               onInsertPage
                 ? (node, parentId) => {
                     if (currentLangId) {
-                      onInsertPage(node, 'before', parentId?.startsWith('__tab__') ? null : parentId, currentLangId);
+                      const effectiveParentId = parentId?.startsWith('__tab__') ? null : parentId;
+                      let tab: NavTabItem | null = null;
+                      if (parentId?.startsWith('__tab__')) {
+                        const tabLabel = parentId.replace('__tab__', '');
+                        tab = currentNavbarTabs.find((t) => t.label === tabLabel) ?? null;
+                      } else {
+                        tab = findTabForPage(node, currentNavbarTabs);
+                      }
+                      const prefix = getTabPrefix(tab ?? targetTab);
+                      const slug = prefix ? `${prefix}/untitled` : undefined;
+                      onInsertPage(node, 'before', effectiveParentId, currentLangId, slug);
                     }
                   }
                 : undefined
@@ -551,12 +677,8 @@ export function EditorSidebarPanel({
             <DropdownMenuItem
               onClick={() => {
                 if (currentLangId) {
-                  if (targetTab) {
-                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
-                    onAddPage(null, currentLangId, cleanHref ? `${cleanHref}/untitled` : undefined);
-                  } else {
-                    onAddPage(null, currentLangId);
-                  }
+                  const prefix = getTabPrefix(targetTab);
+                  onAddPage(null, currentLangId, prefix ? `${prefix}/untitled` : undefined);
                 }
               }}
               className="cursor-pointer flex items-center gap-2 text-xs"
@@ -567,12 +689,8 @@ export function EditorSidebarPanel({
             <DropdownMenuItem
               onClick={() => {
                 if (currentLangId) {
-                  if (targetTab) {
-                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
-                    onAddGroup(currentLangId, cleanHref ? `${cleanHref}-new-group` : undefined);
-                  } else {
-                    onAddGroup(currentLangId);
-                  }
+                  const prefix = getTabPrefix(targetTab);
+                  onAddGroup(currentLangId, prefix ? `${prefix}-new-group` : undefined);
                 }
               }}
               className="cursor-pointer flex items-center gap-2 text-xs"

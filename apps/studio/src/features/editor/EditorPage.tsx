@@ -390,7 +390,13 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
       },
     );
   };
-  const insertPage = (targetNode: PageNode, position: 'before' | 'after', targetParentId: string | null, languageId: string) => {
+  const insertPage = (
+    targetNode: PageNode,
+    position: 'before' | 'after',
+    targetParentId: string | null,
+    languageId: string,
+    slug?: string,
+  ) => {
     if (creationInFlight.current) return;
     creationInFlight.current = true;
 
@@ -414,7 +420,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
     createPage.mutate(
       {
         title: t('editor.untitled'),
-        slug: 'untitled',
+        slug: slug ?? 'untitled',
         parentId: targetParentId,
         languageId,
         position: insertIndex,
@@ -639,7 +645,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
                 setFocusedTreeOpen(false);
               }}
               onAddPage={(parentId, langId, slug) => addPage(parentId, langId, slug)}
-              onInsertPage={(node, pos, relId, langId) => insertPage(node, pos, relId, langId)}
+              onInsertPage={(node, pos, relId, langId, slug) => insertPage(node, pos, relId, langId, slug)}
               onAddGroup={(langId, slug) => addGroup(langId, slug)}
               onOpenPageSettings={(id) => setSettingsForId(id)}
               onAddLanguage={() => setAddLangOpen(true)}
