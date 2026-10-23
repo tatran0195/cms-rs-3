@@ -1,6 +1,6 @@
 import { cn } from '@cms/design-system/lib/utils';
-import { Check, Copy, Palette, Rocket } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { Palette, Rocket } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Callout, Card, CardGroup, Tab, Tabs } from '../components/mdx-components';
 import { createDemoTree, findDemoPage } from './demo-tree';
 
@@ -44,20 +44,6 @@ export function DemoPage({ activePath, onNavigate }: DemoPageProps): ReactNode {
 }
 
 function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const [copied, setCopied] = useState(false);
-  const [codeTab, setCodeTab] = useState<'npm' | 'pnpm' | 'yarn'>('npm');
-
-  const codeSnippets: Record<'npm' | 'pnpm' | 'yarn', string> = {
-    npm: 'npm i @cms/site fumadocs-core',
-    pnpm: 'pnpm add @cms/site fumadocs-core',
-    yarn: 'yarn add @cms/site fumadocs-core',
-  };
-
-  const handleCopy = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <>
       <div className="space-y-3">
@@ -90,36 +76,23 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
           Installation
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">Install the framework packages with your package manager:</p>
-        <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-          <div className="flex items-center justify-between border-b border-border/60 bg-muted/40 px-3 py-1.5">
-            <div className="flex items-center gap-1 text-xs">
-              {(['npm', 'pnpm', 'yarn'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setCodeTab(tab)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer',
-                    codeTab === tab ? 'bg-background text-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-          </div>
-          <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto">
-            <code>{codeSnippets[codeTab]}</code>
-          </pre>
-        </div>
+        <Tabs>
+          <Tab title="npm">
+            <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg">
+              <code>npm i @cms/site fumadocs-core</code>
+            </pre>
+          </Tab>
+          <Tab title="pnpm">
+            <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg">
+              <code>pnpm add @cms/site fumadocs-core</code>
+            </pre>
+          </Tab>
+          <Tab title="yarn">
+            <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg">
+              <code>yarn add @cms/site fumadocs-core</code>
+            </pre>
+          </Tab>
+        </Tabs>
       </div>
 
       {/* Usage Section */}

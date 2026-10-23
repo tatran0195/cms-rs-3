@@ -4,6 +4,7 @@ import { Book, Code2, Folder, Layers, Palette, Rocket, Search, Server, Terminal 
 import { type ReactNode, useMemo, useState } from 'react';
 import { TableOfContents } from '../components/toc';
 import { TOCPopover } from '../components/toc-popover';
+import { ThemeSwitcher } from '../components/theme-switcher';
 import { useDocumentationTheme } from '../components/documentation-theme-provider';
 import { getDocsLayoutTemplate } from '../layouts';
 import { DemoPage } from './demo-content';
@@ -14,6 +15,9 @@ export interface LiveDocsLayoutPreviewProps {
   activePath: string;
   onNavigate: (path: string) => void;
   theme?: ResolvedTheme;
+  brandTitle?: string;
+  appearance?: 'light' | 'dark' | 'system';
+  onAppearanceChange?: (appearance: 'light' | 'dark' | 'system') => void;
   className?: string;
 }
 
@@ -32,6 +36,9 @@ export function LiveDocsLayoutPreview({
   activePath,
   onNavigate,
   theme: propTheme,
+  brandTitle,
+  appearance,
+  onAppearanceChange,
   className,
 }: LiveDocsLayoutPreviewProps): ReactNode {
   const contextTheme = useDocumentationTheme();
@@ -48,12 +55,18 @@ export function LiveDocsLayoutPreview({
   );
 
   // ── Brand Slot ─────────────────────────────────────────────────────────────
+  const displayBrand = brandTitle ?? 'Docs Preview';
   const brandSlot = (
     <div className="flex items-center gap-2">
-      <span className="grid size-6 place-items-center rounded-lg bg-primary text-xs font-bold text-primary-foreground shadow-xs">
-        D
+      <span
+        className={cn(
+          'grid size-6 place-items-center bg-primary text-xs font-bold text-primary-foreground shadow-xs',
+          theme?.layout.radius === 'pill' ? 'rounded-full' : theme?.layout.radius === 'sharp' ? 'rounded-none' : 'rounded-lg',
+        )}
+      >
+        {displayBrand[0]?.toUpperCase() ?? 'D'}
       </span>
-      <span className="font-semibold text-sm tracking-tight text-foreground">Docs Preview</span>
+      <span className="font-semibold text-sm tracking-tight text-foreground">{displayBrand}</span>
     </div>
   );
 
@@ -75,6 +88,13 @@ export function LiveDocsLayoutPreview({
   // ── Tools Slot ─────────────────────────────────────────────────────────────
   const toolsSlot = (
     <div className="flex items-center gap-1.5">
+      {theme?.layout.themeSwitchEnabled !== false && onAppearanceChange && (
+        <ThemeSwitcher
+          mode={theme?.layout.themeSwitchMode ?? 'light-dark-system'}
+          appearance={appearance ?? 'light'}
+          onChange={onAppearanceChange}
+        />
+      )}
       <a
         href="https://github.com/fuma-nama/fumadocs"
         target="_blank"
