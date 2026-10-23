@@ -47,11 +47,17 @@ export function PublishControl({ project, initialPublishOpen = false }: PublishC
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="flex h-7 items-center justify-center rounded-s-none rounded-e-md border border-border border-s-0 bg-background px-1.5 text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label="Publish options"
-          >
-            <ChevronDown className="size-3 opacity-70" />
-          </DropdownMenuTrigger>
+            render={
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-s-none border-s-0 px-1.5 text-muted-foreground hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-label="Publish options"
+              >
+                <ChevronDown className="size-3 opacity-70" />
+              </Button>
+            }
+          />
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={() => setPublishOpen(true)} className="gap-2 text-xs">
               <Rocket className="size-3.5 text-emerald-600 dark:text-emerald-400" />

@@ -701,7 +701,7 @@ export function EditorPage({ projectId, page: pageParam, publish: publishParam }
               <kbd className="rounded border border-border bg-muted/60 px-1 py-0.2 font-mono text-[10px]">Ctrl+K</kbd>
             </Button>
 
-            <Separator orientation="vertical" className="hidden h-4 sm:block" />
+            <Separator orientation="vertical" className="hidden h-7 sm:block self-center mx-0.5" />
 
             <BranchSwitcher
               projectId={projectId}
