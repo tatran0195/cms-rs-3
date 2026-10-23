@@ -81,9 +81,9 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
   const liveHref = siteUrl(liveDomain, projectId);
   const trend = useMemo(() => viewsTrend(analytics?.timeseries ?? []), [analytics?.timeseries]);
 
-  const defaultLang = languages?.find((l) => l.isDefault)?.code ?? 'en';
+  const defaultLang = languages?.find((l) => l.isDefault);
   const defaultPages = useMemo(
-    () => pagesList.filter((p) => p.kind === 'PAGE' && (!p.languageCode || p.languageCode === defaultLang)),
+    () => pagesList.filter((p) => p.kind === 'PAGE' && (!p.languageId || (defaultLang && p.languageId === defaultLang.id))),
     [pagesList, defaultLang],
   );
 
@@ -96,7 +96,7 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
       return { overallPercent: 100, details: [] };
     }
     const details = secondaryLanguages.map((lang) => {
-      const localizedCount = pagesList.filter((p) => p.kind === 'PAGE' && p.languageCode === lang.code).length;
+      const localizedCount = pagesList.filter((p) => p.kind === 'PAGE' && p.languageId === lang.id).length;
       const pct = Math.min(100, Math.round((localizedCount / totalDefault) * 100));
       return { lang, count: localizedCount, target: defaultPages.length, percent: pct };
     });
@@ -234,17 +234,19 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-300"
-                    style={{ width: `${detail.percent}%` }}
-                  />
+                  <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${detail.percent}%` }} />
                 </div>
               </div>
             ))}
             {secondaryLanguages.length === 0 && (
               <p className="text-xs text-muted-foreground py-2">
                 Single default language configured. Add additional languages in{' '}
-                <Link to="/app/projects/$projectId/settings" params={{ projectId }} search={{ section: 'languages' }} className="text-primary hover:underline">
+                <Link
+                  to="/app/projects/$projectId/settings"
+                  params={{ projectId }}
+                  search={{ section: 'languages' }}
+                  className="text-primary hover:underline"
+                >
                   Project Settings
                 </Link>{' '}
                 to track multi-locale parity.
@@ -278,8 +280,11 @@ export function ProjectOverviewPage({ projectId }: ProjectOverviewPageProps) {
               </div>
             ) : (
               <div className="space-y-2">
-                {issues.slice(0, 3).map((issue, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-xs">
+                {issues.slice(0, 3).map((issue) => (
+                  <div
+                    key={`${issue.type}-${issue.pagePath}-${issue.detail}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-2 text-xs"
+                  >
                     <span className="truncate font-medium">{issue.pageTitle || issue.pagePath}</span>
                     <Badge variant="outline" className="text-[10px] shrink-0 border-destructive/40 text-destructive">
                       {issue.type}
@@ -478,8 +483,8 @@ function OverviewMetricCard({
               status === 'success'
                 ? 'text-emerald-600 dark:text-emerald-400 font-medium'
                 : status === 'warning'
-                ? 'text-amber-600 dark:text-amber-400 font-medium'
-                : 'text-muted-foreground'
+                  ? 'text-amber-600 dark:text-amber-400 font-medium'
+                  : 'text-muted-foreground'
             }`}
           >
             {subtitle}

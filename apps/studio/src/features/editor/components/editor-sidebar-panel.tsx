@@ -293,45 +293,7 @@ export function EditorSidebarPanel({
           >
             <Plus className="size-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
-              Content
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => {
-                if (currentLangId) {
-                  if (targetTab) {
-                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
-                    onAddPage(null, currentLangId, cleanHref ? `${cleanHref}/untitled` : undefined);
-                  } else {
-                    onAddPage(null, currentLangId);
-                  }
-                }
-              }}
-              className="cursor-pointer flex items-center gap-2 text-xs"
-            >
-              <FileText className="size-3.5 text-muted-foreground" />
-              <span>New page</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (currentLangId) {
-                  if (targetTab) {
-                    const cleanHref = (targetTab.href ?? '').replace(/^\/+|\/+$/g, '');
-                    onAddGroup(currentLangId, cleanHref ? `${cleanHref}-new-group` : undefined);
-                  } else {
-                    onAddGroup(currentLangId);
-                  }
-                }
-              }}
-              className="cursor-pointer flex items-center gap-2 text-xs"
-            >
-              <FolderPlus className="size-3.5 text-muted-foreground" />
-              <span>New group</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
               Site Navigation
             </DropdownMenuLabel>

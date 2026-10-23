@@ -87,7 +87,7 @@ function WorkspaceAnalyticsContent() {
   const clickedResults = data?.searches && 'clickedResults' in data.searches ? data.searches.clickedResults : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 min-h-full">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-semibold text-2xl tracking-tight">{t('analytics.title')}</h1>
@@ -130,7 +130,7 @@ function WorkspaceAnalyticsContent() {
       </div>
 
       {/* Pageviews chart */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div id="analytics-traffic" className="rounded-xl border border-border bg-card p-5 scroll-mt-6">
         <div className="mb-4 font-medium text-sm">{t('analytics.chart.pageviewsAllProjects')}</div>
         {isPending ? (
           <Skeleton className="h-[240px] w-full" />
@@ -163,7 +163,7 @@ function WorkspaceAnalyticsContent() {
       <p className="text-muted-foreground text-xs">{t('analytics.privacy.queryTerms')}</p>
 
       {/* By project + referrers */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div id="analytics-by-site" className="grid grid-cols-1 gap-4 lg:grid-cols-2 scroll-mt-6">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="mb-3 font-medium text-sm">{t('analytics.section.byProject')}</div>
           {isPending ? (
@@ -209,25 +209,27 @@ function WorkspaceAnalyticsContent() {
       </div>
 
       {/* Top pages */}
-      <ListCard
-        title={t('analytics.section.topPagesAllDocs')}
-        loading={isPending}
-        empty={emptyTraffic}
-        rows={6}
-        items={(data?.topPages ?? []).map((p) => ({
-          key: `${p.project}-${p.path}`,
-          label: (
-            <span className="truncate" dir="ltr">
-              /{p.path}
-            </span>
-          ),
-          meta: p.project,
-          value: p.views,
-        }))}
-      />
+      <div id="analytics-top-pages" className="scroll-mt-6">
+        <ListCard
+          title={t('analytics.section.topPagesAllDocs')}
+          loading={isPending}
+          empty={emptyTraffic}
+          rows={6}
+          items={(data?.topPages ?? []).map((p) => ({
+            key: `${p.project}-${p.path}`,
+            label: (
+              <span className="truncate" dir="ltr">
+                /{p.path}
+              </span>
+            ),
+            meta: p.project,
+            value: p.views,
+          }))}
+        />
+      </div>
 
       {/* Devices + top searches */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div id="analytics-searches" className="grid grid-cols-1 gap-4 lg:grid-cols-2 scroll-mt-6">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="mb-3 font-medium text-sm">{t('analytics.section.devices')}</div>
           {isPending ? (

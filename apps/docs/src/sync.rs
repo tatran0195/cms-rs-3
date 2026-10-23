@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 use crate::diagnostics::{check_sqlite_integrity, DiagnosticItem};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -12,9 +13,13 @@ pub struct SyncWorkerStatus {
     pub interval_secs: u64,
     pub project: Option<String>,
     pub branch: Option<String>,
+    #[serde(skip_serializing)]
+    pub token: Option<String>,
     pub last_polled_at: Option<String>,
     pub last_synced_at: Option<String>,
     pub last_job_id: Option<String>,
+    pub last_etag: Option<String>,
+    pub last_sha256: Option<String>,
     pub last_error: Option<String>,
     pub sync_count: u64,
 }
@@ -27,13 +32,80 @@ impl Default for SyncWorkerStatus {
             interval_secs: 30,
             project: None,
             branch: None,
+            token: None,
             last_polled_at: None,
             last_synced_at: None,
             last_job_id: None,
+            last_etag: None,
+            last_sha256: None,
             last_error: None,
             sync_count: 0,
         }
     }
+}
+
+/// Persistent local state saved alongside docs.sqlite (e.g. docs.sqlite.sync.json).
+/// Survives process restarts and machine reboots to prevent redundant re-downloads.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistentSyncState {
+    pub server_url: Option<String>,
+    pub project_id: Option<String>,
+    pub branch: Option<String>,
+    pub last_export_id: Option<String>,
+    pub last_etag: Option<String>,
+    pub last_sha256: Option<String>,
+    pub last_synced_at: Option<String>,
+    pub schema_version: u32,
+    pub page_count: i64,
+}
+
+pub fn sync_state_path(db_path: &Path) -> PathBuf {
+    let filename = db_path
+        .file_name()
+        .map(|s| format!("{}.sync.json", s.to_string_lossy()))
+        .unwrap_or_else(|| "docs.sqlite.sync.json".to_string());
+    db_path.parent().unwrap_or_else(|| Path::new(".")).join(filename)
+}
+
+impl PersistentSyncState {
+    pub fn load_for_db(db_path: &Path) -> Self {
+        let path = sync_state_path(db_path);
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(state) = serde_json::from_str::<Self>(&content) {
+                return state;
+            }
+        }
+        Self::default()
+    }
+
+    pub fn save_for_db(&self, db_path: &Path) -> anyhow::Result<()> {
+        let path = sync_state_path(db_path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let tmp = path.with_extension("tmp");
+        let json = serde_json::to_string_pretty(self)?;
+        std::fs::write(&tmp, json)?;
+        std::fs::rename(&tmp, &path)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunnerSyncManifest {
+    pub has_update: bool,
+    pub export_id: Option<String>,
+    pub project_id: Option<String>,
+    pub project_name: Option<String>,
+    pub branch: Option<String>,
+    pub etag: String,
+    pub sha256: String,
+    pub size_bytes: u64,
+    pub exported_at: String,
+    pub schema_version: u32,
+    pub download_url: String,
 }
 
 #[derive(Debug, Clone)]
@@ -105,7 +177,7 @@ pub struct SyncArgs {
     #[arg(long)]
     pub dir: Option<PathBuf>,
 
-    /// Port of the local cms-site server to notify for hot reload (default: 8080)
+    /// Port of the local cms-docs server to notify for hot reload (default: 8080)
     #[arg(short, long, default_value_t = 8080)]
     pub port: u16,
 
@@ -118,31 +190,47 @@ pub struct SyncArgs {
     pub no_reload: bool,
 }
 
-/// Atomically writes content to a temporary file, verifies SQLite integrity and schema v1,
-/// and only swaps to the final destination if verification completely passes.
-pub async fn verify_and_swap_sqlite(target_db: &Path, content: &[u8]) -> anyhow::Result<DiagnosticItem> {
+/// Atomically writes content to a temporary file, verifies SHA-256 (if provided),
+/// verifies SQLite integrity and schema v1, and only swaps to the final destination if all pass.
+pub async fn verify_and_swap_sqlite(
+    target_db: &Path,
+    content: &[u8],
+    expected_sha256: Option<&str>,
+) -> anyhow::Result<DiagnosticItem> {
+    // 1. Verify SHA-256 before disk writes if provided
+    if let Some(expected) = expected_sha256.filter(|s| !s.trim().is_empty()) {
+        let computed = hex::encode(sha2::Sha256::digest(content));
+        if !computed.eq_ignore_ascii_case(expected.trim()) {
+            anyhow::bail!(
+                "Cryptographic SHA-256 checksum mismatch: expected {}, computed {}",
+                expected,
+                computed
+            );
+        }
+    }
+
     let tmp_path = target_db.with_extension("tmp");
 
     if let Some(parent) = target_db.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Write to .tmp first
+    // 2. Write to .tmp first
     std::fs::write(&tmp_path, content)?;
 
-    // Verify integrity before replacing target
+    // 3. Verify SQLite integrity & schema before replacing target
     let report = check_sqlite_integrity(&tmp_path).await;
     if !report.passed {
         let _ = std::fs::remove_file(&tmp_path);
         anyhow::bail!("SQLite integrity check failed on downloaded artifact: {}", report.message);
     }
 
-    // Atomically replace target
+    // 4. Atomically replace target
     std::fs::rename(&tmp_path, target_db)?;
     Ok(report)
 }
 
-/// Sends a POST /api/v1/reload request to the locally running cms-site server.
+/// Sends a POST /api/v1/reload request to the locally running cms-docs server.
 pub async fn notify_local_reload(port: u16) -> anyhow::Result<bool> {
     let reload_url = format!("http://127.0.0.1:{}/api/v1/reload", port);
     let client = reqwest::Client::builder()
@@ -170,7 +258,7 @@ pub async fn notify_local_reload(port: u16) -> anyhow::Result<bool> {
         let json_body: serde_json::Value = resp.json().await.unwrap_or_default();
         let proj = json_body["stats"]["projectName"].as_str().unwrap_or("docs");
         let pages = json_body["stats"]["pageCount"].as_i64().unwrap_or(0);
-        println!("✓ Notified local cms-site server on port {}: reloaded '{}' ({} pages)", port, proj, pages);
+        println!("✓ Notified local cms-docs server on port {}: reloaded '{}' ({} pages)", port, proj, pages);
         Ok(true)
     } else {
         let status = resp.status();
@@ -254,7 +342,7 @@ pub async fn resolve_download_url(
     Ok(resolved_url)
 }
 
-/// Executes a single sync cycle.
+/// Executes a single sync cycle from CLI invocation.
 pub async fn run_sync_once(args: &SyncArgs) -> anyhow::Result<()> {
     let target_db = if let Some(ref dir) = args.dir {
         dir.join("docs.sqlite")
@@ -293,7 +381,7 @@ pub async fn run_sync_once(args: &SyncArgs) -> anyhow::Result<()> {
     let bytes = resp.bytes().await?;
     println!("Downloaded {:.2} MB. Verifying SQLite integrity...", (bytes.len() as f64) / (1024.0 * 1024.0));
 
-    let report = verify_and_swap_sqlite(&target_db, &bytes).await?;
+    let report = verify_and_swap_sqlite(&target_db, &bytes, None).await?;
     println!("✓ SQLite verification passed: {}", report.message);
     println!("✓ Successfully updated {}", target_db.display());
 
@@ -304,12 +392,12 @@ pub async fn run_sync_once(args: &SyncArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Main entrypoint for cms-site sync command (supports single sync or --watch loop).
+/// Main entrypoint for cms-docs sync command (supports single sync or --watch loop).
 pub async fn run_sync(args: SyncArgs) -> anyhow::Result<()> {
     match args.watch {
         Some(interval_secs) => {
             let interval = Duration::from_secs(interval_secs.max(5));
-            println!("Starting cms-site sync watcher (polling every {} seconds)...", interval.as_secs());
+            println!("Starting cms-docs sync watcher (polling every {} seconds)...", interval.as_secs());
 
             loop {
                 if let Err(e) = run_sync_once(&args).await {
@@ -322,62 +410,14 @@ pub async fn run_sync(args: SyncArgs) -> anyhow::Result<()> {
     }
 }
 
-/// Executes a single polling and sync cycle.
-/// Returns Ok(true) if a new database was pulled and reloaded,
-/// or Ok(false) if the documentation was already up to date.
-pub async fn poll_and_sync_cycle(
+/// Legacy fallback polling mechanism using export jobs query
+async fn poll_and_sync_legacy(
     state: &crate::AppState,
     config: &RunnerSyncConfig,
+    client: &reqwest::Client,
+    clean_base: &str,
+    db_path: &Path,
 ) -> anyhow::Result<bool> {
-    let db_path = state
-        .db_path
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("No database path configured on runner server"))?
-        .clone();
-
-    let now_str = chrono::Utc::now().to_rfc3339();
-    {
-        let mut status = state.sync_status.write().await;
-        status.last_polled_at = Some(now_str);
-    }
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()?;
-
-    let clean_base = config.server_url.trim_end_matches('/');
-
-    // Case 1: Direct .sqlite file URL
-    if clean_base.ends_with(".sqlite") || clean_base.ends_with("/download") {
-        let mut req = client.get(clean_base);
-        if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
-            req = req.bearer_auth(tok);
-        }
-
-        let resp = req.send().await?;
-        if !resp.status().is_success() {
-            anyhow::bail!("Direct download URL returned HTTP {}", resp.status());
-        }
-
-        let bytes = resp.bytes().await?;
-        let _report = verify_and_swap_sqlite(&db_path, &bytes).await?;
-        let stats = state.reload().await?;
-
-        {
-            let mut status = state.sync_status.write().await;
-            status.last_synced_at = Some(chrono::Utc::now().to_rfc3339());
-            status.last_error = None;
-            status.sync_count += 1;
-        }
-
-        tracing::info!(
-            "✓ Runner sync: Successfully pulled and reloaded database from direct URL ({} pages)",
-            stats.page_count
-        );
-        return Ok(true);
-    }
-
-    // Case 2: Standard CMS API endpoint - query completed export jobs
     let mut jobs_url = format!("{clean_base}/api/v1/export/jobs?status=completed&format=sqlite&limit=5");
     if let Some(ref proj) = config.project {
         jobs_url.push_str(&format!("&project_id={proj}"));
@@ -409,7 +449,6 @@ pub async fn poll_and_sync_cycle(
         return Ok(false);
     }
 
-    // Find latest matching job (respecting branch if specified)
     let latest_job = if let Some(ref branch) = config.branch {
         items.iter().find(|job| {
             let snap = &job["snapshot"];
@@ -431,7 +470,6 @@ pub async fn poll_and_sync_cycle(
         .or_else(|| latest_job.get("completedAt"))
         .and_then(|v| v.as_str());
 
-    // Check if we already synced this job
     let last_job_id = {
         state.sync_status.read().await.last_job_id.clone()
     };
@@ -441,7 +479,6 @@ pub async fn poll_and_sync_cycle(
         return Ok(false);
     }
 
-    // If last_job_id is None (fresh runner start), check current DB exported_at
     if last_job_id.is_none() {
         let current_exported_at = state.get_instance().await.generated_at.clone();
         if let Some(comp) = completed_at {
@@ -456,7 +493,6 @@ pub async fn poll_and_sync_cycle(
 
     tracing::info!("Runner sync: New documentation export detected: {job_id} (completed: {:?}). Pulling...", completed_at);
 
-    // Resolve download URL for this job
     let dl_meta_url = format!("{clean_base}/api/v1/export/jobs/{job_id}/download");
     let mut dl_meta_req = client.get(&dl_meta_url);
     if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
@@ -481,7 +517,6 @@ pub async fn poll_and_sync_cycle(
         format!("{clean_base}{}", if raw_url.starts_with('/') { "" } else { "/" }) + raw_url
     };
 
-    // Download SQLite binary
     let mut download_req = client.get(&resolved_url);
     if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
         download_req = download_req.bearer_auth(tok);
@@ -493,12 +528,13 @@ pub async fn poll_and_sync_cycle(
     }
 
     let bytes = download_resp.bytes().await?;
-    let report = verify_and_swap_sqlite(&db_path, &bytes).await?;
+    let report = verify_and_swap_sqlite(db_path, &bytes, None).await?;
     let stats = state.reload().await?;
 
+    let now_iso = chrono::Utc::now().to_rfc3339();
     {
         let mut status = state.sync_status.write().await;
-        status.last_synced_at = Some(chrono::Utc::now().to_rfc3339());
+        status.last_synced_at = Some(now_iso);
         status.last_job_id = Some(job_id.to_string());
         status.last_error = None;
         status.sync_count += 1;
@@ -518,10 +554,198 @@ pub async fn poll_and_sync_cycle(
     Ok(true)
 }
 
-/// Spawns the background sync worker task if enabled in configuration.
+/// Executes a single polling and sync cycle.
+/// First checks the high-performance /api/runner/sync/manifest endpoint (with If-None-Match ETag support),
+/// verifies cryptographic SHA-256 and SQLite schema v1, and saves persistent state.
+/// Returns Ok(true) if a new database was pulled and reloaded, or Ok(false) if up to date.
+pub async fn poll_and_sync_cycle(
+    state: &crate::AppState,
+    config: &RunnerSyncConfig,
+) -> anyhow::Result<bool> {
+    let db_path = state
+        .db_path
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("No database path configured on runner server"))?
+        .clone();
+
+    let now_str = chrono::Utc::now().to_rfc3339();
+    {
+        let mut status = state.sync_status.write().await;
+        status.last_polled_at = Some(now_str);
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(45))
+        .build()?;
+
+    let clean_base = config.server_url.trim_end_matches('/');
+
+    // Case 1: Direct .sqlite file URL
+    if clean_base.ends_with(".sqlite") || clean_base.ends_with("/download") {
+        let mut req = client.get(clean_base);
+        if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+            req = req.bearer_auth(tok);
+        }
+
+        let resp = req.send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("Direct download URL returned HTTP {}", resp.status());
+        }
+
+        let bytes = resp.bytes().await?;
+        let _report = verify_and_swap_sqlite(&db_path, &bytes, None).await?;
+        let stats = state.reload().await?;
+
+        let mut status = state.sync_status.write().await;
+        status.last_synced_at = Some(chrono::Utc::now().to_rfc3339());
+        status.last_error = None;
+        status.sync_count += 1;
+
+        tracing::info!(
+            "✓ Runner sync: Successfully pulled and reloaded database from direct URL ({} pages)",
+            stats.page_count
+        );
+        return Ok(true);
+    }
+
+    // Load persistent state
+    let persistent = PersistentSyncState::load_for_db(&db_path);
+
+    // Case 2: First-Class Sync Protocol (GET /api/runner/sync/manifest with ETag conditional validation)
+    let manifest_url = format!("{clean_base}/api/runner/sync/manifest");
+    let mut query_params: Vec<(&str, &str)> = Vec::new();
+    if let Some(ref proj) = config.project {
+        query_params.push(("project", proj.as_str()));
+    }
+    if let Some(ref branch) = config.branch {
+        query_params.push(("branch", branch.as_str()));
+    }
+
+    let mut req = client.get(&manifest_url).query(&query_params);
+    if let Some(ref etag) = persistent.last_etag {
+        req = req.header(reqwest::header::IF_NONE_MATCH, etag);
+    }
+    if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+        req = req.bearer_auth(tok);
+    }
+
+    let manifest_res = req.send().await;
+    match manifest_res {
+        Ok(resp) => {
+            let status = resp.status();
+            // Fast Path: 304 Not Modified
+            if status == reqwest::StatusCode::NOT_MODIFIED {
+                tracing::debug!("Runner sync: Documentation is up-to-date (HTTP 304 Not Modified)");
+                let mut status = state.sync_status.write().await;
+                status.last_error = None;
+                return Ok(false);
+            }
+
+            if status == reqwest::StatusCode::OK {
+                let manifest: RunnerSyncManifest = resp.json().await?;
+                if !manifest.has_update {
+                    tracing::debug!("Runner sync: Server reported no documentation export available yet.");
+                    return Ok(false);
+                }
+
+                // Check against persistent state
+                if persistent.last_etag.as_deref() == Some(&manifest.etag)
+                    || (!manifest.sha256.is_empty() && persistent.last_sha256.as_deref() == Some(&manifest.sha256))
+                {
+                    tracing::debug!("Runner sync: Local documentation matches remote SHA-256. Up to date.");
+                    return Ok(false);
+                }
+
+                tracing::info!(
+                    "Runner sync: New documentation available (export: {:?}, size: {:.2} MB, sha256: {}). Pulling...",
+                    manifest.export_id,
+                    manifest.size_bytes as f64 / 1_048_576.0,
+                    &manifest.sha256[..8.min(manifest.sha256.len())]
+                );
+
+                let download_url = if manifest.download_url.starts_with("http://")
+                    || manifest.download_url.starts_with("https://")
+                {
+                    manifest.download_url.clone()
+                } else {
+                    format!("{clean_base}{}", if manifest.download_url.starts_with('/') { "" } else { "/" }) + &manifest.download_url
+                };
+
+                let mut dl_req = client.get(&download_url);
+                if let Some(ref tok) = config.token.as_ref().filter(|t| !t.trim().is_empty()) {
+                    dl_req = dl_req.bearer_auth(tok);
+                }
+
+                let dl_resp = dl_req.send().await?;
+                if !dl_resp.status().is_success() {
+                    anyhow::bail!("Failed to download database artifact from {download_url}: HTTP {}", dl_resp.status());
+                }
+
+                let bytes = dl_resp.bytes().await?;
+
+                // Cryptographic validation + SQLite schema verification + atomic swap
+                let report = verify_and_swap_sqlite(&db_path, &bytes, Some(&manifest.sha256)).await?;
+                let stats = state.reload().await?;
+
+                let now_iso = chrono::Utc::now().to_rfc3339();
+
+                // Save persistent state to disk
+                let new_state = PersistentSyncState {
+                    server_url: Some(config.server_url.clone()),
+                    project_id: manifest.project_id.or_else(|| config.project.clone()),
+                    branch: manifest.branch.or_else(|| config.branch.clone()),
+                    last_export_id: manifest.export_id.clone(),
+                    last_etag: Some(manifest.etag.clone()),
+                    last_sha256: Some(manifest.sha256.clone()),
+                    last_synced_at: Some(now_iso.clone()),
+                    schema_version: manifest.schema_version,
+                    page_count: stats.page_count,
+                };
+                let _ = new_state.save_for_db(&db_path);
+
+                // Update in-memory status
+                {
+                    let mut status = state.sync_status.write().await;
+                    status.last_synced_at = Some(now_iso);
+                    status.last_job_id = manifest.export_id;
+                    status.last_etag = Some(manifest.etag);
+                    status.last_sha256 = Some(manifest.sha256);
+                    status.last_error = None;
+                    status.sync_count += 1;
+                }
+
+                tracing::info!(
+                    "✓ Runner sync: Successfully updated and reloaded database ({} pages, {})",
+                    stats.page_count,
+                    report.message
+                );
+                println!(
+                    "✓ Runner sync: Updated documentation database from server ({} pages reloaded)",
+                    stats.page_count
+                );
+
+                return Ok(true);
+            }
+
+            if status != reqwest::StatusCode::NOT_FOUND {
+                let err_text = resp.text().await.unwrap_or_default();
+                anyhow::bail!("Manifest endpoint returned HTTP {status}: {err_text}");
+            }
+        }
+        Err(e) => {
+            tracing::debug!("Runner sync manifest probe error: {e}. Attempting fallback probe...");
+        }
+    }
+
+    // Case 3: Legacy Fallback
+    poll_and_sync_legacy(state, config, &client, clean_base, &db_path).await
+}
+
+/// Spawns the background sync worker task with exponential backoff, jitter, and graceful shutdown.
 pub fn spawn_runner_sync_worker(
     state: crate::AppState,
     config: RunnerSyncConfig,
+    mut shutdown_rx: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> Option<tokio::task::JoinHandle<()>> {
     if !config.enabled {
         tracing::debug!("Background documentation sync worker is disabled.");
@@ -532,6 +756,7 @@ pub fn spawn_runner_sync_worker(
     let interval = config.interval;
     let project = config.project.clone();
     let branch = config.branch.clone();
+    let token = config.token.clone();
 
     // Initialize sync_status in state
     {
@@ -543,6 +768,7 @@ pub fn spawn_runner_sync_worker(
             status.interval_secs = interval.as_secs();
             status.project = project;
             status.branch = branch;
+            status.token = token;
         });
     }
 
@@ -558,17 +784,54 @@ pub fn spawn_runner_sync_worker(
     );
 
     let handle = tokio::spawn(async move {
-        // Run first check after a brief 2-second warm-up
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        // Run first check after a brief 1-second warm-up
+        tokio::time::sleep(Duration::from_secs(1)).await;
+
+        let mut consecutive_failures: u32 = 0;
 
         loop {
-            if let Err(e) = poll_and_sync_cycle(&state, &config).await {
-                tracing::warn!("Runner sync worker polling error: {}", e);
-                let mut status = state.sync_status.write().await;
-                status.last_error = Some(e.to_string());
-            }
+            let cycle_res = poll_and_sync_cycle(&state, &config).await;
 
-            tokio::time::sleep(config.interval).await;
+            let sleep_duration = match cycle_res {
+                Ok(_) => {
+                    consecutive_failures = 0;
+                    config.interval
+                }
+                Err(e) => {
+                    consecutive_failures = consecutive_failures.saturating_add(1);
+                    let err_msg = e.to_string();
+                    tracing::warn!(
+                        "Runner sync worker error (failure #{}): {}",
+                        consecutive_failures,
+                        err_msg
+                    );
+                    {
+                        let mut status = state.sync_status.write().await;
+                        status.last_error = Some(err_msg);
+                    }
+
+                    // Exponential backoff with random jitter:
+                    // base * 2^(failures-1), capped between 5s and 300s
+                    let exp = 2u64.pow(consecutive_failures.min(5) - 1);
+                    let backoff_secs = (config.interval.as_secs() * exp).clamp(5, 300);
+                    let jitter_millis = (rand::random::<u64>() % 2000) as u64;
+                    Duration::from_millis(backoff_secs * 1000 + jitter_millis)
+                }
+            };
+
+            if let Some(ref mut rx) = shutdown_rx {
+                tokio::select! {
+                    _ = tokio::time::sleep(sleep_duration) => {},
+                    res = rx.changed() => {
+                        if res.is_ok() && *rx.borrow() {
+                            tracing::info!("Runner sync worker stopped cleanly via shutdown signal.");
+                            break;
+                        }
+                    }
+                }
+            } else {
+                tokio::time::sleep(sleep_duration).await;
+            }
         }
     });
 
@@ -585,9 +848,50 @@ mod tests {
         let target_db = temp.path().join("docs.sqlite");
         let corrupt_bytes = b"corrupt sqlite content";
 
-        let res = verify_and_swap_sqlite(&target_db, corrupt_bytes).await;
+        let res = verify_and_swap_sqlite(&target_db, corrupt_bytes, None).await;
         assert!(res.is_err(), "Corrupt sqlite bytes must fail verification");
         assert!(!target_db.exists(), "Target file must not be created if integrity check fails");
+    }
+
+    #[tokio::test]
+    async fn test_sync_sha256_verification_detects_mismatch() {
+        let temp = tempfile::tempdir().unwrap();
+        let target_db = temp.path().join("docs.sqlite");
+        let valid_bytes = b"sample bytes";
+
+        let res = verify_and_swap_sqlite(
+            &target_db,
+            valid_bytes,
+            Some("0000000000000000000000000000000000000000000000000000000000000000"),
+        )
+        .await;
+        assert!(res.is_err(), "Mismatched sha256 must immediately fail");
+        assert!(!target_db.exists());
+    }
+
+    #[test]
+    fn test_sync_persistent_state_roundtrip() {
+        let temp = tempfile::tempdir().unwrap();
+        let target_db = temp.path().join("docs.sqlite");
+
+        let state = PersistentSyncState {
+            server_url: Some("http://localhost:3000".to_string()),
+            project_id: Some("p1".to_string()),
+            branch: Some("main".to_string()),
+            last_export_id: Some("exp-1".to_string()),
+            last_etag: Some("\"etag-1\"".to_string()),
+            last_sha256: Some("abcdef123456".to_string()),
+            last_synced_at: Some("2026-10-22T00:00:00Z".to_string()),
+            schema_version: 1,
+            page_count: 42,
+        };
+
+        state.save_for_db(&target_db).unwrap();
+        let loaded = PersistentSyncState::load_for_db(&target_db);
+        assert_eq!(loaded.last_export_id.as_deref(), Some("exp-1"));
+        assert_eq!(loaded.last_etag.as_deref(), Some("\"etag-1\""));
+        assert_eq!(loaded.last_sha256.as_deref(), Some("abcdef123456"));
+        assert_eq!(loaded.page_count, 42);
     }
 
     #[tokio::test]
@@ -596,7 +900,6 @@ mod tests {
         let target_db = temp.path().join("docs.sqlite");
         let source_db = temp.path().join("source.sqlite");
 
-        // Create valid sqlite db
         let pool = sqlx::sqlite::SqlitePoolOptions::new()
             .connect_with(
                 sqlx::sqlite::SqliteConnectOptions::new()
@@ -621,20 +924,22 @@ mod tests {
         pool.close().await;
 
         let valid_bytes = std::fs::read(&source_db).unwrap();
-        let report = verify_and_swap_sqlite(&target_db, &valid_bytes).await.unwrap();
+        let sha256 = hex::encode(sha2::Sha256::digest(&valid_bytes));
+
+        let report = verify_and_swap_sqlite(&target_db, &valid_bytes, Some(&sha256))
+            .await
+            .unwrap();
         assert!(report.passed);
         assert!(target_db.exists(), "Target file must exist after successful swap");
     }
 
     #[test]
     fn test_runner_sync_config_defaults_and_explicit() {
-        // Default: disabled
         let default_serve = crate::ServeArgs::default();
         let cfg = RunnerSyncConfig::from_serve_args(&default_serve);
         assert!(!cfg.enabled, "Sync should be disabled by default");
         assert_eq!(cfg.server_url, "http://localhost:3000");
 
-        // Explicit enable via --sync
         let mut enabled_serve = crate::ServeArgs::default();
         enabled_serve.sync = true;
         enabled_serve.sync_url = Some("http://192.168.1.50:3000".to_string());
@@ -659,6 +964,8 @@ mod tests {
         assert_eq!(status.sync_count, 0);
         assert!(status.last_synced_at.is_none());
         assert!(status.last_job_id.is_none());
+        assert!(status.last_etag.is_none());
+        assert!(status.last_sha256.is_none());
         assert!(status.last_error.is_none());
     }
 }

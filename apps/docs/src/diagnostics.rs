@@ -298,7 +298,7 @@ pub fn check_windows_registry() -> Vec<DiagnosticItem> {
                         "Registry",
                         "User PATH",
                         format!(
-                            "'{}' is NOT in HKCU\\Environment PATH. Run 'cms-site install' to add it.",
+                            "'{}' is NOT in HKCU\\Environment PATH. Run 'cms-docs install' to add it.",
                             bin_dir.display()
                         ),
                     ));
@@ -327,7 +327,7 @@ pub fn check_windows_registry() -> Vec<DiagnosticItem> {
                     items.push(DiagnosticItem::warn(
                         "Registry",
                         "Protocol Scheme",
-                        "'cms-doc://' registry key exists but has empty command string. Run 'cms-site install' to fix.",
+                        "'cms-doc://' registry key exists but has empty command string. Run 'cms-docs install' to fix.",
                     ));
                 }
             }
@@ -335,7 +335,7 @@ pub fn check_windows_registry() -> Vec<DiagnosticItem> {
                 items.push(DiagnosticItem::warn(
                     "Registry",
                     "Protocol Scheme",
-                    "'cms-doc://' URL protocol is not registered. Run 'cms-site install' to enable browser deep-linking.",
+                    "'cms-doc://' URL protocol is not registered. Run 'cms-docs install' to enable browser deep-linking.",
                 ));
             }
         }
@@ -353,7 +353,7 @@ pub fn check_windows_registry() -> Vec<DiagnosticItem> {
     }
 }
 
-/// Checks whether the target HTTP port is available or if an existing cms-site is already running.
+/// Checks whether the target HTTP port is available or if an existing cms-docs is already running.
 pub async fn check_port_collision(port: u16) -> DiagnosticItem {
     match tokio::net::TcpListener::bind(("127.0.0.1", port)).await {
         Ok(_) => DiagnosticItem::ok(
@@ -391,7 +391,7 @@ pub async fn check_port_collision(port: u16) -> DiagnosticItem {
                             "Network",
                             "HTTP Port",
                             format!(
-                                "Port {} is in use by an active healthy cms-site instance (/healthz responded ok)",
+                                "Port {} is in use by an active healthy cms-docs instance (/healthz responded ok)",
                                 port
                             ),
                         )
@@ -410,7 +410,7 @@ pub async fn check_port_collision(port: u16) -> DiagnosticItem {
                     "Network",
                     "HTTP Port",
                     format!(
-                        "Port {} is occupied by another application and cannot be bound by cms-site",
+                        "Port {} is occupied by another application and cannot be bound by cms-docs",
                         port
                     ),
                 ),

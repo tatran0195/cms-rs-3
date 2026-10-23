@@ -28,17 +28,20 @@ export function SiteSwitcher({ projectId }: { projectId?: string }) {
           side="bottom"
           align="start"
           trigger={
-            <SidebarMenuButton className="gap-2.5 data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground" size="lg">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-sidebar-border bg-sidebar-primary/10">
-                {selected ? <CmsMark className="size-5.5" /> : <LayoutGrid className="size-4.5 text-sidebar-primary" />}
+            <SidebarMenuButton
+              className="h-9 gap-2 data-[popup-open]:bg-sidebar-accent data-[popup-open]:text-sidebar-accent-foreground"
+              size="default"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-md border border-sidebar-border bg-sidebar-primary/10">
+                {selected ? <CmsMark className="size-4" /> : <LayoutGrid className="size-3.5 text-sidebar-primary" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-sm" dir="auto">
+                <span className="block truncate font-semibold text-xs" dir="auto">
                   {selected?.name ?? workspaceName}
                 </span>
-                <span className="block truncate text-muted-foreground text-xs">{selected ? t('nav.site') : t('nav.workspace')}</span>
+                <span className="block truncate text-muted-foreground text-[10px] leading-none">{selected ? t('nav.site') : t('nav.workspace')}</span>
               </span>
-              <ChevronsUpDown className="size-4.5 shrink-0 text-muted-foreground" />
+              <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
             </SidebarMenuButton>
           }
         />

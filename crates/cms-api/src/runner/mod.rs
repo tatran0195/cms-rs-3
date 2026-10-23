@@ -2,19 +2,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path as AxumPath, Request},
-    http::{header, HeaderValue},
+    extract::{Path as AxumPath, Query, Request, State},
+    http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Json, Response},
     routing::get,
     Router,
 };
 use cms_error::AppError;
 use cms_middleware::app_state::AppState;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use sha2::Digest;
+use sqlx::{FromRow, Postgres, QueryBuilder};
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
-pub const RUNNER_FILENAME: &str = if cfg!(windows) { "cms-site.exe" } else { "cms-site" };
+pub const RUNNER_FILENAME: &str = if cfg!(windows) { "cms-docs.exe" } else { "cms-docs" };
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -83,12 +85,16 @@ pub fn get_downloads_dir() -> PathBuf {
 /// Checks the host platform binary first, but gracefully falls back if the
 /// other platform executable is present (e.g. running Linux API server serving Windows runner).
 pub fn resolve_runner_filename(dir: &Path) -> Option<String> {
-    if dir.join(RUNNER_FILENAME).is_file() {
-        return Some(RUNNER_FILENAME.to_string());
-    }
-    let alt = if RUNNER_FILENAME == "cms-site.exe" { "cms-site" } else { "cms-site.exe" };
-    if dir.join(alt).is_file() {
-        return Some(alt.to_string());
+    let candidates = if cfg!(windows) {
+        ["cms-docs.exe", "cms-docs", "cms-site.exe", "cms-site"]
+    } else {
+        ["cms-docs", "cms-docs.exe", "cms-site", "cms-site.exe"]
+    };
+
+    for candidate in candidates {
+        if dir.join(candidate).is_file() {
+            return Some(candidate.to_string());
+        }
     }
     None
 }
@@ -236,11 +242,333 @@ pub async fn runner_info_handler() -> Result<Json<RunnerInfoResponse>, AppError>
     }))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SyncManifestQuery {
+    pub project: Option<String>,
+    pub branch: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SyncDownloadQuery {
+    pub export_id: Option<String>,
+    pub artifact_id: Option<String>,
+    pub filename: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunnerSyncManifest {
+    pub has_update: bool,
+    pub export_id: Option<String>,
+    pub project_id: Option<String>,
+    pub project_name: Option<String>,
+    pub branch: Option<String>,
+    pub etag: String,
+    pub sha256: String,
+    pub size_bytes: u64,
+    pub exported_at: String,
+    pub schema_version: u32,
+    pub download_url: String,
+}
+
+#[derive(Debug, FromRow)]
+struct SyncJobArtifactRow {
+    job_id: String,
+    project_id: Option<String>,
+    project_name: Option<String>,
+    completed_at: Option<chrono::DateTime<chrono::Utc>>,
+    artifact_id: String,
+    storage_path: String,
+    _file_name: String,
+    _file_size: i64,
+}
+
+async fn resolve_db_sync_manifest(
+    state: &AppState,
+    query: &SyncManifestQuery,
+) -> Result<Option<RunnerSyncManifest>, AppError> {
+    let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+        r#"
+        SELECT
+            j.id as job_id,
+            j.project_id,
+            p.name as project_name,
+            j.completed_at,
+            a.id as artifact_id,
+            a.storage_path,
+            a.file_name,
+            a.file_size
+        FROM "ExportJob" j
+        JOIN "ExportArtifact" a ON a.job_id = j.id
+        LEFT JOIN "Project" p ON p.id = j.project_id
+        LEFT JOIN "ExportSnapshot" s ON s.id = j.snapshot_id
+        LEFT JOIN "Branch" b ON b.id = s.branch_id
+        WHERE j.status = 'COMPLETED'
+          AND (a.format = 'SQLITE' OR a.file_name LIKE '%.sqlite')
+        "#,
+    );
+
+    if let Some(ref proj) = query.project {
+        let p = proj.trim();
+        if !p.is_empty() {
+            qb.push(" AND (j.project_id = ");
+            qb.push_bind(p);
+            qb.push(" OR p.slug = ");
+            qb.push_bind(p);
+            qb.push(")");
+        }
+    }
+
+    if let Some(ref branch) = query.branch {
+        let b = branch.trim();
+        if !b.is_empty() {
+            qb.push(" AND (b.name = ");
+            qb.push_bind(b);
+            qb.push(" OR b.slug = ");
+            qb.push_bind(b);
+            qb.push(")");
+        }
+    }
+
+    qb.push(" ORDER BY j.completed_at DESC NULLS LAST, j.created_at DESC LIMIT 1");
+
+    let row = qb
+        .build_query_as::<SyncJobArtifactRow>()
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+    let Some(row) = row else {
+        return Ok(None);
+    };
+
+    let etag = format!(
+        "\"exp-{}-{}\"",
+        row.job_id,
+        row.completed_at.map(|c| c.timestamp()).unwrap_or(0)
+    );
+
+    let bytes = state.storage.get(&row.storage_path).await?;
+    let sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+
+    Ok(Some(RunnerSyncManifest {
+        has_update: true,
+        export_id: Some(row.job_id),
+        project_id: row.project_id,
+        project_name: row.project_name,
+        branch: query.branch.clone(),
+        etag,
+        sha256,
+        size_bytes: bytes.len() as u64,
+        exported_at: row.completed_at.unwrap_or_else(chrono::Utc::now).to_rfc3339(),
+        schema_version: 1,
+        download_url: format!("/api/runner/sync/download?artifact_id={}", row.artifact_id),
+    }))
+}
+
+/// Handler for GET /api/runner/sync/manifest
+/// Provides high-performance conditional synchronization check (HTTP 304 fast path).
+pub async fn sync_manifest_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SyncManifestQuery>,
+    req: Request,
+) -> Result<Response, AppError> {
+    // 1. Try querying database for latest completed SQLite export
+    if let Ok(Some(manifest)) = resolve_db_sync_manifest(&state, &query).await {
+        if let Some(if_none_match) = req.headers().get(header::IF_NONE_MATCH) {
+            if let Ok(val) = if_none_match.to_str() {
+                if val.trim() == manifest.etag.trim() {
+                    return Ok((
+                        StatusCode::NOT_MODIFIED,
+                        [
+                            (
+                                header::ETAG,
+                                HeaderValue::from_str(&manifest.etag)
+                                    .unwrap_or(HeaderValue::from_static("")),
+                            ),
+                            (
+                                header::CACHE_CONTROL,
+                                HeaderValue::from_static("public, max-age=10, must-revalidate"),
+                            ),
+                        ],
+                    )
+                        .into_response());
+                }
+            }
+        }
+
+        let mut res = Json(manifest).into_response();
+        res.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=10, must-revalidate"),
+        );
+        return Ok(res);
+    }
+
+    // 2. Fallback: check public downloads directory for docs.sqlite
+    let dir = get_downloads_dir();
+    let local_file = dir.join("docs.sqlite");
+    if local_file.is_file() {
+        if let Ok(meta) = local_file.metadata() {
+            let size = meta.len();
+            let mtime = meta.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            let mtime_secs = mtime
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let etag = format!("\"file-docs-{}-{}\"", size, mtime_secs);
+
+            if let Some(if_none_match) = req.headers().get(header::IF_NONE_MATCH) {
+                if let Ok(val) = if_none_match.to_str() {
+                    if val.trim() == etag.trim() {
+                        return Ok((
+                            StatusCode::NOT_MODIFIED,
+                            [
+                                (
+                                    header::ETAG,
+                                    HeaderValue::from_str(&etag)
+                                        .unwrap_or(HeaderValue::from_static("")),
+                                ),
+                                (
+                                    header::CACHE_CONTROL,
+                                    HeaderValue::from_static("public, max-age=10, must-revalidate"),
+                                ),
+                            ],
+                        )
+                            .into_response());
+                    }
+                }
+            }
+
+            let sha256 = if let Ok(bytes) = std::fs::read(&local_file) {
+                hex::encode(sha2::Sha256::digest(&bytes))
+            } else {
+                String::new()
+            };
+
+            let manifest = RunnerSyncManifest {
+                has_update: true,
+                export_id: Some("public-docs".to_string()),
+                project_id: query.project.clone(),
+                project_name: Some("Local Docs".to_string()),
+                branch: query.branch.clone(),
+                etag,
+                sha256,
+                size_bytes: size,
+                exported_at: chrono::DateTime::<chrono::Utc>::from(mtime).to_rfc3339(),
+                schema_version: 1,
+                download_url: "/api/downloads/docs.sqlite".to_string(),
+            };
+
+            let mut res = Json(manifest).into_response();
+            res.headers_mut().insert(
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("public, max-age=10, must-revalidate"),
+            );
+            return Ok(res);
+        }
+    }
+
+    // 3. No update or database available
+    let empty_manifest = RunnerSyncManifest {
+        has_update: false,
+        export_id: None,
+        project_id: query.project,
+        project_name: None,
+        branch: query.branch,
+        etag: "\"empty\"".to_string(),
+        sha256: String::new(),
+        size_bytes: 0,
+        exported_at: chrono::Utc::now().to_rfc3339(),
+        schema_version: 1,
+        download_url: String::new(),
+    };
+
+    Ok(Json(empty_manifest).into_response())
+}
+
+/// Handler for GET /api/runner/sync/download
+/// Serves the requested documentation database artifact with caching headers.
+pub async fn sync_download_handler(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<SyncDownloadQuery>,
+    req: Request,
+) -> Result<Response, AppError> {
+    if let Some(ref art_id) = query.artifact_id {
+        let row = sqlx::query_as::<_, (String, String, Option<chrono::DateTime<chrono::Utc>>)>(
+            r#"SELECT a.storage_path, a.file_name, a.created_at FROM "ExportArtifact" a WHERE a.id = $1"#,
+        )
+        .bind(art_id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|e| AppError::Database(e.into()))?;
+
+        if let Some((storage_path, file_name, created_at)) = row {
+            let etag = format!(
+                "\"art-{}-{}\"",
+                art_id,
+                created_at.map(|c| c.timestamp()).unwrap_or(0)
+            );
+            if let Some(if_none_match) = req.headers().get(header::IF_NONE_MATCH) {
+                if let Ok(val) = if_none_match.to_str() {
+                    if val.trim() == etag.trim() {
+                        return Ok((
+                            StatusCode::NOT_MODIFIED,
+                            [(
+                                header::ETAG,
+                                HeaderValue::from_str(&etag).unwrap_or(HeaderValue::from_static("")),
+                            )],
+                        )
+                            .into_response());
+                    }
+                }
+            }
+
+            let bytes = state.storage.get(&storage_path).await?;
+            let mut res = bytes.into_response();
+            res.headers_mut().insert(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("application/vnd.sqlite3"),
+            );
+            if let Ok(h) = HeaderValue::from_str(&etag) {
+                res.headers_mut().insert(header::ETAG, h);
+            }
+            res.headers_mut().insert(
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("public, max-age=60, must-revalidate"),
+            );
+            let disp = format!("attachment; filename=\"{}\"", file_name);
+            if let Ok(h) = HeaderValue::from_str(&disp) {
+                res.headers_mut().insert(header::CONTENT_DISPOSITION, h);
+            }
+            return Ok(res);
+        }
+    }
+
+    if let Some(ref filename) = query.filename {
+        return download_artifact_handler(AxumPath(filename.clone()), req).await;
+    }
+
+    // Default to docs.sqlite if present in downloads
+    let dir = get_downloads_dir();
+    let default_file = dir.join("docs.sqlite");
+    if default_file.is_file() {
+        return serve_download_file(&default_file, "docs.sqlite", req).await;
+    }
+
+    Err(AppError::NotFound(
+        "Requested documentation database artifact not found".to_string(),
+    ))
+}
+
 /// Router for /api/runner
-pub fn router(_state: Arc<AppState>) -> Router {
+pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/download", get(download_runner_handler))
         .route("/info", get(runner_info_handler))
+        .route("/sync/manifest", get(sync_manifest_handler))
+        .route("/sync/download", get(sync_download_handler))
+        .with_state(state)
 }
 
 /// Router for /api/downloads (unified public downloads folder for all artifacts)

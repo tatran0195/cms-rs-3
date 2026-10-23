@@ -32,10 +32,7 @@ export const useBaselineSnapshot = <T = DeploymentBaselineResponse>(projectId: s
   });
 };
 
-export const usePendingChanges = <T = PendingChangesResponse>(
-  projectId: string | undefined,
-  options?: { enabled?: boolean; staleTime?: number },
-) => {
+export const usePendingChanges = <T = PendingChangesResponse>(projectId: string | undefined, options?: { enabled?: boolean; staleTime?: number }) => {
   const client = useCmsClient();
   return useQuery({
     queryKey: queryKeys.deployments.changes(projectId ?? ''),

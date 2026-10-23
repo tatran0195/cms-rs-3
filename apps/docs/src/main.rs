@@ -1,6 +1,6 @@
 use clap::Parser;
-use cms_runner::{
-    init_tracing, run_doctor_cmd, run_install, run_mcp, run_open, run_server, run_sync,
+use cms_docs::{
+    init_tracing, run_bundle, run_doctor_cmd, run_install, run_mcp, run_open, run_server, run_sync,
     run_uninstall, run_upgrade, Cli, Commands, SelfCommands,
 };
 
@@ -40,6 +40,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Some(Commands::Uninstall) => {
             run_uninstall().await?;
+        }
+        Some(Commands::Bundle(bundle_args)) => {
+            run_bundle(bundle_args).await?;
         }
         Some(Commands::Upgrade(upgrade_args)) => {
             init_tracing(false, "info");

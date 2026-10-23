@@ -1,3 +1,4 @@
+import { cn } from '@cms/design-system/lib/utils';
 import { createFileRoute, isRedirect, Navigate, Outlet, redirect } from '@tanstack/react-router';
 import { getSession, useSession } from '@/features/auth';
 import { ProjectProvider } from '@/features/projects';
@@ -54,7 +55,7 @@ function AppGuard() {
   };
   const impersonatedBy = supportSession.session?.impersonatedBy;
   return (
-    <div className={impersonatedBy ? 'pb-14' : undefined}>
+    <div className={cn('h-full w-full flex flex-col min-h-0', impersonatedBy && 'pb-14')}>
       <ProjectProvider>
         <Outlet />
       </ProjectProvider>

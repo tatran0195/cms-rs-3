@@ -42,10 +42,10 @@ struct EmbeddedSite;
 
 #[derive(Parser, Debug, Clone)]
 #[command(
-    name = "cms-site",
+    name = "cms-docs",
     author,
     version,
-    about = "Portable single-binary documentation site runner with embedded MCP server"
+    about = "Portable single-binary documentation viewer and server with embedded MCP engine"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -72,28 +72,31 @@ pub enum Commands {
     /// Open a documentation page or custom ID directly in your default browser
     Open(OpenArgs),
 
-    /// Install cms-site to user PATH and register cms-doc:// protocol in Windows registry
+    /// Install cms-docs to user PATH and register cms-doc:// protocol in Windows registry
     Install,
 
-    /// Remove cms-site from user PATH and unregister cms-doc:// protocol in Windows registry
+    /// Remove cms-docs from user PATH and unregister cms-doc:// protocol in Windows registry
     Uninstall,
 
-    /// Upgrade cms-site executable to the latest version (alias: update, self-update)
+    /// Bundle a SQLite documentation database directly into a standalone single-binary executable
+    Bundle(BundleArgs),
+
+    /// Upgrade cms-docs executable to the latest version (alias: update, self-update)
     #[command(alias = "update", alias = "self-update", alias = "self-upgrade")]
     Upgrade(UpgradeArgs),
 
-    /// Self-management operations (e.g. 'cms-site self update', similar to 'rustup self update')
+    /// Self-management operations (e.g. 'cms-docs self update', similar to 'rustup self update')
     #[command(name = "self", subcommand)]
     SelfCmd(SelfCommands),
 }
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum SelfCommands {
-    /// Update cms-site executable to the latest version (like 'rustup self update')
+    /// Update cms-docs executable to the latest version (like 'rustup self update')
     #[command(alias = "upgrade")]
     Update(UpgradeArgs),
 
-    /// Remove cms-site from user PATH and unregister protocol scheme
+    /// Remove cms-docs from user PATH and unregister protocol scheme
     Uninstall,
 }
 
@@ -110,6 +113,33 @@ pub struct UpgradeArgs {
     /// Check if a newer version or download is available without applying
     #[arg(long)]
     pub check: bool,
+
+    /// Use axoupdater to update via cargo-dist or GitHub releases
+    #[arg(long, visible_alias = "dist")]
+    pub axo: bool,
+
+    /// Explicit GitHub repository owner/name for axoupdater (e.g. "tatran0195/cms-rs-3")
+    #[arg(long)]
+    pub github: Option<String>,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct BundleArgs {
+    /// Path to the SQLite documentation database to bundle (e.g. docs.sqlite)
+    #[arg(short, long, default_value = "docs.sqlite")]
+    pub db: PathBuf,
+
+    /// Path to base runner executable (defaults to current running executable)
+    #[arg(long)]
+    pub exe: Option<PathBuf>,
+
+    /// Target output executable path (defaults to docs-site.exe or docs-site)
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+
+    /// Overwrite existing output executable if it already exists
+    #[arg(short, long)]
+    pub force: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -517,6 +547,104 @@ impl TantivySiteSearch {
     }
 }
 
+pub const BUNDLE_MAGIC_TRAILER: &[u8; 16] = b"CMS_SQLITE_PACK_";
+pub const BUNDLE_FOOTER_LEN: u64 = 8 + 32 + 16; // 56 bytes
+
+pub fn resolve_search_index_dir(
+    db_file: &std::path::Path,
+    explicit_idx: Option<&PathBuf>,
+) -> Option<PathBuf> {
+    if let Some(ref explicit) = explicit_idx {
+        Some((*explicit).clone())
+    } else {
+        let parent = db_file.parent().unwrap_or_else(|| std::path::Path::new("."));
+        let sibling1 = parent.join("search_index");
+        let sibling2 = parent.join("tantivy");
+        if sibling1.exists() {
+            Some(sibling1)
+        } else if sibling2.exists() {
+            Some(sibling2)
+        } else {
+            None
+        }
+    }
+}
+
+/// Checks whether the running executable or a specified executable has an embedded SQLite database payload appended.
+/// If present, extracts it to a cache folder in the system temp directory and returns the path to docs.sqlite.
+pub fn detect_and_extract_bundled_sqlite() -> anyhow::Result<Option<PathBuf>> {
+    let current_exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
+    extract_embedded_sqlite_from_exe(&current_exe)
+}
+
+/// Extracts embedded SQLite payload from any executable path if the bundle trailer is present.
+pub fn extract_embedded_sqlite_from_exe(exe_path: &std::path::Path) -> anyhow::Result<Option<PathBuf>> {
+    let mut file = match std::fs::File::open(exe_path) {
+        Ok(f) => f,
+        Err(_) => return Ok(None),
+    };
+
+    use std::io::{Read, Seek, SeekFrom};
+    let file_len = match file.metadata() {
+        Ok(m) => m.len(),
+        Err(_) => return Ok(None),
+    };
+
+    if file_len < BUNDLE_FOOTER_LEN + 1024 {
+        return Ok(None);
+    }
+
+    file.seek(SeekFrom::End(-(BUNDLE_FOOTER_LEN as i64)))?;
+    let mut footer = [0u8; BUNDLE_FOOTER_LEN as usize];
+    file.read_exact(&mut footer)?;
+
+    let magic = &footer[40..56];
+    if magic != BUNDLE_MAGIC_TRAILER {
+        return Ok(None);
+    }
+
+    let payload_len = u64::from_le_bytes(footer[0..8].try_into().unwrap());
+    let expected_sha256 = &footer[8..40];
+
+    if payload_len == 0 || payload_len > file_len - BUNDLE_FOOTER_LEN {
+        anyhow::bail!("Corrupted bundled SQLite payload footer (invalid length: {payload_len})");
+    }
+
+    let payload_offset = file_len - BUNDLE_FOOTER_LEN - payload_len;
+    file.seek(SeekFrom::Start(payload_offset))?;
+
+    let mut payload = vec![0u8; payload_len as usize];
+    file.read_exact(&mut payload)?;
+
+    use sha2::Digest;
+    let computed_hash = sha2::Sha256::digest(&payload);
+    if computed_hash.as_slice() != expected_sha256 {
+        anyhow::bail!("Cryptographic SHA-256 checksum mismatch on embedded SQLite bundle!");
+    }
+
+    let sha256_hex = hex::encode(computed_hash);
+    let cache_dir = std::env::temp_dir().join(format!("cms-docs-embed-{}", &sha256_hex[..16]));
+    std::fs::create_dir_all(&cache_dir)?;
+    let target_db = cache_dir.join("docs.sqlite");
+
+    if !target_db.exists() || target_db.metadata().map(|m| m.len()).unwrap_or(0) != payload_len {
+        let tmp = target_db.with_extension("tmp");
+        std::fs::write(&tmp, &payload)?;
+        std::fs::rename(&tmp, &target_db)?;
+    }
+
+    tracing::info!(
+        "Loaded bundled documentation database from executable ({} MB, sha256: {})",
+        (payload_len as f64) / (1024.0 * 1024.0),
+        &sha256_hex[..8]
+    );
+
+    Ok(Some(target_db))
+}
+
 pub fn resolve_runner_paths(args: &Args) -> anyhow::Result<(PathBuf, Option<PathBuf>)> {
     // 1. If --bundle is specified, unpack to a folder next to the bundle or in temp
     if let Some(ref bundle_path) = args.bundle {
@@ -543,30 +671,29 @@ pub fn resolve_runner_paths(args: &Args) -> anyhow::Result<(PathBuf, Option<Path
         return Ok((db_file, idx_dir.exists().then_some(idx_dir)));
     }
 
-    // 3. If --db is specified
-    let db_file = args.db.clone();
-    let idx_dir = if let Some(ref explicit_idx) = args.index_dir {
-        Some(explicit_idx.clone())
-    } else {
-        // Auto-discover sibling directory
-        let sibling1 = db_file
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join("search_index");
-        let sibling2 = db_file
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join("tantivy");
-        if sibling1.exists() {
-            Some(sibling1)
-        } else if sibling2.exists() {
-            Some(sibling2)
-        } else {
-            None
-        }
-    };
+    // 3. If explicit --db was specified and exists on disk
+    if args.db.exists() {
+        let db_file = args.db.clone();
+        let idx_dir = resolve_search_index_dir(&db_file, args.index_dir.as_ref());
+        return Ok((db_file, idx_dir));
+    }
 
-    Ok((db_file, idx_dir))
+    // 4. Check if current executable contains a bundled SQLite package
+    if let Ok(Some(embedded_db)) = detect_and_extract_bundled_sqlite() {
+        let idx_dir = resolve_search_index_dir(&embedded_db, args.index_dir.as_ref());
+        return Ok((embedded_db, idx_dir));
+    }
+
+    // 5. If --db was explicitly specified (not the default 'docs.sqlite') but not found
+    if args.db != std::path::Path::new("docs.sqlite") {
+        anyhow::bail!("Database file not found: {}", args.db.display());
+    }
+
+    anyhow::bail!(
+        "No documentation database found.\n\
+         Expected 'docs.sqlite' in the current directory, or specify '--db <PATH>', '--dir <DIR>', or '--bundle <TAR.GZ>'.\n\
+         To bundle a database directly into a standalone single-binary executable, run: 'cms-docs bundle --db <PATH>'"
+    );
 }
 
 pub fn build_optimized_sqlite_options(db_path: &std::path::Path) -> sqlx::sqlite::SqliteConnectOptions {
@@ -1733,7 +1860,7 @@ async fn api_sync_trigger(
             interval: std::time::Duration::from_secs(status.interval_secs),
             project: status.project.clone(),
             branch: status.branch.clone(),
-            token: None,
+            token: status.token.clone(),
         }
     };
 
@@ -2065,7 +2192,7 @@ pub fn inject_bootstrap_and_meta(raw_html: &str, shell: Option<&SiteShell>) -> S
 
 pub fn init_tracing(stderr_only: bool, default_level: &str) {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| format!("{},cms_site=debug", default_level).into());
+        .unwrap_or_else(|_| format!("{},cms_docs=debug", default_level).into());
 
     if stderr_only {
         tracing_subscriber::registry()
@@ -2157,7 +2284,7 @@ pub async fn run_install() -> anyhow::Result<()> {
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Failed to locate binary directory"))?;
 
-    println!("Installing cms-site...");
+    println!("Installing cms-docs...");
     match windows::install_user_path(bin_dir) {
         Ok(true) => println!("✓ Added '{}' to user PATH (HKCU\\Environment).", bin_dir.display()),
         Ok(false) => println!("- '{}' is already in user PATH.", bin_dir.display()),
@@ -2169,7 +2296,7 @@ pub async fn run_install() -> anyhow::Result<()> {
         Err(e) => eprintln!("! Warning: Could not register protocol handler: {}", e),
     }
 
-    println!("\nInstallation complete! You can now run 'cms-site' from anywhere or click 'cms-doc://' links.");
+    println!("\nInstallation complete! You can now run 'cms-docs' from anywhere or click 'cms-doc://' links.");
     Ok(())
 }
 
@@ -2179,7 +2306,7 @@ pub async fn run_uninstall() -> anyhow::Result<()> {
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Failed to locate binary directory"))?;
 
-    println!("Uninstalling cms-site...");
+    println!("Uninstalling cms-docs...");
     match windows::uninstall_user_path(bin_dir) {
         Ok(true) => println!("✓ Removed '{}' from user PATH.", bin_dir.display()),
         Ok(false) => println!("- '{}' was not present in user PATH.", bin_dir.display()),
@@ -2251,7 +2378,7 @@ fn verify_executable_header(path: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
+pub async fn run_server_upgrade(args: &UpgradeArgs) -> anyhow::Result<()> {
     use tokio::io::AsyncWriteExt;
 
     let current_exe = std::env::current_exe()?;
@@ -2292,21 +2419,21 @@ pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
 
     if args.check {
         if server_version != current_version && server_version != "unknown" {
-            println!("\nUpdate available! Run 'cms-site upgrade --url {}' to install.", clean_url);
+            println!("\nUpdate available! Run 'cms-docs upgrade --url {}' to install.", clean_url);
         } else {
-            println!("\ncms-site is up to date.");
+            println!("\ncms-docs is up to date.");
         }
         return Ok(());
     }
 
     if server_version == current_version && !args.force && server_version != "latest" {
-        println!("\ncms-site is already at the latest version ({}). Use --force to re-download.", current_version);
+        println!("\ncms-docs is already at the latest version ({}). Use --force to re-download.", current_version);
         return Ok(());
     }
 
-    // 2. Download runner binary to a protected temporary file
+    // 2. Download binary to a protected temporary file
     let download_url = format!("{clean_url}/api/runner/download");
-    println!("\nDownloading latest runner from '{}'...", download_url);
+    println!("\nDownloading latest documentation server binary from '{}'...", download_url);
 
     let mut resp = client.get(&download_url).send().await?;
     if !resp.status().is_success() {
@@ -2366,8 +2493,172 @@ pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
     cleanup.disarm();
     let _ = std::fs::remove_file(&tmp_path);
 
-    println!("✓ Successfully upgraded cms-site to latest version!");
+    println!("✓ Successfully upgraded cms-docs to latest version!");
     println!("  Location: {}", current_exe.display());
+    Ok(())
+}
+
+/// Upgrades cms-docs using axoupdater (cargo-dist / GitHub releases ecosystem)
+pub async fn run_axoupdate(args: &UpgradeArgs) -> anyhow::Result<()> {
+    println!("Checking for updates via axoupdater (cargo-dist / GitHub releases)...");
+
+    let mut updater = axoupdater::AxoUpdater::new_for("cms-docs");
+
+    if let Err(e) = updater.load_receipt() {
+        if !args.axo {
+            tracing::info!("No cargo-dist install receipt found ({e}); proceeding with server upgrade.");
+            return run_server_upgrade(args).await;
+        } else {
+            anyhow::bail!(
+                "Failed to load cargo-dist install receipt: {e}\n\
+                 Ensure cms-docs was installed via an axo/cargo-dist installer, or omit --axo to update directly from the CMS API server."
+            );
+        }
+    }
+
+    if args.check {
+        match updater.query_new_version().await {
+            Ok(Some(new_version)) => {
+                println!("\nUpdate available via axoupdater: v{}", new_version);
+                println!("Run 'cms-docs upgrade --axo' to download and install the new version.");
+            }
+            Ok(None) => {
+                println!("\ncms-docs is up to date (no newer version released).");
+            }
+            Err(e) => {
+                anyhow::bail!("axoupdater check failed: {e}");
+            }
+        }
+        return Ok(());
+    }
+
+    println!("Fetching and applying update via axoupdater...");
+    match updater.run().await {
+        Ok(Some(result)) => {
+            println!("\n✓ Successfully updated cms-docs to v{} via axoupdater!", result.new_version);
+            Ok(())
+        }
+        Ok(None) => {
+            println!("\ncms-docs is already at the latest version.");
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("axoupdater failed to update application: {e}");
+        }
+    }
+}
+
+/// Upgrades the cms-docs executable (supports both direct CMS server downloads and axoupdater)
+pub async fn run_upgrade(args: UpgradeArgs) -> anyhow::Result<()> {
+    if args.axo {
+        return run_axoupdate(&args).await;
+    }
+
+    run_server_upgrade(&args).await
+}
+
+/// Bundles an existing SQLite database into an executable binary by creating a standalone single-binary package.
+pub async fn run_bundle(args: BundleArgs) -> anyhow::Result<()> {
+    if !args.db.exists() {
+        anyhow::bail!("Input database file not found: {}", args.db.display());
+    }
+
+    // 1. Verify SQLite database integrity before bundling
+    println!("Validating SQLite database: {}...", args.db.display());
+    let report = crate::diagnostics::check_sqlite_integrity(&args.db).await;
+    if !report.passed {
+        anyhow::bail!("SQLite database validation failed: {}", report.message);
+    }
+    println!("✓ Database passed integrity check: {}", report.message);
+
+    // 2. Resolve base executable to clone
+    let base_exe = if let Some(ref explicit_exe) = args.exe {
+        explicit_exe.clone()
+    } else {
+        std::env::current_exe()?
+    };
+
+    if !base_exe.exists() {
+        anyhow::bail!("Base executable not found: {}", base_exe.display());
+    }
+
+    verify_executable_header(&base_exe)?;
+
+    // 3. Resolve target output path
+    let default_output = if cfg!(windows) { "cms-docs.exe" } else { "cms-docs" };
+    let output_path = args.output.unwrap_or_else(|| PathBuf::from(default_output));
+
+    if output_path.exists() && !args.force {
+        anyhow::bail!(
+            "Output file '{}' already exists. Use --force to overwrite.",
+            output_path.display()
+        );
+    }
+
+    // 4. Read base executable bytes
+    println!("Reading base executable: {}...", base_exe.display());
+    let mut base_bytes = std::fs::read(&base_exe)?;
+
+    // Strip existing bundle trailer if present so we don't nest bundles
+    if base_bytes.len() >= BUNDLE_FOOTER_LEN as usize {
+        let footer_start = base_bytes.len() - BUNDLE_FOOTER_LEN as usize;
+        if &base_bytes[footer_start + 40..] == BUNDLE_MAGIC_TRAILER {
+            let existing_payload_len = u64::from_le_bytes(
+                base_bytes[footer_start..footer_start + 8].try_into().unwrap(),
+            ) as usize;
+            if footer_start >= existing_payload_len {
+                base_bytes.truncate(footer_start - existing_payload_len);
+            }
+        }
+    }
+
+    // 5. Read SQLite database bytes & compute checksum
+    let db_bytes = std::fs::read(&args.db)?;
+    use sha2::Digest;
+    let sha256 = sha2::Sha256::digest(&db_bytes);
+    let sha256_hex = hex::encode(sha256);
+    let payload_len = db_bytes.len() as u64;
+
+    // 6. Assemble single-binary package
+    println!("Packaging standalone single binary...");
+    let mut output_bytes = Vec::with_capacity(base_bytes.len() + db_bytes.len() + BUNDLE_FOOTER_LEN as usize);
+    output_bytes.extend_from_slice(&base_bytes);
+    output_bytes.extend_from_slice(&db_bytes);
+    output_bytes.extend_from_slice(&payload_len.to_le_bytes());
+    output_bytes.extend_from_slice(sha256.as_slice());
+    output_bytes.extend_from_slice(BUNDLE_MAGIC_TRAILER);
+
+    // 7. Write to temporary file first, then atomic rename
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let tmp_path = output_path.with_extension(if cfg!(windows) { "tmp.exe" } else { "tmp" });
+    std::fs::write(&tmp_path, &output_bytes)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&tmp_path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&tmp_path, perms)?;
+    }
+
+    std::fs::rename(&tmp_path, &output_path)?;
+
+    let total_mb = output_bytes.len() as f64 / (1024.0 * 1024.0);
+    let db_mb = db_bytes.len() as f64 / (1024.0 * 1024.0);
+
+    println!("\n╭──────────────────────────────────────────────────────────────╮");
+    println!("│     Standalone Documentation Executable Created!             │");
+    println!("╰──────────────────────────────────────────────────────────────╯");
+    println!("  Database    : {} ({:.2} MB)", args.db.display(), db_mb);
+    println!("  Checksum    : SHA-256 {}", sha256_hex);
+    println!("  Output File : {} ({:.2} MB)", output_path.display(), total_mb);
+    println!("\nThis is a 100% self-contained single binary with the documentation");
+    println!("database embedded inside. You can distribute this single file anywhere.");
+    println!("Running it with zero flags will immediately serve the embedded documentation!\n");
+
     Ok(())
 }
 
@@ -2429,7 +2720,7 @@ pub async fn run_mcp(args: McpCliArgs) -> anyhow::Result<()> {
         None
     };
 
-    tracing::info!("Starting cms-site MCP stdio server...");
+    tracing::info!("Starting cms-docs MCP stdio server...");
     mcp::run_stdio(pool, search, args.server_url)
         .await
         .map_err(|e| anyhow::anyhow!("MCP server error: {}", e))?;
@@ -2520,8 +2811,9 @@ pub async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
     let state = AppState::with_paths(pool, instance, search, db_path, idx_dir_opt);
 
     // Spawn background sync worker if configured
+    let (sync_shutdown_tx, sync_shutdown_rx) = tokio::sync::watch::channel(false);
     let sync_config = sync::RunnerSyncConfig::from_serve_args(&args);
-    let _sync_handle = sync::spawn_runner_sync_worker(state.clone(), sync_config);
+    let _sync_handle = sync::spawn_runner_sync_worker(state.clone(), sync_config, Some(sync_shutdown_rx));
 
     let bind_host = resolve_bind_host(&args.bind, args.network);
     let maybe_cors = build_cors_layer(&bind_host, args.cors_origin.as_deref())?;
@@ -2543,6 +2835,7 @@ pub async fn run_server(args: ServeArgs) -> anyhow::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
+    let _ = sync_shutdown_tx.send(true);
     tracing::info!("Server shut down gracefully.");
     Ok(())
 }
@@ -3730,6 +4023,119 @@ mod tests {
 
         let res = app.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn test_bundle_and_extract_sqlite_roundtrip() {
+        use sqlx::Row;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test_docs.sqlite");
+
+        // 1. Create a real valid SQLite database
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(
+                sqlx::sqlite::SqliteConnectOptions::new()
+                    .filename(&db_path)
+                    .create_if_missing(true),
+            )
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "CREATE TABLE export_meta (schema_version INTEGER NOT NULL, project_id TEXT NOT NULL, project_name TEXT NOT NULL, project_slug TEXT NOT NULL, exported_at TEXT NOT NULL); \
+             INSERT INTO export_meta VALUES (1, 'p1', 'Bundle Test Project', 'bundle-test', '2026-10-23T00:00:00Z'); \
+             CREATE TABLE pages (id TEXT PRIMARY KEY); \
+             CREATE TABLE page_content (page_id TEXT); \
+             CREATE TABLE versions (id TEXT PRIMARY KEY); \
+             CREATE TABLE languages (code TEXT PRIMARY KEY);"
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        pool.close().await;
+
+        // 2. Create a dummy base executable with valid OS magic header
+        let base_exe_path = temp_dir.path().join("dummy_base.exe");
+        let mut dummy_exe_bytes = vec![0u8; 4096];
+        if cfg!(windows) {
+            dummy_exe_bytes[0] = b'M';
+            dummy_exe_bytes[1] = b'Z';
+        } else if cfg!(target_os = "linux") {
+            dummy_exe_bytes[0..4].copy_from_slice(b"\x7fELF");
+        } else {
+            dummy_exe_bytes[0..4].copy_from_slice(&[0xFE, 0xED, 0xFA, 0xCE]);
+        }
+        std::fs::write(&base_exe_path, &dummy_exe_bytes).unwrap();
+
+        // 3. Bundle database into executable
+        let bundled_exe_path = temp_dir.path().join("standalone_docs.exe");
+        let bundle_args = BundleArgs {
+            db: db_path.clone(),
+            exe: Some(base_exe_path.clone()),
+            output: Some(bundled_exe_path.clone()),
+            force: true,
+        };
+        run_bundle(bundle_args).await.unwrap();
+
+        assert!(bundled_exe_path.exists());
+
+        // 4. Extract embedded sqlite from the bundled exe
+        let extracted_path = extract_embedded_sqlite_from_exe(&bundled_exe_path)
+            .unwrap()
+            .expect("Should extract embedded SQLite database");
+
+        assert!(extracted_path.exists());
+
+        // Check that extracted database can be queried and has expected contents
+        let extracted_pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect_with(sqlx::sqlite::SqliteConnectOptions::new().filename(&extracted_path))
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT schema_version, project_name FROM export_meta LIMIT 1")
+            .fetch_one(&extracted_pool)
+            .await
+            .unwrap();
+
+        let schema_ver: i32 = row.try_get(0).unwrap();
+        let project_name: String = row.try_get(1).unwrap();
+        assert_eq!(schema_ver, 1);
+        assert_eq!(project_name, "Bundle Test Project");
+        extracted_pool.close().await;
+    }
+
+    #[test]
+    fn test_non_bundled_executable_returns_none() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let plain_file = temp_dir.path().join("plain.exe");
+        std::fs::write(&plain_file, b"MZ\x00\x00some regular binary content").unwrap();
+
+        let result = extract_embedded_sqlite_from_exe(&plain_file).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_corrupted_bundle_sha_mismatch() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let corrupted_file = temp_dir.path().join("corrupt.exe");
+
+        let mut content = vec![0u8; 1024];
+        content[0] = b'M';
+        content[1] = b'Z';
+
+        let fake_payload = b"SQLITE_DATA_THAT_WAS_TAMPERED";
+        content.extend_from_slice(fake_payload);
+
+        let payload_len = fake_payload.len() as u64;
+        content.extend_from_slice(&payload_len.to_le_bytes());
+        content.extend_from_slice(&[0xAAu8; 32]); // Invalid SHA256
+        content.extend_from_slice(BUNDLE_MAGIC_TRAILER);
+
+        std::fs::write(&corrupted_file, &content).unwrap();
+
+        let result = extract_embedded_sqlite_from_exe(&corrupted_file);
+        assert!(result.is_err(), "Checksum mismatch must return an Err");
     }
 }
 

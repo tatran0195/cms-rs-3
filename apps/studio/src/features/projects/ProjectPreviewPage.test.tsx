@@ -62,13 +62,7 @@ describe('ProjectPreviewPage', () => {
     roots.push(root);
 
     act(() => {
-      root.render(
-        <ProjectPreviewPage
-          projectId="proj-1"
-          search={{}}
-          onUpdateSearch={vi.fn()}
-        />,
-      );
+      root.render(<ProjectPreviewPage projectId="proj-1" search={{}} onUpdateSearch={vi.fn()} />);
     });
 
     // SiteNav renders navigation element with aria-label

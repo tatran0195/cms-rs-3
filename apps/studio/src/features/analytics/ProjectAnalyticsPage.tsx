@@ -78,11 +78,10 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
     data?.searches.total && data.searches.total > 0 && typeof data.searches.zeroResults === 'number'
       ? `${Math.round((data.searches.zeroResults / data.searches.total) * 100)}%`
       : data?.searches.zeroResults !== null && data?.searches.zeroResults !== undefined
-      ? `${data.searches.zeroResults}`
-      : null;
+        ? `${data.searches.zeroResults}`
+        : null;
 
-  const latency =
-    typeof data?.searches.averageLatencyMs === 'number' ? `${data.searches.averageLatencyMs}ms` : null;
+  const latency = typeof data?.searches.averageLatencyMs === 'number' ? `${data.searches.averageLatencyMs}ms` : null;
 
   const maxPageViews = Math.max(...(data?.topPages ?? []).map((p) => p.views), 1);
   const totalLangViews = (data?.languages ?? []).reduce((acc, l) => acc + l.views, 0) || 1;
@@ -114,26 +113,31 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
 
       {/* High-Density 5 KPI Strip */}
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label={t('analytics.kpi.pageViews')} value={data?.totalViews ?? null} icon={<BarChart3 className="size-4 text-emerald-500" />} loading={isPending} />
+        <StatCard
+          label={t('analytics.kpi.pageViews')}
+          value={data?.totalViews ?? null}
+          icon={<BarChart3 className="size-4 text-emerald-500" />}
+          loading={isPending}
+        />
         <StatCard
           label={t('analytics.kpi.uniqueVisitors')}
           value={data?.uniqueVisitors ?? null}
           icon={<Users className="size-4 text-sky-500" />}
           loading={isPending}
         />
-        <StatCard label={t('analytics.kpi.searches')} value={data?.searches.total ?? null} icon={<Search className="size-4 text-indigo-500" />} loading={isPending} />
+        <StatCard
+          label={t('analytics.kpi.searches')}
+          value={data?.searches.total ?? null}
+          icon={<Search className="size-4 text-indigo-500" />}
+          loading={isPending}
+        />
         <StatCard
           label={t('analytics.kpi.zeroResults')}
           value={zeroResultsRate}
           icon={<SearchX className="size-4 text-amber-500" />}
           loading={isPending}
         />
-        <StatCard
-          label={t('analytics.kpi.averageLatencyMs')}
-          value={latency}
-          icon={<Timer className="size-4 text-primary" />}
-          loading={isPending}
-        />
+        <StatCard label={t('analytics.kpi.averageLatencyMs')} value={latency} icon={<Timer className="size-4 text-primary" />} loading={isPending} />
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
@@ -161,11 +165,7 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
                 /{p.path}
               </span>
             ),
-            meta: (
-              <span className="text-[11px] text-muted-foreground">
-                {Math.round((p.views / maxPageViews) * 100)}%
-              </span>
-            ),
+            meta: <span className="text-[11px] text-muted-foreground">{Math.round((p.views / maxPageViews) * 100)}%</span>,
             value: p.views,
           }))}
         />
@@ -218,11 +218,7 @@ function ProjectAnalyticsContent({ projectId }: { projectId: string }) {
           items={(data?.languages ?? []).map((l) => ({
             key: l.language,
             label: <span dir="auto">{languageName(l.language)}</span>,
-            meta: (
-              <span className="text-[11px] text-muted-foreground">
-                {Math.round((l.views / totalLangViews) * 100)}%
-              </span>
-            ),
+            meta: <span className="text-[11px] text-muted-foreground">{Math.round((l.views / totalLangViews) * 100)}%</span>,
             value: l.views,
           }))}
         />

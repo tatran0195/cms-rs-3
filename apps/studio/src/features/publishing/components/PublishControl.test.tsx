@@ -1,9 +1,9 @@
 /** @vitest-environment jsdom */
 
+import type { Project } from '@cms/sdk';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Project } from '@cms/sdk';
 import { PublishControl } from './PublishControl';
 
 vi.mock('@cms/i18n/react', () => ({
@@ -43,6 +43,7 @@ describe('PublishControl', () => {
     id: 'proj-123',
     name: 'Test Project',
     slug: 'test-project',
+    icon: null,
     description: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -23,8 +23,7 @@ export function StatCard({
   loading?: boolean;
 }) {
   const { number } = useFormatters();
-  const display =
-    value === null ? '—' : typeof value === 'number' ? `${number(value)}${suffix ?? ''}` : `${value}${suffix ?? ''}`;
+  const display = value === null ? '—' : typeof value === 'number' ? `${number(value)}${suffix ?? ''}` : `${value}${suffix ?? ''}`;
 
   return (
     <Card className="@container/card">
@@ -36,9 +35,7 @@ export function StatCard({
         {loading ? (
           <Skeleton className="mt-1 h-8 w-20" />
         ) : (
-          <CardTitle className="font-semibold text-2xl tabular-nums tracking-tight @[200px]/card:text-3xl">
-            {display}
-          </CardTitle>
+          <CardTitle className="font-semibold text-2xl tabular-nums tracking-tight @[200px]/card:text-3xl">{display}</CardTitle>
         )}
       </CardHeader>
     </Card>

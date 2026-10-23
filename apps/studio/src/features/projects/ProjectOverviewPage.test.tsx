@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectOverviewPage } from './ProjectOverviewPage';
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ to, children, ...props }: any) => <a href="#" {...props}>{children}</a>,
+  Link: ({ to, children, ...props }: any) => (
+    <a href="/test" {...props}>
+      {children}
+    </a>
+  ),
   useNavigate: () => vi.fn(),
 }));
 
@@ -22,9 +26,9 @@ vi.mock('@cms/sdk/react', () => ({
   useProject: () => ({ data: { id: 'p1', name: 'Test Docs', slug: 'test-docs' } }),
   usePages: () => ({
     data: [
-      { id: '1', title: 'Page 1', path: 'p1', kind: 'PAGE', languageCode: 'en', updatedAt: new Date().toISOString() },
-      { id: '2', title: 'Page 2', path: 'p2', kind: 'PAGE', languageCode: 'en', updatedAt: new Date().toISOString() },
-      { id: '3', title: 'Page 1 ES', path: 'p1', kind: 'PAGE', languageCode: 'es', updatedAt: new Date().toISOString() },
+      { id: '1', title: 'Page 1', path: 'p1', kind: 'PAGE', languageId: 'l1', updatedAt: new Date().toISOString() },
+      { id: '2', title: 'Page 2', path: 'p2', kind: 'PAGE', languageId: 'l1', updatedAt: new Date().toISOString() },
+      { id: '3', title: 'Page 1 ES', path: 'p1', kind: 'PAGE', languageId: 'l2', updatedAt: new Date().toISOString() },
     ],
   }),
   useLanguages: () => ({

@@ -408,7 +408,6 @@ export interface DeploymentBaselineResponse {
   pages: BaselinePageItem[];
 }
 
-
 export interface ReaderAccessData {
   accessMode: 'PUBLIC' | 'WORKSPACE' | 'READERS';
   readers: Array<{

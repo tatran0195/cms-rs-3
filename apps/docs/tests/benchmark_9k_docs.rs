@@ -1,7 +1,7 @@
 use std::time::Instant;
 use axum::http::StatusCode;
 use tower::ServiceExt;
-use cms_runner::{AppState, SiteInstance, create_runner_router, SitePageResponse};
+use cms_docs::{AppState, SiteInstance, create_runner_router, SitePageResponse};
 
 async fn create_9k_docs_test_db() -> sqlx::SqlitePool {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()

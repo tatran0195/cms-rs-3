@@ -42,7 +42,7 @@ members = [
   "crates/cms-i18n",
   "crates/cms-seed",
   "apps/api",
-  "apps/runner",
+  "apps/docs",
 ]
 resolver = "2"
 

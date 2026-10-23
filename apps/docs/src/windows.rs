@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn test_path_string_manipulation() {
         let original = r"C:\Windows\System32;C:\Users\Admin\.cargo\bin";
-        let target = r"C:\Users\Admin\AppData\Local\Programs\cms-site";
+        let target = r"C:\Users\Admin\AppData\Local\Programs\cms-docs";
 
         let added = add_to_path_string(original, target);
         assert!(added.contains(target));

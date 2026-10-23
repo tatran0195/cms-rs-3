@@ -11,11 +11,11 @@ import {
   DocumentationThemeProvider,
   Markdown,
   PageIcon,
-  SiteNav,
   projectThemeCss,
   projectThemeStyle,
   projectThemeVariables,
   resolveProjectTheme,
+  SiteNav,
 } from '@cms/site';
 import { ChevronDown, Eye } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
@@ -89,7 +89,7 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const theme = resolveProjectTheme(project?.config);
   const previewMode = project?.config?.styling?.theme === 'dark' ? 'dark' : 'light';
-  const themeCss = projectThemeCss(theme, previewMode);
+  const themeCss = projectThemeCss(project?.config);
 
   const navNodes = useMemo(() => buildNavTree((pages ?? []) as any, activeLanguage?.code), [pages, activeLanguage?.code]);
 
@@ -99,9 +99,9 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
     const href = anchor.getAttribute('href');
     if (!href) return;
     e.preventDefault();
-    const cleanHref = href.split('?')[0].replace(/\/+$/, '');
+    const cleanHref = href.split('?')[0]?.replace(/\/+$/, '') ?? '';
     const matched = pages?.find((p) => {
-      if (p.kind !== 'PAGE') return false;
+      if (p.kind !== 'PAGE' || !p.path) return false;
       return cleanHref.endsWith(`/${p.path}`) || cleanHref === p.path || cleanHref.endsWith(p.path);
     });
     if (matched) {

@@ -40,9 +40,10 @@ export const isWorkspaceSettingsTab = (value: unknown): value is WorkspaceSettin
 export interface WorkspaceSettingsPageProps {
   tab: WorkspaceSettingsTab;
   onTabChange: (tab: WorkspaceSettingsTab) => void;
+  hideNav?: boolean;
 }
 
-export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPageProps) {
+export function WorkspaceSettingsPage({ tab, onTabChange, hideNav = false }: WorkspaceSettingsPageProps) {
   const t = useT();
   const { data: session } = useSession();
   const { data: rawMembers } = useMembers();
@@ -74,7 +75,7 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-7">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 min-h-full">
       <div>
         <h1 className="font-semibold text-3xl tracking-tight">{t('settings.title')}</h1>
         <p className="mt-1 text-muted-foreground text-sm">{t('settings.subtitle')}</p>
@@ -111,38 +112,13 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
         </div>
 
         {/* Left settings navigation grouped into Account and Workspace */}
-        <nav className="hidden w-52 shrink-0 flex-col gap-5 sm:flex">
-          {/* Account Group */}
-          <div className="flex flex-col gap-1">
-            <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">Account</div>
-            {ACCOUNT_SETTINGS_SECTIONS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => onTabChange(item.value)}
-                  className={cn(
-                    'flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-start font-medium text-[13.5px] transition-colors',
-                    effectiveTab === item.value
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
-                >
-                  <Icon aria-hidden className="size-4 shrink-0" />
-                  {t(item.labelKey)}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Workspace Group (Admin and Owner only) */}
-          {isAdminOrOwner && (
+        {!hideNav && (
+          <nav className="hidden w-52 shrink-0 flex-col gap-5 sm:flex">
+            {/* Account Group */}
             <div className="flex flex-col gap-1">
-              <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">Workspace</div>
-              {WORKSPACE_SETTINGS_SECTIONS.map((item) => {
+              <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">Account</div>
+              {ACCOUNT_SETTINGS_SECTIONS.map((item) => {
                 const Icon = item.icon;
-                const isDanger = item.value === 'workspace-danger';
                 return (
                   <button
                     key={item.value}
@@ -151,22 +127,49 @@ export function WorkspaceSettingsPage({ tab, onTabChange }: WorkspaceSettingsPag
                     className={cn(
                       'flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-start font-medium text-[13.5px] transition-colors',
                       effectiveTab === item.value
-                        ? isDanger
-                          ? 'bg-destructive/10 text-destructive font-semibold'
-                          : 'bg-primary/10 text-primary font-semibold'
-                        : isDanger
-                          ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     )}
                   >
-                    <Icon aria-hidden className={cn('size-4 shrink-0', isDanger && 'text-destructive/80')} />
-                    {getSectionLabel(item)}
+                    <Icon aria-hidden className="size-4 shrink-0" />
+                    {t(item.labelKey)}
                   </button>
                 );
               })}
             </div>
-          )}
-        </nav>
+
+            {/* Workspace Group (Admin and Owner only) */}
+            {isAdminOrOwner && (
+              <div className="flex flex-col gap-1">
+                <div className="px-3 pb-1 font-semibold text-muted-foreground/70 text-xs tracking-wider uppercase">Workspace</div>
+                {WORKSPACE_SETTINGS_SECTIONS.map((item) => {
+                  const Icon = item.icon;
+                  const isDanger = item.value === 'workspace-danger';
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => onTabChange(item.value)}
+                      className={cn(
+                        'flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-start font-medium text-[13.5px] transition-colors',
+                        effectiveTab === item.value
+                          ? isDanger
+                            ? 'bg-destructive/10 text-destructive font-semibold'
+                            : 'bg-primary/10 text-primary font-semibold'
+                          : isDanger
+                            ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      <Icon aria-hidden className={cn('size-4 shrink-0', isDanger && 'text-destructive/80')} />
+                      {getSectionLabel(item)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </nav>
+        )}
 
         {/* Tab content area */}
         <div className="min-w-0 w-full flex-1">
