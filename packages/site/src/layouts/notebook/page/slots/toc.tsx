@@ -27,6 +27,7 @@ export function TOC({ toc, tocPopover, className, style, ...props }: TOCProps) {
           style={{
             top: 'var(--fd-docs-row-2, var(--site-header-h, 3.5rem))',
             height: 'calc(var(--fd-docs-height, 100dvh) - var(--fd-docs-row-2, var(--site-header-h, 3.5rem)))',
+            width: 'var(--fd-toc-width, 268px)',
             ...style,
           }}
           className={cn(

@@ -17,8 +17,13 @@ export function TOC({ toc, tocPopover, className, ...props }: TOCProps) {
       {/* Desktop Sticky TOC */}
       {toc && (
         <aside
+          id="nd-toc"
           data-theme-region="toc"
           {...props}
+          style={{
+            width: 'var(--fd-toc-width, 268px)',
+            ...props.style,
+          }}
           className={cn('sticky top-4 hidden xl:block w-[var(--fd-toc-width,268px)] shrink-0 self-start pt-4', className)}
         >
           {toc}

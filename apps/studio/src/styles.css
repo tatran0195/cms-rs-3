@@ -68,9 +68,9 @@
 
   /* Heading scroll-margin-top ensures anchor links and scroll jumping never
    * hide behind the sticky header or topbar, with plenty of breathing room. */
+  .typeset :is(h1, h2, h3, h4, h5, h6),
   .cms-site-chrome :is(h1, h2, h3, h4, h5, h6)[id],
-  .cms-site-chrome [data-theme-region="article"] :is(h1, h2, h3, h4, h5, h6),
-  .typeset :is(h1, h2, h3, h4, h5, h6) {
+  .cms-site-chrome [data-theme-region="article"] :is(h1, h2, h3, h4, h5, h6) {
     scroll-margin-top: var(--content-scroll-mt, 6rem);
   }
 }
@@ -757,11 +757,18 @@
     width: 100%;
   }
 
-  /* Robust sidebar child width without relying on invalid arbitrary bracket syntax */
+  /* Robust sidebar and TOC child width without relying on invalid arbitrary bracket syntax */
   #nd-sidebar {
     width: var(--fd-sidebar-width, 268px);
   }
   #nd-sidebar > * {
+    width: 100%;
+  }
+
+  #nd-toc {
+    width: var(--fd-toc-width, 268px);
+  }
+  #nd-toc > * {
     width: 100%;
   }
 
