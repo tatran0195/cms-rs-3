@@ -1,5 +1,3 @@
-import { cn } from '@cms/design-system/lib/utils';
-import { Palette, Rocket } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Callout, Card, CardGroup, Tab, Tabs } from '../components/mdx-components';
 import { createDemoTree, findDemoPage } from './demo-tree';
@@ -19,9 +17,7 @@ export function DemoPage({ activePath, onNavigate }: DemoPageProps): ReactNode {
     <article className="space-y-6 text-foreground">
       {/* Title & Description */}
       <div className="space-y-2 border-b border-border/60 pb-5">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-          {page?.name ?? 'Documentation'}
-        </h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{page?.name ?? 'Documentation'}</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
           {page?.description ?? 'Live documentation architecture preview with interactive component customization.'}
         </p>
@@ -51,23 +47,23 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
           Introduction
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          This is an authentic live preview of your documentation layout running Fumadocs&apos; real layout engine. Open pages in the sidebar,
-          switch layouts, or adjust theme colors to see instant updates.
+          This is an authentic live preview of your documentation layout running Fumadocs&apos; real layout engine. Open pages in the sidebar, switch
+          layouts, or adjust theme colors to see instant updates.
         </p>
       </div>
 
       {/* Interactive Quick Links Cards */}
       <CardGroup cols={2}>
-        <div onClick={() => onNavigate('quick-start')} className="cursor-pointer">
+        <button type="button" onClick={() => onNavigate('quick-start')} className="text-start w-full cursor-pointer">
           <Card title="Quick Start" icon="Rocket">
             Create your first docs site in minutes with full Markdown and MDX support.
           </Card>
-        </div>
-        <div onClick={() => onNavigate('themes')} className="cursor-pointer">
+        </button>
+        <button type="button" onClick={() => onNavigate('themes')} className="text-start w-full cursor-pointer">
           <Card title="Themes & Palettes" icon="Palette">
             Customize primary accents, canvas background, surfaces, and typography tokens.
           </Card>
-        </div>
+        </button>
       </CardGroup>
 
       {/* Installation Tabs */}
@@ -78,17 +74,26 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
         <p className="text-sm text-muted-foreground leading-relaxed">Install the framework packages with your package manager:</p>
         <Tabs>
           <Tab title="npm">
-            <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg">
+            <pre
+              data-theme-component="code"
+              className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg"
+            >
               <code>npm i @cms/site fumadocs-core</code>
             </pre>
           </Tab>
           <Tab title="pnpm">
-            <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg">
+            <pre
+              data-theme-component="code"
+              className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg"
+            >
               <code>pnpm add @cms/site fumadocs-core</code>
             </pre>
           </Tab>
           <Tab title="yarn">
-            <pre data-theme-component="code" className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg">
+            <pre
+              data-theme-component="code"
+              className="p-3.5 font-mono text-[11.5px] text-(--theme-code-foreground) bg-(--theme-code) overflow-x-auto rounded-lg"
+            >
               <code>yarn add @cms/site fumadocs-core</code>
             </pre>
           </Tab>
@@ -126,9 +131,7 @@ function DefaultDemoContent({ onNavigate }: { onNavigate: (path: string) => void
 function TabsShowcase() {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Tabs organize content into switchable panels without cluttering your page.
-      </p>
+      <p className="text-sm text-muted-foreground leading-relaxed">Tabs organize content into switchable panels without cluttering your page.</p>
       <Tabs>
         <Tab title="TypeScript">
           <pre className="p-4 rounded-lg bg-muted/40 font-mono text-xs">
@@ -152,16 +155,16 @@ function CardsShowcase({ onNavigate }: { onNavigate: (path: string) => void }) {
         Cards display links, features, and navigational hubs across your documentation site.
       </p>
       <CardGroup cols={2}>
-        <div onClick={() => onNavigate('')} className="cursor-pointer">
+        <button type="button" onClick={() => onNavigate('')} className="text-start w-full cursor-pointer">
           <Card title="Documentation Overview" icon="Book">
             Return to the main documentation overview page.
           </Card>
-        </div>
-        <div onClick={() => onNavigate('quick-start')} className="cursor-pointer">
+        </button>
+        <button type="button" onClick={() => onNavigate('quick-start')} className="text-start w-full cursor-pointer">
           <Card title="Quick Start Guide" icon="Rocket">
             Step-by-step onboarding for new developers.
           </Card>
-        </div>
+        </button>
       </CardGroup>
     </div>
   );
@@ -186,9 +189,7 @@ function ThemesShowcase() {
       <p className="text-sm text-muted-foreground leading-relaxed">
         Choose from Harbor, Manuscript, or Signal presets, or customize tokens in the Props table below.
       </p>
-      <Callout type="info">
-        Theme styles propagate immediately across all documentation components and site chrome.
-      </Callout>
+      <Callout type="info">Theme styles propagate immediately across all documentation components and site chrome.</Callout>
     </div>
   );
 }

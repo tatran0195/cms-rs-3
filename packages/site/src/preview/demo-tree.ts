@@ -43,13 +43,7 @@ export function createDemoTree(basePath = ''): DemoTreeRoot {
     return p ? `${basePath}/${p}` : basePath;
   };
 
-  const page = (
-    name: string,
-    path: string,
-    description: string,
-    icon?: string,
-    headings = DEFAULT_HEADINGS,
-  ): DemoTreePage => ({
+  const page = (name: string, path: string, description: string, icon?: string, headings = DEFAULT_HEADINGS): DemoTreePage => ({
     type: 'page',
     name,
     path: normalizePath(path),

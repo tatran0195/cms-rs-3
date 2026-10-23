@@ -2,10 +2,10 @@ import { cn } from '@cms/design-system/lib/utils';
 import type { DocsLayoutId, ResolvedTheme } from '@cms/shared/themes';
 import { Book, Code2, Folder, Layers, Palette, Rocket, Search, Server, Terminal } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
+import { useDocumentationTheme } from '../components/documentation-theme-provider';
+import { ThemeSwitcher } from '../components/theme-switcher';
 import { TableOfContents } from '../components/toc';
 import { TOCPopover } from '../components/toc-popover';
-import { ThemeSwitcher } from '../components/theme-switcher';
-import { useDocumentationTheme } from '../components/documentation-theme-provider';
 import { getDocsLayoutTemplate } from '../layouts';
 import { DemoPage } from './demo-content';
 import { createDemoTree, type DemoTreeNode, findDemoPage } from './demo-tree';
@@ -80,7 +80,11 @@ export function LiveDocsLayoutPreview({
   );
 
   const searchButtonSlot = (
-    <button type="button" className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground hover:text-foreground" aria-label="Search">
+    <button
+      type="button"
+      className="grid size-8 place-items-center rounded-lg border border-border/70 text-muted-foreground hover:text-foreground"
+      aria-label="Search"
+    >
       <Search className="size-3.5" />
     </button>
   );
@@ -89,11 +93,7 @@ export function LiveDocsLayoutPreview({
   const toolsSlot = (
     <div className="flex items-center gap-1.5">
       {theme?.layout.themeSwitchEnabled !== false && onAppearanceChange && (
-        <ThemeSwitcher
-          mode={theme?.layout.themeSwitchMode ?? 'light-dark-system'}
-          appearance={appearance ?? 'light'}
-          onChange={onAppearanceChange}
-        />
+        <ThemeSwitcher mode={theme?.layout.themeSwitchMode ?? 'light-dark-system'} appearance={appearance ?? 'light'} onChange={onAppearanceChange} />
       )}
       <a
         href="https://github.com/fuma-nama/fumadocs"
@@ -185,7 +185,7 @@ export function LiveDocsLayoutPreview({
     }
     if (node.type === 'page') {
       const isSelected = normalizedPath === node.path.replace(/^\/+|\/+$/g, '');
-      const Icon = node.icon ? ICON_MAP[node.icon] ?? Book : Book;
+      const Icon = node.icon ? (ICON_MAP[node.icon] ?? Book) : Book;
       return (
         <button
           key={key}
@@ -202,7 +202,7 @@ export function LiveDocsLayoutPreview({
       );
     }
     if (node.type === 'folder') {
-      const Icon = node.icon ? ICON_MAP[node.icon] ?? Folder : Folder;
+      const Icon = node.icon ? (ICON_MAP[node.icon] ?? Folder) : Folder;
       return (
         <div key={key} className="space-y-0.5">
           {!node.root && (

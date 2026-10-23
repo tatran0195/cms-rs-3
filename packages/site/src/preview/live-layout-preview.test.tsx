@@ -29,21 +29,18 @@ describe('LiveDocsLayoutPreview', () => {
 
   const theme = resolveTheme({} as any);
 
-  it.each(['notebook', 'glass', 'flux', 'spacious', 'docs'] as const)(
-    'renders real layout for %s without error',
-    (layoutId) => {
-      act(() => {
-        root!.render(
-          <DocumentationThemeProvider theme={theme} context="studio-preview" direction="ltr">
-            <LiveDocsLayoutPreview layoutId={layoutId} activePath="" onNavigate={vi.fn()} theme={theme} />
-          </DocumentationThemeProvider>,
-        );
-      });
+  it.each(['notebook', 'glass', 'flux', 'spacious', 'docs'] as const)('renders real layout for %s without error', (layoutId) => {
+    act(() => {
+      root!.render(
+        <DocumentationThemeProvider theme={theme} context="studio-preview" direction="ltr">
+          <LiveDocsLayoutPreview layoutId={layoutId} activePath="" onNavigate={vi.fn()} theme={theme} />
+        </DocumentationThemeProvider>,
+      );
+    });
 
-      expect(container?.textContent).toContain('Docs Preview');
-      expect(container?.textContent).toContain('Overview');
-    },
-  );
+    expect(container?.textContent).toContain('Docs Preview');
+    expect(container?.textContent).toContain('Overview');
+  });
 
   it('renders interactive tabs content when activePath is components/tabs', () => {
     act(() => {
