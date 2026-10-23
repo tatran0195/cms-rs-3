@@ -107,11 +107,13 @@ export const projectThemeCss = (config?: ProjectConfig | null): string => {
   const colorRules = config?.theme
     ? [
         `:root,.cms-site-chrome{${tokenDeclarations(light)};--radius:${radiusValue(theme.layout.radius)}}`,
-        `:root.dark,:root.dark .cms-site-chrome,.cms-site-chrome.dark{${tokenDeclarations(dark)}}`,
+        `:root.dark,:root.dark .cms-site-chrome:not(.light),.cms-site-chrome.dark{${tokenDeclarations(dark)}}`,
+        `.cms-site-chrome.light{${tokenDeclarations(light)}}`,
       ]
     : [
         `:root,.cms-site-chrome{${legacyTokenDeclarations(legacyAccent)};--primary:${legacyAccent};--ring:${legacyAccent};--radius:${radiusValue(theme.layout.radius)}}`,
-        `:root.dark,:root.dark .cms-site-chrome,.cms-site-chrome.dark{--theme-accent:${legacyDarkAccent};--theme-focus:${legacyDarkAccent};--theme-info:${legacyDarkAccent};--primary:${legacyDarkAccent};--ring:${legacyDarkAccent}}`,
+        `:root.dark,:root.dark .cms-site-chrome:not(.light),.cms-site-chrome.dark{--theme-accent:${legacyDarkAccent};--theme-focus:${legacyDarkAccent};--theme-info:${legacyDarkAccent};--primary:${legacyDarkAccent};--ring:${legacyDarkAccent}}`,
+        `.cms-site-chrome.light{${legacyTokenDeclarations(legacyAccent)};--primary:${legacyAccent};--ring:${legacyAccent}}`,
       ];
   return [
     ...colorRules,

@@ -65,10 +65,17 @@ describe('ProjectPreviewPage', () => {
       root.render(<ProjectPreviewPage projectId="proj-1" search={{}} onUpdateSearch={vi.fn()} />);
     });
 
-    // SiteNav renders navigation element with aria-label
+    // SiteNav renders navigation element with links
     const nav = container.querySelector('nav');
     expect(nav).toBeDefined();
     expect(nav).not.toBeNull();
+    const links = nav?.querySelectorAll('a');
+    expect(links && links.length > 0).toBe(true);
+
+    // Theme toggle button should be present
+    const themeBtn = container.querySelector('button[aria-label="Toggle preview theme"]');
+    expect(themeBtn).not.toBeNull();
+
     // Theme CSS style tag should be injected inside the provider
     const styleEl = container.querySelector('style');
     expect(styleEl).toBeDefined();

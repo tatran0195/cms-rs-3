@@ -1,3 +1,4 @@
+import { Button } from '@cms/design-system/components/ui/button';
 import { ScrollArea } from '@cms/design-system/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@cms/design-system/components/ui/select';
 import { Skeleton } from '@cms/design-system/components/ui/skeleton';
@@ -5,8 +6,8 @@ import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { PageNode } from '@cms/sdk';
 import { useBranches, useLanguages, usePage, usePages, useProject } from '@cms/sdk/react';
-import { buildNavTree } from '@cms/shared';
 import {
+  buildNavTree,
   DocumentationProjectPreviewLayout,
   DocumentationThemeProvider,
   Markdown,
@@ -17,7 +18,7 @@ import {
   resolveProjectTheme,
   SiteNav,
 } from '@cms/site';
-import { ChevronDown, Eye } from 'lucide-react';
+import { ChevronDown, Eye, Link2, Moon, Sun } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 
 export interface ProjectPreviewPageProps {
@@ -87,15 +88,47 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
   const { data: page, isPending: pagePending } = usePage(previewEnabled ? projectId : undefined, selected?.id);
   const contentPending = pagesPending || (Boolean(selected) && pagePending);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>(() => (project?.config?.styling?.theme === 'dark' ? 'dark' : 'light'));
   const theme = resolveProjectTheme(project?.config);
-  const previewMode = project?.config?.styling?.theme === 'dark' ? 'dark' : 'light';
   const themeCss = projectThemeCss(project?.config);
 
-  const navNodes = useMemo(() => buildNavTree((pages ?? []) as any, activeLanguage?.code), [pages, activeLanguage?.code]);
+  const navNodes = useMemo(() => {
+    if (!pages) return [];
+    const snapshotPages = pages.map((page) => ({
+      ...page,
+      languageCode: activeLanguage?.code ?? '',
+      versionId: activeBranchId ?? '',
+      content: '',
+    }));
+    return buildNavTree(snapshotPages as any, activeLanguage?.code);
+  }, [pages, activeLanguage?.code, activeBranchId]);
+
+  const navAnchors = (project?.config?.navbar?.anchors ?? []) as Array<{ label: string; href: string; icon?: string; external?: boolean }>;
+  const navAnchorsNode =
+    navAnchors.length > 0 ? (
+      <ul className="mb-4 space-y-1 border-border/60 border-b pb-3">
+        {navAnchors.map((anchor) => (
+          <li key={`${anchor.label}-${anchor.href}`}>
+            <a
+              href={anchor.href}
+              target={anchor.external ? '_blank' : undefined}
+              rel={anchor.external ? 'noopener noreferrer' : undefined}
+              className="group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 font-medium text-muted-foreground text-sm transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-card shadow-2xs transition-colors group-hover:border-primary/40 group-hover:text-primary">
+                {anchor.icon ? <PageIcon name={anchor.icon} className="size-3.5" /> : <Link2 className="size-3.5" />}
+              </span>
+              <span className="truncate">{anchor.label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : null;
 
   const handleNavClick = (e: React.MouseEvent<HTMLElement>) => {
     const anchor = (e.target as HTMLElement).closest('a');
     if (!anchor) return;
+    if (anchor.getAttribute('target') === '_blank') return;
     const href = anchor.getAttribute('href');
     if (!href) return;
     e.preventDefault();
@@ -159,13 +192,13 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
 
   return (
     <DocumentationThemeProvider
-      appearance={previewMode}
+      appearance={previewTheme}
       className="flex h-full w-full min-h-0 flex-col overflow-hidden"
       context="project-preview"
       direction={contentDir}
       css={themeCss}
       style={{
-        ...projectThemeVariables(project?.config, previewMode),
+        ...projectThemeVariables(project?.config, previewTheme),
         ...projectThemeStyle(project?.config),
       }}
       theme={theme}
@@ -198,6 +231,7 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
                 }}
               >
                 <div className="mb-3 grid gap-2">{scopeSelects}</div>
+                {navAnchorsNode}
                 {pagesPending ? (
                   <div className="space-y-2 p-2">
                     <Skeleton className="h-8 w-full" />
@@ -223,12 +257,23 @@ export function ProjectPreviewPage({ projectId, search, onUpdateSearch }: Projec
                 <span className="flex items-center gap-1.5">
                   <Eye className="size-3.5" /> {t('preview.title')}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 text-muted-foreground hover:text-foreground"
+                  onClick={() => setPreviewTheme((curr) => (curr === 'dark' ? 'light' : 'dark'))}
+                  title={previewTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  aria-label="Toggle preview theme"
+                >
+                  {previewTheme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+                </Button>
               </div>
               <div className="grid gap-1.5">{scopeSelects}</div>
             </div>
 
             <ScrollArea className="min-h-0 flex-1">
               <div className="p-3" onClickCapture={handleNavClick} data-theme-region="sidebar-content">
+                {navAnchorsNode}
                 {pagesPending ? (
                   <div className="space-y-2 p-2">
                     <Skeleton className="h-8 w-full" />

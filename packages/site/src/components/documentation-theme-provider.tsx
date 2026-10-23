@@ -314,7 +314,7 @@ export function DocumentationThemeProvider({
     <DocumentationThemeContext.Provider value={theme}>
       <DocumentationTemplateContext.Provider value={template}>
         <div
-          className={cn('cms-site-chrome', className, appearance === 'dark' && 'dark', isPreview && '[transform:translateZ(0)]')}
+          className={cn('cms-site-chrome', className, appearance === 'dark' ? 'dark' : 'light', isPreview && '[transform:translateZ(0)]')}
           data-documentation-layout={docsLayout}
           data-documentation-template={template.id}
           data-theme-callouts={theme.components.callouts}

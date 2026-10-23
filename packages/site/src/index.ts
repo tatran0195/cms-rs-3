@@ -28,6 +28,7 @@ export { hasIcon, PageIcon } from './components/page-icon';
 export { SidebarToggle } from './components/sidebar-toggle';
 export { SiteBanner } from './components/site-banner';
 export { firstLeafPath, isVersionIndependentNavNode, SiteNav } from './components/site-nav';
+export { buildNavTree } from '@cms/shared/site';
 export { SiteNavTabs, type SiteNavTabsProps } from './components/site-nav-tabs';
 export { type PageFooterItem, SitePageFooter, type SitePageFooterProps } from './components/site-page-footer';
 export { SitePageView } from './components/site-page-view';
