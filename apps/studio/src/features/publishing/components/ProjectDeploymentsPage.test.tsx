@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import type { Deployment } from '@cms/sdk';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,20 +11,24 @@ const mocks = vi.hoisted(() => ({
     {
       id: 'd2',
       version: 2,
-      status: 'READY',
+      status: 'READY' as const,
+      pagesCount: 5,
       commitMessage: 'Second release',
+      error: null,
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     },
     {
       id: 'd1',
       version: 1,
-      status: 'READY',
+      status: 'READY' as const,
+      pagesCount: 5,
       commitMessage: 'Initial release',
+      error: null,
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     },
-  ],
+  ] as Deployment[],
   pendingChanges: {
     changes: [
       { id: 'c1', path: 'intro', status: 'modified' },
@@ -172,16 +177,20 @@ describe('ProjectDeploymentsPage', () => {
       {
         id: 'd3',
         version: 3,
-        status: 'BUILDING',
+        status: 'BUILDING' as const,
+        pagesCount: 5,
         commitMessage: 'Ongoing deploy',
+        error: null,
         createdAt: new Date().toISOString(),
         completedAt: null,
       },
       {
         id: 'd2',
         version: 2,
-        status: 'READY',
+        status: 'READY' as const,
+        pagesCount: 5,
         commitMessage: 'Second release',
+        error: null,
         createdAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
       },

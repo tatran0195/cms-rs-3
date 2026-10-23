@@ -7,21 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@cms/design-system/lib/utils';
 import { useT } from '@cms/i18n/react';
 import type { Deployment, DeploymentStatus } from '@cms/sdk';
-import {
-  queryKeys,
-  useDeployments,
-  useDomains,
-  usePages,
-  usePendingChanges,
-  useProject,
-  usePublishAnyway,
-  useRollback,
-} from '@cms/sdk/react';
+import { queryKeys, useDeployments, useDomains, usePendingChanges, useProject, usePublishAnyway, useRollback } from '@cms/sdk/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import {
   Check,
-  CheckCircle2,
   Clock,
   Copy,
   ExternalLink,
@@ -100,7 +89,6 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
   const [publishOpen, setPublishOpen] = useState(false);
 
   const { data: project } = useProject(projectId);
-  const { data: pages } = usePages(projectId);
   const { data: domains } = useDomains(projectId);
   const { data: pending, isPending: pendingLoading } = usePendingChanges(projectId);
 
@@ -161,12 +149,7 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
     const list = deployments ?? [];
     if (!filterQuery.trim()) return list;
     const q = filterQuery.toLowerCase();
-    return list.filter(
-      (d) =>
-        d.version.toString().includes(q) ||
-        (d.commitMessage && d.commitMessage.toLowerCase().includes(q)) ||
-        d.status.toLowerCase().includes(q),
-    );
+    return list.filter((d) => d.version.toString().includes(q) || d.commitMessage?.toLowerCase().includes(q) || d.status.toLowerCase().includes(q));
   }, [deployments, filterQuery]);
 
   const issues = useMemo(() => (latestDeployment ? publishIssuesOf(latestDeployment) : []), [latestDeployment]);
@@ -207,12 +190,7 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
             <ExternalLink className="size-3.5" /> View Live Site
           </Button>
 
-          <Button
-            size="sm"
-            disabled={isBuilding}
-            onClick={() => setPublishOpen(true)}
-            className="h-8 gap-1.5 text-xs font-medium shadow-xs"
-          >
+          <Button size="sm" disabled={isBuilding} onClick={() => setPublishOpen(true)} className="h-8 gap-1.5 text-xs font-medium shadow-xs">
             <Rocket className="size-3.5" />
             <span>Publish New Version</span>
             {changesCount > 0 ? (
@@ -236,7 +214,9 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
               {currentLive ? (
                 <span className="font-mono text-xs text-muted-foreground">v{currentLive.version}</span>
               ) : (
-                <Badge variant="outline" className="text-[10px]">No Release</Badge>
+                <Badge variant="outline" className="text-[10px]">
+                  No Release
+                </Badge>
               )}
             </div>
           </CardHeader>
@@ -251,9 +231,7 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Last Published:</span>
-              <span className="font-medium text-foreground">
-                {currentLive ? date(currentLive.completedAt ?? currentLive.createdAt) : 'Never'}
-              </span>
+              <span className="font-medium text-foreground">{currentLive ? date(currentLive.completedAt ?? currentLive.createdAt) : 'Never'}</span>
             </div>
           </CardContent>
         </Card>
@@ -315,23 +293,17 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
               <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <Clock className="size-3.5 text-sky-500" /> Deployment Telemetry
               </span>
-              <span className="font-mono text-xs text-muted-foreground">
-                {number((deployments ?? []).length)} total
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{number((deployments ?? []).length)} total</span>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Successful Releases:</span>
-              <span className="font-mono font-medium text-foreground">
-                {(deployments ?? []).filter((d) => d.status === 'READY').length}
-              </span>
+              <span className="font-mono font-medium text-foreground">{(deployments ?? []).filter((d) => d.status === 'READY').length}</span>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/60">
               <span>Failed Builds:</span>
-              <span className="font-mono font-medium text-foreground">
-                {(deployments ?? []).filter((d) => d.status === 'FAILED').length}
-              </span>
+              <span className="font-mono font-medium text-foreground">{(deployments ?? []).filter((d) => d.status === 'FAILED').length}</span>
             </div>
           </CardContent>
         </Card>
@@ -344,17 +316,13 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Loader2 className="size-4 animate-spin text-amber-600 dark:text-amber-400" />
-                <CardTitle className="text-sm font-semibold">
-                  Deployment in Progress — Version {latestDeployment.version}
-                </CardTitle>
+                <CardTitle className="text-sm font-semibold">Deployment in Progress — Version {latestDeployment.version}</CardTitle>
               </div>
               <span className="font-mono text-xs text-muted-foreground" dir="ltr">
                 {siteHref(projectId)}
               </span>
             </div>
-            <CardDescription className="text-xs">
-              Live build pipeline is actively compiling and indexing site assets.
-            </CardDescription>
+            <CardDescription className="text-xs">Live build pipeline is actively compiling and indexing site assets.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
@@ -395,9 +363,7 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
               <TriangleAlert className="size-4" />
             </span>
             <div className="min-w-0 flex-1 leading-snug">
-              <div className="font-semibold text-sm">
-                Deployment Failed for Version {latestDeployment.version}
-              </div>
+              <div className="font-semibold text-sm">Deployment Failed for Version {latestDeployment.version}</div>
               <p className="mt-0.5 text-muted-foreground text-sm">
                 {grammarOnly
                   ? 'Build halted due to content grammar check exceptions.'
@@ -447,9 +413,7 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
         <div className="flex flex-wrap items-center justify-between gap-3 border-border border-b px-5 py-4">
           <div>
             <h2 className="font-semibold text-sm">Version History & Deployment Log</h2>
-            <p className="text-xs text-muted-foreground">
-              Complete historical record of all site publications with instant rollback capabilities.
-            </p>
+            <p className="text-xs text-muted-foreground">Complete historical record of all site publications with instant rollback capabilities.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-64">
@@ -487,17 +451,11 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
               {filteredDeployments.map((deployment) => {
                 const isCurrent = currentLive?.id === deployment.id;
                 const canRollback =
-                  deployment.status === 'READY' &&
-                  !isCurrent &&
-                  currentLive &&
-                  deployment.version < currentLive.version &&
-                  !isBuilding;
+                  deployment.status === 'READY' && !isCurrent && currentLive && deployment.version < currentLive.version && !isBuilding;
 
                 return (
                   <TableRow key={deployment.id} className="hover:bg-muted/40">
-                    <TableCell className="py-3 font-mono text-xs font-semibold">
-                      v{deployment.version}
-                    </TableCell>
+                    <TableCell className="py-3 font-mono text-xs font-semibold">v{deployment.version}</TableCell>
                     <TableCell className="py-3">
                       <div className="flex items-center gap-1.5">
                         <Badge variant={deploymentStatusVariant(deployment.status)} className="text-[11px]">
@@ -511,18 +469,10 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
                       </div>
                     </TableCell>
                     <TableCell className="py-3 text-xs">
-                      <span className="truncate block max-w-md text-foreground">
-                        {deployment.commitMessage || 'Manual publication'}
-                      </span>
-                      {deployment.error ? (
-                        <span className="text-destructive text-[11px] block truncate mt-0.5">
-                          {deployment.error}
-                        </span>
-                      ) : null}
+                      <span className="truncate block max-w-md text-foreground">{deployment.commitMessage || 'Manual publication'}</span>
+                      {deployment.error ? <span className="text-destructive text-[11px] block truncate mt-0.5">{deployment.error}</span> : null}
                     </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      {date(deployment.completedAt ?? deployment.createdAt)}
-                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground">{date(deployment.completedAt ?? deployment.createdAt)}</TableCell>
                     <TableCell className="py-3 text-end">
                       <div className="flex items-center justify-end gap-1.5">
                         {canRollback ? (
@@ -541,12 +491,7 @@ export function ProjectDeploymentsPage({ projectId }: ProjectDeploymentsPageProp
                           <Button
                             nativeButton={false}
                             render={
-                              <a
-                                href={siteUrl(liveDomain, projectId)}
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label="View site at this version"
-                              />
+                              <a href={siteUrl(liveDomain, projectId)} target="_blank" rel="noreferrer" aria-label="View site at this version" />
                             }
                             variant="ghost"
                             size="icon-xs"

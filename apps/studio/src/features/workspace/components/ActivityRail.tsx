@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@cms/design-system/components/ui/avatar';
-import { Button } from '@cms/design-system/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +29,7 @@ export interface ActivityRailProps {
   onOpenDeploy?: () => void;
 }
 
-export function ActivityRail({ projectId, onOpenDeploy }: ActivityRailProps) {
+export function ActivityRail({ projectId, onOpenDeploy: _onOpenDeploy }: ActivityRailProps) {
   const { locale, t } = useLocale();
   const rawPath = useRouterState({ select: (s) => s.location.pathname });
   const pathname = typeof rawPath === 'string' ? rawPath : '';
@@ -141,9 +140,7 @@ export function ActivityRail({ projectId, onOpenDeploy }: ActivityRailProps) {
                       )}
                     >
                       <Rocket className="size-4" />
-                      {isBuilding && (
-                        <span className="absolute top-1.5 end-1.5 size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      )}
+                      {isBuilding && <span className="absolute top-1.5 end-1.5 size-1.5 rounded-full bg-amber-500 animate-pulse" />}
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent side="right">{t('project.publish')}</TooltipContent>

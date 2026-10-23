@@ -43,6 +43,7 @@ vi.mock('@cms/sdk/react', () => ({
   useWorkspaceSettings: () => ({ data: { name: 'Acme Workspace' } }),
   useMembers: () => ({ data: { members: [] } }),
   useCreateProject: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeployments: () => ({ data: [] }),
 }));
 
 vi.mock('@cms/design-system/theme', () => ({
